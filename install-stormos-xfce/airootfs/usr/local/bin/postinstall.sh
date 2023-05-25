@@ -22,10 +22,9 @@ rm /root/{.automated_script.sh,.zlogin}
 rm /etc/mkinitcpio-archiso.conf
 rm -r /etc/initcpio
 
-#remove calamares and abif residue
+#remove calamares residue
 rm -rf /usr/share/calamares
 rm -rf $HOME/.config/autostart/calamares.desktop
-rm -rf /usr/share/applications/abif.desktop
 
 echo "FONT=ter-p16n" >> /etc/vconsole.conf
 
