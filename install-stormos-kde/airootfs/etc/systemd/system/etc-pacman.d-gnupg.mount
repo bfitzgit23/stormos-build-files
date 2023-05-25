@@ -1,2 +1,11 @@
-Ç—õıŠí™
-â‚óu}b˜„ØPbÏßëÃT}Â¾jN5ÁgR’¾Ô»²ÄŞ«>Ve¼m½¥Ä¹(CP)r}š½‘n-£Ú"d¬( .Mª—-ÙW„¢„O¡l¾yšñÏ Ö¡dbkÎ©æ€+@J¾üÖUÂ"ºú—µeúÓ€ÍöÙow4‘ˆ´ŒŞ·mœ3« uTxÖ¨uµá³Ù¦(›/ğ!-E(ùW±¤Û
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[Unit]
+Description=Temporary /etc/pacman.d/gnupg directory
+
+[Mount]
+What=tmpfs
+Where=/etc/pacman.d/gnupg
+Type=tmpfs
+Options=mode=0755

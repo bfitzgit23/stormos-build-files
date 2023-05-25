@@ -1,5 +1,13 @@
-$jLÔ˜8¦áQÃõá…ÙaV_¸|ƒ&üµûÀÐÍ²Ý¦k+£4Â0w {ÃF†4dad(’eídøk7Y¢QjYLk
-d‡NêÐø#
-Q”M×^:DCˆ>\mº²¿^q¨
-¹[ÖèC¹¤CŸ“º¦£©Oõ9©ý‚jˆjéò¡Z|½–EÑµ´Cu-¢õVTËÐØÕ¢­/]•<}¡è(
-DÑS_omQ1ì¡i—¯çC…©PË\[¨Oö†`?-¦i5j)‡½4èCÛ	PèCÑQµ«EQ'•	Sš¶Ä!úSSSSS*ìšœšœš
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[Unit]
+Description=Choose mirror from the kernel command line
+ConditionKernelCommandLine=mirror
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/choose-mirror
+
+[Install]
+WantedBy=multi-user.target

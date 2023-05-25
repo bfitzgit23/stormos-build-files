@@ -1,2 +1,7 @@
-İLJåQ´l7–rÊj‹Æ§ÖÉÔ«’;}l|ş/Ûª_æK¢j¯×‹ymûÂdÛÂ›LQ·E[eÏÔwn`|–<`[²0ê²ñï6èªæãLQv[¡Ğéä‘q\{)ê²°û‹Õ<S8Ş%«lŠºgŠÇ¢®j$wÊªqŠEíË-«¨+)X§šÊºjÉøq›
-}$\î»’B÷·£Ò9ÉÒiaáH'T:,ÜÓ¸Üñ0eX¿­¡É”b[C×dÙ´u·p“ïjú`ÖdS—·ûp÷˜Ôº¢Ú"sQW:«ÒôıLßÏôıLß‡(.j&¦§^ù¹ãáşpÿÉ©‰i
+#!/usr/bin/env bash
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+#printf '\n[%s] WARNING: %s\n\n' "mkarchiso" "build.sh scripts are deprecated! Please use mkarchiso directly." >&2
+_buildsh_path="$(realpath -- "$0")"
+exec mkarchiso "$@" "${_buildsh_path%/*}"

@@ -1,30 +1,101 @@
-#!/usr/bin/env bash
-# shellcheck disable=SC2034
 
-iso_name="StormOS_KDE"
-iso_label="StormOS_KDE_$(date +%Y%m)"
-iso_publisher="StormOS <https://www.storm-os.godaddysites.com>"
-iso_application="StormOS install medium"
-iso_version="$(date +%Y.%m.%d)"
-install_dir="arch"
-bootmodes=('bios.syslinux.mbr' 'bios.syslinux.eltorito' 'uefi-x64.systemd-boot.esp' 'uefi-x64.systemd-boot.eltorito')
-arch="x86_64"
-pacman_conf="pacman.conf"
-airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '15' '-b' '1M' )
-file_permissions=(
-  ["/root"]="0:0:750"
-  ["/root/.automated_script.sh"]="0:0:755"
-  ["/usr/local/bin/choose-mirror"]="0:0:755"
-  ["/usr/local/bin/Installation_guide"]="0:0:755"
-  ["/usr/local/bin/livecd-sound"]="0:0:755"
-  ["/usr/local/bin/postinstall.sh"]="0:0:755"
-  ["/usr/local/bin/readme"]="0:0:755"
-  ["/usr/bin/menuxstorm"]="0:0:777"
-  ["/usr/bin/wgetm"]="0:0:777"
-  ["/usr/bin/playmovie"]="0:0:777"
-  ["/usr/bin/axelc8"]="0:0:777"
-)
-s-regdb
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+alsa-utils
+amd-ucode
+arch-install-scripts
+b43-fwcutter
+base
+bison
+bind-tools
+brltty
+broadcom-wl-dkms
+btrfs-progs
+crda
+darkhttpd
+ddrescue
+dhclient
+dhcpcd
+diffutils
+dmraid
+dnsmasq
+dosfstools
+dialog
+edk2-shell
+espeakup
+ethtool
+exfatprogs
+efivar
+efibootmgr
+f2fs-tools
+fatresize
+fsarchiver
+gnu-netcat
+gpart
+gpm
+gptfdisk
+grml-zsh-config
+grub
+haveged
+hdparm
+intel-ucode
+iwd
+jfsutils
+kitty-terminfo
+linux
+linux-headers
+linux-atm
+linux-firmware
+livecd-sounds
+lsscsi
+lvm2
+lynx
+man-db
+man-pages
+mc
+mdadm
+memtest86+
+mkinitcpio
+mkinitcpio-archiso
+mkinitcpio-nfs-utils
+mtools
+nano
+nbd
+ndisc6
+nfs-utils
+nilfs-utils
+nmap
+nvme-cli
+openconnect
+openssh
+openvpn
+os-prober
+partclone
+parted
+partimage
+ppp
+pptpclient
+reflector
+reiserfsprogs
+rp-pppoe
+rsync
+rxvt-unicode-terminfo
+sdparm
+sg3_utils
+smartmontools
+squashfs-tools
+sudo
+syslinux
+systemd-resolvconf
+tcpdump
+testdisk
+tmux
+udftools
+usb_modeswitch
+usbutils
+vpnc
+vim
+wireless-regdb
 wireless_tools
 wpa_supplicant
 wvdial
@@ -187,7 +258,6 @@ abiword
 autoconf
 automake
 dialog
-elementary-planner
 engrampa
 ffmpeg
 firefox
@@ -219,12 +289,10 @@ reflector
 scrot
 samba
 simple-scan
-simplescreenrecorder
 spice
 spice-gtk
 spice-protocol
 spice-vdagent
-tracker
 upower
 wget
 vlc
@@ -379,25 +447,23 @@ libgnome-keyring
 gtk-doc
 libgtop
 
-ant-dracula-kvantum-theme-git
 cfs-zen-tweaks
 colloid-gtk-theme-git
 dxvk-bin
 gconf
 kvantum-theme-nordic-git
+kwin-effects-cube
 mintstick-git
 mkinitcpio-openswap
 myuzi
 qt5-styleplugins
-pamac-aur
-picom-jonaburg-git
+pamac-all
 preload
 surfn-icons-git
 stormos-grub-theme
 stormos-conf-kde
-stormos-installer
 ttf-ms-fonts
-xboxdrv-git
+xboxdrv
 yay
 
 
@@ -406,6 +472,5 @@ yay
 python-urllib3
 ckbcomp
 kpmcore
-stormos-etc-skel-config
 stormos-calamares-kde-config
 stormos-calamares

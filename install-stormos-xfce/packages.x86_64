@@ -24,6 +24,8 @@ edk2-shell
 espeakup
 ethtool
 exfatprogs
+efivar
+efibootmgr
 f2fs-tools
 fatresize
 fsarchiver
@@ -32,6 +34,7 @@ gpart
 gpm
 gptfdisk
 grml-zsh-config
+grub
 haveged
 hdparm
 intel-ucode
@@ -259,7 +262,6 @@ abiword
 autoconf
 automake
 dialog
-elementary-planner
 engrampa
 ffmpeg
 firefox
@@ -271,11 +273,8 @@ git
 gnome-keyring
 gnome-disk-utility
 gamemode
-grub
 gimp
 gnumeric
-efibootmgr
-efivar
 htop
 imagemagick
 lib32-gamemode
@@ -294,12 +293,10 @@ reflector
 scrot
 samba
 simple-scan
-simplescreenrecorder
 spice
 spice-gtk
 spice-protocol
 spice-vdagent
-tracker
 thunderbird
 upower
 wget
@@ -403,6 +400,7 @@ xfce4-cpugraph-plugin
 xfce4-datetime-plugin
 xfce4-dict
 xfce4-diskperf-plugin
+xfce4-docklike-plugin
 xfce4-fsguard-plugin
 xfce4-genmon-plugin
 xfce4-mailwatch-plugin
@@ -426,6 +424,12 @@ xfce4-weather-plugin
 xfce4-whiskermenu-plugin
 xfce4-xkb-plugin
 
+#kwin
+kwin
+systemsettings
+breeze-gtk
+kde-gtk-config
+
 # ###########################
 # AUR APPS - DO NOT REORDER #
 # ###########################
@@ -433,33 +437,29 @@ xfce4-xkb-plugin
 libgnome-keyring
 gtk-doc
 libgtop
-gksu
-libgksu
 
-ant-dracula-kvantum-theme-git
 cfs-zen-tweaks
 colloid-gtk-theme-git
 dxvk-bin
 gconf
 kvantum-theme-nordic-git
+kwin-effects-cube
 mintstick-git
 mkinitcpio-openswap
 myuzi
 qt5-styleplugins
-pamac-aur
-picom-jonaburg-git
+pamac-all
 preload
 surfn-icons-git
 stormos-grub-theme
 stormos-conf
-#stormos-installer
 stormos-mhwd
 stormos-mhwd-db
 ttf-ms-fonts
-xboxdrv-git
+xboxdrv
 xfce4-panel-profiles
 yay
-
+zensu
 
 
 ## Calamares Installer

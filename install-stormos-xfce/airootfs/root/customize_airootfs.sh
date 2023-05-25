@@ -23,8 +23,8 @@ if ! grep -q "liveuser" /etc/sudoers;  then
 fi
 
 #enable autologin
-#groupadd -r autologin
-#gpasswd -a liveuser autologin
+groupadd -r autologin
+gpasswd -a liveuser autologin
 
 groupadd -r nopasswdlogin
 gpasswd -a liveuser nopasswdlogin
@@ -106,6 +106,3 @@ cp -af /usr/share/applications/axelc8.desktop	  /home/liveuser/Desktop/axelc8.de
 chown liveuser:liveuser /home/liveuser/Desktop/*.desktop
 chmod +x /home/liveuser/Desktop/*.desktop
 chown liveuser /home/liveuser/Desktop/*.desktop
-
-##neofetch
-cp /usr/local/bin/neofetch /usr/bin/neofetch

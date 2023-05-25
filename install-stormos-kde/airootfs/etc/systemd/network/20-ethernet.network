@@ -1,1 +1,13 @@
-4§ãÕ×HÐé¸CÛ ’wcThêÄFÚ†gîI]C­½~SˆyW8”Ëì-éÑ Q!ÕLOÊ•Ÿl€Nk/èWAÕBbCU© –ø‚6”ûÐ°dŠsYQw×âÃ<uVÓ+?XFÇô9TÊo£ƒû¨z¦}*xdß†W…û™¢Ö†ô'	1ï‡{® Eµú
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[Match]
+Name=en*
+Name=eth*
+
+[Network]
+DHCP=yes
+IPv6PrivacyExtensions=yes
+
+[DHCP]
+RouteMetric=512
