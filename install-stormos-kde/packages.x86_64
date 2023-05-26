@@ -473,4 +473,5 @@ python-urllib3
 ckbcomp
 kpmcore
 stormos-calamares-kde-config
-stormos-calamares
+#stormos-calamares
+calamares
