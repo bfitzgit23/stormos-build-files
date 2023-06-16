@@ -8,3 +8,17 @@ IF you don't know ANYTHING about Linux (GNU/LINUX) whatsoever, DO NOT download o
 
 bfitzgit23 (Ben - StormOS Main Dev).
 senalbulumulle (Senal - Founder Smith-Pad, FOIL, Onodec, and Electric E)
+
+
+
+## List of folders 
+
+
+- install-stormos-kde
+- install-stormos-xfce
+
+
+
+> Recommendations: Ben recommends to use the XFCE version of stormOS since soon the KDE version will be deprecrated. 
+
+
