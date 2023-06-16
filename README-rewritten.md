@@ -26,12 +26,6 @@ You're free to do that but I will NOT provide support for that whatsoever.
 ## List of folders 
 
 
-- install-stormos-kde
 - install-stormos-xfce
-
-
-
-> Recommendations: Ben recommends to use the XFCE version of stormOS since soon the KDE version will be deprecrated. 
->> The folder will be renamed deprecrated
 
 
