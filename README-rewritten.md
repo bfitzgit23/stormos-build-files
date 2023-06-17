@@ -31,3 +31,10 @@ You're free to do that but I will NOT provide support for that whatsoever.
 - install-stormos-xfce
 
 
+
+
+## Want to make your parallel downloads faster? 
+
+By default, in stormOS, stormOS configuration files which is in `install-stormos-xfce`
+folder, in the pacman.conf file, the parallel download has been set to `ParallelDownloads = 20000000`
+You heard that right, `2000000`. That is lighting fassst
