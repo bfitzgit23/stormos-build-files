@@ -8,6 +8,8 @@ IF you don't know ANYTHING about Linux (GNU/LINUX) whatsoever, DO NOT download o
 clone this repository NOR fork it for your own use as I will NOT help you! NOR will I 
 help you if you happen to download, clone, or fork it and break something! that's on you. 
 
+THIS BRANCH IS USED FOR DEVELOPMENT BEFORE IT IS MERGED INTO THE MAIN BRANCHES
+
 
 You're free to do that but I will NOT provide support for that whatsoever.
 
