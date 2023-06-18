@@ -46,3 +46,7 @@ You heard that right, `2000000`. That is lighting fassst
 1. Go to the install-stormos-xfce folder
 2. Then type, `sudo ./stormbuild`
 3. Go outside or do something else.... oh wait... it's FASTT
+4. The next thing I highly recommend you to do is to run `sudo sh clean.sh`
+
+
+
