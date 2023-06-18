@@ -3,4 +3,5 @@
 sudo pacman -S archiso --noconfirm
 sudo pacman -S qemu-full --noconfirm
 sudo pacman -S libvirt --noconfirm
-sudo systemctl enable libvirt
+sudo systemctl enable libvirtd
+sudo systemctl start libvirtd
