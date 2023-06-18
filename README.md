@@ -38,3 +38,11 @@ You're free to do that but I will NOT provide support for that whatsoever.
 By default, in stormOS, stormOS configuration files which is in `install-stormos-xfce`
 folder, in the pacman.conf file, the parallel download has been set to `ParallelDownloads = 20000000`
 You heard that right, `2000000`. That is lighting fassst
+
+
+
+## Instructions to compile stormOS
+
+1. Go to the install-stormos-xfce folder
+2. Then type, `sudo ./stormbuild`
+3. Go outside or do something else.... oh wait... it's FASTT
