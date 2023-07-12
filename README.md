@@ -31,6 +31,10 @@ You're free to do that but I will NOT provide support for that whatsoever.
 - install-stormos-xfce
 
 
+## Requirements
+For building stormOS, we recommend you using Garuda Linux, since it has all 
+the tools right out of the box. 
+
 
 
 ## Want to make your parallel downloads faster? 
