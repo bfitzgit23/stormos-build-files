@@ -425,10 +425,10 @@ xfce4-whiskermenu-plugin
 xfce4-xkb-plugin
 
 #kwin
-kwin
-systemsettings
-breeze-gtk
-kde-gtk-config
+#kwin
+#systemsettings
+#breeze-gtk
+#kde-gtk-config
 
 # ###########################
 # AUR APPS - DO NOT REORDER #
@@ -443,7 +443,7 @@ colloid-gtk-theme-git
 dxvk-bin
 gconf
 kvantum-theme-nordic-git
-kwin-effects-cube
+#kwin-effects-cube
 mintstick-git
 mkinitcpio-openswap
 myuzi
