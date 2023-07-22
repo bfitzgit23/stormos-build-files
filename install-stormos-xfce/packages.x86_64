@@ -183,7 +183,7 @@ whois
 
 ## Lightdm Login Manager
 lightdm
-lightdm-slick-greeter
+lightdm-gtk-greeter
 light-locker
 
 ## Common #############################
