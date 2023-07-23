@@ -146,8 +146,6 @@ xf86-video-openchrome
 xf86-video-vesa
 xf86-video-dummy
 xf86-video-vmware
-virtualgl
-lib32-virtualgl
 mesa
 mesa-libgl
 mesa-vdpau
@@ -157,8 +155,8 @@ open-vm-tools
 # Radeon
 vulkan-radeon
 lib32-vulkan-radeon
-opencl-mesa
-opencl-headers
+#opencl-mesa
+#opencl-headers
 vkd3d
 #lib32-vkd3d
 
@@ -424,11 +422,13 @@ xfce4-weather-plugin
 xfce4-whiskermenu-plugin
 xfce4-xkb-plugin
 
-#kwin
-#kwin
-#systemsettings
-#breeze-gtk
-#kde-gtk-config
+## compiz
+compiz
+fusion-icon
+emerald
+emerald-themes
+mesa-utils
+mesa-demos
 
 # ###########################
 # AUR APPS - DO NOT REORDER #
