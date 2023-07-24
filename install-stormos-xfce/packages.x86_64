@@ -149,14 +149,15 @@ xf86-video-vmware
 mesa
 mesa-libgl
 mesa-vdpau
+lib32-opencl-clover-mesa
+opencl-clover-mesa
+opencl-rusticl-mesa
 lib32-mesa-libgl
 open-vm-tools
 
 # Radeon
 vulkan-radeon
 lib32-vulkan-radeon
-#opencl-mesa
-#opencl-headers
 vkd3d
 #lib32-vkd3d
 
