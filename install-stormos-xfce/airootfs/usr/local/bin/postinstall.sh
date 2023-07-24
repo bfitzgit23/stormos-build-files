@@ -25,8 +25,6 @@ rm -r /etc/initcpio
 #remove calamares residue
 rm -rf /usr/share/calamares
 rm -rf $HOME/.config/autostart/calamares.desktop
-rm -rf $HOME/Desktop/calamares.desktop
-rm -rf /etc/skel/Desktop/calamares.desktop
 
 echo "FONT=ter-p16n" >> /etc/vconsole.conf
 
