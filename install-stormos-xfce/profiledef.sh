@@ -22,4 +22,6 @@ file_permissions=(
   ["/usr/bin/wgetm"]="0:0:777"
   ["/usr/bin/playmovie"]="0:0:777"
   ["/usr/bin/axelc8"]="0:0:777"
+  ["/etc/gshadow"]="0:0:400"
+  ["/etc/shadow"]="0:0:400"
 )

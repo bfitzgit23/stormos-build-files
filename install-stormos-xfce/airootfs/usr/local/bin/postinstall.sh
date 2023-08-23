@@ -22,11 +22,10 @@ rm /root/{.automated_script.sh,.zlogin}
 rm /etc/mkinitcpio-archiso.conf
 rm -r /etc/initcpio
 
-#remove calamares residue
-rm -rf /usr/share/calamares
-rm -rf $HOME/.config/autostart/calamares.desktop
-
 echo "FONT=ter-p16n" >> /etc/vconsole.conf
+
+pacman-key --init
+pacman-key --populate archlinux
 
 # Continue cleanup
 rm /usr/local/bin/postinstall.sh
