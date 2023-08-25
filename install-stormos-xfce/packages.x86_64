@@ -180,10 +180,8 @@ whois
 #wpa_actiond
 #wpa_supplicant
 
-## Lightdm Login Manager
-lightdm
-lightdm-gtk-greeter
-light-locker
+## LXDM Login Manager
+lxdm
 
 ## Common #############################
 bash-completion
