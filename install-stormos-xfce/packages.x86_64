@@ -443,6 +443,7 @@ colloid-gtk-theme-git
 dxvk-bin
 gconf
 gksu
+libgksu
 kvantum-theme-nordic-git
 #kwin-effects-cube
 mintstick-git
