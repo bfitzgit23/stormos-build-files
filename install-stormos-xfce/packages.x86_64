@@ -13,8 +13,8 @@ btrfs-progs
 crda
 darkhttpd
 ddrescue
-dhclient
-dhcpcd
+#dhclient
+#dhcpcd
 diffutils
 dmraid
 dnsmasq
