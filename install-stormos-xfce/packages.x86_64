@@ -34,7 +34,8 @@ gpart
 gpm
 gptfdisk
 grml-zsh-config
-grub
+grub-git
+#grub
 haveged
 hdparm
 intel-ucode
@@ -441,10 +442,12 @@ cfs-zen-tweaks
 colloid-gtk-theme-git
 dxvk-bin
 gconf
+gksu
 kvantum-theme-nordic-git
 #kwin-effects-cube
 mintstick-git
 mkinitcpio-openswap
+mission-center
 qt5-styleplugins
 pamac-all
 preload
@@ -457,8 +460,7 @@ ttf-ms-fonts
 xboxdrv
 xfce4-panel-profiles
 yay
-zensu
-
+#zensu
 
 ## Calamares Installer
 python-urllib3
