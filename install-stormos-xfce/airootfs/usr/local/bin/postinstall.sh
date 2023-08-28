@@ -26,7 +26,8 @@ echo "FONT=ter-p16n" >> /etc/vconsole.conf
 
 rm -rf /usr/share/calamares
 rm -rf $HOME/Desktop/calamares.desktop
-r m-rf $HOME/.config/autostart/calamares.desktop
+rm -rf $HOME/.config/autostart/calamares.desktop
+rm -rf $HOME/.config/autostart/NetworkManager.desktop
 
 pacman-key --init
 pacman-key --populate archlinux
