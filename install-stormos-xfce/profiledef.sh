@@ -24,4 +24,5 @@ file_permissions=(
   ["/usr/bin/axelc8"]="0:0:777"
   ["/etc/gshadow"]="0:0:400"
   ["/etc/shadow"]="0:0:400"
+  ["/usr/local/share/wm-switch.sh"]="0:0:755"
 )
