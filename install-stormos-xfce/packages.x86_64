@@ -422,20 +422,10 @@ xfce4-weather-plugin
 xfce4-whiskermenu-plugin
 xfce4-xkb-plugin
 
-## compiz
-compiz-core-git
-compiz-bcop-git
-compizconfig-python-git
-libcompizconfig-git
-ccsm-git
-compiz-fusion-plugins-main-git
-compiz-fusion-plugins-extra-git
-compiz-fusion-plugins-experimental-git
-fusion-icon-git
-emerald-git
-emerald-themes-git
-mesa-utils
-mesa-demos
+##
+kwin
+systemsettings
+kde-gtk-config
 
 # ###########################
 # AUR APPS - DO NOT REORDER #
@@ -452,7 +442,7 @@ gconf
 gksu
 libgksu
 kvantum-theme-nordic-git
-#kwin-effects-cube
+kwin-effects-cube
 mintstick-git
 mkinitcpio-openswap
 mission-center
