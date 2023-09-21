@@ -25,12 +25,15 @@ rm -r /etc/initcpio
 echo "FONT=ter-p16n" >> /etc/vconsole.conf
 
 rm -rf /usr/share/calamares
+rm -rf /usr/share/stormos
 rm -rf $HOME/liveuser/Desktop/calamares.desktop
 rm -rf $HOME/.config/autostart/calamares.desktop
 rm -rf $HOME/.config/autostart/NetworkManager.desktop
 
 pacman-key --init
 pacman-key --populate archlinux
+
+
 
 # Continue cleanup
 rm /usr/local/bin/postinstall.sh

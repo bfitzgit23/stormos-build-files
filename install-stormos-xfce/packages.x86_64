@@ -5,6 +5,7 @@ amd-ucode
 arch-install-scripts
 b43-fwcutter
 base
+base-devel
 bison
 bind-tools
 brltty
@@ -181,8 +182,9 @@ whois
 #wpa_actiond
 #wpa_supplicant
 
-## LXDM Login Manager
-lxdm
+## LightDM Login Manager
+lightdm
+lightdm-gtk-greeter
 
 ## Common #############################
 bash-completion
@@ -287,6 +289,7 @@ perl-data-dump
 pkgconf
 polkit-gnome
 python-gobject
+plank
 reflector
 scrot
 samba
