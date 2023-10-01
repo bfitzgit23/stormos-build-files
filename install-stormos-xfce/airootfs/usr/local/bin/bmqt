@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget, QListWidgetItem
+from PyQt5.QtCore import Qt, pyqtSlot
+
+def get_bookmarks() -> list:
+    """
+    Retrieve the Chrome bookmarks file and extract the bookmark names and URLs using jq.
+    Returns a list of tuples, where each tuple contains the name and URL of a bookmark.
+    """
+    bookmarks_file = (
+        subprocess.check_output(["bash", "-c", "echo $HOME"]).decode().strip()
+        + "/.config/chromium/Default/Bookmarks"
+    )
+    bookmarks_data = subprocess.check_output(
+        [
+            "jq",
+            '-r',
+            '.. | objects | select(.type?=="url") | "\(.name)@@\(.url)"',
+            bookmarks_file,
+        ]
+    ).decode().strip()
+    bookmarks = [bookmark.split("@@") for bookmark in bookmarks_data.split("\n")]
+    return bookmarks
+
+class BookmarkSearch(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Bookmark Searcher StormOS Version")
+        self.setGeometry(100, 100, 800, 600)
+
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+
+        layout = QVBoxLayout(central_widget)
+
+        search_layout = QHBoxLayout()
+        self.entry = QLineEdit()
+        self.entry.returnPressed.connect(self.on_search)
+        search_button = QPushButton("Search")
+        search_button.clicked.connect(self.on_search)
+        search_layout.addWidget(self.entry)
+        search_layout.addWidget(search_button)
+
+        layout.addLayout(search_layout)
+
+        self.bookmark_list = QListWidget()
+        self.bookmark_list.itemDoubleClicked.connect(self.on_item_double_clicked)
+        layout.addWidget(self.bookmark_list)
+
+    @pyqtSlot()
+    def on_search(self):
+        search_term = self.entry.text().lower()
+        self.update_bookmark_list(search_term)
+
+    def update_bookmark_list(self, search_term):
+        self.bookmark_list.clear()
+        bookmarks = get_bookmarks()
+        for bookmark in bookmarks:
+            name, url = bookmark[0], bookmark[1]
+            if search_term in name.lower() or search_term in url.lower():
+                item = f"{name} - {url}"
+                list_item = QListWidgetItem(item)
+                list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)
+                list_item.setCheckState(Qt.Unchecked)
+                list_item.url = url
+                self.bookmark_list.addItem(list_item)
+
+    def on_item_double_clicked(self, item):
+        if item.url:
+            subprocess.Popen(["chromium", "--new-tab", item.url])
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = BookmarkSearch()
+    window.show()
+    sys.exit(app.exec_())

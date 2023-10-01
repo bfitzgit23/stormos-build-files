@@ -450,6 +450,7 @@ mintstick-git
 mkinitcpio-openswap
 mission-center
 qt5-styleplugins
+oh-my-bash-git
 pamac-all
 preload
 surfn-icons-git
@@ -470,4 +471,4 @@ kpmcore
 stormos-etc-skel-config
 stormos-calamares-xfce-config
 #stormos-calamares
-calamares
+calamares-app
