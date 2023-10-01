@@ -365,7 +365,7 @@ qt5-quickcontrols2
 qt5-translations
 qt5-x11extras
 qt5ct
-kvantum-qt5
+kvantum-qt5-git
 
 ## Music Player #############################
 
@@ -444,15 +444,18 @@ dxvk-bin
 gconf
 gksu
 libgksu
-kvantum-theme-nordic-git
 kwin-effects-cube
 mintstick-git
 mkinitcpio-openswap
 mission-center
+nordic-kde-git
 qt5-styleplugins
 oh-my-bash-git
 pamac-all
 preload
+python-libretranslate-git
+python-translate
+python-speechrecognition
 surfn-icons-git
 stormos-grub-theme
 stormos-conf
