@@ -425,11 +425,6 @@ xfce4-weather-plugin
 xfce4-whiskermenu-plugin
 xfce4-xkb-plugin
 
-##
-kwin
-systemsettings
-kde-gtk-config
-
 # ###########################
 # AUR APPS - DO NOT REORDER #
 # ###########################
