@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=StormOS Calendar
+Comment=
+Exec=/usr/local/bin/pcal
+Icon=view-calendar-week
+Path=
+Terminal=false
+StartupNotify=false
