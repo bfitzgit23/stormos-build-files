@@ -4,13 +4,6 @@ import subprocess
 import re
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QListWidget
 
-def is_chrome_installed() -> bool:
-    try:
-        subprocess.check_output(["google-chrome-stable", "--version"])
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
 def is_chromium_installed() -> bool:
     try:
         subprocess.check_output(["chromium", "--version"])
@@ -24,22 +17,6 @@ def get_bookmarks() -> list:
     Returns a list of tuples, where each tuple contains the name and URL of a bookmark.
     """
     bookmarks = []
-
-    if is_chrome_installed():
-        chrome_bookmarks_file = (
-            subprocess.check_output(["bash", "-c", "echo $HOME"]).decode().strip()
-            + "/.config/google-chrome/Default/Bookmarks"
-        )
-        chrome_bookmarks_data = subprocess.check_output(
-            [
-                "jq",
-                '-r',
-                '.. | objects | select(.type?=="url") | "\(.name)@@\(.url)"',
-                chrome_bookmarks_file,
-            ]
-        ).decode().strip()
-        chrome_bookmarks = [bookmark.split("@@") for bookmark in chrome_bookmarks_data.split("\n")]
-        bookmarks.extend(chrome_bookmarks)
 
     if is_chromium_installed():
         chromium_bookmarks_file = (
@@ -100,10 +77,11 @@ class BookmarkSearch(QMainWindow):
 
     def launch_browser_tab(self, item):
         url = item.text().split(" - ")[-1]  # Extract URL
-        if is_chrome_installed():
-            subprocess.Popen(["google-chrome-stable", "--new-tab", url])
-        elif is_chromium_installed():
+        if is_chromium_installed():
             subprocess.Popen(["chromium", "--new-tab", url])
+        elif is_firefox_installed():
+            subprocess.Popen(["firefox", "--new-tab", url])
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
