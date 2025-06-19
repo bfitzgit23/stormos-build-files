@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo pacman -Rdns kwin systemsettings kde-gtk-config plasma-workspace plasma-desktop
+sudo pacman -Rdns compiz-easy-patch
