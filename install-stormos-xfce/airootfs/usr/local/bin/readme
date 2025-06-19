@@ -9,7 +9,7 @@ yad --title "Welcome To StormOS" --image='$HOME/stormos.png'  \
 	--about \
 	--pname='StormOS' \
 	--image='archlinux' \
-	--pversion='System Version 22.03' \
+	--pversion='System Version 25.06' \
 	--comments="StormOS is an Arch Linux based distro designed for brand new users of Linux
 	moving over from Windows or MacOS. That being said, myself and/or my
 	team have lives outside developing StormOS, we will NOT and CANNOT
