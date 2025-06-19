@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS_XFCE"
-iso_label="StormOS_XFCE_$(date +%Y%m)"
-iso_publisher="StormOS <https://www.storm-os.godaddysites.com>"
-iso_application="StormOS install medium"
-iso_version="$(date +%Y.%m.%d)"
+iso_name="StormOS"
+iso_label="StormOS"
+iso_publisher="StormOS"
+iso_application="StormOS Install Media"
+iso_version="1.0"
 install_dir="arch"
-bootmodes=('bios.syslinux.mbr' 'bios.syslinux.eltorito' 'uefi-x64.systemd-boot.esp' 'uefi-x64.systemd-boot.eltorito')
+buildmodes=('iso')
+bootmodes=('bios.syslinux.mbr' 'bios.syslinux.eltorito'
+           'uefi-ia32.systemd-boot.esp' 'uefi-x64.systemd-boot.esp'
+           'uefi-ia32.systemd-boot.eltorito' 'uefi-x64.systemd-boot.eltorito')
 arch="x86_64"
 pacman_conf="pacman.conf"
-airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '15' '-b' '1M' )
+airootfs_image_type="squashfs"
+airootfs_image_tool_options=('-comp' 'xz' '-Xbcj' 'x86' '-b' '1M' '-Xdict-size' '1M')
+bootstrap_tarball_compression=('zstd' '-c' '-T0' '--auto-threads=logical' '--long' '-19')
 file_permissions=(
   ["/root"]="0:0:750"
   ["/usr/local/bin/choose-mirror"]="0:0:755"
@@ -23,8 +28,6 @@ file_permissions=(
   ["/usr/bin/playmovie"]="0:0:777"
   ["/usr/bin/axelc8"]="0:0:777"
   ["/etc/gshadow"]="0:0:400"
-  ["/etc/shadow"]="0:0:400"
-  ["/usr/local/share/wm.sh"]="0:0:755"
-  ["/usr/share/stormos/install.sh"]="0:0:755"
-  ["/usr/local/bin/kwin-remove.sh"]="0:0:755"
+  ["/etc/shadow"]="0:0:400"]
+  ["/usr/local/bin/compiz-remove.sh"]="0:0:755"
 )
