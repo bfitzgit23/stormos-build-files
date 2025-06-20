@@ -154,17 +154,11 @@ qt6-wayland
 #numix-themes
 #libkf6crash-devel
 glu
-#calamaresos
-#calamares
-calamares-git
-calamares-config-xfce
-#gnome-disk-utility
+gnome-disk-utility
 # fastfetch
 # cinnamon-configs
 # webapp-manager
 cups
-xxkpmcore
-kpmcore
 electron31
 networkmanager
 network-manager-applet
@@ -234,3 +228,5 @@ adw-gtk-theme-git
 chromium
 gvfs
 mousepad
+lightdm
+lightdm-slick-greeter
