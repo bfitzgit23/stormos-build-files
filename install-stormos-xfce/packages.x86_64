@@ -2,6 +2,7 @@ alsa-utils
 amd-ucode
 #intel-compute-runtime
 arch-install-scripts
+archlinux-keyring
 #dracut
 #archiso 
 b43-fwcutter
@@ -207,3 +208,4 @@ mousepad
 lightdm-gtk-greeter
 calamares-git
 calamares-config-xfce
+xxkpmcore
