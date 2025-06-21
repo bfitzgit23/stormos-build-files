@@ -15,25 +15,25 @@
 ##############################################################################
 
 # clean out archiso files from install
-sudo rm -f /etc/sudoers.d/g_wheel
-sudo rm -f /etc/polkit-1/rules.d/49-nopasswd_global.rules
-sudo rm -r /etc/systemd/system/etc-pacman.d-gnupg.mount
-sudo rm /root/{.automated_script.sh,.zlogin}
-sudo rm /etc/mkinitcpio-archiso.conf
-sudo rm -r /etc/initcpio
+rm -f /etc/sudoers.d/g_wheel
+rm -f /etc/polkit-1/rules.d/49-nopasswd_global.rules
+rm -r /etc/systemd/system/etc-pacman.d-gnupg.mount
+rm /root/{.automated_script.sh,.zlogin}
+rm /etc/mkinitcpio-archiso.conf
+rm -r /etc/initcpio
 
-sudo echo "FONT=ter-p16n" >> /etc/vconsole.conf
+echo "FONT=ter-p16n" >> /etc/vconsole.conf
 
-sudo rm -rf /usr/share/calamares
-sudo rm -rf $HOME/liveuser/Desktop/calamares.desktop
-sudo rm -rf $HOME/.config/autostart/calamares.desktop
-sudo rm -rf $HOME/.config/autostart/NetworkManager.desktop
+rm -rf /usr/share/calamares
+rm -rf $HOME/liveuser/Desktop/calamares.desktop
+rm -rf $HOME/.config/autostart/calamares.desktop
+rm -rf $HOME/.config/autostart/NetworkManager.desktop
 
-sudo rm -r /etc/pacman.d/gnupg # This moves your old keyring to a backup
-sudo pacman-key --init
-sudo pacman-key --populate archlinux # Manjaro users may also add manjaro
-sudo pacman -Syy archlinux-keyring # Manjaro users may also add manjaro-keyring
-sudo pacman -Syu
+rm -r /etc/pacman.d/gnupg # This moves your old keyring to a backup
+pacman-key --init
+pacman-key --populate archlinux # Manjaro users may also add manjaro
+pacman -Syy archlinux-keyring # Manjaro users may also add manjaro-keyring
+pacman -Syu
 
 
 
