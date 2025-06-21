@@ -204,6 +204,6 @@ adw-gtk-theme-git
 chromium
 gvfs
 mousepad
-lightdm-slick-greeter
+lightdm-gtk-greeter
 calamares-git
 calamares-config-xfce
