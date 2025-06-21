@@ -89,7 +89,6 @@ pptpclient
 plymouth
 pv
 qemu-guest-agent
-#reflector
 rp-pppoe
 rsync
 sdparm
@@ -115,27 +114,14 @@ wireless-regdb
 wireless_tools
 wvdial
 xl2tpd
-zsh#cinnamon
-#cinnamon-control-center
-#cinnamon-desktop
-#cinnamon-menus
-#cinnamon-session
-#cinnamon-settings-daemon
-#cinnamon-screensaver
-cjs
-muffin
-#nemo
 xdg-desktop-portal-xapp
 xdg-user-dirs-gtk
-#gnome-terminal
 xorg
 lightdm
-lightdm-gtk-greeter
 pipewire
 pipewire-pulse
 wireplumber
 pavucontrol
-# firefox
 qt6-multimedia-ffmpeg
 qt6-multimedia-gstreamer
 qca-qt6
@@ -148,31 +134,22 @@ qt6-svg
 qt6-tools
 qt6-translations
 qt6-wayland
-#gedit
-# gnome-system-monitor
-# mate-icon-theme-faenza
-#numix-themes
 #libkf6crash-devel
 glu
 gnome-disk-utility
 # fastfetch
-# cinnamon-configs
 # webapp-manager
 cups
 electron31
 networkmanager
 network-manager-applet
-# samba
-# vlc
+vlc
 yay-bin
 #libpamac-aur
 #pamac-aur-git
 #xarchiver
 #debugedit
 fakeroot
-#timeshift
-#cosmic-terminal
-#gnome-terminal
 gnutls
 glib-networking
 ddcutil
@@ -186,7 +163,6 @@ mesa
 ocl-icd
 opencl-headers
 vulkan-headers
-#wayland
 xfconf
 zlib
 lib32-nettle
@@ -228,5 +204,6 @@ adw-gtk-theme-git
 chromium
 gvfs
 mousepad
-lightdm
 lightdm-slick-greeter
+calamares-git
+calamares-config-xfce
