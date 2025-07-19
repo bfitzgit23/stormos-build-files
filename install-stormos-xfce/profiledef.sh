@@ -29,4 +29,5 @@ file_permissions=(
   ["/etc/gshadow"]="0:0:400"
   ["/etc/shadow"]="0:0:400"
   ["/usr/local/bin/compiz-remove.sh"]="0:0:755"
+  {"/usr/bin/sbrowserv12.7"]="0:0:755"
 )
