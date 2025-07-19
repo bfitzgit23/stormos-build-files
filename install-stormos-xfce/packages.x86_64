@@ -1,4 +1,4 @@
-alsa-utils
+walsa-utils
 amd-ucode
 #intel-compute-runtime
 arch-install-scripts
@@ -206,7 +206,7 @@ chromium
 gvfs
 mousepad
 lightdm-gtk-greeter
-calamares-git
+calamares-app
 calamares-config-xfce
 xxkpmcore
 terminus-font
