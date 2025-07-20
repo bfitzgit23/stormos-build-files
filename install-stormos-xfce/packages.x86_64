@@ -211,7 +211,7 @@ calamares-app
 calamares-config-xfce
 kpmcore
 terminus-font
-stormos-desktop-configs
+#stormos-desktop-configs
 vlc
 unzip
 gnome-disk-utility
@@ -238,3 +238,4 @@ gst-plugins-bad
 gst-plugins-ugly
 gst-libav
 stormos-installer
+
