@@ -22,7 +22,6 @@ file_permissions=(
   ["/usr/local/bin/livecd-sound"]="0:0:755"
   ["/usr/local/bin/postinstall.sh"]="0:0:755"
   ["/usr/local/bin/readme"]="0:0:755"
-  ["/usr/bin/menuxstorm"]="0:0:755"
   ["/usr/bin/wgetm"]="0:0:755"
   ["/usr/bin/playmovie"]="0:0:755"
   ["/usr/bin/axelc8"]="0:0:755"
