@@ -209,7 +209,7 @@ mousepad
 lightdm-gtk-greeter
 calamares-app
 calamares-config-xfce
-xxkpmcore
+kpmcore
 terminus-font
 stormos-desktop-configs
 vlc
