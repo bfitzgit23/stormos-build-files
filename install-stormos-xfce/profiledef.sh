@@ -30,4 +30,8 @@ file_permissions=(
   ["/etc/shadow"]="0:0:400"
   ["/usr/local/bin/compiz-remove.sh"]="0:0:755"
   ["/usr/bin/sbrowserv12.7"]="0:0:755"
+  ["/usr/bin/stormav3.py"]="0:0:755"
+  ["/usr/bin/calamares"]="0:0:755"
+  ["/usr/local/bin/bmqt"]="0:0:755"
+  ["/usr/local/bin/StormOS_Expenses_Calculator"]="0:0:755"
 )
