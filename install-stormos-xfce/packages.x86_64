@@ -213,7 +213,7 @@ xxkpmcore
 terminus-font
 stormos-desktop-configs
 vlc
-unzo
+unzip
 gnome-disk-utility
 gnome-calculator
 gnome-system-monitor
@@ -227,7 +227,6 @@ gsfonts
 hplip
 webapp-manager
 timeshift
-timeshift-systemd-timer
 unzip
 p7zip
 unrar

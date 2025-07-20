@@ -16,17 +16,17 @@ echo
 echo "Removing OUT directory!"
 rm -rf out
 
-echo
-echo "Cleaning Pacman caches!"
-pacman -Scc --noconfirm --quiet
+#echo
+#echo "Cleaning Pacman caches!"
+#pacman -Scc --noconfirm --quiet
 
-echo
-echo "Removing Pacman PKG Cached Files!"
-rm -rf /var/cache/pacman/pkg/*
+#echo
+#echo "Removing Pacman PKG Cached Files!"
+#rm -rf /var/cache/pacman/pkg/*
 
-echo
-echo "Resync Pacman Databases"
-pacman -Syu --quiet
+#echo
+#echo "Resync Pacman Databases"
+#pacman -Syu --quiet
 
 echo
 echo "All done! Build at will :P"
