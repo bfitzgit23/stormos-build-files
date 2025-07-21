@@ -206,7 +206,7 @@ chromium
 
 gvfs
 mousepad
-lightdm-gtk-greeter
+lightdm-slick-greeter
 calamares-app
 calamares-config-xfce
 kpmcore
