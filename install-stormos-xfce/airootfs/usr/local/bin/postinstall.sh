@@ -26,7 +26,7 @@ rm -rf $HOME/liveuser/Desktop/calamares.desktop
 rm -rf $HOME/.config/autostart/calamares.desktop
 rm -rf $HOME/.config/autostart/NetworkManager.desktop
 
-rm -r /etc/pacman.d/gnupg # This moves your old keyring to a backup
+ # This moves your old keyring to a backup
 pacman-key --init
 pacman-key --populate archlinux # Manjaro users may also add manjaro
 
