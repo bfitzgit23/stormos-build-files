@@ -29,8 +29,6 @@ rm -rf $HOME/.config/autostart/NetworkManager.desktop
 rm -r /etc/pacman.d/gnupg # This moves your old keyring to a backup
 pacman-key --init
 pacman-key --populate archlinux # Manjaro users may also add manjaro
-pacman -Syy archlinux-keyring # Manjaro users may also add manjaro-keyring
-pacman -Syu
 
 
 
