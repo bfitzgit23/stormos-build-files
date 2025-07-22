@@ -36,5 +36,6 @@ rm -rf /usr/share/backgrounds/xfce
 chown -R $name:$name /usr/share/backgrounds/*
 chown -R $name:$name /usr/share/themes/*
 chown -R $name:$name /usr/share/icons/*
+
 # Continue cleanup
 rm /usr/local/bin/postinstall.sh
