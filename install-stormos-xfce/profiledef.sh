@@ -27,5 +27,6 @@ file_permissions=(
   ["/usr/local/bin/compiz-remove.sh"]="0:0:755"
   ["/usr/bin/sbrowserv12.9"]="0:0:755"
   ["/usr/bin/stormav3.py"]="0:0:755"
+  ["/usr/bin/appcreator11.py"]="0:0:755"
   ["/usr/bin/calamares"]="0:0:755"
 )
