@@ -26,11 +26,15 @@ rm -rf $HOME/liveuser/Desktop/calamares.desktop
 rm -rf $HOME/.config/autostart/calamares.desktop
 rm -rf $HOME/.config/autostart/NetworkManager.desktop
 
- # This moves your old keyring to a backup
 pacman-key --init
 pacman-key --populate archlinux # Manjaro users may also add manjaro
 
+pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
+pacman-key --lsign-key 3056513887B78AEB
 
-
+rm -rf /usr/share/backgrounds/xfce
+chown -R $name:$name /usr/share/backgrounds/*
+chown -R $name:$name /usr/share/themes/*
+chown -R $name:$name /usr/share/icons/*
 # Continue cleanup
 rm /usr/local/bin/postinstall.sh
