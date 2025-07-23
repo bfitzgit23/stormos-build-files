@@ -14,9 +14,6 @@
 #
 ##############################################################################
 
- name=$(ls -1 /home)
- REAL_NAME=/home/$name
-
 # clean out archiso files from install
 rm -f /etc/sudoers.d/g_wheel
 rm -f /etc/polkit-1/rules.d/49-nopasswd_global.rules
