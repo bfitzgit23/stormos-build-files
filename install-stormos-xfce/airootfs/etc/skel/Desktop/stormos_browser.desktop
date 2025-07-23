@@ -3,8 +3,8 @@
 Name=StormOS Browser
 GenericName=StormOS Browser
 X-GNOME-FullName=StormOS Browser
-Comment=StormOS Custom chromium based Browser
-Exec=/usr/bin/sbrowserv12.9.py
+Comment=StormOS Custom Browser alternative to chromium
+Exec=/usr/bin/icarusv12.9.py
 Icon=/usr/share/icons/storm os.png
 Terminal=false
 Type=Application
