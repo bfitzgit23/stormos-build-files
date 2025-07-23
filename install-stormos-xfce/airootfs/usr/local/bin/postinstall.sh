@@ -22,7 +22,6 @@ rm /root/{.automated_script.sh,.zlogin}
 echo "FONT=ter-p16n" >> /etc/vconsole.conf
 
 rm -rf /usr/share/calamares
-rm -rf $HOME/liveuser/Desktop/calamares.desktop
 rm -rf $HOME/.config/autostart/calamares.desktop
 rm -rf $HOME/.config/autostart/NetworkManager.desktop
 
@@ -36,6 +35,9 @@ rm -rf /usr/share/backgrounds/xfce
 chown -R $name:$name /usr/share/backgrounds/*
 chown -R $name:$name /usr/share/themes/*
 chown -R $name:$name /usr/share/icons/*
+
+rm $home/$name/Desktop/calamares.desktop
+rm $home/$name/Desktop/cabif.desktop
 
 # Continue cleanup
 rm /usr/local/bin/postinstall.sh
