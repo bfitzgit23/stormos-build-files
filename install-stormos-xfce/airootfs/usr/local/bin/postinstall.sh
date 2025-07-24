@@ -36,8 +36,8 @@ chown -R $name:$name /usr/share/backgrounds/*
 chown -R $name:$name /usr/share/themes/*
 chown -R $name:$name /usr/share/icons/*
 
-rm $home/$name/Desktop/calamares.desktop
-rm $home/$name/Desktop/cabif.desktop
+rm $name:$name/Desktop/calamares.desktop
+rm $name:$name/Desktop/abif.desktop
 
 # Continue cleanup
 rm /usr/local/bin/postinstall.sh
