@@ -14,27 +14,70 @@
 #
 ##############################################################################
 
-# clean out archiso files from install
-rm -f /etc/sudoers.d/g_wheel
-rm -f /etc/polkit-1/rules.d/49-nopasswd_global.rules
-rm /root/{.automated_script.sh,.zlogin}
+ name=$(ls -1 /home)
+ REAL_NAME=/home/$name
 
-echo "FONT=ter-p16n" >> /etc/vconsole.conf
+# genfstab -U / > /etc/fstab
 
-rm -rf /usr/share/calamares
-rm -rf $HOME/.config/autostart/calamares.desktop
-rm -rf $HOME/.config/autostart/NetworkManager.desktop
+#cp /cinnamon-configs/cinnamon-stuff/bin/* /bin/
+#cp /cinnamon-configs/cinnamon-stuff/usr/bin/* /usr/bin/
+#cp -r /cinnamon-configs/cinnamon-stuff/usr/share/* /usr/share/
 
-pacman-key --init
-pacman-key --populate archlinux # Manjaro users may also add manjaro
+mkdir -p /home/$name/.config
+mkdir -p /home/$name/.local
+mkdir -p /home/$name/Desktop
+mkdir -p /home/$name/Music
+mkdir -p /home/$name/.oh-my-bash
 
-pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com
-pacman-key --lsign-key 3056513887B78AEB
+#cp -r /cinnamon-configs/cinnamon-stuff/nemo/* /home/$name/.config/nemo
+
+cp -r /root/.config/* /home/$name/.config/
+cp -r /root/.local/* /home/$name/.local 
+cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
+cp /root/.face /home/$name/.face
+cp /root/.nanorc /home/$name/.nanorc
+cp /root/.profile /home/$name/.profile
+cp /root/.xinitrc /home/$name/.xinitrc
+cp /root/.xprofile /home/$name/.xprofile
+cp /root/.bashrc /home/$name/.bashrc
+
+mkdir -p /home/$name/.config/autostart
+
+cp -r /root/stormos.png /home/$name/stormos.png
+
+chown -R $name:$name /home/$name/.config
+chown -R $name:$name /home/$name/.local
+chown -R $name:$name /home/$name/Desktop
+chown -R $name:$name /home/$name/Music
+chown -R $name:$name /home/$name/.face
+chown -R $name:$name /home/$name/.nanorc
+chown -R $name:$name /home/$name/.profile
+chown -R $name:$name /home/$name/.xinitrc
+chown -R $name:$name /home/$name/.xprofile
+chown -R $name:$name /home/$name/.bashrc
+#mv /middle.png /home/$USER
+
+mv /resolv.conf /etc/resolv.conf
+chattr +i /etc/resolv.conf
+chattr +i /etc/os-release
+
+# create python fix!
+
+#mkdir -p /usr/lib/python3.13/site-packages/six
+#touch /usr/lib/python3.13/site-packages/six/__init__.py
+#cp /usr/lib/python3.12/site-packages/six.py /usr/lib/python3.13/site-packages/six/six.py
+
+cp /archiso.conf /etc/mkinitcpio.conf.d/archiso.conf
+
+# mkdir /home/$name/.local/share/cinnamon
+
+# cp -r /cinnamon-configs/cinnamon-stuff/extensions /home/$name/.local/share/cinnamon/
+
+plymouth-set-default-theme stormos
+
+echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 
 rm -rf /usr/share/backgrounds/xfce
-chown -R $name:$name /usr/share/backgrounds/*
-chown -R $name:$name /usr/share/themes/*
-chown -R $name:$name /usr/share/icons/*
+chown -R $name:$name /usr/share/backgrounds/* 
 
-# Continue cleanup
-rm /usr/local/bin/postinstall.sh
+rm $home/$name/Desktop/calamares.desktop
