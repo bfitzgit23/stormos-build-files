@@ -199,8 +199,6 @@ StormOS-conf
 stormos-grub-theme
 pamac-all
 compiz-easy-patch
-chaotic-keyring
-chaotic-mirrorlist
 adw-gtk-theme-git
 chromium
 
