@@ -46,17 +46,11 @@ chown -R $name:$name /home/$name/.xprofile
 chown -R $name:$name /home/$name/.bashrc
 #mv /middle.png /home/$USER
 
-mv /resolv.conf /etc/resolv.conf
-chattr +i /etc/resolv.conf
-chattr +i /etc/os-release
-
 # create python fix!
 
 #mkdir -p /usr/lib/python3.13/site-packages/six
 #touch /usr/lib/python3.13/site-packages/six/__init__.py
 #cp /usr/lib/python3.12/site-packages/six.py /usr/lib/python3.13/site-packages/six/six.py
-
-cp /archiso.conf /etc/mkinitcpio.conf.d/archiso.conf
 
 # mkdir /home/$name/.local/share/cinnamon
 
