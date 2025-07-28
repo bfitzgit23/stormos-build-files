@@ -64,7 +64,6 @@ su -c 'echo "wifi.scan-rand-mac-address=no" >> /etc/NetworkManager.conf'
 
 # This is key!
 pacman-key --init
-pacman-key --populate archlinux
 
 # Stop lightdm user from expiring
 chage -E -1 lightdm
