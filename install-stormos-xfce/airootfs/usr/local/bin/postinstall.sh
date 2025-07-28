@@ -30,14 +30,7 @@ mkdir -p /home/$name/Music
 mkdir -p /home/$name/.oh-my-bash
 
 #cp -r /cinnamon-configs/cinnamon-stuff/nemo/* /home/$name/.config/nemo
-
-cp -r /root/.config/* /home/$name/.config/
-cp -r /root/.local/* /home/$name/.local 
 cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
-cp /root/.nanorc /home/$name/.nanorc
-cp /root/.profile /home/$name/.profile
-cp /root/.xprofile /home/$name/.xprofile
-cp /root/.bashrc /home/$name/.bashrc
 
 mkdir -p /home/$name/.config/autostart
 
