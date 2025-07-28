@@ -34,7 +34,6 @@ mkdir -p /home/$name/.oh-my-bash
 cp -r /root/.config/* /home/$name/.config/
 cp -r /root/.local/* /home/$name/.local 
 cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
-cp /root/.face /home/$name/.face
 cp /root/.nanorc /home/$name/.nanorc
 cp /root/.profile /home/$name/.profile
 cp /root/.xinitrc /home/$name/.xinitrc
@@ -49,7 +48,6 @@ chown -R $name:$name /home/$name/.config
 chown -R $name:$name /home/$name/.local
 chown -R $name:$name /home/$name/Desktop
 chown -R $name:$name /home/$name/Music
-chown -R $name:$name /home/$name/.face
 chown -R $name:$name /home/$name/.nanorc
 chown -R $name:$name /home/$name/.profile
 chown -R $name:$name /home/$name/.xinitrc
