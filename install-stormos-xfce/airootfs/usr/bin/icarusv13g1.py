@@ -252,12 +252,20 @@ class ScreenRecorder(QObject):
         self.stats_timer.timeout.connect(self.update_recording_stats)
 
     def start_recording(self, region=None, max_duration_minutes=0, include_mic=True, include_speaker=True, quality=1):
-        """Start recording with comprehensive error handling"""
+        """Start recording with taskbar exclusion"""
         if self.is_recording:
             self.recording_error.emit("Recording already in progress")
             return False
 
         try:
+            # If no region specified, use full screen minus taskbar
+            if not region:
+                region = self.get_full_screen_rect_without_taskbar()
+                if not region:
+                    self.recording_error.emit("Could not determine screen dimensions")
+                    return False
+
+            # Rest of your existing start_recording code...
             self.region = region
             self.max_duration = max_duration_minutes * 60
             self.recording_file = self._generate_filename()
@@ -282,6 +290,7 @@ class ScreenRecorder(QObject):
             self._cleanup_failed_recording()
             return False
 
+
     def _start_ffmpeg_process(self, cmd):
         """Start the FFmpeg subprocess with proper platform settings"""
         kwargs = {
@@ -304,7 +313,7 @@ class ScreenRecorder(QObject):
         """Construct FFmpeg command based on parameters"""
         cmd = ["ffmpeg", "-y"]
         
-        # Video capture
+        # Video capture (unchanged)
         if not self.region:
             cmd.extend(["-f", "x11grab", "-video_size", "1920x1080", "-framerate", "30", "-i", ":0.0+0,0"])
         else:
@@ -315,23 +324,26 @@ class ScreenRecorder(QObject):
                 "-i", f":0.0+{self.region.x()},{self.region.y()}"
             ])
         
-        # Audio capture
+        # Audio capture (now using monitor device for system audio)
         if include_speaker:
-            cmd.extend(["-f", "pulse", "-i", "default"])
+            cmd.extend(["-f", "pulse", "-i", "alsa_output.pci-0000_00_1b.0.analog-stereo.monitor"])
         if include_mic:
-            cmd.extend(["-f", "pulse", "-i", "default"])
+            cmd.extend(["-f", "pulse", "-i", "alsa_input.pci-0000_00_1b.0.analog-stereo"])
         
-        # Audio mixing
+        # Audio mixing with echo cancellation
         if include_mic and include_speaker:
             cmd.extend([
-                "-filter_complex", "[1:a][2:a]amerge=inputs=2[a]",
+                "-filter_complex",
+                "[1:a]aecho=0.8:0.9:1000:0.3[mic_echo];"  # Echo cancellation on mic
+                "[mic_echo][2:a]aecho=0.8:0.7:1000:0.3,"
+                "amerge=inputs=2[a]",  # Merge with echo-cancelled system audio
                 "-map", "0:v",
                 "-map", "[a]"
             ])
         elif include_mic or include_speaker:
             cmd.extend(["-map", "0:v", "-map", "1:a"])
         
-        # Video encoding
+        # Video encoding (unchanged)
         cmd.extend([
             "-c:v", "libx264",
             "-preset", "fast",
@@ -340,13 +352,20 @@ class ScreenRecorder(QObject):
             "-movflags", "+faststart"
         ])
         
-        # Audio encoding
+        # Audio encoding with additional processing
         if include_mic or include_speaker:
-            cmd.extend(["-c:a", "aac", "-b:a", "192k", "-ar", "44100"])
+            cmd.extend([
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-ar", "44100",
+                "-af", "highpass=f=100,lowpass=f=3000"  # Basic noise filtering
+            ])
         
         cmd.append(self.recording_file)
         return cmd
 
+
+    
     def update_recording_stats(self):
         """Update real-time recording statistics"""
         if not self.is_recording or not self.recording_file:
@@ -512,11 +531,94 @@ class ScreenRecorder(QObject):
 
 
 
+    def get_full_screen_rect_without_taskbar(self, taskbar_height=40):
+        """Get screen rectangle excluding taskbar"""
+        screen = QApplication.primaryScreen()
+        if not screen:
+            return None
+            
+        screen_geom = screen.geometry()
+        return QRect(
+            screen_geom.x(),
+            screen_geom.y(),
+            screen_geom.width(),
+            screen_geom.height() - taskbar_height
+        )
 
 
 
 
 
+
+
+class AudioLevelVisualizer(QProgressBar):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+        self.current_level = 0
+        self.smoothing_factor = 0.7
+        self.animation_timer = QTimer(self)
+        self.setup_connections()
+        
+    def setup_ui(self):
+        self.setRange(0, 100)
+        self.setTextVisible(False)
+        self.setFixedHeight(6)
+        self.setMinimumWidth(80)
+        self.setMaximumWidth(150)
+        self.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #444;
+                background: #1a1a1a;
+                border-radius: 3px;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #3daee9, stop:0.5 #45a1ff, stop:1 #5882ff
+                );
+                border-radius: 2px;
+            }
+        """)
+        
+    def setup_connections(self):
+        self.animation_timer.timeout.connect(self.smooth_level_update)
+        self.animation_timer.start(30)  # ~30fps animation
+        
+    def update_level(self, new_level):
+        if not self.isVisible():
+            return
+        self.current_level = max(0, min(100, new_level))
+        
+    def smooth_level_update(self):
+        if not self.isVisible():
+            return
+            
+        current_value = self.value()
+        target_value = self.current_level
+        
+        if abs(current_value - target_value) < 1:
+            self.setValue(target_value)
+            return
+            
+        smoothed_value = int(
+            (target_value * (1 - self.smoothing_factor)) + 
+            (current_value * self.smoothing_factor)
+        )
+        self.setValue(smoothed_value)
+        
+        if target_value == 0 and current_value > 0:
+            self.current_level = max(0, current_value - 2)
+            
+    def set_active(self, active):
+        self.setVisible(active)
+        if not active:
+            self.setValue(0)
+            self.current_level = 0
+            
+    def reset(self):
+        self.setValue(0)
+        self.current_level = 0
 
 
 
@@ -3628,9 +3730,10 @@ class BrowserMainWindow(QMainWindow):
 
 
 
+# In your BrowserMainWindow.__init__() or setup_ui() method:
         self.tab_widget.setStyleSheet("""
             QTabWidget::pane {
-                border: none;  /* Remove the border around the entire tab area */
+                border: none;
                 top: -1px;
                 background-color: #1e1e1e;
             }
@@ -3644,7 +3747,7 @@ class BrowserMainWindow(QMainWindow):
                 color: #dcdcdc;
                 padding: 6px 10px;
                 border: 1px solid #444;
-                border-bottom: 3px solid blue;  /* Blue underline for inactive */
+                border-bottom: 3px solid blue;
                 border-left-radius: 1px;
                 border-right-radius: 1px;
                 margin-right: 0px;
@@ -3654,28 +3757,25 @@ class BrowserMainWindow(QMainWindow):
                 background: #1e1e1e;
                 color: white;
                 font-weight: bold;
-                border-bottom: 2px solid yellow;  /* Thinner yellow underline for active */
-                border-left: 0px solid yellow;    /* Thinner border on the left */
-                border-right: 0px solid yellow;   /* Thinner border on the right */
+                border-bottom: 2px solid yellow;
+                border-left: 0px solid yellow;
+                border-right: 0px solid yellow;
             }
 
             QTabBar::tab:hover {
                 background: #3a3a3a;
+            }
 
-
-            QTabBar::tab[is-incognito=true] {
+            QTabBar::tab[is-incognito="true"] {
                 background-color: #3a3a3a;
                 color: red;
                 font-weight: bold;
             }
 
-            QTabBar::tab[is-incognito=true]:hover {
+            QTabBar::tab[is-incognito="true"]:hover {
                 background-color: #555555;
             }
-
-
         """)
-
 
 
     def handle_recording_stats(self, status_message):
@@ -5014,27 +5114,36 @@ class BrowserMainWindow(QMainWindow):
 
 
 
-# Then define the dark theme variant AFTER BrowserMainWindow is defined
 class StormBrowserDark(BrowserMainWindow):
+    """Dark theme variant of the browser with enhanced visual features."""
+    
     def __init__(self):
-        # Initialize all attributes first
+        # Initialize visual features
         self.blue_light_filter_enabled = False
         self.blue_light_intensity = 0.5
         self.filter_overlay = None
+        self.audio_visualizer = None
         
-        # Now call parent's __init__ which will call setup_ui()
+        # Initialize parent class
         super().__init__()
         
-        # Apply dark theme with blue light filter support
+        # Setup dark theme features
         self.apply_firefox_dark_theme()
         self.setup_blue_light_filter()
+        self.setup_audio_visualizer()
         
-        # Set window title and icon
-        self.setWindowTitle("Icarus Browser - Dark Mode")
+        # Window configuration
+        self.setWindowTitle("Icarus Browser")
         self.setWindowIcon(QIcon.fromTheme("web-browser"))
+
+        # Add this timer setup after initializing audio visualizer
+        self.audio_monitor_timer = QTimer(self)
+        self.audio_monitor_timer.timeout.connect(self.check_audio_levels)
+        self.audio_monitor_timer.start(100)  # 10 FPS updates
+        
     def apply_firefox_dark_theme(self):
-        """Apply Firefox-inspired dark theme with blue light filter support"""
-        # Define theme colors
+        """Apply Firefox-inspired dark theme with all UI elements."""
+        # Theme color definitions
         self.theme_colors = {
             "toolbar": "#23222b",
             "address_bar": "#42414d",
@@ -5049,10 +5158,12 @@ class StormBrowserDark(BrowserMainWindow):
             "filter_day": "rgba(255, 166, 0, 0)",
             "filter_night": "rgba(255, 166, 0, 0.3)",
             "filter_icon_day": "#45a1ff",
-            "filter_icon_night": "#ffa500"
+            "filter_icon_night": "#ffa500",
+            "audio_meter_bg": "#1a1a1a",
+            "audio_meter_fill": "#3daee9"
         }
 
-        # Base stylesheet
+        # Base stylesheet with all UI elements
         stylesheet = f"""
         /* Main window */
         QMainWindow {{
@@ -5107,6 +5218,24 @@ class StormBrowserDark(BrowserMainWindow):
         QToolButton#blue_light_btn:checked {{
             color: {self.theme_colors["filter_icon_night"]};
         }}
+
+        /* Audio visualizer */
+        QProgressBar#audio_visualizer {{
+            border: 1px solid {self.theme_colors["divider"]};
+            background: {self.theme_colors["audio_meter_bg"]};
+            border-radius: 3px;
+            min-width: 80px;
+            max-width: 150px;
+            height: 6px;
+        }}
+        QProgressBar#audio_visualizer::chunk {{
+            background: qlineargradient(
+                x1:0, y1:0, x2:1, y2:0,
+                stop:0 {self.theme_colors["audio_meter_fill"]}, 
+                stop:1 {self.theme_colors["accent"]}
+            );
+            border-radius: 2px;
+        }}
         """
         self.setStyleSheet(stylesheet)
 
@@ -5125,6 +5254,137 @@ class StormBrowserDark(BrowserMainWindow):
         self.filter_overlay.hide()
         self.filter_overlay.lower()
         self.filter_overlay.setGeometry(self.rect())
+
+
+
+
+
+        
+
+
+
+    def setup_audio_visualizer(self):
+        """Initialize and configure the audio level visualizer."""
+        self.audio_visualizer = AudioLevelVisualizer(self)
+        self.status_bar.addPermanentWidget(self.audio_visualizer)
+        self.audio_visualizer.hide()
+        
+        # Connect page audio state changes
+        for i in range(self.tab_widget.count()):
+            browser = self.tab_widget.widget(i).findChild(QWebEngineView)
+            if browser:
+                browser.page().audioMutedChanged.connect(self.on_audio_state_changed)
+        
+        # Monitor audio levels periodically - no arguments needed
+        self.audio_monitor_timer = QTimer(self)
+        self.audio_monitor_timer.timeout.connect(self.check_audio_levels)
+        self.audio_monitor_timer.start(100)  # 10 FPS updates
+
+    def on_audio_state_changed(self, muted):
+        """Handle changes in audio playback state."""
+        self.audio_visualizer.set_active(not muted)
+        if muted:
+            self.audio_visualizer.reset()
+
+    def check_audio_levels(self):
+        """Check audio levels from current web page."""
+        if not hasattr(self, 'audio_visualizer') or not self.audio_visualizer.isVisible():
+            return
+            
+        browser = self.current_browser()
+        if browser:
+            js = """
+            let maxLevel = 0;
+            const mediaElements = document.querySelectorAll('audio,video');
+            
+            mediaElements.forEach(media => {
+                if (!media.paused && !media.muted && media.volume > 0) {
+                    // Create audio context if needed
+                    if (!window.audioContext) {
+                        window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    
+                    // Create analyzer node if needed
+                    if (!media.analyzer) {
+                        const source = window.audioContext.createMediaElementSource(media);
+                        media.analyzer = window.audioContext.createAnalyser();
+                        media.analyzer.fftSize = 32;
+                        source.connect(media.analyzer);
+                        media.analyzer.connect(window.audioContext.destination);
+                    }
+                    
+                    // Get audio levels
+                    const bufferLength = media.analyzer.frequencyBinCount;
+                    const dataArray = new Uint8Array(bufferLength);
+                    media.analyzer.getByteFrequencyData(dataArray);
+                    
+                    // Calculate average volume
+                    let sum = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        sum += dataArray[i];
+                    }
+                    const avg = sum / bufferLength;
+                    maxLevel = Math.max(maxLevel, avg);
+                }
+            });
+            maxLevel;
+            """
+            browser.page().runJavaScript(js, self.update_audio_level)
+
+    def update_audio_level(self, level):
+        """Update visualizer with new audio level."""
+        if level is not None and level > 0 and hasattr(self, 'audio_visualizer'):
+            # Scale the level (0-255 from analyzer to 0-100 for visualizer)
+            scaled_level = min(100, (level / 255) * 100)
+            self.audio_visualizer.update_level(scaled_level)
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
+    def toggle_blue_light_filter(self, enabled=None):
+        """Toggle blue light filter with visual feedback."""
+        if enabled is None:
+            enabled = not self.blue_light_filter_enabled
+            
+        self.blue_light_filter_enabled = enabled
+        opacity = self.blue_light_intensity * 0.3 if enabled else 0
+        
+        self.filter_overlay.setStyleSheet(f"""
+            QLabel#blueLightFilter {{
+                background-color: rgba(255, 166, 0, {opacity});
+            }}
+        """)
+        
+        if enabled:
+            self.filter_overlay.show()
+            self.filter_overlay.raise_()
+        else:
+            self.filter_overlay.hide()
+            
+
+    def on_audio_state_changed(self, muted):
+        """Handle changes in audio playback state."""
+        self.audio_visualizer.setVisible(not muted)
+        if muted:
+            self.audio_visualizer.setValue(0)
+            
+    def current_browser(self):
+        """Get the current active browser widget."""
+        current_widget = self.tab_widget.currentWidget()
+        return current_widget.findChild(QWebEngineView) if current_widget else None
+
+
+
 
 
     def resizeEvent(self, event):
@@ -5295,26 +5555,23 @@ class StormBrowserDark(BrowserMainWindow):
 
     def _finalize_region_recording(self, rect, duration, include_mic, include_system, quality):
         """Start recording with the selected region."""
-        if rect.width() < 10 or rect.height() < 10:
-            QMessageBox.warning(self, "Invalid Region", "Selected region is too small.")
-            return
-
-        # Start recording with the selected region
-        success = self.screen_recorder.start_recording(
-            region=rect,
-            max_duration_minutes=duration // 60,
-            include_mic=include_mic,
-            include_speaker=include_system,
-            quality=quality
-        )
-
-        if not success:
-            self.status_bar.showMessage("Failed to start region recording", 3000)
+        if rect.width() > 100 and rect.height() > 100:  # Minimum size
+            success = self.screen_recorder.start_recording(
+                region=rect,
+                max_duration_minutes=duration // 60,
+                include_mic=include_mic,
+                include_speaker=include_system,
+                quality=quality
+            )
+            
+            if success:
+                self.record_btn.setText("⏹")
+                self.stop_recording_btn.show()
+                self.record_btn.hide()
+            else:
+                self.status_bar.showMessage("Failed to start region recording", 3000)
         else:
-            self.record_btn.setText("■")
-            self.stop_recording_btn.show()
-            self.record_btn.hide()
-
+            self.status_bar.showMessage("Selected region too small", 3000)
 
     def create_window_callback(self, type_):
         """
@@ -6439,12 +6696,9 @@ class StormBrowserDark(BrowserMainWindow):
             background: If True, the tab is opened in the background without focus.
             widget: Optional custom widget to use instead of creating new browser.
         """
-        # --- Helper function to truncate title ---
+        # Helper function to truncate title
         def truncate_title(t, max_len=15):
-            if len(t) > max_len:
-                return t[:max_len - 5] + "..." # Use last 3 chars for "..."
-            return t
-        # --- End Helper ---
+            return t[:max_len - 3] + "..." if len(t) > max_len else t
 
         # Convert string URL to QUrl if needed
         if url and isinstance(url, str):
@@ -6456,10 +6710,8 @@ class StormBrowserDark(BrowserMainWindow):
 
         # If a custom widget was provided
         if widget:
-            # Truncate title for display on the tab
             display_title = truncate_title(title)
             tab_index = self.tab_widget.addTab(widget, display_title)
-            # Keep full title in tooltip
             self.tab_widget.setTabToolTip(tab_index, title)
             if not background:
                 self.tab_widget.setCurrentIndex(tab_index)
@@ -6475,7 +6727,7 @@ class StormBrowserDark(BrowserMainWindow):
         browser = QWebEngineView()
         profile = QWebEngineProfile.defaultProfile()
 
-        # Connect download handler
+        # Connect download handler (only once per profile)
         if not hasattr(profile, '_download_handler_connected'):
             profile.downloadRequested.connect(self.download_manager.handle_download)
             profile._download_handler_connected = True
@@ -6484,14 +6736,22 @@ class StormBrowserDark(BrowserMainWindow):
         browser.setPage(page)
         browser.setUrl(url if url else QUrl(self.settings_manager.get("home_page")))
 
+        # Handle fullscreen requests
+        page.fullScreenRequested.connect(self.handle_fullscreen_request)
+
+
+
         # Configure browser settings
         settings = browser.settings()
-        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, 
+                             self.settings_manager.get("javascript_enabled", True))
         settings.setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, True)
         settings.setAttribute(QWebEngineSettings.LinksIncludedInFocusChain, True)
         settings.setAttribute(QWebEngineSettings.AutoLoadImages, 
                              self.settings_manager.get("auto_load_images", True))
         settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebRTCPublicInterfacesOnly, True)
 
         # Add progress bar
         progress_bar = QProgressBar()
@@ -6503,7 +6763,7 @@ class StormBrowserDark(BrowserMainWindow):
                 background: transparent;
             }
             QProgressBar::chunk {
-                background-color: purple;
+                background-color: #3daee9;
             }
         """)
         layout.addWidget(browser)
@@ -6511,9 +6771,6 @@ class StormBrowserDark(BrowserMainWindow):
 
         # Connect signals
         browser.urlChanged.connect(lambda url: self.update_urlbar(url))
-        # Note: The titleChanged signal will update the tab title dynamically,
-        # potentially overriding the initial truncated title. The truncate_title
-        # logic inside update_tab_title (from KB) should handle that.
         browser.titleChanged.connect(lambda t: self.update_tab_title(browser, t))
         browser.loadProgress.connect(progress_bar.setValue)
         browser.iconChanged.connect(lambda icon: self.update_tab_icon(browser, icon))
@@ -6523,14 +6780,14 @@ class StormBrowserDark(BrowserMainWindow):
         browser.page().windowCloseRequested.connect(
             lambda: self.close_tab(self.tab_widget.currentIndex()))
         browser.page().linkHovered.connect(
-            lambda u: self.status_bar.showMessage(u))
+            lambda u: self.status_bar.showMessage(u, 2000))
 
-        # Truncate the initial title for display on the tab
+        # Connect permission handler (old QtWebEngine style)
+        #browser.page().featurePermissionRequested.connect(self.handle_permission_request)
+
+        # Add tab to tab widget
         display_title = truncate_title(title)
-        
-        # Add tab to tab widget with truncated title
         tab_index = self.tab_widget.addTab(container, display_title)
-        # Keep the full original title in the tooltip
         self.tab_widget.setTabToolTip(tab_index, title)
 
         # Set current tab if not in background mode
@@ -6546,9 +6803,93 @@ class StormBrowserDark(BrowserMainWindow):
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
         # Update favicon for this URL
-        self.load_favicon_for_url(url)
+        if url:
+            self.load_favicon_for_url(url)
+
+        # Connect audio state changes for visualizer
+        browser.page().audioMutedChanged.connect(self.on_audio_state_changed)
 
         return browser
+
+    def handle_fullscreen_request(self, request):
+        """
+        Handle fullscreen requests from QWebEngineView.
+        Fully restores original layout and tab state without visual glitches.
+        """
+        page = self.sender()
+
+        if request.toggleOn():
+            # Get the current browser view
+            self.fullscreen_browser = self.current_browser()
+            if not self.fullscreen_browser:
+                request.reject()
+                return
+
+            # Save original parent widget and layout container
+            self.original_container = self.fullscreen_browser.parent()
+            self.original_index = self.tab_widget.indexOf(self.original_container)
+
+            # Hide tab widget container
+            self.original_container.hide()
+
+            # Remove the browser from its parent (but don't delete)
+            self.fullscreen_browser.setParent(None)
+
+            # Create fullscreen window
+            self.fullscreen_window = QMainWindow()
+            self.fullscreen_window.setWindowFlags(Qt.Window | Qt.FramelessWindowHint)
+            self.fullscreen_window.setCentralWidget(self.fullscreen_browser)
+            self.fullscreen_window.showFullScreen()
+            self.fullscreen_window.installEventFilter(self)
+
+            request.accept()
+
+        else:
+            # Exit fullscreen
+            if hasattr(self, 'fullscreen_window') and self.fullscreen_window:
+                # Detach from fullscreen window
+                self.fullscreen_browser.setParent(None)
+
+                # Reattach to the original container
+                layout = self.original_container.layout()
+                if layout:
+                    layout.addWidget(self.fullscreen_browser)
+                else:
+                    # Fallback in case layout is missing
+                    vbox = QVBoxLayout(self.original_container)
+                    vbox.setContentsMargins(0, 0, 0, 0)
+                    vbox.addWidget(self.fullscreen_browser)
+
+                # Show the tab again
+                if self.tab_widget.indexOf(self.original_container) == -1:
+                    self.tab_widget.insertTab(self.original_index, self.original_container, "Restored Tab")
+                self.original_container.show()
+                self.tab_widget.setCurrentWidget(self.original_container)
+
+                # Optionally pause any playing media
+                self.fullscreen_browser.page().runJavaScript("""
+                    document.querySelectorAll('video, audio').forEach(media => {
+                        media.pause();
+                    });
+                """)
+
+                # Clean up
+                self.fullscreen_window.close()
+                self.fullscreen_window.deleteLater()
+
+                # Reset state
+                self.fullscreen_window = None
+                self.fullscreen_browser = None
+                self.original_container = None
+                self.original_index = None
+
+                request.accept()
+
+
+
+
+
+
 
     def create_window(self, type_):
         """
@@ -6789,21 +7130,23 @@ class StormBrowserDark(BrowserMainWindow):
         """Configure WebEngine settings for HLS and DRM support."""
         # Enable HLS if configured
         if self.settings_manager.get("hls_enabled", HLS_ENABLED):
-            QWebEngineSettings.globalSettings().setAttribute(
-                QWebEngineSettings.PlaybackRequiresUserGesture, False
-            )
-        
+            settings = QWebEngineSettings.globalSettings()
+            settings.setAttribute(QWebEngineSettings.PlaybackRequiresUserGesture, False)
+            settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
+            settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+            settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+
         # Enable DRM if configured
         if self.settings_manager.get("drm_enabled", DRM_ENABLED):
             profile = QWebEngineProfile.defaultProfile()
             profile.setHttpUserAgent(self.settings_manager.get("user_agent", USER_AGENT))
-            
+
             # Enable Widevine
             profile.setProperty("httpAccept", "application/x-mpegURL,application/dash+xml,application/vnd.apple.mpegurl")
             profile.setProperty("enableMediaSource", True)
             profile.setProperty("enableMedia", True)
             profile.setProperty("enableWebAudio", True)
-            
+
             # Set common DRM flags
             os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
                 "--enable-media-stream "
