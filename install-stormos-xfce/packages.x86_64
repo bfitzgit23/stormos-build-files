@@ -205,9 +205,9 @@ chromium
 gvfs
 mousepad
 lightdm-slick-greeter
-calamares-app
+calamares-git
 calamares-config-xfce
-kpmcore
+xxkpmcore
 terminus-font
 #stormos-desktop-configs
 vlc
