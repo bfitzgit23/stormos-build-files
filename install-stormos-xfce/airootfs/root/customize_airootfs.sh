@@ -62,9 +62,6 @@ su -c 'echo "" >> /etc/NetworkManager/NetworkManager.conf'
 su -c 'echo "[device]" >> /etc/NetworkManager/NetworkManager.conf'
 su -c 'echo "wifi.scan-rand-mac-address=no" >> /etc/NetworkManager.conf'
 
-# This is key!
-pacman-key --init
-
 # Stop lightdm user from expiring
 chage -E -1 lightdm
 
