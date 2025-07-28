@@ -32,13 +32,10 @@ fi
 systemctl enable haveged
 systemctl enable NetworkManager.service
 systemctl enable pacman-init.service choose-mirror.service
-systemctl enable ntpd.service
 systemctl enable smb.service
 systemctl enable nmb.service
-systemctl enable vboxservice.service
 systemctl enable sshd.service
 systemctl enable bluetooth.service
-systemctl enable preload.service
 systemctl enable lightdm.service
 systemctl set-default graphical.target
 
