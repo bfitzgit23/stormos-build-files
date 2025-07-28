@@ -74,11 +74,6 @@ rm -rf /usr/share/backgrounds/xfce
 
 ####
 
-pacman -Sc --noconfirm
-pacman -Syu --noconfirm --needed
-
-####
-
 chown -R liveuser:liveuser /tmp
 
 plymouth-set-default-theme stormos
