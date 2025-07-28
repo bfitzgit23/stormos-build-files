@@ -29,22 +29,6 @@ if ! grep -q "liveuser" /etc/sudoers;  then
 	echo "liveuser ALL=(ALL) ALL" >> /etc/sudoers
 fi
 
-## Enable Calamares Autostart
-if [ ! -d /home/liveuser/Desktop ]; then
-	mkdir -p /home/liveuser/Desktop
-fi
-cp -af /usr/share/applications/calamares.desktop /home/liveuser/Desktop/calamares.desktop
-chown liveuser:liveuser /home/liveuser/Desktop/calamares.desktop
-chmod +x /home/liveuser/Desktop/calamares.desktop
-
-cp -af /usr/share/applications/abif.desktop /home/liveuser/Desktop/abif.desktop
-chown liveuser:liveuser /home/liveuser/Desktop/abif.desktop
-chmod +x /home/liveuser/Desktop/abif.desktop
-
-chown liveuser:liveuser /home/liveuser/Desktop/*.desktop
-
-chown liveuser /home/liveuser/Desktop
-
 systemctl enable haveged
 systemctl enable NetworkManager.service
 systemctl enable pacman-init.service choose-mirror.service
