@@ -236,8 +236,6 @@ gst-plugins-bad
 gst-plugins-ugly
 gst-libav
 stormos-installer
-chaotic-keyring
-chaotic-mirrorlist
 pyqt5
 qt5ct
 plasma-framework
