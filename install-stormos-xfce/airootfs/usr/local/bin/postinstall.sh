@@ -62,3 +62,7 @@ echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 
 rm -rf /usr/share/backgrounds/xfce
 chown -R $name:$name /usr/share/backgrounds/* 
+chown -R $name:$name /usr/share/backgrounds/
+
+rm /home/$name/Desktop/calamares.desktop
+rm /home/$name/Desktop/abif.desktop
