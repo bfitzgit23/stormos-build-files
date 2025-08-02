@@ -204,11 +204,209 @@ import time
 from datetime import datetime
 from PyQt5.QtCore import QObject, pyqtSignal, QTimer, QDateTime
 
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QColor
 
+class ThemeManager:
+    def __init__(self, settings_manager):
+        self.settings_manager = settings_manager
+        self.current_accent_color = self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")
+        
+        # Connect to accent color changes
+        if hasattr(self.settings_manager, 'accent_color_changed'):
+            self.settings_manager.accent_color_changed.connect(self.update_accent_color)
+
+    def lighten_color(self, hex_color, percent):
+        """Lighten a color by specified percentage"""
+        hex_color = hex_color.lstrip('#')
+        r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        r = min(255, r + int(255 * (percent/100)))
+        g = min(255, g + int(255 * (percent/100)))
+        b = min(255, b + int(255 * (percent/100)))
+        return f"#{r:02x}{g:02x}{b:02x}"
+
+    def update_accent_color(self, color_hex):
+        """Update the current accent color and refresh UI"""
+        self.current_accent_color = color_hex
+        self.apply_theme()
+
+    def get_base_colors(self):
+        """Return color palette based on current theme mode"""
+        dark_mode = self.settings_manager.get("dark_mode", True)
+        
+        return {
+            'bg_color': '#2d2d2d' if dark_mode else '#ffffff',
+            'text_color': '#f0f0f0' if dark_mode else '#000000',
+            'button_color': '#3a3a3a' if dark_mode else '#e0e0e0',
+            'window_color': '#252525' if dark_mode else '#f0f0f0',
+            'highlight_color': self.current_accent_color,
+            'disabled_color': '#404040' if dark_mode else '#c0c0c0'
+        }
+
+    def generate_stylesheet(self):
+        """Generate complete stylesheet for the application"""
+        colors = self.get_base_colors()
+        accent_light = self.lighten_color(self.current_accent_color, 20)
+        accent_lighter = self.lighten_color(self.current_accent_color, 40)
+        
+        return f"""
+            /* Main Window */
+            QMainWindow {{
+                background-color: {colors['bg_color']};
+                color: {colors['text_color']};
+            }}
+            
+            /* Menu and Tool Bars */
+            QMenuBar {{
+                background-color: {colors['window_color']};
+                color: {colors['text_color']};
+                border-bottom: 2px solid {colors['highlight_color']};
+            }}
+            
+            QToolBar {{
+                background-color: {colors['window_color']};
+                border-bottom: 1px solid {colors['highlight_color']};
+                spacing: 5px;
+                padding: 3px;
+            }}
+            
+            /* Text Inputs */
+            QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QComboBox {{
+                background-color: {colors['window_color']};
+                color: {colors['text_color']};
+                border: 1px solid {colors['highlight_color']};
+                border-radius: 4px;
+                padding: 5px;
+                selection-background-color: {colors['highlight_color']};
+            }}
+            
+            QLineEdit#url_bar {{
+                border: 2px solid {colors['highlight_color']};
+                border-radius: 15px;
+                padding: 5px 10px;
+            }}
+            
+            /* Buttons */
+            QPushButton, QToolButton {{
+                background-color: {colors['button_color']};
+                color: {colors['text_color']};
+                border: 1px solid {colors['highlight_color']};
+                border-radius: 4px;
+                padding: 5px 10px;
+            }}
+            
+            QPushButton:hover, QToolButton:hover {{
+                background-color: {accent_light};
+            }}
+            
+            QPushButton:pressed, QToolButton:pressed {{
+                background-color: {colors['highlight_color']};
+            }}
+            
+            /* Tabs */
+            QTabWidget::pane {{
+                border: none;
+                background: {colors['bg_color']};
+            }}
+            
+            QTabBar::tab {{
+                background: {colors['button_color']};
+                color: {colors['text_color']};
+                border: 1px solid {colors['highlight_color']};
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                padding: 5px 10px;
+                margin-right: 2px;
+            }}
+            
+            QTabBar::tab:selected {{
+                background: {colors['bg_color']};
+                border-bottom: 2px solid {colors['highlight_color']};
+            }}
+            
+            QTabBar::tab:hover {{
+                background: {accent_light};
+            }}
+            
+            /* Scrollbars */
+            QScrollBar:vertical, QScrollBar:horizontal {{
+                background: {colors['window_color']};
+                border: none;
+                width: 12px;
+                height: 12px;
+            }}
+            
+            QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
+                background: {colors['highlight_color']};
+                min-height: 20px;
+                min-width: 20px;
+                border-radius: 6px;
+            }}
+            
+            QScrollBar::add-line, QScrollBar::sub-line {{
+                background: none;
+                border: none;
+            }}
+            
+            /* Dialogs */
+            QDialog {{
+                background: {colors['bg_color']};
+                border: 2px solid {colors['highlight_color']};
+            }}
+            
+            QDialogButtonBox QPushButton {{
+                min-width: 80px;
+            }}
+            
+            /* Menus */
+            QMenu {{
+                background: {colors['window_color']};
+                border: 1px solid {colors['highlight_color']};
+            }}
+            
+            QMenu::item:selected {{
+                background: {accent_light};
+            }}
+            
+            /* Tooltips */
+            QToolTip {{
+                background: {colors['window_color']};
+                color: {colors['text_color']};
+                border: 1px solid {colors['highlight_color']};
+            }}
+            
+            /* Disabled elements */
+            QWidget:disabled {{
+                color: {colors['disabled_color']};
+            }}
+        """
+
+    def apply_theme(self, widget=None):
+        """Apply the theme to a specific widget or the entire application"""
+        stylesheet = self.generate_stylesheet()
+        
+        if widget:
+            widget.setStyleSheet(stylesheet)
+        else:
+            QApplication.instance().setStyleSheet(stylesheet)
+        
+        # Force refresh if applied to specific widget
+        if widget:
+            widget.update()
+
+    def get_icon_color(self):
+        """Get appropriate icon color based on theme"""
+        return QColor('#ffffff') if self.settings_manager.get("dark_mode", True) else QColor('#000000')
+
+    def get_highlight_color(self):
+        """Get the current highlight (accent) color"""
+        return QColor(self.current_accent_color)
 
 
 class ThemeSettingsTab(QWidget):
-    accent_color_changed = pyqtSignal(str)  # New signal for color changes
+    accent_color_changed = pyqtSignal(str)  # Signal emitted when accent color changes
+    theme_mode_changed = pyqtSignal(str)    # Signal emitted when theme mode changes
     
     def __init__(self, settings_manager, parent=None):
         super().__init__(parent)
@@ -253,6 +451,7 @@ class ThemeSettingsTab(QWidget):
                     text-align: left;
                     border-radius: 4px;
                     margin: 2px;
+                    min-width: 100px;
                 }}
                 QPushButton:hover {{
                     border: 2px solid white;
@@ -268,11 +467,29 @@ class ThemeSettingsTab(QWidget):
             self.color_buttons.append(btn)
             color_layout.addWidget(btn)
         
+        # Add custom color picker
+        self.custom_color_btn = QPushButton("Custom Color...")
+        self.custom_color_btn.clicked.connect(self.pick_custom_color)
+        color_layout.addWidget(self.custom_color_btn)
+        
         color_group.setLayout(color_layout)
+        
+        # Theme presets
+        preset_group = QGroupBox("Theme Presets")
+        preset_layout = QHBoxLayout()
+        
+        self.preset_combo = QComboBox()
+        self.preset_combo.addItems(self.settings_manager.get_theme_presets())
+        self.preset_combo.currentTextChanged.connect(self.apply_preset)
+        
+        preset_layout.addWidget(QLabel("Preset:"))
+        preset_layout.addWidget(self.preset_combo)
+        preset_group.setLayout(preset_layout)
         
         # Add to main layout
         layout.addWidget(theme_group)
         layout.addWidget(color_group)
+        layout.addWidget(preset_group)
         layout.addStretch()
         
         self.setLayout(layout)
@@ -281,6 +498,65 @@ class ThemeSettingsTab(QWidget):
         self.system_radio.toggled.connect(self.toggle_theme_mode)
         self.light_radio.toggled.connect(self.toggle_theme_mode)
         self.dark_radio.toggled.connect(self.toggle_theme_mode)
+
+    def pick_custom_color(self):
+        """Open color dialog to pick a custom accent color"""
+        color = QColorDialog.getColor()
+        if color.isValid():
+            hex_color = color.name()
+            self.select_color(hex_color)
+            # Add to available colors if not already present
+            colors = self.settings_manager.get("theme", {}).get("available_colors", [])
+            if not any(c["color"] == hex_color for c in colors):
+                colors.append({"name": "Custom", "color": hex_color})
+                self.settings_manager.set("theme", {"available_colors": colors})
+    
+    def load_settings(self):
+        """Load current theme settings"""
+        theme_mode = self.settings_manager.get("theme_mode", "system")
+        
+        if theme_mode == "system":
+            self.system_radio.setChecked(True)
+        elif theme_mode == "light":
+            self.light_radio.setChecked(True)
+        else:
+            self.dark_radio.setChecked(True)
+    
+    def toggle_theme_mode(self, checked):
+        """Toggle between theme modes"""
+        if not checked:
+            return
+            
+        if self.sender() == self.system_radio:
+            mode = "system"
+        elif self.sender() == self.light_radio:
+            mode = "light"
+        else:
+            mode = "dark"
+        
+        # Store the mode
+        self.settings_manager.set("theme_mode", mode)
+        self.theme_mode_changed.emit(mode)
+        
+        # Apply immediately
+        self.settings_manager.apply_theme(QApplication.instance())
+
+    def select_color(self, color_hex):
+        """Select an accent color and emit change signal"""
+        for btn in self.color_buttons:
+            btn.setChecked(btn.styleSheet().contains(color_hex))
+        
+        # Update settings and emit signal
+        self.settings_manager.apply_accent_color(color_hex)
+        self.accent_color_changed.emit(color_hex)
+
+    def apply_preset(self, preset_name):
+        """Apply a theme preset"""
+        if preset_name:
+            self.settings_manager.apply_theme_preset(preset_name)
+            # Update selected color button
+            new_color = self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")
+            self.select_color(new_color)
     
     def load_settings(self):
         """Load current theme settings"""
@@ -1227,195 +1503,41 @@ class CookieManager(QObject):
         super().__init__(parent)
         self.settings_manager = parent.settings_manager if hasattr(parent, 'settings_manager') else None
         self.profile = QWebEngineProfile.defaultProfile()
-        self.load_settings()
+        
+    def get_cookie_settings(self):
+        return self.settings_manager.get("cookies", {}) if self.settings_manager else {}
     
-    def load_settings(self):
-        """Load and apply cookie settings"""
-        if not self.settings_manager:
-            return
-            
+    def set_cookie_setting(self, key, value):
+        if self.settings_manager:
+            cookies = self.settings_manager.get("cookies", {})
+            cookies[key] = value
+            self.settings_manager.set("cookies", cookies)
+            self.apply_cookie_settings()
+    
+    def apply_cookie_settings(self):
         settings = self.get_cookie_settings()
         
         # Set cookie policy
         if settings.get("accept_cookies", True):
             if settings.get("accept_third_party", False):
-                self.profile.setPersistentCookiesPolicy(QWebEngineProfile.AllowPersistentCookies)
+                policy = QWebEngineProfile.AllowAllCookies
             else:
-                self.profile.setPersistentCookiesPolicy(QWebEngineProfile.ForcePersistentCookies)
+                policy = QWebEngineProfile.AllowFirstPartyCookies
         else:
-            self.profile.setPersistentCookiesPolicy(QWebEngineProfile.NoPersistentCookies)
-        
-        # Apply blocked/whitelisted sites
-        self.update_site_specific_settings()
-
-    def update_site_specific_settings(self):
-        """Apply blocked/whitelisted site rules"""
-        settings = self.get_cookie_settings()
-        blocked = settings.get("blocked_sites", [])
-        whitelisted = settings.get("whitelisted_sites", [])
-        
-        # This would require implementing a custom URL interceptor
-        # See additional implementation notes below
-
-    def get_cookie_settings(self):
-        """Return current cookie settings"""
-        if self.settings_manager:
-            return self.settings_manager.get("cookies", {
-                "accept_cookies": True,
-                "accept_third_party": False,
-                "blocked_sites": [],
-                "whitelisted_sites": []
-            })
-        return {}
-
-    def set_cookie_setting(self, key, value):
-        """Update a cookie setting"""
-        if not self.settings_manager:
-            return False
+            policy = QWebEngineProfile.NoCookies
             
-        settings = self.get_cookie_settings()
-        settings[key] = value
-        self.settings_manager.set("cookies", settings)
-        self.load_settings()  # Reapply settings
-        return True
-
-    def add_blocked_site(self, domain):
-        """Add a site to blocked list"""
-        settings = self.get_cookie_settings()
-        if domain not in settings["blocked_sites"]:
-            settings["blocked_sites"].append(domain)
-            return self.set_cookie_setting("blocked_sites", settings["blocked_sites"])
-        return False
-
-    def add_whitelisted_site(self, domain):
-        """Add a site to whitelist"""
-        settings = self.get_cookie_settings()
-        if domain not in settings["whitelisted_sites"]:
-            settings["whitelisted_sites"].append(domain)
-            return self.set_cookie_setting("whitelisted_sites", settings["whitelisted_sites"])
-        return False
-
-
-
-
-
-
-class CookieSettingsDialog(QDialog):
-    def __init__(self, cookie_manager, parent=None):
-        super().__init__(parent)
-        self.cookie_manager = cookie_manager
-        self.setWindowTitle("Cookie Settings")
-        self.setup_ui()
-        self.load_settings()
-
-    def setup_ui(self):
-        layout = QVBoxLayout()
+        self.profile.setPersistentCookiesPolicy(policy)
         
-        # Main cookie toggle
-        self.cookie_check = QCheckBox("Enable Cookies")
-        layout.addWidget(self.cookie_check)
-        
-        # Third-party cookies
-        self.third_party_check = QCheckBox("Allow Third-Party Cookies")
-        layout.addWidget(self.third_party_check)
-        
-        # Site management tabs
-        self.tab_widget = QTabWidget()
-        
-        # Blocked sites tab
-        blocked_tab = QWidget()
-        blocked_layout = QVBoxLayout()
-        self.blocked_list = QListWidget()
-        self.blocked_input = QLineEdit()
-        self.blocked_input.setPlaceholderText("Enter domain to block (e.g., example.com)")
-        add_blocked_btn = QPushButton("Add to Block List")
-        add_blocked_btn.clicked.connect(self.add_blocked_site)
-        
-        blocked_layout.addWidget(QLabel("Blocked Sites:"))
-        blocked_layout.addWidget(self.blocked_list)
-        blocked_layout.addWidget(self.blocked_input)
-        blocked_layout.addWidget(add_blocked_btn)
-        blocked_tab.setLayout(blocked_layout)
-        
-        # Whitelisted sites tab
-        whitelist_tab = QWidget()
-        whitelist_layout = QVBoxLayout()
-        self.whitelist_list = QListWidget()
-        self.whitelist_input = QLineEdit()
-        self.whitelist_input.setPlaceholderText("Enter domain to whitelist")
-        add_whitelist_btn = QPushButton("Add to Whitelist")
-        add_whitelist_btn.clicked.connect(self.add_whitelisted_site)
-        
-        whitelist_layout.addWidget(QLabel("Whitelisted Sites:"))
-        whitelist_layout.addWidget(self.whitelist_list)
-        whitelist_layout.addWidget(self.whitelist_input)
-        whitelist_layout.addWidget(add_whitelist_btn)
-        whitelist_tab.setLayout(whitelist_layout)
-        
-        self.tab_widget.addTab(blocked_tab, "Blocked Sites")
-        self.tab_widget.addTab(whitelist_tab, "Whitelisted Sites")
-        layout.addWidget(self.tab_widget)
-        
-        # Buttons
-        btn_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        btn_box.accepted.connect(self.save_settings)
-        btn_box.rejected.connect(self.reject)
-        layout.addWidget(btn_box)
-        
-        self.setLayout(layout)
+        # Set cookie lifetime
+        if settings.get("keep_cookies_until") == "forever":
+            self.profile.setPersistentStoragePath(os.path.join(CONFIG_DIR, "cookies"))
+        else:
+            self.profile.setPersistentStoragePath("")  # Session-only cookies
 
-    def load_settings(self):
-        settings = self.cookie_manager.get_cookie_settings()
-        self.cookie_check.setChecked(settings.get("accept_cookies", True))
-        self.third_party_check.setChecked(settings.get("accept_third_party", False))
-        
-        self.blocked_list.clear()
-        self.blocked_list.addItems(settings.get("blocked_sites", []))
-        
-        self.whitelist_list.clear()
-        self.whitelist_list.addItems(settings.get("whitelisted_sites", []))
 
-    def add_blocked_site(self):
-        domain = self.blocked_input.text().strip()
-        if domain and self.cookie_manager.add_blocked_site(domain):
-            self.blocked_list.addItem(domain)
-            self.blocked_input.clear()
 
-    def add_whitelisted_site(self):
-        domain = self.whitelist_input.text().strip()
-        if domain and self.cookie_manager.add_whitelisted_site(domain):
-            self.whitelist_list.addItem(domain)
-            self.whitelist_input.clear()
 
-    def save_settings(self):
-        self.cookie_manager.set_cookie_setting("accept_cookies", self.cookie_check.isChecked())
-        self.cookie_manager.set_cookie_setting("accept_third_party", self.third_party_check.isChecked())
-        self.accept()
 
-class CookieRequestInterceptor(QWebEngineUrlRequestInterceptor):
-    def __init__(self, cookie_manager, parent=None):
-        super().__init__(parent)
-        self.cookie_manager = cookie_manager
-    
-    def interceptRequest(self, info):
-        url = info.requestUrl()
-        host = url.host()
-        settings = self.cookie_manager.get_cookie_settings()
-        
-        # Check if cookies are disabled globally
-        if not settings.get("accept_cookies", True):
-            info.block(True)
-            return
-            
-        # Check if site is blocked
-        if host in settings.get("blocked_sites", []):
-            info.block(True)
-            
-        # Check third-party cookies
-        first_party = info.firstPartyUrl()
-        if (not settings.get("accept_third_party", False) and 
-            first_party.host() != host):
-            info.block(True)
 
 
 class PasswordManager(QObject):
@@ -1583,44 +1705,12 @@ class MultiSiteSearchWidget(QDockWidget):
     def __init__(self, parent=None):
         super().__init__("Multi-Site Search", parent)
         self.parent = parent
-        self.setFeatures(QDockWidget.DockWidgetMovable | 
-                        QDockWidget.DockWidgetFloatable |
-                        QDockWidget.DockWidgetClosable)  # Added closable feature
+        self.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
         self.setAllowedAreas(Qt.RightDockWidgetArea)
 
         # Set preferred size
         self.setMinimumSize(300, 400)
-        self.resize(350, 550)
-
-        # Create custom title bar with close button
-        self.title_bar = QWidget()
-        title_layout = QHBoxLayout(self.title_bar)
-        title_layout.setContentsMargins(5, 2, 5, 2)
-        title_layout.setSpacing(5)
-        
-        self.title_label = QLabel("Multi-Site Search")
-        title_layout.addWidget(self.title_label)
-        title_layout.addStretch()
-        
-        # Close button
-        self.close_btn = QToolButton()
-        self.close_btn.setIcon(QIcon.fromTheme("window-close"))
-        self.close_btn.setStyleSheet("""
-            QToolButton {
-                border: none;
-                padding: 2px;
-                background: transparent;
-            }
-            QToolButton:hover {
-                background: #ff4444;
-                border-radius: 3px;
-            }
-        """)
-        self.close_btn.setFixedSize(20, 20)
-        self.close_btn.clicked.connect(self.close)
-        title_layout.addWidget(self.close_btn)
-        
-        self.setTitleBarWidget(self.title_bar)
+        self.resize(350, 550)  # Increased height for new categories
 
         # Main widget and layout
         self.search_widget = QWidget()
@@ -1739,6 +1829,7 @@ class MultiSiteSearchWidget(QDockWidget):
                 lambda checked, category=category: self.on_category_group_toggled(category, checked)
             )
 
+            
             # Store the category checkbox for later reference
             self.category_checkboxes[category] = category_group
             
@@ -2647,6 +2738,9 @@ class HistoryManager(QObject):
 
 # ====================== SETTINGS MANAGER ======================
 class SettingsManager(QObject):
+    accent_color_changed = pyqtSignal(str)  # Signal emitted when accent color changes
+    theme_mode_changed = pyqtSignal(str)    # Signal emitted when theme mode changes
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         ensure_config_dir()
@@ -2745,6 +2839,270 @@ class SettingsManager(QObject):
         # Load settings
         self.settings = load_json_file(SETTINGS_FILE, self.default_settings)
         self.validate_settings()
+
+    def validate_settings(self):
+        """Ensure all settings exist and are valid."""
+        needs_save = False
+        
+        # Check top-level settings
+        for key, default_value in self.default_settings.items():
+            if key not in self.settings:
+                self.settings[key] = default_value
+                needs_save = True
+                
+        # Check dark theme colors
+        if "dark_theme" not in self.settings:
+            self.settings["dark_theme"] = self.default_settings["dark_theme"]
+            needs_save = True
+        else:
+            for color_key, default_value in self.default_settings["dark_theme"].items():
+                if color_key not in self.settings["dark_theme"]:
+                    self.settings["dark_theme"][color_key] = default_value
+                    needs_save = True
+        
+        # Check cookie settings
+        if "cookies" not in self.settings:
+            self.settings["cookies"] = self.default_settings["cookies"]
+            needs_save = True
+        else:
+            for cookie_key, default_value in self.default_settings["cookies"].items():
+                if cookie_key not in self.settings["cookies"]:
+                    self.settings["cookies"][cookie_key] = default_value
+                    needs_save = True
+        
+        # Check shortcuts
+        if "shortcuts" not in self.settings:
+            self.settings["shortcuts"] = self.default_settings["shortcuts"]
+            needs_save = True
+        else:
+            for shortcut, default_value in self.default_settings["shortcuts"].items():
+                if shortcut not in self.settings["shortcuts"]:
+                    self.settings["shortcuts"][shortcut] = default_value
+                    needs_save = True
+        
+        if needs_save:
+            self.save_settings()
+
+    def save_settings(self):
+        """Save current settings to file."""
+        save_json_file(SETTINGS_FILE, self.settings)
+
+    def get(self, key, default=None):
+        """Get a setting value."""
+        return self.settings.get(key, default)
+
+    def set(self, key, value):
+        """Set a setting value and save to disk."""
+        self.settings[key] = value
+        self.save_settings()
+
+    def get_shortcut(self, action):
+        """Get keyboard shortcut for an action."""
+        try:
+            return self.settings["shortcuts"].get(action, self.default_settings["shortcuts"].get(action, ""))
+        except KeyError:
+            return self.default_settings["shortcuts"].get(action, "")
+
+    def apply_theme_preset(self, preset_name):
+        """Apply a predefined theme preset."""
+        presets = self.settings.get("theme", {}).get("presets", {})
+        if preset_name in presets:
+            preset = presets[preset_name]
+            
+            # Update dark theme settings
+            dark_theme = self.settings.setdefault("dark_theme", {})
+            for key, value in preset.items():
+                dark_theme[key] = value
+            
+            # Update accent color if specified in preset
+            if "highlight_color" in preset:
+                self.settings["theme"]["accent_color"] = preset["highlight_color"]
+                self.accent_color_changed.emit(preset["highlight_color"])
+            
+            self.save_settings()
+            self.apply_theme(QApplication.instance())
+            return True
+        return False
+
+    def get_theme_presets(self):
+        """Return list of available theme presets."""
+        return list(self.settings.get("theme", {}).get("presets", {}).keys())
+
+    def apply_dark_mode(self, app):
+        """Apply dark theme to the application."""
+        if not self.settings.get("dark_mode", True):
+            app.setPalette(QStyleFactory.create("Fusion").standardPalette())
+            app.setStyleSheet("")
+            return
+
+        # Use Fusion style as base
+        app.setStyle("Fusion")
+        
+        # Get theme colors
+        theme = self.settings.get("dark_theme", self.default_settings["dark_theme"])
+        accent_color = self.settings.get("theme", {}).get("accent_color", "#3daee9")
+        
+        # Create and set dark palette
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(theme["window_color"]))
+        palette.setColor(QPalette.WindowText, QColor(theme["text_color"]))
+        palette.setColor(QPalette.Base, QColor(theme["base_color"]))
+        palette.setColor(QPalette.AlternateBase, QColor(theme["base_color"]))
+        palette.setColor(QPalette.ToolTipBase, QColor(theme["tooltip_color"]))
+        palette.setColor(QPalette.ToolTipText, QColor(theme["text_color"]))
+        palette.setColor(QPalette.Text, QColor(theme["text_color"]))
+        palette.setColor(QPalette.Button, QColor(theme["button_color"]))
+        palette.setColor(QPalette.ButtonText, QColor(theme["text_color"]))
+        palette.setColor(QPalette.BrightText, Qt.red)
+        palette.setColor(QPalette.Link, QColor(accent_color))
+        palette.setColor(QPalette.Highlight, QColor(accent_color))
+        palette.setColor(QPalette.HighlightedText, Qt.black)
+        palette.setColor(QPalette.Disabled, QPalette.Text, QColor(theme["disabled_color"]))
+        palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(theme["disabled_color"]))
+        
+        app.setPalette(palette)
+        
+        # Apply stylesheet
+        app.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme["base_color"]};
+                color: {theme["text_color"]};
+            }}
+            QPushButton, QToolButton {{
+                background-color: {theme["button_color"]};
+                border: 1px solid #444;
+                padding: 5px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover, QToolButton:hover {{
+                background-color: #{self._adjust_lightness(theme["button_color"], 10)};
+            }}
+            QTabBar::tab {{
+                background: {theme["button_color"]};
+                color: {theme["text_color"]};
+                padding: 8px;
+                border: 1px solid #444;
+            }}
+            QLineEdit, QTextEdit {{
+                background-color: {theme["window_color"]};
+                border: 1px solid #444;
+            }}
+            QMenu {{
+                background-color: {theme["window_color"]};
+            }}
+        """)
+
+    def apply_theme(self, app):
+        """Apply theme to the entire application."""
+        if not app:
+            return
+            
+        if self.get("dark_mode", True):
+            self.apply_dark_mode(app)
+        else:
+            self.apply_light_mode(app)
+        
+        # Force style refresh
+        app.setStyleSheet(app.styleSheet())
+        for widget in app.allWidgets():
+            widget.update()
+
+    def apply_light_mode(self, app):
+        """Apply light theme palette."""
+        palette = QPalette()
+        accent_color = self.get("theme", {}).get("accent_color", "#3daee9")
+        
+        # Basic colors
+        palette.setColor(QPalette.Window, QColor(240, 240, 240))
+        palette.setColor(QPalette.WindowText, Qt.black)
+        palette.setColor(QPalette.Base, QColor(255, 255, 255))
+        palette.setColor(QPalette.AlternateBase, QColor(240, 240, 240))
+        
+        # Text colors
+        palette.setColor(QPalette.Text, Qt.black)
+        palette.setColor(QPalette.ButtonText, Qt.black)
+        
+        # Button colors
+        palette.setColor(QPalette.Button, QColor(240, 240, 240))
+        
+        # Highlight colors
+        palette.setColor(QPalette.Highlight, QColor(accent_color))
+        palette.setColor(QPalette.HighlightedText, Qt.white)
+        
+        app.setPalette(palette)
+
+    def apply_accent_color(self, color_hex):
+        """Apply the selected accent color to the theme."""
+        if "theme" not in self.settings:
+            self.settings["theme"] = {}
+        
+        self.settings["theme"]["accent_color"] = color_hex
+        
+        # Update the dark theme highlight color
+        if "dark_theme" in self.settings:
+            self.settings["dark_theme"]["highlight_color"] = color_hex
+        
+        self.save_settings()
+        
+        # Emit signal to update all UI components
+        self.accent_color_changed.emit(color_hex)
+
+    def get_available_accent_colors(self):
+        """Return list of available accent colors."""
+        return self.settings.get("theme", {}).get("available_colors", 
+            self.default_settings["theme"]["available_colors"])
+
+    def _adjust_lightness(self, hex_color, percent):
+        """Adjust color lightness (helper for styles)."""
+        try:
+            hex_color = hex_color.lstrip('#')
+            r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+            
+            # Convert to HSL
+            r /= 255.0
+            g /= 255.0
+            b /= 255.0
+            max_val = max(r, g, b)
+            min_val = min(r, g, b)
+            l = (max_val + min_val) / 2.0
+            
+            # Adjust lightness
+            l = min(1.0, max(0.0, l + (percent / 100.0)))
+            
+            # Convert back to RGB
+            if l <= 0:
+                return "000000"
+            if l >= 1:
+                return "ffffff"
+                
+            if max_val == min_val:
+                r = g = b = l
+            else:
+                def hue2rgb(p, q, t):
+                    if t < 0: t += 1
+                    if t > 1: t -= 1
+                    if t < 1/6: return p + (q - p) * 6 * t
+                    if t < 1/2: return q
+                    if t < 2/3: return p + (q - p) * (2/3 - t) * 6
+                    return p
+                
+                if l < 0.5:
+                    q = l * (1 + percent/100)
+                else:
+                    q = l + percent/100 - (l * percent/100)
+                    
+                p = 2 * l - q
+                r = hue2rgb(p, q, r + 1/3)
+                g = hue2rgb(p, q, g)
+                b = hue2rgb(p, q, b - 1/3)
+            
+            # Convert to hex
+            r = int(max(0, min(255, round(r * 255))))
+            g = int(max(0, min(255, round(g * 255))))
+            b = int(max(0, min(255, round(b * 255))))
+            return f"{r:02x}{g:02x}{b:02x}"
+        except:
+            return hex_color.lstrip('#')
 
         
     def apply_theme_preset(self, preset_name):
@@ -3067,10 +3425,6 @@ class SettingsManager(QObject):
         if hasattr(self.parent(), 'apply_dark_mode'):
             self.parent().apply_dark_mode(QApplication.instance())
 
-    def get_available_accent_colors(self):
-        """Return list of available accent colors"""
-        return self.settings.get("theme", {}).get("available_colors", 
-            self.default_settings["theme"]["available_colors"])
 # ====================== NOTIFICATION MANAGER ======================
 class NotificationManager(QObject):
     def __init__(self, parent=None):
@@ -3356,6 +3710,7 @@ class BookmarkSearcher(QDialog):
                 border: 1px solid white;
             }}
         """)
+
 
 
 class BlobUrlInterceptor(QWebEngineUrlRequestInterceptor):
@@ -4465,6 +4820,9 @@ class BrowserMainWindow(QMainWindow):
         super().__init__()
 
         # --- Basic Window Setup ---
+        #from PyQt5.QtGui import QIcon
+        #QIcon.setThemeName("Adwaita")  # Set system icon theme
+
         self.setWindowTitle("Storm Browser v12 - Ultimate Edition")
         self.setMinimumSize(800, 600)
         self.showMaximized()
@@ -4476,32 +4834,51 @@ class BrowserMainWindow(QMainWindow):
         self.config_manager.initialize()
 
         self.settings_manager = SettingsManager(self)
+        self.theme_manager = ThemeManager(self.settings_manager)
         self.password_manager = PasswordManager(self)
         self.download_manager = DownloadManager(self)
         self.bookmark_manager = BookmarkManager(self)
         self.history_manager = HistoryManager(self)
         self.cookie_manager = CookieManager(self)
         self.notification_manager = NotificationManager(self)
-        self.screen_recorder = ScreenRecorder(self)
 
-        # --- Status Bar Setup ---
+        # Add this with your other managers
+        self.screen_recorder = ScreenRecorder(self)
+        self.screen_recorder.recording_started.connect(self.on_recording_started)
+        self.screen_recorder.recording_finished.connect(self.on_recording_finished)
+        self.screen_recorder.recording_progress.connect(self.on_recording_progress)
+        self.screen_recorder.recording_error.connect(self.on_recording_error)
+        self.screen_recorder.recording_status.connect(self.handle_recording_status)
+        self.screen_recorder.recording_timeout.connect(self.on_recording_timeout)  # Add this line
+
+        # --- Initialize Accent Color System ---
+        self.current_accent_color = self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")
+        self.settings_manager.accent_color_changed.connect(self.handle_accent_color_change)
+
+
+        self.screen_recorder.recording_stats.connect(self.handle_recording_stats)
+
+
+        # Status Bar Setup
         self.status_bar = QStatusBar()
-        self.status_bar.setSizeGripEnabled(False)
+        self.status_bar.setSizeGripEnabled(False)  # Cleaner appearance
         self.setStatusBar(self.status_bar)
 
-        # --- Cookie Management ---
-        self.cookie_interceptor = CookieRequestInterceptor(self.cookie_manager)
-        QWebEngineProfile.defaultProfile().setRequestInterceptor(self.cookie_interceptor)
 
-        # --- Recording Setup ---
+        # Add recording timer for file size updates
         self.recording_size_timer = QTimer(self)
         self.recording_size_timer.timeout.connect(self.update_recording_size)
         self.last_file_size = 0
 
+
         # --- Favicon and URL Interceptor ---
         self.favicon_manager = FaviconManager(self)
         self.favicon_manager.favicon_ready.connect(self.update_tab_favicon)
+
         self.pdf_viewer = PDFViewer(self)
+
+
+
         self.url_interceptor = BlobUrlInterceptor()
         QWebEngineProfile.defaultProfile().setUrlRequestInterceptor(self.url_interceptor)
 
@@ -4527,31 +4904,159 @@ class BrowserMainWindow(QMainWindow):
         self.setup_shortcuts()
         self._setup_password_handling()
 
-        # --- Theme Setup ---
+        # --- Apply Dark Mode ---
         if self.settings_manager.get("dark_mode"):
             self.settings_manager.apply_dark_mode(QApplication.instance())
-        self.update_url_bar_style(self.settings_manager.get("theme", {}).get("accent_color", "#3daee9"))
+        self.update_url_bar_style(self.current_accent_color)
+
+
+        # Apply theme
+        self.theme_manager.apply_theme()
 
         # --- WebEngine Configuration ---
         self.configure_webengine()
 
-        # --- Multi-Site Search ---
+        # --- Multi-Site Search Widget Integration ---
         self.multi_site_search = MultiSiteSearchWidget(parent=self)
         self.addDockWidget(Qt.RightDockWidgetArea, self.multi_site_search)
-        self.multi_site_search.hide()
+        self.multi_site_search.hide()  # Hide by default
 
         # --- Initial Page Load ---
-        self.add_new_tab(QUrl(self.settings_manager.get("home_page")))  # Fixed missing parenthesis
+        self.add_new_tab(QUrl(self.settings_manager.get("home_page")))
 
-        # --- Tab Context Menu ---
+
+        # Set up tab context menu for right-click
         self.tab_widget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tab_widget.customContextMenuRequested.connect(self.show_tab_context_menu)
 
         # --- Closed Tabs Management ---
         self.closed_tabs = []
-        self.MAX_CLOSED_TABS = 10
+        self.MAX_CLOSED_TABS = 10  # Limit how many tabs to remember
 
         self.setFocusPolicy(Qt.StrongFocus)
+
+    def handle_accent_color_change(self, color_hex):
+        """Handle accent color changes from settings"""
+        self.current_accent_color = color_hex
+        self.apply_accent_color_to_ui()
+        self.update_url_bar_style(color_hex)
+
+    def apply_accent_color_to_ui(self):
+        """Apply current accent color to all UI components globally"""
+        dark_mode = self.settings_manager.get("dark_mode")
+        accent = self.current_accent_color
+        
+        # Base colors
+        bg_color = '#2d2d2d' if dark_mode else '#ffffff'
+        text_color = '#f0f0f0' if dark_mode else '#000000'
+        button_color = '#3a3a3a' if dark_mode else '#e0e0e0'
+        
+        stylesheet = f"""
+            /* Main Window */
+            QMainWindow {{
+                background-color: {bg_color};
+            }}
+            
+            /* Menu and Tool Bars */
+            QMenuBar, QToolBar {{
+                background-color: {'#252525' if dark_mode else '#f0f0f0'};
+                border-bottom: 2px solid {accent};
+                spacing: 5px;
+                padding: 3px;
+            }}
+            
+            /* URL Bar */
+            QLineEdit#url_bar {{
+                border: 2px solid {accent};
+                border-radius: 15px;
+                padding: 5px 10px;
+                background: {'#252525' if dark_mode else '#ffffff'};
+                color: {text_color};
+            }}
+            
+            /* Tabs */
+            QTabWidget::pane {{
+                border: none;
+                background: {bg_color};
+            }}
+            QTabBar::tab {{
+                background: {button_color};
+                color: {text_color};
+                border: 1px solid {accent};
+                border-bottom: none;
+                border-radius: 4px;
+                padding: 5px 10px;
+            }}
+            QTabBar::tab:selected {{
+                background: {bg_color};
+                border-bottom: 2px solid {accent};
+            }}
+            QTabBar::tab:hover {{
+                background: {self.lighten_color(accent, 20)};
+            }}
+            
+            /* Buttons */
+            QToolButton, QPushButton {{
+                background-color: {button_color};
+                color: {text_color};
+                border: 1px solid {accent};
+                border-radius: 4px;
+                padding: 5px;
+                min-width: 24px;
+            }}
+            QToolButton:hover, QPushButton:hover {{
+                background-color: {self.lighten_color(accent, 10)};
+            }}
+            
+            /* Scrollbars */
+            QScrollBar::handle:vertical {{
+                background: {accent};
+                border-radius: 6px;
+            }}
+            
+            /* Dialogs */
+            QDialog {{
+                border: 2px solid {accent};
+            }}
+            
+            /* Add more components as needed */
+        """
+        
+        # Apply globally
+        self.setStyleSheet(stylesheet)
+        QApplication.instance().setStyleSheet(stylesheet)
+        
+        # Force refresh
+        self.update()
+
+    def lighten_color(self, hex_color, percent):
+        """Lighten a color by specified percentage"""
+        hex_color = hex_color.lstrip('#')
+        r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        r = min(255, r + int(255 * (percent/100)))
+        g = min(255, g + int(255 * (percent/100)))
+        b = min(255, b + int(255 * (percent/100)))
+        return f"#{r:02x}{g:02x}{b:02x}"
+
+    def update_url_bar_style(self, accent_color):
+        """Update URL bar styling with accent color"""
+        url_bar_style = f"""
+            QLineEdit {{
+                border: 2px solid {accent_color};
+                border-radius: 15px;
+                padding: 8px;
+                background: {'#252525' if self.settings_manager.get("dark_mode") else '#ffffff'};
+                color: {'#f0f0f0' if self.settings_manager.get("dark_mode") else '#000000'};
+                selection-background-color: {accent_color};
+                font-size: 14px;
+                margin: 0 5px;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {self.lighten_color(accent_color, 20)};
+                background: {'#353535' if self.settings_manager.get("dark_mode") else '#f8f8f8'};
+            }}
+        """
+        self.url_bar.setStyleSheet(url_bar_style)
 
 
 
@@ -4733,17 +5238,6 @@ class BrowserMainWindow(QMainWindow):
 
         # Call the base class method to handle other key events
         super().keyPressEvent(event)
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -5660,64 +6154,65 @@ class BrowserMainWindow(QMainWindow):
 
 
     def add_incognito_tab(self, url=None, title="Incognito Tab"):
-        """Adds a new incognito tab and makes it active immediately."""
+        """Adds a new incognito tab with special handling for privacy and truncated title."""
         
         # --- Helper function to truncate title ---
         def truncate_title(t, max_len=15):
             if len(t) > max_len:
-                return t[:max_len - 3] + "..."  # Use last 3 chars for "..."
+                return t[:max_len - 3] + "..." # Use last 3 chars for "..."
             return t
         # --- End Helper ---
 
         # Truncate the title for display
         display_title = truncate_title(title)
 
-        # Create a unique profile name for incognito
-        profile_name = f"incognito_{os.getpid()}_{int(time.time() * 1000000)}"
+        # Create a new profile specifically for incognito
+        profile_name = f"incognito_{os.getpid()}_{int(time.time() * 1000000)}" # More unique ID
         incognito_profile = QWebEngineProfile(profile_name, self)
 
-        # Set up a temporary directory for this incognito session
+        # Configure the incognito profile to not store any data
         temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_profiles", profile_name)
         os.makedirs(temp_dir, exist_ok=True)
         incognito_profile.setPersistentStoragePath(temp_dir)
         incognito_profile.setCachePath(temp_dir)
+        # Consider setting a distinct User Agent if desired
+        # incognito_profile.setHttpUserAgent("YourBrowserIncognito/Version")
 
-        # Configure privacy settings
+        # Disable storage and features that might persist data
         settings = incognito_profile.settings()
         settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, False)
         settings.setAttribute(QWebEngineSettings.PluginsEnabled, False)
-        # You can disable more features here if needed
+        # Add other privacy-related settings as needed...
 
-        # Create a container widget for the web view
+        # Create a web view with the incognito profile
         container = QWidget()
-        container.setProperty("is_incognito", True)  # Mark as incognito
+        container.setProperty("is_incognito", True) # Store incognito flag on the widget
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Create the browser view with the incognito profile
         browser = QWebEngineView()
         browser.setPage(QWebEnginePage(incognito_profile, browser))
 
-        # Connect signals for URL updates
-        browser.urlChanged.connect(lambda u: self.update_incognito_urlbar(browser, u))
+        # Connect signals for incognito-specific behavior
+        # Assuming update_incognito_urlbar exists and handles URL bar/history for incognito
+        browser.urlChanged.connect(lambda url: self.update_incognito_urlbar(browser, url))
+        # Add other necessary signal connections...
 
-        # Add browser to layout
+        # Add to layout
         layout.addWidget(browser)
 
-        # Add tab to the tab widget
+        # Add to tab widget with truncated title and icon
         tab_index = self.tab_widget.addTab(container, "🔥 " + display_title)
+        # Use the original full title for the tooltip
         self.tab_widget.setTabToolTip(tab_index, "Incognito: " + title)
 
-        # Make the new tab active
-        self.tab_widget.setCurrentIndex(tab_index)
-
-        # Load initial URL if provided
+        # Load URL if provided
         if url and isinstance(url, QUrl):
             browser.setUrl(url)
 
-        # Focus the URL bar for quick input
-        self.focus_url_bar()
+        # Consider setting the new tab as current if not background
+        # if not background: self.tab_widget.setCurrentIndex(tab_index)
 
         return browser
 
@@ -6187,7 +6682,7 @@ class BrowserMainWindow(QMainWindow):
         self.url_completer_model.appendRow(item)
 
     def setup_ui(self):
-        """Setup the main browser UI with theme support and improved organization."""
+        """Setup the main browser UI with improved organization and functionality."""
         # Initialize fullscreen tracking and event filter
         self.fullscreen_view = None  # To track fullscreen webview
         self.installEventFilter(self)  # Enable event filtering
@@ -6216,7 +6711,7 @@ class BrowserMainWindow(QMainWindow):
         layout.addWidget(self.tab_widget)
 
         # Navigation bar with theme support
-        self.nav_bar = QToolBar("Navigation")
+        self.self.navigation_toolbar = QToolBar("Navigation")
         self.nav_bar.setMovable(False)
         self.nav_bar.setIconSize(QSize(24, 24))
         self.nav_bar.setToolButtonStyle(Qt.ToolButtonIconOnly)
@@ -6277,50 +6772,16 @@ class BrowserMainWindow(QMainWindow):
         self.settings_btn.setToolTip("Settings")
         self.nav_bar.addAction(self.settings_btn)
 
-
-
-
-        # Add this section - Create Settings menu with Cookie Settings option
-        self.settings_menu = self.menuBar().addMenu("&Settings")
-        
-        # Cookie Settings action
-        cookie_action = QAction("Cookie Settings", self)
-        cookie_action.setShortcut("Ctrl+Shift+C")  # Optional shortcut
-        cookie_action.triggered.connect(self.show_cookie_settings)
-        self.settings_menu.addAction(cookie_action)
-
-
-
-        # Status bar with theme support
+        # Status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
-        # Download progress bar with theme support
+        # Download progress bar
         self.download_progress_bar = QProgressBar()
         self.download_progress_bar.setTextVisible(False)
         self.download_progress_bar.setFixedHeight(3)
         self.download_progress_bar.hide()
         self.status_bar.addPermanentWidget(self.download_progress_bar)
-
-        # Recording status widget
-        self.recording_status_widget = QWidget()
-        recording_layout = QHBoxLayout()
-        recording_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.elapsed_label = QLabel("00:00")
-        self.countdown_label = QLabel("00:00")
-        self.size_label = QLabel("0 MB")
-        self.bitrate_label = QLabel("0 kbps")
-        
-        recording_layout.addWidget(self.elapsed_label)
-        recording_layout.addWidget(self.countdown_label)
-        recording_layout.addWidget(QLabel("|"))
-        recording_layout.addWidget(self.size_label)
-        recording_layout.addWidget(self.bitrate_label)
-        
-        self.recording_status_widget.setLayout(recording_layout)
-        self.status_bar.addPermanentWidget(self.recording_status_widget)
-        self.recording_status_widget.hide()
 
         # Initialize the multi-site search widget
         self.multi_site_search = MultiSiteSearchWidget(parent=self)
@@ -6338,17 +6799,6 @@ class BrowserMainWindow(QMainWindow):
 
         # Apply initial theme
         self.apply_theme()
-
-        # Connect signals
-        self.connect_ui_signals()
-
-
-    def show_cookie_settings(self):
-        """Show cookie management dialog"""
-        dialog = CookieSettingsDialog(self.cookie_manager, self)
-        dialog.exec_()
-
-
 
 
     def create_theme_menu(self):
@@ -6615,17 +7065,6 @@ class BrowserMainWindow(QMainWindow):
         self.download_manager.download_paused.connect(self.on_download_paused)
         self.download_manager.download_resumed.connect(self.on_download_resumed)
         self.download_manager.download_list_updated.connect(self.update_downloads_lists)
-
-
-
-
-
-
-
-
-
-
-
 
 
     def eventFilter(self, obj, event):
@@ -6921,7 +7360,8 @@ class StormBrowserDark(BrowserMainWindow):
             "audio_meter_bg": "#1a0a0a",
             "audio_meter_fill": accent_color
         }
-        
+
+        # Base stylesheet with all UI elements
         stylesheet = f"""
         /* Main window */
         QMainWindow {{
@@ -7439,17 +7879,17 @@ class StormBrowserDark(BrowserMainWindow):
         self.tab_widget.setCornerWidget(self.new_tab_btn, Qt.TopLeftCorner)
         layout.addWidget(self.tab_widget)
 
-        # Navigation bar
-        nav_bar = QToolBar("Navigation")
-        nav_bar.setMovable(False)
-        nav_bar.setIconSize(QSize(24, 24))
+        # Navigation toolbar (using consistent self.navigation_toolbar name)
+        self.navigation_toolbar = QToolBar("Navigation")
+        self.navigation_toolbar.setMovable(False)
+        self.navigation_toolbar.setIconSize(QSize(24, 24))
 
         # Set appropriate font size for text fallbacks
         font = self.font()
         font.setPointSize(12)
-        nav_bar.setFont(font)
+        self.navigation_toolbar.setFont(font)
 
-        self.addToolBar(nav_bar)
+        self.addToolBar(self.navigation_toolbar)
 
         # Unified button style
         button_style = """
@@ -7470,8 +7910,7 @@ class StormBrowserDark(BrowserMainWindow):
             padding-right: 10px;
         }
         """
-
-        nav_bar.setStyleSheet(button_style)
+        self.navigation_toolbar.setStyleSheet(button_style)
 
         # Navigation buttons with fallback text
         nav_buttons = [
@@ -7488,7 +7927,7 @@ class StormBrowserDark(BrowserMainWindow):
                 btn.setIcon(icon)
             btn.setToolTip(tooltip)
             setattr(self, f"{var_name}_btn", btn)
-            nav_bar.addAction(btn)
+            self.navigation_toolbar.addAction(btn)
 
         # URL bar container
         url_container = QWidget()
@@ -7594,7 +8033,7 @@ class StormBrowserDark(BrowserMainWindow):
                 btn.setMenu(menu)
 
         # Add URL container to toolbar
-        nav_bar.addWidget(url_container)
+        self.navigation_toolbar.addWidget(url_container)
 
         # Right-side navigation buttons with fallback
         nav_buttons_right = [
@@ -7612,11 +8051,22 @@ class StormBrowserDark(BrowserMainWindow):
                 btn.setIcon(icon)
             btn.setToolTip(tooltip)
             setattr(self, f"{var_name}_btn", btn)
-            nav_bar.addAction(btn)
+            self.navigation_toolbar.addAction(btn)
 
-        # Status bar
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
+        # Initialize status bar
+        status_bar = self.statusBar()
+        
+        # Recording status label
+        self.recording_status_label = QLabel()
+        self.recording_status_label.setStyleSheet("""
+            QLabel {
+                color: #ff5555;
+                font-weight: bold;
+                padding: 0 5px;
+            }
+        """)
+        status_bar.addPermanentWidget(self.recording_status_label)
+        self.recording_status_label.hide()
 
         # Download progress bar
         self.download_progress_bar = QProgressBar()
@@ -9976,31 +10426,35 @@ class StormBrowserDark(BrowserMainWindow):
             url = item.text(1)
             self.current_browser().setUrl(QUrl(url))
 
-    # ====================== SETTINGS ======================
     def show_settings(self):
         """Display comprehensive settings dialog with organized configuration options."""
-        dialog = QDialog(self)
+        # Create the dialog with proper parent handling
+        dialog = QDialog(self) if isinstance(self, QWidget) else QDialog()
         dialog.setWindowTitle("Browser Settings")
         dialog.setMinimumSize(900, 700)
+        dialog.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         tab_widget = QTabWidget()
+        tab_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # ==================== GENERAL TAB ====================
         general_tab = QWidget()
         general_layout = QFormLayout()
         general_layout.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
 
-        self.home_page_edit = QLineEdit(self.settings_manager.get("home_page"))
+        # Home Page
+        self.home_page_edit = QLineEdit(self.settings_manager.get("home_page", "https://www.google.com"))
         general_layout.addRow(QLabel("Home Page:"), self.home_page_edit)
 
-        self.search_engine_edit = QLineEdit(self.settings_manager.get("search_engine"))
+        # Search Engine
+        self.search_engine_edit = QLineEdit(self.settings_manager.get("search_engine", "https://www.google.com/search?q="))
         general_layout.addRow(QLabel("Search Engine:"), self.search_engine_edit)
 
         # Download Directory
         download_layout = QHBoxLayout()
-        self.download_dir_edit = QLineEdit(self.settings_manager.get("download_dir"))
+        self.download_dir_edit = QLineEdit(self.settings_manager.get("download_dir", ""))
         browse_btn = QPushButton("Browse...")
-        browse_btn.clicked.connect(self.browse_download_dir)
+        browse_btn.clicked.connect(lambda: self.browse_download_dir(dialog))
         download_layout.addWidget(self.download_dir_edit)
         download_layout.addWidget(browse_btn)
         general_layout.addRow(QLabel("Download Directory:"), download_layout)
@@ -10009,14 +10463,41 @@ class StormBrowserDark(BrowserMainWindow):
         media_group = QGroupBox("Media Playback")
         media_layout = QVBoxLayout()
         self.hls_check = QCheckBox("Enable HLS Streaming Support")
-        self.hls_check.setChecked(self.settings_manager.get("hls_enabled", HLS_ENABLED))
+        self.hls_check.setChecked(self.settings_manager.get("hls_enabled", True))
         media_layout.addWidget(self.hls_check)
 
         self.drm_check = QCheckBox("Enable DRM Content (Widevine)")
-        self.drm_check.setChecked(self.settings_manager.get("drm_enabled", DRM_ENABLED))
+        self.drm_check.setChecked(self.settings_manager.get("drm_enabled", False))
         media_layout.addWidget(self.drm_check)
         media_group.setLayout(media_layout)
         general_layout.addRow(media_group)
+
+        # Performance Settings
+        perf_group = QGroupBox("Performance")
+        perf_layout = QVBoxLayout()
+        self.hardware_accel_check = QCheckBox("Enable Hardware Acceleration")
+        self.hardware_accel_check.setChecked(self.settings_manager.get("hardware_acceleration", True))
+        perf_layout.addWidget(self.hardware_accel_check)
+        perf_group.setLayout(perf_layout)
+        general_layout.addRow(perf_group)
+
+        # Accessibility Settings
+        accessibility_group = QGroupBox("Accessibility")
+        accessibility_layout = QFormLayout()
+        
+        self.zoom_factor_spin = QDoubleSpinBox()
+        self.zoom_factor_spin.setRange(0.5, 3.0)
+        self.zoom_factor_spin.setSingleStep(0.1)
+        self.zoom_factor_spin.setValue(self.settings_manager.get("default_zoom", 1.0))
+        accessibility_layout.addRow(QLabel("Default Zoom Factor:"), self.zoom_factor_spin)
+        
+        self.font_size_spin = QSpinBox()
+        self.font_size_spin.setRange(8, 24)
+        self.font_size_spin.setValue(self.settings_manager.get("font_size", 12))
+        accessibility_layout.addRow(QLabel("Font Size:"), self.font_size_spin)
+        
+        accessibility_group.setLayout(accessibility_layout)
+        general_layout.addRow(accessibility_group)
 
         general_tab.setLayout(general_layout)
 
@@ -10051,7 +10532,6 @@ class StormBrowserDark(BrowserMainWindow):
         color_group = QGroupBox("Accent Color")
         color_layout = QGridLayout()
         
-        # Get available colors
         accent_colors = self.settings_manager.get("theme", {}).get("available_colors", [
             {"name": "Blue", "color": "#3daee9"},
             {"name": "Red", "color": "#e74c3c"},
@@ -10100,9 +10580,14 @@ class StormBrowserDark(BrowserMainWindow):
         self.css_edit.setPlainText(self.settings_manager.get("custom_css", ""))
         css_layout.addWidget(self.css_edit)
         
+        btn_layout = QHBoxLayout()
         preview_btn = QPushButton("Preview Theme")
-        preview_btn.clicked.connect(self.preview_theme_changes)
-        css_layout.addWidget(preview_btn, alignment=Qt.AlignRight)
+        preview_btn.clicked.connect(lambda: self.preview_theme_changes(dialog))
+        reset_btn = QPushButton("Reset to Default")
+        reset_btn.clicked.connect(self.reset_theme_settings)
+        btn_layout.addWidget(preview_btn)
+        btn_layout.addWidget(reset_btn)
+        css_layout.addLayout(btn_layout)
         
         css_group.setLayout(css_layout)
         themes_layout.addWidget(css_group)
@@ -10118,15 +10603,20 @@ class StormBrowserDark(BrowserMainWindow):
         content_group = QGroupBox("Content Settings")
         content_layout = QVBoxLayout()
         self.ad_blocker_check = QCheckBox("Enable Ad Blocker")
-        self.ad_blocker_check.setChecked(self.settings_manager.get("ad_blocker"))
-        content_layout.addWidget(self.ad_blocker_check)
-
+        self.ad_blocker_check.setChecked(self.settings_manager.get("ad_blocker", True))
+        
+        self.tracking_protection_check = QCheckBox("Enable Tracking Protection")
+        self.tracking_protection_check.setChecked(self.settings_manager.get("tracking_protection", True))
+        
         self.js_check = QCheckBox("Enable JavaScript")
-        self.js_check.setChecked(self.settings_manager.get("javascript_enabled"))
-        content_layout.addWidget(self.js_check)
+        self.js_check.setChecked(self.settings_manager.get("javascript_enabled", True))
 
         self.images_check = QCheckBox("Load Images Automatically")
-        self.images_check.setChecked(self.settings_manager.get("auto_load_images"))
+        self.images_check.setChecked(self.settings_manager.get("auto_load_images", True))
+        
+        content_layout.addWidget(self.ad_blocker_check)
+        content_layout.addWidget(self.tracking_protection_check)
+        content_layout.addWidget(self.js_check)
         content_layout.addWidget(self.images_check)
         content_group.setLayout(content_layout)
         privacy_layout.addRow(content_group)
@@ -10156,7 +10646,6 @@ class StormBrowserDark(BrowserMainWindow):
             "1 month",
             "Keep until expired"
         ])
-        # Set current selection
         current_lifetime = self.settings_manager.get("cookies", {}).get("keep_cookies_until", "session_end")
         lifetime_map = {
             "session_end": 0,
@@ -10287,12 +10776,15 @@ class StormBrowserDark(BrowserMainWindow):
         scroll.setWidget(scroll_content)
         shortcuts_layout.addWidget(scroll)
 
+        btn_layout = QHBoxLayout()
         reset_btn = QPushButton("Reset All Shortcuts to Defaults")
         reset_btn.clicked.connect(self.reset_shortcuts_to_defaults)
-        shortcuts_layout.addWidget(reset_btn, alignment=Qt.AlignRight)
+        btn_layout.addStretch()
+        btn_layout.addWidget(reset_btn)
+        shortcuts_layout.addLayout(btn_layout)
 
         tab_widget.addTab(general_tab, "General")
-        tab_widget.addTab(themes_tab, "Themes")  # Added new Themes tab
+        tab_widget.addTab(themes_tab, "Themes")
         tab_widget.addTab(privacy_tab, "Privacy")
         tab_widget.addTab(shortcuts_tab, "Shortcuts")
 
@@ -10313,14 +10805,16 @@ class StormBrowserDark(BrowserMainWindow):
 
         dialog.exec_()
 
-    def preview_theme_changes(self):
+    def preview_theme_changes(self, dialog=None):
         """Show a preview of theme changes before applying."""
-        preview = QDialog(self)
+        preview = QDialog(dialog) if dialog else QDialog()
         preview.setWindowTitle("Theme Preview")
+        preview.setMinimumSize(400, 500)
+        
         layout = QVBoxLayout()
         
         # Sample widgets to demonstrate theme
-        sample_label = QLabel("This is a sample label")
+        sample_label = QLabel("This is a sample label showing text styling")
         sample_button = QPushButton("Sample Button")
         sample_checkbox = QCheckBox("Checkbox Example")
         sample_lineedit = QLineEdit("Sample text input")
@@ -10353,7 +10847,8 @@ class StormBrowserDark(BrowserMainWindow):
                 "accent_color": accent_color or "#3daee9",
                 "available_colors": self.settings_manager.get("theme", {}).get("available_colors", [])
             },
-            "custom_css": self.css_edit.toPlainText()
+            "custom_css": self.css_edit.toPlainText(),
+            "font_size": self.font_size_spin.value()
         }
         
         # Apply to preview window
@@ -10361,6 +10856,70 @@ class StormBrowserDark(BrowserMainWindow):
         
         preview.setLayout(layout)
         preview.exec_()
+
+    def reset_theme_settings(self):
+        """Reset theme settings to defaults."""
+        self.system_theme_radio.setChecked(True)
+        for btn in self.color_buttons:
+            if btn.palette().button().color().name() == "#3daee9":
+                btn.setChecked(True)
+                break
+        self.css_edit.setPlainText("")
+        self.notification_manager.show_notification("Theme Reset", "Theme settings restored to defaults", 2000)
+
+    def reset_shortcuts_to_defaults(self):
+        """Reset all shortcuts to their default values."""
+        defaults = {
+            "back": "Alt+Left",
+            "forward": "Alt+Right",
+            "reload": "F5",
+            "reload_ignore_cache": "Shift+F5",
+            "stop": "Esc",
+            "home": "Alt+Home",
+            "new_tab": "Ctrl+T",
+            "close_tab": "Ctrl+W",
+            "next_tab": "Ctrl+Tab",
+            "prev_tab": "Ctrl+Shift+Tab",
+            "restore_tab": "Ctrl+Shift+T",
+            "incognito_tab": "Ctrl+Shift+N",
+            "focus_url": "Ctrl+L",
+            "focus_search": "Ctrl+K",
+            "search_selected": "Ctrl+E",
+            "autocomplete_url": "Ctrl+Return",
+            "bookmark_search": "Ctrl+B",
+            "bookmark_page": "Ctrl+D",
+            "downloads": "Ctrl+J",
+            "history": "Ctrl+H",
+            "settings": "Ctrl+,",
+            "print": "Ctrl+P",
+            "print_pdf": "Ctrl+Shift+P",
+            "calendar": "Ctrl+Shift+C",
+            "multi_site_search": "Ctrl+K",
+            "screenshot": "Ctrl+Shift+S",
+            "full_screenshot": "Ctrl+Alt+Shift+S",
+            "region_screenshot": "Ctrl+Shift+R",
+            "dev_tools": "F12",
+            "view_source": "Ctrl+U",
+            "zoom_in": "Ctrl++",
+            "zoom_out": "Ctrl+-",
+            "zoom_reset": "Ctrl+0"
+        }
+        
+        for name, editor in self.shortcut_editors.items():
+            editor.setKeySequence(QKeySequence(defaults.get(name, "")))
+        
+        self.notification_manager.show_notification("Shortcuts Reset", "All shortcuts restored to defaults", 2000)
+
+    def browse_download_dir(self):
+        """Open directory dialog to select download location."""
+        dir_path = QFileDialog.getExistingDirectory(self.parent, "Select Download Directory")
+        if dir_path:
+            self.download_dir_edit.setText(dir_path)
+
+    def show_cookie_manager(self):
+        """Display cookie management dialog."""
+        # Implementation would go here
+        QMessageBox.information(self.parent, "Cookie Manager", "Cookie management functionality would be implemented here")
 
     def _apply_theme_to_widget(self, widget, settings):
         """Apply theme settings to a specific widget."""
@@ -10387,6 +10946,7 @@ class StormBrowserDark(BrowserMainWindow):
             QWidget {{
                 background-color: {base_color};
                 color: {text_color};
+                font-size: {self.settings_manager.get("font_size", 12)}px;
             }}
             QPushButton {{
                 background-color: {button_color};
@@ -10418,6 +10978,19 @@ class StormBrowserDark(BrowserMainWindow):
                 left: 10px;
                 color: {highlight_color};
             }}
+            QSlider::groove:horizontal {{
+                height: 8px;
+                background: {button_color};
+                margin: 2px 0;
+                border-radius: 4px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {highlight_color};
+                border: 1px solid {button_color};
+                width: 18px;
+                margin: -4px 0;
+                border-radius: 9px;
+            }}
         """
         
         # Add custom CSS if provided
@@ -10426,6 +10999,80 @@ class StormBrowserDark(BrowserMainWindow):
         
         widget.setStyleSheet(stylesheet)
 
+    def _apply_dark_mode_to_dialog(self, dialog):
+        """Apply dark theme to any dialog."""
+        theme = self.settings_manager.get("dark_theme", {
+            "base_color": "#2d2d2d",
+            "text_color": "#f0f0f0",
+            "button_color": "#3a3a3a",
+            "highlight_color": "#3daee9",
+            "window_color": "#252525"
+        })
+        
+        dialog.setStyleSheet(f"""
+            QDialog {{
+                background-color: {theme["base_color"]};
+                color: {theme["text_color"]};
+                font-size: {self.settings_manager.get("font_size", 12)}px;
+            }}
+            QGroupBox {{
+                border: 1px solid {theme["button_color"]};
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 15px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                color: {theme["highlight_color"]};
+                padding: 0 3px;
+            }}
+            QLineEdit, QComboBox, QTreeWidget, QPlainTextEdit, QSpinBox, QDoubleSpinBox {{
+                background-color: {theme["window_color"]};
+                color: {theme["text_color"]};
+                border: 1px solid {theme["button_color"]};
+                padding: 5px;
+            }}
+            QPushButton {{
+                background-color: {theme["button_color"]};
+                color: {theme["text_color"]};
+                border: 1px solid {theme["highlight_color"]};
+                padding: 5px 10px;
+                min-width: 80px;
+                border-radius: 3px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme["highlight_color"]};
+            }}
+            QTreeWidget::item:hover {{
+                background-color: {theme["highlight_color"]};
+                color: black;
+            }}
+            QTreeWidget::item:selected {{
+                background-color: {theme["highlight_color"]};
+                color: black;
+            }}
+            QCheckBox, QRadioButton {{
+                spacing: 5px;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid {theme["button_color"]};
+            }}
+            QTabBar::tab {{
+                background: {theme["button_color"]};
+                color: {theme["text_color"]};
+                padding: 5px 10px;
+                border: 1px solid {theme["button_color"]};
+                border-bottom: none;
+                border-top-left-radius: 3px;
+                border-top-right-radius: 3px;
+            }}
+            QTabBar::tab:selected {{
+                background: {theme["base_color"]};
+                border-color: {theme["highlight_color"]};
+            }}
+        """)
+
     def save_settings(self, dialog):
         """Save all settings to configuration file."""
         try:
@@ -10433,6 +11080,9 @@ class StormBrowserDark(BrowserMainWindow):
             self.settings_manager.set("home_page", self.home_page_edit.text())
             self.settings_manager.set("search_engine", self.search_engine_edit.text())
             self.settings_manager.set("download_dir", self.download_dir_edit.text())
+            self.settings_manager.set("hardware_acceleration", self.hardware_accel_check.isChecked())
+            self.settings_manager.set("default_zoom", self.zoom_factor_spin.value())
+            self.settings_manager.set("font_size", self.font_size_spin.value())
             
             # Theme settings
             if self.system_theme_radio.isChecked():
@@ -10458,9 +11108,18 @@ class StormBrowserDark(BrowserMainWindow):
             
             # Privacy
             self.settings_manager.set("ad_blocker", self.ad_blocker_check.isChecked())
+            self.settings_manager.set("tracking_protection", self.tracking_protection_check.isChecked())
             self.settings_manager.set("javascript_enabled", self.js_check.isChecked())
             self.settings_manager.set("auto_load_images", self.images_check.isChecked())
             self.settings_manager.set("user_agent", self.user_agent_edit.text())
+            
+            # Cookie settings
+            cookie_settings = {
+                "accept_cookies": self.accept_cookies_check.isChecked(),
+                "accept_third_party": self.third_party_check.isChecked(),
+                "keep_cookies_until": ["session_end", "one_day", "one_week", "one_month", "forever"][self.cookie_lifetime_combo.currentIndex()]
+            }
+            self.settings_manager.set("cookies", cookie_settings)
             
             # Apply theme changes immediately
             self.settings_manager.apply_theme(QApplication.instance())
@@ -10473,8 +11132,10 @@ class StormBrowserDark(BrowserMainWindow):
             self.settings_manager.set("shortcuts", shortcuts)
             
             # Reconfigure browser with new settings
-            self.configure_webengine()
-            self.setup_shortcuts()  # Reapply shortcuts
+            if hasattr(self.parent, 'configure_webengine'):
+                self.parent.configure_webengine()
+            if hasattr(self.parent, 'setup_shortcuts'):
+                self.parent.setup_shortcuts()
             
             dialog.accept()
             self.notification_manager.show_notification(
@@ -10486,148 +11147,109 @@ class StormBrowserDark(BrowserMainWindow):
         except Exception as e:
             logging.error(f"Error saving settings: {str(e)}")
             QMessageBox.warning(
-                self,
+                self.parent,
                 "Save Error",
                 f"Failed to save settings: {str(e)}"
             )
 
-
-
-
     def apply_theme(self, app):
         """Apply theme to the entire application, including the URL bar."""
-        if self.settings.get("dark_mode", True):
+        theme_mode = self.settings_manager.get("theme_mode", "system")
+        use_dark = False
+        
+        if theme_mode == "system":
+            use_dark = self.should_use_dark_mode()
+        elif theme_mode == "dark":
+            use_dark = True
+        
+        if use_dark:
             # Dark theme
             palette = QPalette()
             palette.setColor(QPalette.Window, QColor(53, 53, 53))
             palette.setColor(QPalette.WindowText, Qt.white)
             palette.setColor(QPalette.Base, QColor(25, 25, 25))
             palette.setColor(QPalette.Text, Qt.white)
+            palette.setColor(QPalette.Button, QColor(53, 53, 53))
+            palette.setColor(QPalette.ButtonText, Qt.white)
+            palette.setColor(QPalette.Highlight, QColor(self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")))
+            palette.setColor(QPalette.HighlightedText, Qt.black)
             app.setPalette(palette)
 
             # Explicitly style the URL bar
-            app.setStyleSheet("""
-                QLineEdit {
+            app.setStyleSheet(f"""
+                QLineEdit {{
                     background-color: #2d2d2d;
                     color: #ffffff;
                     border: 1px solid #444;
                     padding: 5px;
-                }
-                QLineEdit:hover {
+                    font-size: {self.settings_manager.get("font_size", 12)}px;
+                }}
+                QLineEdit:hover {{
                     border: 1px solid #555;
-                }
+                }}
+                QTabBar::tab {{
+                    background: #3a3a3a;
+                    color: #f0f0f0;
+                    padding: 5px 10px;
+                    border: 1px solid #444;
+                    border-bottom: none;
+                    border-top-left-radius: 3px;
+                    border-top-right-radius: 3px;
+                }}
+                QTabBar::tab:selected {{
+                    background: #2d2d2d;
+                    border-color: {self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")};
+                }}
             """)
         else:
             # Light theme
             app.setPalette(QStyleFactory.create("Fusion").standardPalette())
-            app.setStyleSheet("""
-                QLineEdit {
+            app.setStyleSheet(f"""
+                QLineEdit {{
                     background-color: white;
                     color: black;
                     border: 1px solid #ccc;
                     padding: 5px;
-                }
-                QLineEdit:hover {
+                    font-size: {self.settings_manager.get("font_size", 12)}px;
+                }}
+                QLineEdit:hover {{
                     border: 1px solid #aaa;
-                }
+                }}
+                QTabBar::tab {{
+                    background: #e0e0e0;
+                    color: #000000;
+                    padding: 5px 10px;
+                    border: 1px solid #ccc;
+                    border-bottom: none;
+                    border-top-left-radius: 3px;
+                    border-top-right-radius: 3px;
+                }}
+                QTabBar::tab:selected {{
+                    background: #ffffff;
+                    border-color: {self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")};
+                }}
             """)
 
     def should_use_dark_mode(self):
         """Check if system is in dark mode"""
-        # This is a basic implementation - you might need platform-specific code
         palette = QApplication.palette()
         return palette.window().color().lightness() < 128
 
-
-
-
-
     def apply_accent_color(self, color_hex):
         """Apply the selected accent color to the theme"""
-        if "theme" not in self.settings:
-            self.settings["theme"] = {}
+        if "theme" not in self.settings_manager.settings:
+            self.settings_manager.settings["theme"] = {}
         
-        self.settings["theme"]["accent_color"] = color_hex
-        self.save_settings()
+        self.settings_manager.settings["theme"]["accent_color"] = color_hex
+        self.settings_manager.save_settings()
         
         # Update the dark theme highlight color
-        if "dark_theme" in self.settings:
-            self.settings["dark_theme"]["highlight_color"] = color_hex
-            self.save_settings()
+        if "dark_theme" in self.settings_manager.settings:
+            self.settings_manager.settings["dark_theme"]["highlight_color"] = color_hex
+            self.settings_manager.save_settings()
         
         # Re-apply the theme
         self.apply_theme(QApplication.instance())
-
-
-
-
-
-
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-    def _apply_dark_mode_to_dialog(self, dialog):
-        """Apply dark theme to any dialog."""
-        theme = self.settings_manager.get("dark_theme")
-        
-        dialog.setStyleSheet(f"""
-            QDialog {{
-                background-color: {theme["base_color"]};
-                color: {theme["text_color"]};
-                font-size: 12px;
-            }}
-            QGroupBox {{
-                border: 1px solid {theme["button_color"]};
-                border-radius: 5px;
-                margin-top: 10px;
-                padding-top: 15px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 10px;
-                color: {theme["highlight_color"]};
-                padding: 0 3px;
-            }}
-            QLineEdit, QComboBox, QTreeWidget {{
-                background-color: {theme["window_color"]};
-                color: {theme["text_color"]};
-                border: 1px solid {theme["button_color"]};
-                padding: 5px;
-            }}
-            QPushButton {{
-                background-color: {theme["button_color"]};
-                color: {theme["text_color"]};
-                border: 1px solid {theme["highlight_color"]};
-                padding: 5px 10px;
-                min-width: 80px;
-                border-radius: 3px;
-            }}
-            QPushButton:hover {{
-                background-color: {theme["highlight_color"]};
-            }}
-            QTreeWidget::item:hover {{
-                background-color: {theme["highlight_color"]};
-                color: black;
-            }}
-            QTreeWidget::item:selected {{
-                background-color: {theme["highlight_color"]};
-                color: black;
-            }}
-        """)
-            
-# ====================== MAIN APPLICATION ======================
 def main():
     # Enable High DPI scaling if available
     if hasattr(Qt, 'AA_EnableHighDpiScaling'):
