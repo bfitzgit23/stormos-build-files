@@ -60,9 +60,14 @@ plymouth-set-default-theme stormos
 
 echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 
-rm -rf /usr/share/backgrounds/xfce
-chown -R $name:$name /usr/share/backgrounds/* 
-chown -R $name:$name /usr/share/backgrounds/
+USERNAME=$(ls /home)
 
-rm /home/$name/Desktop/calamares.desktop
-rm /home/$name/Desktop/abif.desktop
+mkdir -p /usr/share/backgrounds/xfce
+chown -R $name:$name /usr/share/backgrounds/* 
+cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
+
+chmod +x /home/$USERNAME/Desktop/*.desktop
+gio set /home/$USERNAME/Desktop/*.desktop metadata::trusted true 2>/dev/null || true
+
+rm -f /home/$USERNAME/Desktop/calamares.desktop
+rm -f /home/$USERNAME/Desktop/abif.desktop
