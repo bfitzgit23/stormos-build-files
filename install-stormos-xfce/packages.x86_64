@@ -223,7 +223,6 @@ cups-pdf
 ghostscript
 gsfonts
 hplip
-webapp-manager
 timeshift
 unzip
 p7zip
@@ -238,6 +237,5 @@ gst-libav
 stormos-installer
 pyqt5
 qt5ct
-plasma-framework
 nvidia
 nvidia-utils
