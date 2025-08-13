@@ -20,7 +20,7 @@ class ArchIsoBuilder(Gtk.Window):
     ]
 
     USER_HOME = os.path.expanduser("~")
-    STORMOS_DIR = os.path.join(USER_HOME, "Desktop", "stormos-build-files", "stormos", "stormos")
+    STORMOS_DIR = os.path.join(USER_HOME, "Desktop", "stormos-build-files", "install-stormos-xfce")
     OUTPUT_DIR = os.path.join(USER_HOME, "Desktop", "StormOS-ISO")
     GIT_REPO = "https://github.com/bfitzgit23/stormos-build-files"
     LOCAL_PACKAGE_DIR = os.path.join(STORMOS_DIR, "local_packages")  # Directory containing local .zst files
@@ -430,7 +430,7 @@ modules:
             self.append_terminal_text(f"Queued build command: {mkarchiso_command}\n")
 
             # Now write all root commands to a script with verification
-            script_path = os.path.join(self.USER_HOME, 'stormos_build.sh')
+            script_path = os.path.join(self.USER_HOME, 'build.sh')
             with open(script_path, 'w') as script_file:
                 script_file.write('#!/bin/bash\n')
                 script_file.write('set -e\n')  # Exit immediately if a command exits with a non-zero status
