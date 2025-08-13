@@ -38,4 +38,5 @@ file_permissions=(
   ["/etc/skel/Desktop/abif.desktop"]="0:0:755"
   ["/etc/skel/Desktop/stormos_browser.desktop"]="0:0:755"
   ["/etc/skel/Desktop/system-tool.desktop"]="0:0:755"
+  ["/usr/bin/wifi-connection.sh"]="0:0:755"
 )
