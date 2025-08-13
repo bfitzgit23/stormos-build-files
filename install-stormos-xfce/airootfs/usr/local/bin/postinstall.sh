@@ -63,8 +63,5 @@ echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 USERNAME=$(ls /home)
 
 mkdir -p /usr/share/backgrounds/xfce
-chown -R $name:$name /usr/share/backgrounds/* 
 cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
 
-chmod +x /home/$name/Desktop/*.desktop
-gio set /home/$name/Desktop/*.desktop metadata::trusted true 2>/dev/null || true
