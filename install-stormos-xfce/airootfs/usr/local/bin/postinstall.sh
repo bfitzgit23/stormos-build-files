@@ -68,6 +68,3 @@ cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
 
 chmod +x /home/$name/Desktop/*.desktop
 gio set /home/$name/Desktop/*.desktop metadata::trusted true 2>/dev/null || true
-
-rm -f /home/$name/Desktop/calamares.desktop
-rm -f /home/$name/Desktop/abif.desktop
