@@ -34,7 +34,7 @@ cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
 
 mkdir -p /home/$name/.config/autostart
 
-cp -r /root/stormos.png /home/$name/stormos.png
+#cp -r /root/stormos.png /home/$name/stormos.png
 
 chown -R $name:$name /home/$name/.config
 chown -R $name:$name /home/$name/.local
