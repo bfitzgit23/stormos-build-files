@@ -66,8 +66,8 @@ mkdir -p /usr/share/backgrounds/xfce
 chown -R $name:$name /usr/share/backgrounds/* 
 cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
 
-chmod +x /home/$USERNAME/Desktop/*.desktop
-gio set /home/$USERNAME/Desktop/*.desktop metadata::trusted true 2>/dev/null || true
+chmod +x /home/$name/Desktop/*.desktop
+gio set /home/$name/Desktop/*.desktop metadata::trusted true 2>/dev/null || true
 
-rm -f /home/$USERNAME/Desktop/calamares.desktop
-rm -f /home/$USERNAME/Desktop/abif.desktop
+rm -f /home/$name/Desktop/calamares.desktop
+rm -f /home/$name/Desktop/abif.desktop
