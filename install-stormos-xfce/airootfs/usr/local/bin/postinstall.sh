@@ -16,37 +16,33 @@
 
 # Better way to get the username - assuming the script is run by the target user
 name=$(whoami)
-REAL_NAME=/home/$name
+REAL_NAME=/home/$USER
 
-# genfstab -U / > /etc/fstab
-#cp /cinnamon-configs/cinnamon-stuff/bin/* /bin/
-#cp /cinnamon-configs/cinnamon-stuff/usr/bin/* /usr/bin/
-#cp -r /cinnamon-configs/cinnamon-stuff/usr/share/* /usr/share/
+# genfstab -U / > /etc/fstab/
 
-mkdir -p /home/$name/.config
-mkdir -p /home/$name/.local
-mkdir -p /home/$name/Desktop
-mkdir -p /home/$name/Music
-mkdir -p /home/$name/.oh-my-bash
+mkdir -p /home/$USER/.config
+mkdir -p /home/$USER/.local
+mkdir -p /home/$USER/Desktop
+mkdir -p /home/$USER/Music
+mkdir -p /home/$USER/.oh-my-bash
 
-#cp -r /cinnamon-configs/cinnamon-stuff/nemo/* /home/$name/.config/nemo
-cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
-mkdir -p /home/$name/.config/autostart
+#cp -r /cinnamon-configs/cinnamon-stuff/nemo/* /home/$USER/.config/nemo
+cp -r /usr/share/oh-my-bash/* /home/$USER/.oh-my-bash/
+mkdir -p /home/$USER/.config/autostart
 
-#cp -r /root/stormos.png /home/$name/stormos.png
-#mv /middle.png /home/$USER
+#cp -r /root/stormos.png /home/$USER/stormos.png
 
 # create python fix!
-cp -r /etc/skel/.config/* /home/$name/.config/
-cp -r /etc/skel/.local/* /home/$name/.local 
-cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
+cp -r /etc/skel/.config/* /home/$USER/.config/
+cp -r /etc/skel/.local/* /home/$USER/.local 
+cp -r /usr/share/oh-my-bash/* /home/$USER/.oh-my-bash/
 
 #mkdir -p /usr/lib/python3.13/site-packages/six
 #touch /usr/lib/python3.13/site-packages/six/__init__.py
 #cp /usr/lib/python3.12/site-packages/six.py /usr/lib/python3.13/site-packages/six/six.py
 
-# mkdir /home/$name/.local/share/cinnamon
-# cp -r /cinnamon-configs/cinnamon-stuff/extensions /home/$name/.local/share/cinnamon/
+# mkdir /home/$USER/.local/share/cinnamon
+# cp -r /cinnamon-configs/cinnamon-stuff/extensions /home/$USER/.local/share/cinnamon/
 
 plymouth-set-default-theme stormos
 echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
