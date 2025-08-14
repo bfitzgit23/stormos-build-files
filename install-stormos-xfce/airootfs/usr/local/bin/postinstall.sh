@@ -43,13 +43,6 @@ mkdir -p /home/$name/.config/autostart
 cp -r /etc/skel/.config/* /home/$name/.config/
 cp -r /etc/skel/.local/* /home/$name/.local 
 cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
-cp /etc/skel/.face /home/$name/.face
-cp /etc/skel/.nanorc /home/$name/.nanorc
-cp /etc/skel/.profile /home/$name/.profile
-cp /etc/skel/.xinitrc /home/$name/.xinitrc
-cp /etc/skel/.xprofile /home/$name/.xprofile
-cp /etc/skel/.bashrc /home/$name/.bashrc
-
 
 #mkdir -p /usr/lib/python3.13/site-packages/six
 #touch /usr/lib/python3.13/site-packages/six/__init__.py
