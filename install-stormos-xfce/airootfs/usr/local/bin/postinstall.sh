@@ -61,3 +61,5 @@ USERNAME=$(ls /home)
 mkdir -p /usr/share/backgrounds/xfce
 cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
 
+rm /home/$name/Desktop/calamares.desktop
+rm /home/$name/Desktop/abif.desktop
