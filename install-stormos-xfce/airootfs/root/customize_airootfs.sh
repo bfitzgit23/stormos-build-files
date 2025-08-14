@@ -72,8 +72,7 @@ pacman -Rs xfwm4-themes --noconfirm
 
 LC_ALL=C xdg-user-dirs-update --force
 
-rm -rf /usr/share/backgrounds/xfce
-
+cp -af /usr/share/backgrounds/* /usr/share/backgrounds/xfce
 
 ####
 
