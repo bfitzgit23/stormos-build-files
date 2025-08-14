@@ -36,14 +36,6 @@ mkdir -p /home/$name/.config/autostart
 
 #cp -r /root/stormos.png /home/$name/stormos.png
 
-chown -R $name:$name /home/$name/.config
-chown -R $name:$name /home/$name/.local
-chown -R $name:$name /home/$name/Desktop
-chown -R $name:$name /home/$name/Music
-chown -R $name:$name /home/$name/.nanorc
-chown -R $name:$name /home/$name/.profile
-chown -R $name:$name /home/$name/.xprofile
-chown -R $name:$name /home/$name/.bashrc
 #mv /middle.png /home/$USER
 
 # create python fix!
