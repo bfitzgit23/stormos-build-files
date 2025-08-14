@@ -42,7 +42,7 @@ echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 rm -rf /usr/share/backgrounds/xfce
 
 mkdir -p /usr/share/backgrounds/xfce
-cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
+cp /usr/share/backgrounds/*.* /usr/share/backgrounds/xfce/ || true
 
 find "/home/$USER_NAME/Desktop" -name ".desktop" -exec chmod +x {} ;
 find "/home/$USER_NAME/Desktop" -name ".desktop" -exec gio set {} "metadata::trusted" yes ;
