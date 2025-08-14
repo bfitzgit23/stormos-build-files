@@ -237,3 +237,5 @@ gst-libav
 stormos-installer
 pyqt5
 qt5ct
+spice-vdagent
+spice-protocol
