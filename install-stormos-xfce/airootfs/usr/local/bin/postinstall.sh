@@ -55,6 +55,6 @@ USERNAME=$(whoami)
 mkdir -p /usr/share/backgrounds/xfce
 cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
 
-# Fixed rm commands with error handling
-rm -f /home/$name/Desktop/calamares.desktop
-rm -f /home/$name/Desktop/abif.desktop
+# Changed from rm to mv to /dev/null
+mv /home/$name/Desktop/calamares.desktop /dev/null 2>/dev/null || true
+mv /home/$name/Desktop/abif.desktop /dev/null 2>/dev/null || true
