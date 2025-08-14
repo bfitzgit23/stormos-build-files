@@ -187,6 +187,285 @@ def format_time(seconds):
         time_str += f"{s}s"
     return time_str.strip()
 
+#--------------------------------------------------------
+
+class DarkModeManager:
+    """
+    A comprehensive dark mode manager for PyQt5 applications with web content.
+    Handles both application UI dark mode and web content dark mode injection.
+    """
+    
+    # JavaScript for injecting dark mode into web pages
+    DARK_MODE_JS = """
+    (function() {
+        // Try to enable dark mode through various methods
+        try {
+            // Method 1: Set prefers-color-scheme
+            Object.defineProperty(window, 'matchMedia', {
+                value: (query) => {
+                    if (query === '(prefers-color-scheme: dark)') {
+                        return { matches: true, addListener: () => {}, removeListener: () => {} };
+                    }
+                    return window.matchMedia(query);
+                },
+                configurable: true
+            });
+            
+            // Method 2: Inject dark mode CSS
+            const darkModeStyle = document.createElement('style');
+            darkModeStyle.id = 'storm-browser-dark-mode';
+            darkModeStyle.innerHTML = `
+                html, body {
+                    background-color: #1e1e1e !important;
+                    color: #e0e0e0 !important;
+                }
+                a, a:link, a:visited {
+                    color: #8ab4f8 !important;
+                }
+                input, textarea, select, button {
+                    background-color: #2d2d2d !important;
+                    color: #e0e0e0 !important;
+                    border-color: #444 !important;
+                }
+                div, section, article, header, footer, nav, aside {
+                    background-color: #1e1e1e !important;
+                    color: #e0e0e0 !important;
+                }
+                table {
+                    background-color: #2d2d2d !important;
+                    color: #e0e0e0 !important;
+                }
+                th, td {
+                    background-color: #2d2d2d !important;
+                    color: #e0e0e0 !important;
+                    border-color: #444 !important;
+                }
+                img, video {
+                    filter: brightness(0.8) contrast(1.2);
+                }
+            `;
+            
+            // Remove any existing dark mode style
+            const existingStyle = document.getElementById('storm-browser-dark-mode');
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+            
+            document.head.appendChild(darkModeStyle);
+            
+            // Method 3: For sites that support dark mode through classes
+            document.documentElement.classList.add('dark-mode', 'dark', 'night-mode');
+            
+            // Method 4: For specific sites
+            if (window.location.hostname.includes('discord.com')) {
+                document.body.classList.add('theme-dark');
+            }
+            if (window.location.hostname.includes('youtube.com')) {
+                document.documentElement.setAttribute('dark', 'true');
+            }
+            if (window.location.hostname.includes('reddit.com')) {
+                document.documentElement.classList.add('theme-dark');
+            }
+            if (window.location.hostname.includes('github.com')) {
+                document.documentElement.setAttribute('data-color-mode', 'dark');
+                document.documentElement.setAttribute('data-dark-theme', 'dark');
+            }
+            if (window.location.hostname.includes('twitter.com') || window.location.hostname.includes('x.com')) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+            
+            console.log('Dark mode injection completed');
+        } catch (e) {
+            console.error('Error injecting dark mode:', e);
+        }
+    })();
+    """
+    
+    # JavaScript for removing dark mode from web pages
+    LIGHT_MODE_JS = """
+    (function() {
+        try {
+            // Remove dark mode CSS
+            const darkModeStyle = document.getElementById('storm-browser-dark-mode');
+            if (darkModeStyle) {
+                darkModeStyle.remove();
+            }
+            
+            // Remove dark mode classes
+            document.documentElement.classList.remove('dark-mode', 'dark', 'night-mode', 'theme-dark');
+            document.body.classList.remove('theme-dark');
+            
+            // Remove dark mode attributes
+            document.documentElement.removeAttribute('dark');
+            document.documentElement.removeAttribute('data-color-mode');
+            document.documentElement.removeAttribute('data-dark-theme');
+            document.documentElement.removeAttribute('data-theme');
+            
+            // Reset prefers-color-scheme
+            Object.defineProperty(window, 'matchMedia', {
+                value: (query) => {
+                    if (query === '(prefers-color-scheme: dark)') {
+                        return { matches: false, addListener: () => {}, removeListener: () => {} };
+                    }
+                    return window.matchMedia(query);
+                },
+                configurable: true
+            });
+            
+            console.log('Light mode restoration completed');
+        } catch (e) {
+            console.error('Error restoring light mode:', e);
+        }
+    })();
+    """
+    
+    def __init__(self):
+        """Initialize the dark mode manager"""
+        self._dark_mode_enabled = False
+        self._original_palette = None
+        self._original_style = None
+        self._app = None
+    
+    def initialize(self):
+        """Initialize the dark mode manager"""
+        if self._app is None:
+            self._app = QApplication.instance()
+            if not self._app:
+                return
+                
+            # Store original settings
+            self._original_palette = self._app.palette()
+            self._original_style = self._app.style().objectName()
+    
+    def toggle_dark_mode(self):
+        """Toggle between dark and light mode"""
+        self.initialize()
+        
+        if self._dark_mode_enabled:
+            self.disable_dark_mode()
+        else:
+            self.enable_dark_mode()
+            
+        return self._dark_mode_enabled
+    
+    def enable_dark_mode(self):
+        """Enable dark mode for the application"""
+        if not self._app:
+            self.initialize()
+            
+        if not self._app or self._dark_mode_enabled:
+            return  # Already in dark mode
+            
+        # Set dark palette
+        self._set_dark_palette()
+        
+        # Set dark style
+        self._set_dark_style()
+        
+        self._dark_mode_enabled = True
+    
+    def disable_dark_mode(self):
+        """Disable dark mode and revert to light mode"""
+        if not self._app:
+            self.initialize()
+            
+        if not self._app or not self._dark_mode_enabled:
+            return  # Already in light mode
+            
+        # Restore original palette
+        if self._original_palette:
+            self._app.setPalette(self._original_palette)
+        
+        # Restore original style
+        if self._original_style and self._original_style in QStyleFactory.keys():
+            self._app.setStyle(self._original_style)
+        else:
+            # Fallback to default style
+            self._app.setStyle(self._app.style().objectName())
+            
+        self._dark_mode_enabled = False
+    
+    def _set_dark_palette(self):
+        """Set dark palette for the application"""
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(53, 53, 53))
+        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+        palette.setColor(QPalette.Base, QColor(25, 25, 25))
+        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ToolTipBase, QColor(0, 0, 0))
+        palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
+        palette.setColor(QPalette.Text, QColor(255, 255, 255))
+        palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
+        palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
+        self._app.setPalette(palette)
+    
+    def _set_dark_style(self):
+        """Set dark style for the application"""
+        if 'Fusion' in QStyleFactory.keys():
+            self._app.setStyle('Fusion')
+    
+    def configure_web_engine_settings(self, web_engine_settings):
+        """Configure web engine settings for dark mode"""
+        try:
+            # For Qt 5.14+ you can set this preference
+            web_engine_settings.setAttribute(QWebEngineSettings.WebAttribute.ForceDarkMode, self._dark_mode_enabled)
+        except AttributeError:
+            # For older Qt versions, this attribute might not exist
+            pass
+        
+        # Enable other settings that help with dark mode
+        web_engine_settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+        web_engine_settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+    
+    def inject_dark_mode(self, web_page):
+        """Inject dark mode JavaScript into a web page"""
+        if web_page and self._dark_mode_enabled:
+            web_page.runJavaScript(self.DARK_MODE_JS)
+    
+    def inject_light_mode(self, web_page):
+        """Inject light mode JavaScript into a web page"""
+        if web_page and not self._dark_mode_enabled:
+            web_page.runJavaScript(self.LIGHT_MODE_JS)
+    
+    def setup_web_view(self, web_view):
+        """Set up a web view for the current mode"""
+        if not web_view:
+            return
+            
+        # Configure web engine settings
+        self.configure_web_engine_settings(web_view.settings())
+        
+        # Connect load finished signal to inject mode JavaScript
+        web_view.loadFinished.connect(lambda ok: self._on_page_load_finished(web_view, ok))
+    
+    def _on_page_load_finished(self, web_view, ok):
+        """Called when page finishes loading"""
+        if ok:
+            # Inject mode JavaScript after a short delay to ensure page is ready
+            QTimer.singleShot(500, lambda: self._inject_mode_javascript(web_view.page()))
+    
+    def _inject_mode_javascript(self, web_page):
+        """Inject the appropriate mode JavaScript based on current state"""
+        if self._dark_mode_enabled:
+            self.inject_dark_mode(web_page)
+        else:
+            self.inject_light_mode(web_page)
+    
+    def is_dark_mode_enabled(self):
+        """Return whether dark mode is currently enabled"""
+        return self._dark_mode_enabled
+    
+    @staticmethod
+    def get_instance():
+        """Get or create the singleton instance"""
+        if not hasattr(DarkModeManager, '_instance'):
+            DarkModeManager._instance = DarkModeManager()
+        return DarkModeManager._instance
+
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1683,157 +1962,130 @@ class ThemeManager:
             'disabled_color': '#404040' if dark_mode else '#c0c0c0'
         }
 
-    def generate_stylesheet(self):
-        """Generate complete stylesheet for the application"""
-        colors = self.get_base_colors()
-        accent_light = self.lighten_color(self.current_accent_color, 20)
-        accent_lighter = self.lighten_color(self.current_accent_color, 40)
-
+    def generate_stylesheet(self, accent, dark_mode):
+        # Base colors for dark/light mode
+        if dark_mode:
+            base_color = "#2d2d2d"
+            text_color = "#f0f0f0"
+            window_color = "#252525"
+            button_color = "#3a3a3a"
+            disabled_color = "#404040"
+            tooltip_color = "#353535"
+        else:
+            base_color = "#ffffff"
+            text_color = "#000000"
+            window_color = "#f0f0f0"
+            button_color = "#e0e0e0"
+            disabled_color = "#cccccc"
+            tooltip_color = "#f0f0f0"
+        
+        # Calculate hover color for buttons
+        accent_rgb = QColor(accent).toRgb()
+        accent_r = accent_rgb.red()
+        accent_g = accent_rgb.green()
+        accent_b = accent_rgb.blue()
+        
+        # Lighten accent color for hover state
+        hover_r = min(255, accent_r + 30)
+        hover_g = min(255, accent_g + 30)
+        hover_b = min(255, accent_b + 30)
+        accent_hover = f"#{hover_r:02x}{hover_g:02x}{hover_b:02x}"
+        
         return f"""
-            /* Main Window */
-            QMainWindow {{
-                background-color: {colors['bg_color']};
-                color: {colors['text_color']};
+            QWidget {{ 
+                background-color: {base_color}; 
+                color: {text_color}; 
+                font-family: Arial, sans-serif;
             }}
-
-            /* Menu and Tool Bars */
-            QMenuBar {{
-                background-color: {colors['window_color']};
-                color: {colors['text_color']};
-                border-bottom: 2px solid {colors['highlight_color']};
+            QPushButton, QToolButton {{ 
+                background-color: {button_color}; 
+                border: 1px solid #888; 
+                padding: 5px; 
+                border-radius: 3px; 
+                margin: 2px;
             }}
-
-            QToolBar {{
-                background-color: {colors['window_color']};
-                border-bottom: 1px solid {colors['highlight_color']};
-                spacing: 5px;
+            QPushButton:hover, QToolButton:hover {{ 
+                background-color: {accent_hover}; 
+            }}
+            QPushButton:pressed, QToolButton:pressed {{ 
+                background-color: {accent}; 
+            }}
+            QLineEdit, QTextEdit {{ 
+                background-color: {window_color}; 
+                border: 1px solid #888; 
                 padding: 3px;
             }}
-
-            /* Text Inputs */
-            QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QComboBox {{
-                background-color: {colors['window_color']};
-                color: {colors['text_color']};
-                border: 1px solid {colors['highlight_color']};
-                border-radius: 4px;
+            QMenu {{ 
+                background-color: {window_color}; 
+                border: 1px solid #888; 
+            }}
+            QMenu::item {{ 
+                background-color: {window_color}; 
+                color: {text_color}; 
                 padding: 5px;
-                selection-background-color: {colors['highlight_color']};
             }}
-
-            QLineEdit#url_bar {{
-                border: 2px solid {colors['highlight_color']};
-                border-radius: 15px;
-                padding: 5px 10px;
+            QMenu::item:selected {{ 
+                background-color: {accent}; 
+                color: {text_color}; 
             }}
-
-            /* Buttons */
-            QPushButton, QToolButton {{
-                background-color: {colors['button_color']};
-                color: {colors['text_color']};
-                border: 1px solid {colors['highlight_color']};
-                border-radius: 4px;
-                padding: 5px 10px;
+            QToolTip {{ 
+                background-color: {tooltip_color}; 
+                color: {text_color}; 
+                border: 1px solid #888; 
+                padding: 5px;
             }}
-
-            QPushButton:hover, QToolButton:hover {{
-                background-color: {accent_light};
+            QLabel {{ 
+                color: {text_color}; 
             }}
-
-            QPushButton:pressed, QToolButton:pressed {{
-                background-color: {colors['highlight_color']};
-            }}
-
-            /* Tabs */
-            QTabWidget::pane {{
-                border: none;
-                background: {colors['bg_color']};
-            }}
-
-            QTabBar::tab {{
-                background: {colors['button_color']};
-                color: {colors['text_color']};
-                border: 1px solid {colors['highlight_color']};
-                border-bottom: none;
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-                padding: 5px 10px;
-                margin-right: 2px;
-            }}
-
-            QTabBar::tab:selected {{
-                background: {colors['bg_color']};
-                border-bottom: 2px solid {colors['highlight_color']};
-            }}
-
-            QTabBar::tab:hover {{
-                background: {accent_light};
-            }}
-
-            /* Scrollbars */
-            QScrollBar:vertical, QScrollBar:horizontal {{
-                background: {colors['window_color']};
-                border: none;
-                width: 12px;
-                height: 12px;
-            }}
-
-            QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
-                background: {colors['highlight_color']};
-                min-height: 20px;
-                min-width: 20px;
-                border-radius: 6px;
-            }}
-
-            QScrollBar::add-line, QScrollBar::sub-line {{
-                background: none;
-                border: none;
-            }}
-
-            /* Dialogs */
-            QDialog {{
-                background: {colors['bg_color']};
-                border: 2px solid {colors['highlight_color']};
-            }}
-
-            QDialogButtonBox QPushButton {{
-                min-width: 80px;
-            }}
-
-            /* Menus */
-            QMenu {{
-                background: {colors['window_color']};
-                border: 1px solid {colors['highlight_color']};
-            }}
-
-            QMenu::item:selected {{
-                background: {accent_light};
-            }}
-
-            /* Tooltips */
-            QToolTip {{
-                background: {colors['window_color']};
-                color: {colors['text_color']};
-                border: 1px solid {colors['highlight_color']};
-            }}
-
-            /* Disabled elements */
-            QWidget:disabled {{
-                color: {colors['disabled_color']};
-            }}
+            /* Additional styles as needed */
         """
 
-    def apply_theme(self, widget=None):
-        """Apply the theme to a specific widget or the entire application"""
-        stylesheet = self.generate_stylesheet()
-        if widget:
-            widget.setStyleSheet(stylesheet)
-            widget.update()
-        else:
+    def apply_theme(self, app=None):
+        """Apply current theme settings to the application"""
+        # Get QApplication instance if not provided
+        if app is None:
             app = QApplication.instance()
-            app.setStyleSheet(stylesheet)
-            for window in app.topLevelWidgets():
-                window.update()
-
+        
+        if app is None:
+            print("Warning: No QApplication instance found - cannot apply theme")
+            return
+        
+        try:
+            # Safely get theme settings with defaults
+            theme_settings = getattr(self, '_settings', {})
+            accent = theme_settings.get('theme', {}).get('accent_color', "#3daee9")
+            dark_mode = theme_settings.get('dark_mode', True)
+            
+            # Generate and apply stylesheet
+            if hasattr(self, 'generate_stylesheet'):
+                stylesheet = self.generate_stylesheet(accent, dark_mode)
+                app.setStyleSheet(stylesheet)
+            else:
+                print("Warning: generate_stylesheet method not found")
+                
+            # Apply palette based on dark/light mode
+            palette = QPalette()
+            if dark_mode:
+                palette.setColor(QPalette.Window, QColor(53, 53, 53))
+                palette.setColor(QPalette.WindowText, Qt.white)
+                palette.setColor(QPalette.Base, QColor(25, 25, 25))
+                palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+                palette.setColor(QPalette.ToolTipBase, Qt.white)
+                palette.setColor(QPalette.ToolTipText, Qt.white)
+                palette.setColor(QPalette.Text, Qt.white)
+                palette.setColor(QPalette.Button, QColor(53, 53, 53))
+                palette.setColor(QPalette.ButtonText, Qt.white)
+                palette.setColor(QPalette.BrightText, Qt.red)
+                palette.setColor(QPalette.Link, QColor(42, 130, 218))
+                palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+                palette.setColor(QPalette.HighlightedText, Qt.black)
+            else:
+                palette = app.style().standardPalette()
+                
+            app.setPalette(palette)
+            
+        except Exception as e:
+            print(f"Error applying theme: {str(e)}")
     def get_icon_color(self):
         """Get appropriate icon color based on theme"""
         return QColor('#ffffff') if self.settings_manager.get("dark_mode", True) else QColor('#000000')
@@ -6258,6 +6510,10 @@ class BrowserMainWindow(QMainWindow):
         # --- Netflix DRM Handler Initialization ---
         self.netflix_drm_handler = NetflixDRMHandler()
         
+        # Initialize Dark Mode Manager
+        self.dark_mode_manager = DarkModeManager.get_instance()
+        self.dark_mode_manager.initialize()
+        
         self.setup_ui()
         self.connect_signals()
         try:
@@ -6271,10 +6527,13 @@ class BrowserMainWindow(QMainWindow):
         self.setup_shortcuts()
         self.setup_url_launcher_shortcut()
         self._setup_password_handling()
-        if self.settings_manager.get("dark_mode"):
-            self.settings_manager.apply_dark_mode(QApplication.instance())
+        
+        # Load theme preference
+        self.load_theme_preference()
+        
         self.update_url_bar_style(self.current_accent_color)
-        self.theme_manager.apply_theme()
+        self.theme_manager.apply_theme(QApplication.instance())
+        
         # --- Google Profile Import integration ---
         self.google_imported_profile = None
         self.use_imported_profile_for_new_tabs = False
@@ -6294,6 +6553,162 @@ class BrowserMainWindow(QMainWindow):
         self.closed_tabs = []
         self.MAX_CLOSED_TABS = 10
         self.setFocusPolicy(Qt.StrongFocus)
+        
+        # Setup theme menu after UI is created
+        self.setup_theme_menu()
+    
+    def setup_theme_menu(self):
+        """Setup theme menu items"""
+        # Create theme menu
+        theme_menu = self.menuBar().addMenu("Theme")
+        
+        # Create dark mode action
+        self.dark_mode_action = QAction("Dark Mode", self)
+        self.dark_mode_action.setCheckable(True)
+        self.dark_mode_action.setChecked(self.dark_mode_manager.is_dark_mode_enabled())
+        self.dark_mode_action.triggered.connect(self.toggle_theme)
+        theme_menu.addAction(self.dark_mode_action)
+        
+        # Add keyboard shortcut
+        self.dark_mode_action.setShortcut(QKeySequence("Ctrl+Shift+D"))
+    
+    def load_theme_preference(self):
+        """Load saved theme preference"""
+        dark_mode = self.settings_manager.get("dark_mode", False)
+        
+        if dark_mode:
+            self.dark_mode_manager.enable_dark_mode()
+        else:
+            self.dark_mode_manager.disable_dark_mode()
+    
+    def toggle_theme(self):
+        """Toggle between light and dark mode"""
+        # Toggle the theme
+        is_dark_mode = self.dark_mode_manager.toggle_dark_mode()
+        
+        # Update the action state
+        self.dark_mode_action.setChecked(is_dark_mode)
+        
+        # Save the preference
+        self.settings_manager.set("dark_mode", is_dark_mode)
+        
+        # Update all existing web views
+        self.update_all_web_views_for_theme()
+        
+        # Show status message
+        status_text = "Dark mode enabled" if is_dark_mode else "Light mode enabled"
+        self.status_bar.showMessage(status_text, 3000)
+    
+    def update_all_web_views_for_theme(self):
+        """Update all web views with the current theme"""
+        # Find all web views in the application
+        for widget in QApplication.allWidgets():
+            if isinstance(widget, QWebEngineView):
+                # Update web engine settings
+                self.dark_mode_manager.configure_web_engine_settings(widget.settings())
+                
+                # Inject the appropriate JavaScript
+                if self.dark_mode_manager.is_dark_mode_enabled():
+                    self.dark_mode_manager.inject_dark_mode(widget.page())
+                else:
+                    self.dark_mode_manager.inject_light_mode(widget.page())
+                
+                # Reload the page to apply changes
+                widget.reload()
+    
+    def add_new_tab(self, url=None, profile=None):
+        """Create a new browser tab"""
+        # Create tab widget
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create web view
+        web_view = QWebEngineView()
+        
+        # Setup web view with current theme
+        self.dark_mode_manager.setup_web_view(web_view)
+        
+        # Apply profile if provided
+        if profile:
+            web_view.setPage(QWebEnginePage(profile, web_view))
+        
+        # Add web view to layout
+        layout.addWidget(web_view)
+        
+        # Add tab to tab widget
+        index = self.tab_widget.addTab(tab, "New Tab")
+        self.tab_widget.setCurrentIndex(index)
+        self.tab_widget.setTabText(index, "Loading...")
+        
+        # Load URL if provided
+        if url:
+            web_view.setUrl(url)
+        else:
+            web_view.setUrl(QUrl(self.settings_manager.get("home_page")))
+        
+        # Connect signals
+        web_view.titleChanged.connect(lambda title: self.update_tab_title(index, title))
+        web_view.urlChanged.connect(lambda url: self.update_tab_url(index, url))
+        web_view.loadFinished.connect(lambda ok: self.on_page_load_finished(index, ok))
+        
+        # Focus the address bar
+        self.address_bar.setFocus()
+        
+        return web_view
+    
+    def on_page_load_finished(self, index, ok):
+        """Called when page finishes loading"""
+        if ok:
+            # Get the web view for this tab
+            tab = self.tab_widget.widget(index)
+            if tab:
+                web_view = tab.findChild(QWebEngineView)
+                if web_view:
+                    # Inject the current theme JavaScript
+                    if self.dark_mode_manager.is_dark_mode_enabled():
+                        self.dark_mode_manager.inject_dark_mode(web_view.page())
+                    else:
+                        self.dark_mode_manager.inject_light_mode(web_view.page())
+    
+    # ... rest of your existing methods ...
+    
+
+
+    def _setup_dark_mode(self):
+        """Set up dark mode for all web views"""
+        # Get the dark mode manager instance
+        self.dark_mode_manager = DarkModeManager.get_instance()
+        
+        # If you have a tab widget with multiple web views
+        if hasattr(self, 'tab_widget'):
+            for i in range(self.tab_widget.count()):
+                widget = self.tab_widget.widget(i)
+                if hasattr(widget, 'page'):  # It's a web view
+                    self.dark_mode_manager.setup_web_view(widget)
+        
+        # If you have a current browser/web view
+        if hasattr(self, 'current_browser'):
+            self.dark_mode_manager.setup_web_view(self.current_browser)
+        
+        # If you create new tabs, make sure to set up dark mode for them too
+        if hasattr(self, 'tab_widget'):
+            self.tab_widget.tabBar().tabBarClicked.connect(self._handle_tab_change)
+
+    def _handle_tab_change(self, index):
+        """Handle tab change to ensure dark mode is applied"""
+        if hasattr(self, 'tab_widget'):
+            widget = self.tab_widget.widget(index)
+            if hasattr(widget, 'page'):  # It's a web view
+                self.dark_mode_manager.setup_web_view(widget)
+
+
+
+
+
+
+
+
     
     def get_netflix_profile(self):
         """Get the Netflix profile with DRM support."""
@@ -13823,82 +14238,53 @@ class StormBrowserDark(BrowserMainWindow):
             )
 
     def apply_theme(self, app):
-        """Apply theme to the entire application, including the URL bar."""
-        theme_mode = self.settings_manager.get("theme_mode", "system")
-        use_dark = False
+        """Apply current theme settings"""
+        accent = self.get("theme", {}).get("accent_color", "#3daee9")
+        dark_mode = self.get("dark_mode", True)
         
-        if theme_mode == "system":
-            use_dark = self.should_use_dark_mode()
-        elif theme_mode == "dark":
-            use_dark = True
+        # Generate stylesheet using current accent color
+        stylesheet = self.generate_stylesheet(accent, dark_mode)
+        app.setStyleSheet(stylesheet)
         
-        if use_dark:
-            # Dark theme
+        # Apply appropriate palette
+        if dark_mode:
+            # Dark mode palette
             palette = QPalette()
-            palette.setColor(QPalette.Window, QColor(53, 53, 53))
-            palette.setColor(QPalette.WindowText, Qt.white)
-            palette.setColor(QPalette.Base, QColor(25, 25, 25))
-            palette.setColor(QPalette.Text, Qt.white)
-            palette.setColor(QPalette.Button, QColor(53, 53, 53))
-            palette.setColor(QPalette.ButtonText, Qt.white)
-            palette.setColor(QPalette.Highlight, QColor(self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")))
+            palette.setColor(QPalette.Window, QColor("#2d2d2d"))
+            palette.setColor(QPalette.WindowText, QColor("#f0f0f0"))
+            palette.setColor(QPalette.Base, QColor("#2d2d2d"))
+            palette.setColor(QPalette.AlternateBase, QColor("#2d2d2d"))
+            palette.setColor(QPalette.ToolTipBase, QColor("#353535"))
+            palette.setColor(QPalette.ToolTipText, QColor("#f0f0f0"))
+            palette.setColor(QPalette.Text, QColor("#f0f0f0"))
+            palette.setColor(QPalette.Button, QColor("#3a3a3a"))
+            palette.setColor(QPalette.ButtonText, QColor("#f0f0f0"))
+            palette.setColor(QPalette.BrightText, Qt.red)
+            palette.setColor(QPalette.Link, QColor(accent))
+            palette.setColor(QPalette.Highlight, QColor(accent))
             palette.setColor(QPalette.HighlightedText, Qt.black)
+            palette.setColor(QPalette.Disabled, QPalette.Text, QColor("#404040"))
+            palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor("#404040"))
             app.setPalette(palette)
-
-            # Explicitly style the URL bar
-            app.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: #2d2d2d;
-                    color: #ffffff;
-                    border: 1px solid #444;
-                    padding: 5px;
-                    font-size: {self.settings_manager.get("font_size", 12)}px;
-                }}
-                QLineEdit:hover {{
-                    border: 1px solid #555;
-                }}
-                QTabBar::tab {{
-                    background: #3a3a3a;
-                    color: #f0f0f0;
-                    padding: 5px 10px;
-                    border: 1px solid #444;
-                    border-bottom: none;
-                    border-top-left-radius: 3px;
-                    border-top-right-radius: 3px;
-                }}
-                QTabBar::tab:selected {{
-                    background: #2d2d2d;
-                    border-color: {self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")};
-                }}
-            """)
         else:
-            # Light theme
-            app.setPalette(QStyleFactory.create("Fusion").standardPalette())
-            app.setStyleSheet(f"""
-                QLineEdit {{
-                    background-color: white;
-                    color: black;
-                    border: 1px solid #ccc;
-                    padding: 5px;
-                    font-size: {self.settings_manager.get("font_size", 12)}px;
-                }}
-                QLineEdit:hover {{
-                    border: 1px solid #aaa;
-                }}
-                QTabBar::tab {{
-                    background: #e0e0e0;
-                    color: #000000;
-                    padding: 5px 10px;
-                    border: 1px solid #ccc;
-                    border-bottom: none;
-                    border-top-left-radius: 3px;
-                    border-top-right-radius: 3px;
-                }}
-                QTabBar::tab:selected {{
-                    background: #ffffff;
-                    border-color: {self.settings_manager.get("theme", {}).get("accent_color", "#3daee9")};
-                }}
-            """)
+            # Light mode palette
+            palette = QPalette()
+            palette.setColor(QPalette.Window, QColor("#ffffff"))
+            palette.setColor(QPalette.WindowText, QColor("#000000"))
+            palette.setColor(QPalette.Base, QColor("#ffffff"))
+            palette.setColor(QPalette.AlternateBase, QColor("#f0f0f0"))
+            palette.setColor(QPalette.ToolTipBase, QColor("#f0f0f0"))
+            palette.setColor(QPalette.ToolTipText, QColor("#000000"))
+            palette.setColor(QPalette.Text, QColor("#000000"))
+            palette.setColor(QPalette.Button, QColor("#e0e0e0"))
+            palette.setColor(QPalette.ButtonText, QColor("#000000"))
+            palette.setColor(QPalette.BrightText, Qt.red)
+            palette.setColor(QPalette.Link, QColor(accent))
+            palette.setColor(QPalette.Highlight, QColor(accent))
+            palette.setColor(QPalette.HighlightedText, Qt.white)
+            palette.setColor(QPalette.Disabled, QPalette.Text, QColor("#666666"))
+            palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor("#666666"))
+            app.setPalette(palette)
 
     def should_use_dark_mode(self):
         """Check if system is in dark mode"""
