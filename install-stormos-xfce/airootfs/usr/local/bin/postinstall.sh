@@ -44,8 +44,8 @@ rm -f /usr/share/backgrounds/xfce
 mkdir -p /usr/share/backgrounds/xfce
 cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
 
-find "/home/$name/Desktop" -name ".desktop" -exec chmod +x {} ;
-find "/home/$name/Desktop" -name ".desktop" -exec gio set {} "metadata::trusted" yes ;
+find "/home/$USER_NAME/Desktop" -name ".desktop" -exec chmod +x {} ;
+find "/home/$USER_NAME/Desktop" -name ".desktop" -exec gio set {} "metadata::trusted" yes ;
 chown -R "$name:$name" "/home/$name/Desktop"
 
 # Fix ownership of all files we touched
