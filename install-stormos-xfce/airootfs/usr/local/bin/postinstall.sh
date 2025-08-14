@@ -14,11 +14,11 @@
 #
 ##############################################################################
 
- name=$(ls -1 /home)
- REAL_NAME=/home/$name
+# Better way to get the username - assuming the script is run by the target user
+name=$(whoami)
+REAL_NAME=/home/$name
 
 # genfstab -U / > /etc/fstab
-
 #cp /cinnamon-configs/cinnamon-stuff/bin/* /bin/
 #cp /cinnamon-configs/cinnamon-stuff/usr/bin/* /usr/bin/
 #cp -r /cinnamon-configs/cinnamon-stuff/usr/share/* /usr/share/
@@ -31,15 +31,12 @@ mkdir -p /home/$name/.oh-my-bash
 
 #cp -r /cinnamon-configs/cinnamon-stuff/nemo/* /home/$name/.config/nemo
 cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
-
 mkdir -p /home/$name/.config/autostart
 
 #cp -r /root/stormos.png /home/$name/stormos.png
-
 #mv /middle.png /home/$USER
 
 # create python fix!
-
 cp -r /etc/skel/.config/* /home/$name/.config/
 cp -r /etc/skel/.local/* /home/$name/.local 
 cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
@@ -49,17 +46,15 @@ cp -r /usr/share/oh-my-bash/* /home/$name/.oh-my-bash/
 #cp /usr/lib/python3.12/site-packages/six.py /usr/lib/python3.13/site-packages/six/six.py
 
 # mkdir /home/$name/.local/share/cinnamon
-
 # cp -r /cinnamon-configs/cinnamon-stuff/extensions /home/$name/.local/share/cinnamon/
 
 plymouth-set-default-theme stormos
-
 echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 
-USERNAME=$(ls /home)
-
+USERNAME=$(whoami)
 mkdir -p /usr/share/backgrounds/xfce
 cp /usr/share/backgrounds/* /usr/share/backgrounds/xfce/ || true
 
-rm /home/$name/Desktop/calamares.desktop
-rm /home/$name/Desktop/abif.desktop
+# Fixed rm commands with error handling
+rm -f /home/$name/Desktop/calamares.desktop
+rm -f /home/$name/Desktop/abif.desktop
