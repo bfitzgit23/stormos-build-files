@@ -29,6 +29,7 @@ file_permissions=(
   ["/usr/bin/icarusv14exg.py"]="0:0:755"
   ["/usr/bin/stormav3.py"]="0:0:755"
   ["/usr/bin/calamares"]="0:0:755"
+  ["/usr/bin/trust.sh"]="0:0:755"
   ["/etc/skel/.config/autostart/calamares.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/readme"]="0:0:755"
