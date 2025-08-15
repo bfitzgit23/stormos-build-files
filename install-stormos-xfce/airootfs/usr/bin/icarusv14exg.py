@@ -189,282 +189,423 @@ def format_time(seconds):
 
 #--------------------------------------------------------
 
-class DarkModeManager:
-    """
-    A comprehensive dark mode manager for PyQt5 applications with web content.
-    Handles both application UI dark mode and web content dark mode injection.
-    """
-    
-    # JavaScript for injecting dark mode into web pages
-    DARK_MODE_JS = """
-    (function() {
-        // Try to enable dark mode through various methods
-        try {
-            // Method 1: Set prefers-color-scheme
-            Object.defineProperty(window, 'matchMedia', {
-                value: (query) => {
-                    if (query === '(prefers-color-scheme: dark)') {
-                        return { matches: true, addListener: () => {}, removeListener: () => {} };
-                    }
-                    return window.matchMedia(query);
-                },
-                configurable: true
-            });
-            
-            // Method 2: Inject dark mode CSS
-            const darkModeStyle = document.createElement('style');
-            darkModeStyle.id = 'storm-browser-dark-mode';
-            darkModeStyle.innerHTML = `
-                html, body {
-                    background-color: #1e1e1e !important;
-                    color: #e0e0e0 !important;
-                }
-                a, a:link, a:visited {
-                    color: #8ab4f8 !important;
-                }
-                input, textarea, select, button {
-                    background-color: #2d2d2d !important;
-                    color: #e0e0e0 !important;
-                    border-color: #444 !important;
-                }
-                div, section, article, header, footer, nav, aside {
-                    background-color: #1e1e1e !important;
-                    color: #e0e0e0 !important;
-                }
-                table {
-                    background-color: #2d2d2d !important;
-                    color: #e0e0e0 !important;
-                }
-                th, td {
-                    background-color: #2d2d2d !important;
-                    color: #e0e0e0 !important;
-                    border-color: #444 !important;
-                }
-                img, video {
-                    filter: brightness(0.8) contrast(1.2);
-                }
-            `;
-            
-            // Remove any existing dark mode style
-            const existingStyle = document.getElementById('storm-browser-dark-mode');
-            if (existingStyle) {
-                existingStyle.remove();
-            }
-            
-            document.head.appendChild(darkModeStyle);
-            
-            // Method 3: For sites that support dark mode through classes
-            document.documentElement.classList.add('dark-mode', 'dark', 'night-mode');
-            
-            // Method 4: For specific sites
-            if (window.location.hostname.includes('discord.com')) {
-                document.body.classList.add('theme-dark');
-            }
-            if (window.location.hostname.includes('youtube.com')) {
-                document.documentElement.setAttribute('dark', 'true');
-            }
-            if (window.location.hostname.includes('reddit.com')) {
-                document.documentElement.classList.add('theme-dark');
-            }
-            if (window.location.hostname.includes('github.com')) {
-                document.documentElement.setAttribute('data-color-mode', 'dark');
-                document.documentElement.setAttribute('data-dark-theme', 'dark');
-            }
-            if (window.location.hostname.includes('twitter.com') || window.location.hostname.includes('x.com')) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            }
-            
-            console.log('Dark mode injection completed');
-        } catch (e) {
-            console.error('Error injecting dark mode:', e);
-        }
-    })();
-    """
-    
-    # JavaScript for removing dark mode from web pages
-    LIGHT_MODE_JS = """
-    (function() {
-        try {
-            // Remove dark mode CSS
-            const darkModeStyle = document.getElementById('storm-browser-dark-mode');
-            if (darkModeStyle) {
-                darkModeStyle.remove();
-            }
-            
-            // Remove dark mode classes
-            document.documentElement.classList.remove('dark-mode', 'dark', 'night-mode', 'theme-dark');
-            document.body.classList.remove('theme-dark');
-            
-            // Remove dark mode attributes
-            document.documentElement.removeAttribute('dark');
-            document.documentElement.removeAttribute('data-color-mode');
-            document.documentElement.removeAttribute('data-dark-theme');
-            document.documentElement.removeAttribute('data-theme');
-            
-            // Reset prefers-color-scheme
-            Object.defineProperty(window, 'matchMedia', {
-                value: (query) => {
-                    if (query === '(prefers-color-scheme: dark)') {
-                        return { matches: false, addListener: () => {}, removeListener: () => {} };
-                    }
-                    return window.matchMedia(query);
-                },
-                configurable: true
-            });
-            
-            console.log('Light mode restoration completed');
-        } catch (e) {
-            console.error('Error restoring light mode:', e);
-        }
-    })();
-    """
+import os
+import json
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QObject, pyqtSignal
+
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".config", "storm_browser")
+os.makedirs(CONFIG_DIR, exist_ok=True)
+THEME_CONFIG_FILE = os.path.join(CONFIG_DIR, "theme_preference.json")
+
+class DarkModeManager(QObject):
+    _instance = None
+    theme_changed = pyqtSignal(bool)  # Signal emitted when theme changes
     
     def __init__(self):
-        """Initialize the dark mode manager"""
-        self._dark_mode_enabled = False
+        super().__init__()
+        self._app = None
+        self._dark_mode_enabled = False  # Always initialized
         self._original_palette = None
         self._original_style = None
-        self._app = None
+        self._web_views = []
+    
+    @classmethod
+    def get_instance(cls):
+        """Singleton accessor."""
+        if cls._instance is None:
+            cls._instance = cls()
+            cls._instance.initialize()
+        return cls._instance
     
     def initialize(self):
-        """Initialize the dark mode manager"""
+        """Initialize with saved preference and apply to app + any registered views."""
         if self._app is None:
             self._app = QApplication.instance()
             if not self._app:
                 return
-                
-            # Store original settings
             self._original_palette = self._app.palette()
             self._original_style = self._app.style().objectName()
+        self.load_theme_preference()
+        # Apply to already-registered web views
+        for view in self._web_views:
+            self.configure_web_engine_settings(view.settings())
+            if self._dark_mode_enabled:
+                self.inject_dark_mode(view.page())
+            else:
+                self.inject_light_mode(view.page())
+    
+    # ---------- Public API ----------
+    def is_dark_mode_enabled(self) -> bool:
+        """Always return a boolean, never None."""
+        return bool(self._dark_mode_enabled)
+    
+    def register_web_view(self, web_view):
+        """Track a QWebEngineView for theme updates."""
+        if web_view not in self._web_views:
+            self._web_views.append(web_view)
+        self.configure_web_engine_settings(web_view.settings())
+        if self._dark_mode_enabled:
+            self.inject_dark_mode(web_view.page())
+        else:
+            self.inject_light_mode(web_view.page())
     
     def toggle_dark_mode(self):
-        """Toggle between dark and light mode"""
-        self.initialize()
-        
-        if self._dark_mode_enabled:
-            self.disable_dark_mode()
-        else:
-            self.enable_dark_mode()
-            
-        return self._dark_mode_enabled
+        """Toggle dark mode and return the new state (True for dark, False for light)."""
+        new_state = not self._dark_mode_enabled
+        self.set_dark_mode(new_state)
+        self.save_theme_preference()
+        return new_state
     
     def enable_dark_mode(self):
-        """Enable dark mode for the application"""
-        if not self._app:
-            self.initialize()
-            
-        if not self._app or self._dark_mode_enabled:
-            return  # Already in dark mode
-            
-        # Set dark palette
-        self._set_dark_palette()
-        
-        # Set dark style
-        self._set_dark_style()
-        
-        self._dark_mode_enabled = True
+        """Enable dark mode and save preference."""
+        self.set_dark_mode(True)
+        self.save_theme_preference()
     
     def disable_dark_mode(self):
-        """Disable dark mode and revert to light mode"""
+        """Disable dark mode (enable light mode) and save preference."""
+        self.set_dark_mode(False)
+        self.save_theme_preference()
+    
+    # ---------- Internal Theme Logic ----------
+    def set_dark_mode(self, enable: bool):
+        """Apply dark or light mode to the app and web views."""
         if not self._app:
-            self.initialize()
-            
-        if not self._app or not self._dark_mode_enabled:
-            return  # Already in light mode
-            
-        # Restore original palette
-        if self._original_palette:
+            return
+        self._dark_mode_enabled = bool(enable)
+        
+        # Apply comprehensive light style sheet
+        if not enable:
+            self._apply_light_style_sheet()
+        
+        if enable:
+            dark_palette = QPalette()
+            dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.WindowText, Qt.white)
+            dark_palette.setColor(QPalette.Base, QColor(35, 35, 35))
+            dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+            dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+            dark_palette.setColor(QPalette.Text, Qt.white)
+            dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+            dark_palette.setColor(QPalette.ButtonText, Qt.white)
+            dark_palette.setColor(QPalette.BrightText, Qt.red)
+            dark_palette.setColor(QPalette.Highlight, QColor(142, 45, 197).lighter())
+            dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+            self._app.setPalette(dark_palette)
+        else:
             self._app.setPalette(self._original_palette)
         
-        # Restore original style
-        if self._original_style and self._original_style in QStyleFactory.keys():
-            self._app.setStyle(self._original_style)
-        else:
-            # Fallback to default style
-            self._app.setStyle(self._app.style().objectName())
-            
-        self._dark_mode_enabled = False
-    
-    def _set_dark_palette(self):
-        """Set dark palette for the application"""
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
-        palette.setColor(QPalette.Base, QColor(25, 25, 25))
-        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        palette.setColor(QPalette.ToolTipBase, QColor(0, 0, 0))
-        palette.setColor(QPalette.ToolTipText, QColor(255, 255, 255))
-        palette.setColor(QPalette.Text, QColor(255, 255, 255))
-        palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
-        palette.setColor(QPalette.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.Link, QColor(42, 130, 218))
-        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
-        self._app.setPalette(palette)
-    
-    def _set_dark_style(self):
-        """Set dark style for the application"""
-        if 'Fusion' in QStyleFactory.keys():
-            self._app.setStyle('Fusion')
-    
-    def configure_web_engine_settings(self, web_engine_settings):
-        """Configure web engine settings for dark mode"""
-        try:
-            # For Qt 5.14+ you can set this preference
-            web_engine_settings.setAttribute(QWebEngineSettings.WebAttribute.ForceDarkMode, self._dark_mode_enabled)
-        except AttributeError:
-            # For older Qt versions, this attribute might not exist
-            pass
+        # Apply to all registered web views
+        for view in self._web_views:
+            self.configure_web_engine_settings(view.settings())
+            if enable:
+                self.inject_dark_mode(view.page())
+            else:
+                self.inject_light_mode(view.page())
         
-        # Enable other settings that help with dark mode
-        web_engine_settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
-        web_engine_settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+        # Emit theme changed signal
+        self.theme_changed.emit(enable)
     
-    def inject_dark_mode(self, web_page):
-        """Inject dark mode JavaScript into a web page"""
-        if web_page and self._dark_mode_enabled:
-            web_page.runJavaScript(self.DARK_MODE_JS)
-    
-    def inject_light_mode(self, web_page):
-        """Inject light mode JavaScript into a web page"""
-        if web_page and not self._dark_mode_enabled:
-            web_page.runJavaScript(self.LIGHT_MODE_JS)
-    
-    def setup_web_view(self, web_view):
-        """Set up a web view for the current mode"""
-        if not web_view:
+    def _apply_light_style_sheet(self):
+        """Apply a comprehensive light style sheet to force all elements to light mode."""
+        if not self._app:
             return
             
-        # Configure web engine settings
-        self.configure_web_engine_settings(web_view.settings())
+        # Create a comprehensive light style sheet
+        light_style_sheet = """
+        QWidget {
+            background-color: white;
+            color: black;
+        }
         
-        # Connect load finished signal to inject mode JavaScript
-        web_view.loadFinished.connect(lambda ok: self._on_page_load_finished(web_view, ok))
+        QPushButton, QToolButton {
+            background-color: #f0f0f0;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            padding: 4px;
+        }
+        
+        QPushButton:hover, QToolButton:hover {
+            background-color: #e0e0e0;
+        }
+        
+        QPushButton:pressed, QToolButton:pressed {
+            background-color: #d0d0d0;
+        }
+        
+        QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QDateTimeEdit, QTimeEdit {
+            background-color: white;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        
+        QMenuBar {
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #cccccc;
+        }
+        
+        QMenuBar::item {
+            background-color: transparent;
+            padding: 4px 8px;
+        }
+        
+        QMenuBar::item:selected {
+            background-color: #e0e0e0;
+        }
+        
+        QMenu {
+            background-color: white;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+        }
+        
+        QMenu::item {
+            padding: 4px 20px;
+        }
+        
+        QMenu::item:selected {
+            background-color: #e0e0e0;
+        }
+        
+        QStatusBar {
+            background-color: #f0f0f0;
+            border-top: 1px solid #cccccc;
+        }
+        
+        QToolBar {
+            background-color: #f0f0f0;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            spacing: 3px;
+        }
+        
+        QToolBar::handle {
+            background-color: #cccccc;
+            width: 6px;
+            margin: 2px;
+        }
+        
+        QTabWidget::pane {
+            border: 1px solid #cccccc;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        
+        QTabBar::tab {
+            background-color: #f0f0f0;
+            border: 1px solid #cccccc;
+            border-bottom: none;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            margin-right: 2px;
+        }
+        
+        QTabBar::tab:selected {
+            background-color: white;
+            border-bottom: 2px solid #76797C;
+        }
+        
+        QTabBar::tab:hover {
+            background-color: #e0e0e0;
+        }
+        
+        QTabBar::tab:!selected {
+            margin-top: 2px;
+        }
+        
+        QDockWidget {
+            border: 1px solid #cccccc;
+        }
+        
+        QDockWidget::title {
+            background-color: #f0f0f0;
+            padding-left: 8px;
+        }
+        
+        QGroupBox {
+            background-color: white;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            margin-top: 10px;
+            padding-top: 15px;
+        }
+        
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 5px 0 5px;
+        }
+        
+        QProgressBar {
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        
+        QProgressBar::chunk {
+            background-color: #76797C;
+        }
+        
+        QHeaderView::section {
+            background-color: #f0f0f0;
+            border: 1px solid #cccccc;
+            padding: 4px;
+        }
+        
+        QTableView, QTreeView, QListWidget {
+            alternate-background-color: #f8f8f8;
+            gridline-color: #cccccc;
+            showGrid: false;
+        }
+        
+        QTableView::item, QTreeView::item, QListWidget::item {
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        QTableView::item:selected, QTreeView::item:selected, QListWidget::item:selected {
+            background-color: #76797C;
+            color: white;
+        }
+        
+        QSlider::groove:horizontal {
+            height: 8px;
+            background: #f0f0f0;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+        }
+        
+        QSlider::handle:horizontal {
+            background: #76797C;
+            border: 1px solid #76797C;
+            width: 18px;
+            margin: -5px 0;
+            border-radius: 9px;
+        }
+        
+        QSlider::handle:horizontal:hover {
+            background: #5a5d60;
+        }
+        
+        QScrollBar:horizontal {
+            border: none;
+            background: white;
+            height: 12px;
+            margin: 0px 20px 0px 20px;
+        }
+        
+        QScrollBar::handle:horizontal {
+            background: #cccccc;
+            min-width: 20px;
+            border-radius: 6px;
+        }
+        
+        QScrollBar::handle:horizontal:hover {
+            background: #a8a8a8;
+        }
+        
+        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+            height: 0px;
+        }
+        
+        QScrollBar:vertical {
+            border: none;
+            background: white;
+            width: 12px;
+            margin: 20px 0px 20px 0px;
+        }
+        
+        QScrollBar::handle:vertical {
+            background: #cccccc;
+            min-height: 20px;
+            border-radius: 6px;
+        }
+        
+        QScrollBar::handle:vertical:hover {
+            background: #a8a8a8;
+        }
+        
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            width: 0px;
+        }
+        
+        QToolTip {
+            background-color: #f8f8f8;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        """
+        
+        # Apply the style sheet to the application
+        self._app.setStyleSheet(light_style_sheet)
+        
+        # Also apply to all top-level widgets
+        for widget in self._app.topLevelWidgets():
+            widget.setStyleSheet(light_style_sheet)
     
-    def _on_page_load_finished(self, web_view, ok):
-        """Called when page finishes loading"""
-        if ok:
-            # Inject mode JavaScript after a short delay to ensure page is ready
-            QTimer.singleShot(500, lambda: self._inject_mode_javascript(web_view.page()))
+    # ---------- Web Engine Settings ----------
+    def configure_web_engine_settings(self, settings):
+        """Apply theme-relevant settings to QWebEngineSettings."""
+        if not settings:
+            return
+        try:
+            from PyQt5.QtWebEngineWidgets import QWebEngineSettings
+            settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
+            settings.setAttribute(QWebEngineSettings.PluginsEnabled, True)
+            settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        except Exception as e:
+            print(f"Error configuring web engine settings: {e}")
     
-    def _inject_mode_javascript(self, web_page):
-        """Inject the appropriate mode JavaScript based on current state"""
-        if self._dark_mode_enabled:
-            self.inject_dark_mode(web_page)
-        else:
-            self.inject_light_mode(web_page)
+    def inject_dark_mode(self, page):
+        """Inject CSS/JS for dark mode."""
+        if not page:
+            return
+        page.runJavaScript("""
+            (function() {
+                document.body.style.backgroundColor = '#1e1e1e';
+                document.body.style.color = '#ffffff';
+            })();
+        """)
     
-    def is_dark_mode_enabled(self):
-        """Return whether dark mode is currently enabled"""
-        return self._dark_mode_enabled
+    def inject_light_mode(self, page):
+        """Inject CSS/JS for light mode."""
+        if not page:
+            return
+        page.runJavaScript("""
+            (function() {
+                document.body.style.backgroundColor = '#ffffff';
+                document.body.style.color = '#000000';
+            })();
+        """)
     
-    @staticmethod
-    def get_instance():
-        """Get or create the singleton instance"""
-        if not hasattr(DarkModeManager, '_instance'):
-            DarkModeManager._instance = DarkModeManager()
-        return DarkModeManager._instance
+    # ---------- Persistence ----------
+    def save_theme_preference(self):
+        """Save current theme setting to disk."""
+        try:
+            with open(THEME_CONFIG_FILE, "w") as f:
+                json.dump({"dark_mode": self._dark_mode_enabled}, f)
+        except Exception as e:
+            print(f"Error saving theme preference: {e}")
+    
+    def load_theme_preference(self):
+        """Load saved theme setting from disk and apply."""
+        try:
+            if os.path.exists(THEME_CONFIG_FILE):
+                with open(THEME_CONFIG_FILE, "r") as f:
+                    data = json.load(f)
+                    self.set_dark_mode(bool(data.get("dark_mode", False)))
+        except Exception as e:
+            print(f"Error loading theme preference: {e}")
+    
+    def remove_web_view(self, web_view):
+        """Remove a web view from our tracking list."""
+        if web_view in self._web_views:
+            self._web_views.remove(web_view)
 
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++
