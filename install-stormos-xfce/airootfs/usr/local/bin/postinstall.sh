@@ -43,9 +43,5 @@ echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 mkdir -p /usr/share/backgrounds/xfce
 cp /usr/share/backgrounds/*.png /usr/share/backgrounds/xfce/ || true
 
-find "/home/$USER_NAME/Desktop" -name ".desktop" -exec chmod +x {} ;
-find "/home/$USER_NAME/Desktop" -name ".desktop" -exec gio set {} "metadata::trusted" yes ;
-chown -R "$name:$name" "/home/$name/Desktop"
+sudo chmod +x /usr/local/bin/trust.sh && sudo chmod +x /usr/local/bin/*.AppImage
 
-# Fix ownership of all files we touched
-chown -R "$USER_NAME:$USER_NAME" /home/$USER_NAME
