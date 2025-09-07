@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS"
+iso_name="StormOS: Familia"
 iso_label="StormOS"
 iso_publisher="StormOS"
 iso_application="StormOS Install Media"
-iso_version="1.0"
+iso_version="October"
 install_dir="arch"
 buildmodes=('iso')
 bootmodes=('bios.syslinux.mbr' 'bios.syslinux.eltorito'
@@ -32,11 +32,9 @@ file_permissions=(
   ["/usr/bin/trust.sh"]="0:0:755"
   ["/etc/skel/.config/autostart/calamares.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
-  ["/etc/skel/.config/autostart/trust-launch.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/readme"]="0:0:755"
   ["/etc/skel/.config/autostart/welcome"]="0:0:755"
   ["/etc/skel/.config/autostart/welcome.desktop"]="0:0:755"
-  ["/usr/local/bin/trust.sh"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
   ["/etc/skel/Desktop/abif.desktop"]="0:0:755"
   ["/etc/skel/Desktop/stormos_browser.desktop"]="0:0:755"
