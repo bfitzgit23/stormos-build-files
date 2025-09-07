@@ -181,7 +181,7 @@ git
 python-pip
 rust
 nodejs
-# xfce stuff
+#xfce stuff
 xfce4
 xfce4-docklike-plugin
 xfce4-whiskermenu-plugin
@@ -198,19 +198,20 @@ fzf
 StormOS-conf
 stormos-grub-theme
 pamac-all
-compiz-easy-patch
+# compiz-easy-patch
 adw-gtk-theme-git
-chromium
-
+# chromium
+htop
 gvfs
 mousepad
 lightdm-slick-greeter
-calamares-app
+calamares-git
 calamares-config-xfce
-kpmcore
+xxkpmcore
 terminus-font
 #stormos-desktop-configs
-vlc
+#vlc
+mpv
 unzip
 gnome-disk-utility
 gnome-calculator
@@ -234,8 +235,10 @@ gst-plugins-good
 gst-plugins-bad
 gst-plugins-ugly
 gst-libav
-stormos-installer
+# stormos-installer
 pyqt5
 qt5ct
 spice-vdagent
 spice-protocol
+rclone
+expac
