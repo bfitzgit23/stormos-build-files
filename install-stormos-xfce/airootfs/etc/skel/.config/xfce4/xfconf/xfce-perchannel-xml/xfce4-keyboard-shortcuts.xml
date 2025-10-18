@@ -54,10 +54,23 @@
       <property name="Print" type="string" value="xfce4-screenshooter -fd 1"/>
       <property name="&lt;Shift&gt;Print" type="string" value="xfce4-screenshooter -wd 1"/>
       <property name="&lt;Primary&gt;&lt;Shift&gt;Print" type="string" value="xfce4-screenshooter -r"/>
-      <property name="&lt;Super&gt;l" type="string" value="/usr/local/bin/launcher"/>
-      <property name="&lt;Super&gt;1" type="string" value="wmctrl -s 0"/>
+      <property name="&lt;Alt&gt;F1" type="string" value="xfce4-popup-whiskermenu"/>
+      <property name="&lt;Super&gt;t" type="string" value="alacritty"/>
+      <property name="&lt;Super&gt;b" type="string" value="vivaldi"/>
+      <property name="Super_L" type="string" value="launcher">
+        <property name="startup-notify" type="bool" value="true"/>
+      </property>
+      <property name="&lt;Super&gt;q" type="string" value="gtk-launch WebApp-Qwen0294">
+        <property name="startup-notify" type="bool" value="true"/>
+      </property>
+      <property name="&lt;Super&gt;x" type="string" value="firefox"/>
+      <property name="&lt;Super&gt;d" type="string" value="discord"/>
+      <property name="&lt;Super&gt;1" type="string" value="wmctrl -s 0 "/>
       <property name="&lt;Super&gt;2" type="string" value="wmctrl -s 1"/>
       <property name="&lt;Super&gt;3" type="string" value="wmctrl -s 2"/>
+      <property name="&lt;Alt&gt;m" type="string" value="xrandr --output HDMI-1 --mode 1920x1080 --same-as eDP-1">
+        <property name="startup-notify" type="bool" value="true"/>
+      </property>
       <property name="&lt;Super&gt;4" type="string" value="wmctrl -s 3"/>
     </property>
   </property>

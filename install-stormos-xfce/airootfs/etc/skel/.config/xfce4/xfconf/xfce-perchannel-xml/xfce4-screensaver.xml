@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.1" encoding="UTF-8"?>
 
 <channel name="xfce4-screensaver" version="1.0">
   <property name="saver" type="empty">
     <property name="mode" type="int" value="0"/>
+    <property name="enabled" type="bool" value="false"/>
   </property>
   <property name="lock" type="empty">
     <property name="embedded-keyboard" type="empty">
@@ -10,5 +11,7 @@
       <property name="command" type="string" value="onboard -e"/>
       <property name="displayed" type="bool" value="true"/>
     </property>
+    <property name="sleep-activation" type="bool" value="false"/>
+    <property name="enabled" type="bool" value="false"/>
   </property>
 </channel>
