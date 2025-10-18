@@ -31,8 +31,6 @@ file_permissions=(
   ["/usr/local/bin/trust.sh"]="0:0:755"
   ["/etc/skel/.config/autostart/calamares.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
-  ["/etc/skel/.config/autostart/readme"]="0:0:755"
-  ["/etc/skel/.config/autostart/welcome"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
 )

@@ -10,7 +10,6 @@ USER_NAME=$(logname)
 
 # Remove unwanted launchers
 rm -f "/home/$USER_NAME/Desktop/calamares.desktop" || true
-rm -f "/home/$USER_NAME/Desktop/stormos-installer.desktop" || true
 
 # Trust all remaining .desktop files on Desktop (run as real user)
 if [ -d "/home/$USER_NAME/Desktop" ]; then
@@ -32,14 +31,10 @@ mkdir -p /home/$USER_NAME/.config/autostart
 # Copy configurations and themes
 cp -r /usr/share/oh-my-bash/* /home/$USER_NAME/.oh-my-bash/ || true
 cp -r /etc/skel/.config/* /home/$USER_NAME/.config/ || true
-cp -r /etc/skel/.local/* /home/$USER_NAME/.local || true
 
 # Set Plymouth theme and sudo feedback
 plymouth-set-default-theme stormos
 echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
-
-sudo pacman -Sy squashfs-tools --noconfirm
-
 
 # Prepare XFCE backgrounds
 
