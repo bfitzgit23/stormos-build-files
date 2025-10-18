@@ -9,7 +9,8 @@ iso_version="October"
 install_dir="arch"
 buildmodes=('iso')
 bootmodes=('bios.syslinux'
-           'uefi.systemd-boot')
+           'uefi.systemd-boot'
+           'uefi-x64.grub.esp' 'uefi-x64.grub.eltorito')
 arch="x86_64"
 pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
@@ -25,7 +26,6 @@ file_permissions=(
   ["/usr/local/bin/livecd-sound"]="0:0:755"
   ["/usr/local/bin/postinstall.sh"]="0:0:755"
   ["/usr/local/bin/readme"]="0:0:755"
-  ["/usr/bin/installer"]="0:0:755"
   ["/usr/local/bin/launcher"]="0:0:755"
   ["/etc/gshadow"]="0:0:400"
   ["/etc/shadow"]="0:0:400"
@@ -35,7 +35,5 @@ file_permissions=(
   ["/etc/skel/.config/autostart/readme"]="0:0:755"
   ["/etc/skel/.config/autostart/welcome"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
-  ["/etc/skel/Desktop/system-tool.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
-  ["/usr/bin/stormos-installer"]="0:0:755"
 )
