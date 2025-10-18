@@ -10,7 +10,7 @@ USER_NAME=$(logname)
 
 # Remove unwanted launchers
 rm -f "/home/$USER_NAME/Desktop/calamares.desktop" || true
-rm -f "/home/$USER_NAME/Desktop/abif.desktop" || true
+rm -f "/home/$USER_NAME/Desktop/stormos-installer.desktop" || true
 
 # Trust all remaining .desktop files on Desktop (run as real user)
 if [ -d "/home/$USER_NAME/Desktop" ]; then
