@@ -36,4 +36,5 @@ file_permissions=(
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
   ["/etc/skel/Desktop/system-tool.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
+  ["/usr/bin/stormos-installer.sh"]="0:0:755"
 )
