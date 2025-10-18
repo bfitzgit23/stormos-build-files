@@ -180,3 +180,9 @@ gnome-disk-utility
 vivaldi
 xdg-user-dirs
 plymouth
+xorg
+xorg-drivers
+xcursor-themes
+polkit
+polkit-gnome
+accountsservice
