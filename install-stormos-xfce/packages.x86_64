@@ -1,38 +1,190 @@
-#!/usr/bin/env bash
-# shellcheck disable=SC2034
+alsa-utils
+amd-ucode
+arch-install-scripts
+archinstall
+b43-fwcutter
+base
+bcachefs-tools
+bind
+bolt
+brltty
+broadcom-wl
+btrfs-progs
+clonezilla
+cloud-init
+cryptsetup
+darkhttpd
+ddrescue
+dhcpcd
+diffutils
+dmidecode
+dmraid
+dnsmasq
+dosfstools
+e2fsprogs
+edk2-shell
+efibootmgr
+espeakup
+ethtool
+exfatprogs
+f2fs-tools
+fatresize
+foot-terminfo
+fsarchiver
+gpart
+gpm
+gptfdisk
+grml-zsh-config
+grub
+hdparm
+hyperv
+intel-ucode
+irssi
+iw
+iwd
+jfsutils
+kitty-terminfo
+ldns
+less
+lftp
+libfido2
+libusb-compat
+linux
+linux-atm
+linux-firmware
+linux-firmware-marvell
+livecd-sounds
+lsscsi
+lvm2
+lynx
+man-db
+man-pages
+mc
+mdadm
+memtest86+
+memtest86+-efi
+mkinitcpio
+mkinitcpio-archiso
+mkinitcpio-nfs-utils
+mmc-utils
+modemmanager
+mtools
+nano
+nbd
+ndisc6
+nfs-utils
+nilfs-utils
+nmap
+ntfs-3g
+nvme-cli
+open-iscsi
+open-vm-tools
+openconnect
+openpgp-card-tools
+openssh
+openvpn
+partclone
+parted
+partimage
+pcsclite
+ppp
+pptpclient
+pv
+qemu-guest-agent
+refind
+reflector
+rsync
+rxvt-unicode-terminfo
+screen
+sdparm
+sequoia-sq
+sg3_utils
+smartmontools
+sof-firmware
+squashfs-tools
+sudo
+syslinux
+systemd-resolvconf
+tcpdump
+terminus-font
+testdisk
+tmux
+tpm2-tools
+tpm2-tss
+udftools
+usb_modeswitch
+usbmuxd
+usbutils
+vim
+virtualbox-guest-utils-nox
+vpnc
+wireless-regdb
+wireless_tools
+wpa_supplicant
+wvdial
+xdg-utils
+xfsprogs
+xl2tpd
+zsh
 
-iso_name="StormOS_Familia"
-iso_label="StormOS_Familia_Release"
-iso_publisher="StormOS"
-iso_application="StormOS Install Media"
-iso_version="October"
-install_dir="arch"
-buildmodes=('iso')
-bootmodes=('bios.syslinux'
-           'uefi.systemd-boot')
-arch="x86_64"
-pacman_conf="pacman.conf"
-airootfs_image_type="squashfs"
-airootfs_image_tool_options=('-comp' 'xz' '-Xbcj' 'x86' '-b' '1M' '-Xdict-size' '1M')
-bootstrap_tarball_compression=('zstd' '-c' '-T0' '--auto-threads=logical' '--long' '-19')
-file_permissions=(
-  ["/etc/shadow"]="0:0:400"
-  ["/root"]="0:0:750"
-  ["/root/.automated_script.sh"]="0:0:755"
-  ["/root/.gnupg"]="0:0:700"
-  ["/usr/local/bin/choose-mirror"]="0:0:755"
-  ["/usr/local/bin/Installation_guide"]="0:0:755"
-  ["/usr/local/bin/livecd-sound"]="0:0:755"
-  ["/usr/local/bin/postinstall.sh"]="0:0:755"
-  ["/usr/local/bin/readme"]="0:0:755"
-  ["/usr/local/bin/launcher"]="0:0:755"
-  ["/etc/gshadow"]="0:0:400"
-  ["/etc/shadow"]="0:0:400"
-  ["/usr/local/bin/trust.sh"]="0:0:755"
-  ["/etc/skel/.config/autostart/calamares.desktop"]="0:0:755"
-  ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
-  ["/etc/skel/.config/autostart/readme"]="0:0:755"
-  ["/etc/skel/.config/autostart/welcome"]="0:0:755"
-  ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
-  ["/usr/bin/wifi-connection.sh"]="0:0:755"
-)
+os-prober
+ntfs-3g
+auto-cpufreq
+thermald
+pipewire
+pipewire-pulse
+pipewire-alsa
+bluez
+blueman
+networkmanager
+network-manager-applet
+pamac-all
+xfce4
+xfce4-goodies
+firefox
+alacritty
+wmctrl
+neovim
+stormos-installer
+calamares-app
+calamares-config-xfce
+pyqt5
+qt5ct
+spice-vdagent
+spice-protocol
+unzip
+p7zip
+unrar
+engrampa
+yay-bin
+cups
+cups-pdf
+ghostscript
+gsfonts
+hplip
+unzip
+gnome-disk-utility
+gnome-calculator
+gnome-system-monitor
+mpv
+rclone
+expac
+lightdm-slick-greeter
+lightdm
+htop
+gvfs
+StormOS-conf
+stormos-grub-theme
+fzf
+gnome-disk-utility
+vivaldi
+xdg-user-dirs
+plymouth
+xorg
+xorg-drivers
+xcursor-themes
+polkit
+polkit-gnome
+accountsservice
+fastfetch
+ttf-ubuntu-font-family
