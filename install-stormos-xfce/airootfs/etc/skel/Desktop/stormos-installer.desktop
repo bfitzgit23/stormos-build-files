@@ -2,10 +2,9 @@
 Name=StormOS Installer
 GenericName=Installer
 Comment=Install StormOS to your disk
-Exec=/usr/bin/stormos-installer
-Icon=storm\ os.png
-Terminal=true
+Exec=xfce4-terminal --hold -T "StormOS Installer" -e "sudo stormos-installer"
+Icon=system-software-install
+Terminal=false
 Type=Application
-Categories=System;Installer;Utility;
-StartupNotify=false
-X-GNOME-UsesNotifications=false
+Categories=System;Utility;Installer;
+StartupNotify=true
