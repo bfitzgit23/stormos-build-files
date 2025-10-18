@@ -74,6 +74,9 @@ configs:
     "/home/bennji/Desktop/SWG New Beginnings Launcher.lnk":
       row: 8
       col: 0
+    "/home/bennji/Desktop/StormOS-ISO":
+      row: 0
+      col: 1
     "/home/bennji/Desktop/Message From Seeker.mp4":
       row: 3
       col: 0
