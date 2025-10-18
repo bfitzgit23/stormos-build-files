@@ -1,3 +1,4 @@
+
 # Nanorc file
 #
 # by Rick Copple
@@ -61,4 +62,3 @@ set autoindent
 #  instead of the default, which I believe is six keystrokes
 #
 set quickblank
-

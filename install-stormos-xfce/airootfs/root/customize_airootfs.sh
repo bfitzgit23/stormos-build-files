@@ -68,7 +68,7 @@ pacman-key --populate
 # Stop lightdm user from expiring
 chage -E -1 lightdm
 
-pacman -Rs xfwm4-themes --noconfirm
+#pacman -Rs xfwm4-themes --noconfirm
 
 LC_ALL=C xdg-user-dirs-update --force
 

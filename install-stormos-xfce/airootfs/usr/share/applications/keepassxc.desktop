@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=KeepassXC
+GenericName=KeepassXC
+Comment=KeepassXC
+Exec=/usr/local/bin/Keepassxc.AppImage
+Icon=storm os
+Terminal=false
+StartupNotify=false
+Type=Application
+Categories=Qt;System;Desktop
+Path=

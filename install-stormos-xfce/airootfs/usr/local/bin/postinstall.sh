@@ -38,10 +38,13 @@ cp -r /etc/skel/.local/* /home/$USER_NAME/.local || true
 plymouth-set-default-theme stormos
 echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
 
+sudo pacman -Sy squashfs-tools --noconfirm
+
+
 # Prepare XFCE backgrounds
 
 mkdir -p /usr/share/backgrounds/xfce
 cp /usr/share/backgrounds/*.png /usr/share/backgrounds/xfce/ || true
 
-sudo chmod +x /usr/local/bin/trust.sh && sudo chmod +x /usr/local/bin/*.AppImage
+sudo chmod +x /usr/local/bin/*.sh && sudo chmod +x /usr/local/bin/*.AppImage
 
