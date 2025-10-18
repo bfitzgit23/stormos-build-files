@@ -134,7 +134,6 @@ thermald
 pipewire
 pipewire-pulse
 pipewire-alsa
-pipewire-bluetooth
 bluez
 blueman
 networkmanager
