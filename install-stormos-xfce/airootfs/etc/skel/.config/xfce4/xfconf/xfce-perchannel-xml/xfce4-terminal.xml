@@ -7,10 +7,10 @@
   <property name="cell-width-scale" type="double" value="1"/>
   <property name="background-mode" type="string" value="TERMINAL_BACKGROUND_TRANSPARENT"/>
   <property name="background-darkness" type="double" value="0.90000000000000002"/>
-  <property name="font-name" type="string" value="DejaVu Sans Mono 16"/>
-  <property name="color-foreground" type="string" value="#17f018"/>
+  <property name="font-name" type="string" value="Ubuntu Mono 16"/>
+  <property name="color-foreground" type="string" value="#5555ffffffff"/>
   <property name="color-use-theme" type="bool" value="false"/>
-  <property name="color-palette" type="string" value="#000000;#aa0000;#00aa00;#aa5500;#0000aa;#aa00aa;#00aaaa;#aaaaaa;#555555;#ff5555;#55ff55;#ffff55;#5555ff;#ff55ff;#55ffff;#ffffff"/>
+  <property name="color-palette" type="string" value="rgb(0,0,0);rgb(170,0,0);rgb(0,170,0);rgb(170,85,0);rgb(85,255,255);rgb(170,0,170);rgb(0,170,170);rgb(170,170,170);rgb(85,85,85);rgb(255,85,85);rgb(85,255,85);rgb(255,255,85);rgb(85,255,255);rgb(85,255,255);rgb(85,255,255);rgb(255,255,255)"/>
   <property name="tab-activity-color" type="string" value="#aa0000"/>
   <property name="color-bold-is-bright" type="bool" value="true"/>
   <property name="misc-always-show-tabs" type="bool" value="false"/>
