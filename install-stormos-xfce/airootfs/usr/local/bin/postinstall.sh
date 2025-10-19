@@ -140,3 +140,6 @@ fi
 echo "DNS: Configured with multiple reliable servers"
 echo "Mirrors: Optimized for best performance"
 echo "=========================================="
+
+pacman-key --init
+pacman-key --populate
