@@ -116,67 +116,6 @@ EOF
     fi
 fi
 
-# Configure pacman mirrors - robust version
-echo "Configuring pacman mirrors..."
-
-# Backup original mirrorlist
-cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-
-# Function to check internet connectivity
-check_internet() {
-    echo "Checking internet connectivity..."
-    if ping -c 1 -W 5 archlinux.org >/dev/null 2>&1; then
-        echo "Internet connection detected"
-        return 0
-    else
-        echo "No internet connection available"
-        return 1
-    fi
-}
-
-# Only run reflector if we have internet connection
-if check_internet && command -v reflector >/dev/null 2>&1; then
-    echo "Generating optimized mirror list (this may take a moment)..."
-    
-    # Try reflector with longer timeout and fewer mirrors
-    if reflector --latest 10 --protocol https --download-timeout 30 --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null; then
-        echo "Successfully generated optimized mirror list"
-        echo "Top mirrors selected:"
-        head -n 10 /etc/pacman.d/mirrorlist | grep -E "^(Server|# Server)" || true
-    else
-        echo "Reflector failed due to timeouts, using fallback mirrors"
-        # Create manual mirror list with known reliable mirrors
-        tee /etc/pacman.d/mirrorlist > /dev/null << 'EOF'
-## StormOS - Reliable Fallback Mirrors
-Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
-Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
-Server = https://mirror.f4st.host/archlinux/$repo/os/$arch
-Server = https://arch.mirror.constant.com/$repo/os/$arch
-Server = https://mirror.metal-rocks.org/archlinux/$repo/os/$arch
-EOF
-    fi
-else
-    if ! check_internet; then
-        echo "Skipping reflector - no internet connection detected"
-    elif ! command -v reflector >/dev/null 2>&1; then
-        echo "Skipping reflector - command not available"
-    fi
-    echo "Using reliable fallback mirror list"
-    tee /etc/pacman.d/mirrorlist > /dev/null << 'EOF'
-## StormOS - Pre-configured Reliable Mirrors
-Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
-Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
-Server = https://mirror.f4st.host/archlinux/$repo/os/$arch
-EOF
-fi
-
-# Only update package database if we have internet and we're NOT in Calamares context
-if check_internet && [ -z "$TARGET_ROOT" ]; then
-    echo "Updating package database with new mirrors..."
-    pacman -Sy --noconfirm || echo "Package database update failed, but continuing installation..."
-else
-    echo "Skipping package database update"
-fi
 
 # Set execute permissions for scripts and AppImages
 chmod +x /usr/local/bin/*.sh 2>/dev/null || true
@@ -201,6 +140,3 @@ fi
 echo "DNS: Configured with multiple reliable servers"
 echo "Mirrors: Optimized for best performance"
 echo "=========================================="
-
-pacman-key --init
-pacman-key --populate
