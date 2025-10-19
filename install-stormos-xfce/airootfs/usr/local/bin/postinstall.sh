@@ -144,3 +144,5 @@ echo "=========================================="
 pacman-key --init
 pacman-key --populate archlinux
 pacman-key --refresh-keys
+
+xdg-user-dirs-update --force
