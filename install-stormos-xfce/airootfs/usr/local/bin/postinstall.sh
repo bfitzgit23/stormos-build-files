@@ -12,13 +12,13 @@ USER_NAME=$(logname)
 rm -f "/home/$USER_NAME/Desktop/calamares.desktop" || true
 
 # Trust all remaining .desktop files on Desktop (run as real user)
-if [ -d "/home/$USER_NAME/Desktop" ]; then
-    sudo -u "$USER_NAME" bash -c '
-        find "$HOME/Desktop" -type f -name "*.desktop" \
-            -exec chmod +x {} \; \
-            -exec gio set {} "metadata::trusted" true \;
-    '
-fi
+#if [ -d "/home/$USER_NAME/Desktop" ]; then
+#    sudo -u "$USER_NAME" bash -c '
+#        find "$HOME/Desktop" -type f -name "*.desktop" \
+#            -exec chmod +x {} \; \
+#            -exec gio set {} "metadata::trusted" true \;
+#    '
+#fi
 
 # Create required directories
 mkdir -p /home/$USER_NAME/.config
@@ -121,28 +121,7 @@ fi
 chmod +x /usr/local/bin/*.sh 2>/dev/null || true
 chmod +x /usr/local/bin/*.AppImage 2>/dev/null || true
 
-# Final ownership setup
-chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/
 
-# Create a marker file to indicate successful post-install
-touch /home/$USER_NAME/.stormos-install-complete
-chown $USER_NAME:$USER_NAME /home/$USER_NAME/.stormos-install-complete
 
-echo ""
-echo "=========================================="
-echo "StormOS setup completed successfully!"
-echo "User: $USER_NAME"
-if [ -n "$TARGET_ROOT" ]; then
-    echo "Environment: Running in Calamares installation context"
-else
-    echo "Environment: Running in live system"
-fi
-echo "DNS: Configured with multiple reliable servers"
-echo "Mirrors: Optimized for best performance"
-echo "=========================================="
-
-pacman-key --init
-pacman-key --populate archlinux
-pacman-key --refresh-keys
 
 xdg-user-dirs-update --force
