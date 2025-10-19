@@ -88,14 +88,13 @@ class AppItem(QWidget):
         else:
             self.launcher.favorites.append(name)
         save_json(FAV_FILE, self.launcher.favorites)
-        # Optional: refresh view or show toast (not implemented here)
 
 class Launcher(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFocusPolicy(Qt.StrongFocus)  # ← needed for focusOutEvent
+        self.setFocusPolicy(Qt.StrongFocus)
 
         self.setStyleSheet("""
             QWidget { background: #1e1e1e; color: white; border-radius: 12px; }
@@ -127,10 +126,11 @@ class Launcher(QWidget):
         QTimer.singleShot(0, self.load_apps)
 
     def focusOutEvent(self, event):
-        self.close()  # Close when clicking outside
+        self.close()
 
     def init_ui(self):
-        self.resize(650, 520)
+        # Wider window to accommodate all categories
+        self.resize(720, 560)
         main = QVBoxLayout(self)
         main.setContentsMargins(15, 15, 15, 15)
 
@@ -143,15 +143,26 @@ class Launcher(QWidget):
         body = QHBoxLayout()
 
         sidebar_layout = QVBoxLayout()
+        sidebar_layout.setSpacing(4)  # tighter spacing
         self.cat_group = QButtonGroup(self)
         self.cat_group.setExclusive(True)
 
-        for key, label in [
+        # All categories — buttons always shown
+        categories = [
             ("Favorites", "⭐ Favorites"),
             ("Recent", "🕐 Recent"),
             ("All Apps", "💻 All Apps"),
-            ("System", "🔧 System")
-        ]:
+            ("Multimedia", "🎵 Multimedia"),
+            ("Dev", "💻 Development"),
+            ("Games", "🎮 Games"),
+            ("Graphics", "🖼️ Graphics"),
+            ("Internet", "🌐 Internet"),
+            ("Office", "💼 Office"),
+            ("System", "🔧 System"),
+            ("Other", "📁 Other"),
+        ]
+
+        for key, label in categories:
             btn = QPushButton(label)
             btn.setCheckable(True)
             btn.clicked.connect(lambda _, k=key: self.switch_category(k))
@@ -162,7 +173,7 @@ class Launcher(QWidget):
         sidebar_layout.addStretch()
         sidebar_frame = QFrame()
         sidebar_frame.setLayout(sidebar_layout)
-        sidebar_frame.setMaximumWidth(150)
+        sidebar_frame.setMaximumWidth(190)  # more room for labels
         body.addWidget(sidebar_frame)
 
         self.scroll = QScrollArea()
@@ -198,47 +209,114 @@ class Launcher(QWidget):
             Path.home() / ".local/share/applications"
         ]
 
-        cache_valid = False
-        if CACHE_FILE.exists():
-            cache_time = CACHE_FILE.stat().st_mtime
-            try:
-                cache_still_valid = True
-                for d in desktop_dirs:
-                    if not d.exists():
+        current_files = set()
+        for d in desktop_dirs:
+            if d.exists():
+                for f in d.glob("*.desktop"):
+                    try:
+                        current_files.add(str(f.resolve()))
+                    except OSError:
                         continue
-                    for f in d.glob("*.desktop"):
-                        if f.stat().st_mtime > cache_time:
-                            cache_still_valid = False
-                            break
-                    if not cache_still_valid:
-                        break
-                cache_valid = cache_still_valid
+        current_files_sorted = sorted(current_files)
+        current_files_hash = str(hash(tuple(current_files_sorted)))
+
+        use_cache = False
+        if CACHE_FILE.exists():
+            try:
+                cache_data = json.loads(CACHE_FILE.read_text())
+                cached_hash = cache_data.get("desktop_files_hash")
+                if cached_hash == current_files_hash:
+                    valid_apps = []
+                    for app in cache_data.get("apps", []):
+                        df = app.get("desktop_file")
+                        if df and Path(df).exists():
+                            valid_apps.append(app)
+                    self.apps = valid_apps
+                    self.categories = defaultdict(list)
+                    for app in self.apps:
+                        self.categories[app["category"]].append(app)
+                    use_cache = True
             except Exception:
                 pass
 
-        if cache_valid:
-            try:
-                data = json.loads(CACHE_FILE.read_text())
-                self.apps = data["apps"]
-                self.categories = defaultdict(list)
-                for cat, apps in data["categories"].items():
-                    self.categories[cat] = apps
-                self.switch_category(self.current_category)
-                return
-            except Exception:
-                pass
+        if use_cache:
+            self.switch_category(self.current_category)
+            return
 
         self.apps.clear()
         self.categories.clear()
         cat_map = {
+            "Audio": "Multimedia",
+            "Video": "Multimedia",
             "AudioVideo": "Multimedia",
             "Development": "Dev",
             "Game": "Games",
             "Graphics": "Graphics",
             "Network": "Internet",
             "Office": "Office",
+            "Science": "Other",
+            "Settings": "System",
             "System": "System",
-            "Settings": "System"
+            "Utility": "Other",
+            "Building": "Dev",
+            "Debugger": "Dev",
+            "IDE": "Dev",
+            "GUIDesigner": "Dev",
+            "Profiling": "Dev",
+            "RevisionControl": "Dev",
+            "Translation": "Dev",
+            "Calendar": "Office",
+            "ContactManagement": "Office",
+            "Database": "Office",
+            "Dictionary": "Office",
+            "Chart": "Office",
+            "Email": "Internet",
+            "Telephony": "Internet",
+            "WebBrowser": "Internet",
+            "InstantMessaging": "Internet",
+            "Feed": "Internet",
+            "News": "Internet",
+            "P2P": "Internet",
+            "RemoteAccess": "Internet",
+            "TelephonyTools": "Internet",
+            "TextTools": "Office",
+            "Viewer": "Office",
+            "2DGraphics": "Graphics",
+            "3DGraphics": "Graphics",
+            "RasterGraphics": "Graphics",
+            "VectorGraphics": "Graphics",
+            "Scanning": "Graphics",
+            "OCR": "Graphics",
+            "Photography": "Graphics",
+            "Publishing": "Graphics",
+            "Music": "Multimedia",
+            "Midi": "Multimedia",
+            "Sequencer": "Multimedia",
+            "Tuner": "Multimedia",
+            "TV": "Multimedia",
+            "AudioVideoEditing": "Multimedia",
+            "Player": "Multimedia",
+            "Recorder": "Multimedia",
+            "DiscBurning": "Multimedia",
+            "ActionGame": "Games",
+            "AdventureGame": "Games",
+            "ArcadeGame": "Games",
+            "BoardGame": "Games",
+            "BlocksGame": "Games",
+            "CardGame": "Games",
+            "KidsGame": "Games",
+            "LogicGame": "Games",
+            "RolePlaying": "Games",
+            "Simulation": "Games",
+            "SportsGame": "Games",
+            "StrategyGame": "Games",
+            "Art": "Other",
+            "Construction": "Other",
+            "Education": "Other",
+            "Languages": "Other",
+            "Religion": "Other",
+            "Security": "System",
+            "Accessibility": "Other",
         }
 
         for d in desktop_dirs:
@@ -246,6 +324,7 @@ class Launcher(QWidget):
                 continue
             for p in d.glob("*.desktop"):
                 try:
+                    full_path = str(p.resolve())
                     txt = p.read_text(errors='ignore')
                     if "NoDisplay=true" in txt:
                         continue
@@ -269,7 +348,8 @@ class Launcher(QWidget):
                         "exec": re.sub(r'%[uUfF].*', '', exec_match.group(1)).strip(),
                         "icon": icon_match.group(1) if icon_match else None,
                         "comment": comment_match.group(1) if comment_match else "",
-                        "category": app_cat
+                        "category": app_cat,
+                        "desktop_file": full_path
                     }
                     self.apps.append(app)
                     self.categories[app_cat].append(app)
@@ -277,6 +357,7 @@ class Launcher(QWidget):
                     continue
 
         cache_data = {
+            "desktop_files_hash": current_files_hash,
             "apps": self.apps,
             "categories": dict(self.categories)
         }
@@ -301,10 +382,10 @@ class Launcher(QWidget):
             apps = [a for a in self.apps if a["name"] in self.favorites]
         elif self.current_category == "Recent":
             apps = [a for a in self.apps if a["name"] in self.recent]
-        elif self.current_category == "System":
-            apps = self.categories.get("System", [])
-        else:
+        elif self.current_category == "All Apps":
             apps = self.apps
+        else:
+            apps = self.categories.get(self.current_category, [])
 
         if query:
             apps = [
@@ -350,7 +431,7 @@ class Launcher(QWidget):
                     return
 
     def close_launcher(self):
-        self.close()  # ← Proper close
+        self.close()
 
     def lock(self):
         for cmd in ["i3lock", "loginctl lock-session"]:
@@ -377,6 +458,7 @@ if __name__ == "__main__":
     app.setQuitOnLastWindowClosed(False)
     app.setStyle("Fusion")
 
+    # Set icon theme to match XFCE
     try:
         result = subprocess.run(
             ["xfconf-query", "-c", "xsettings", "-p", "/Net/IconThemeName"],
