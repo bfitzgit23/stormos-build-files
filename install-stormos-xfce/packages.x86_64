@@ -30,6 +30,7 @@ ethtool
 exfatprogs
 f2fs-tools
 fatresize
+fakeroot
 foot-terminfo
 fsarchiver
 gpart
