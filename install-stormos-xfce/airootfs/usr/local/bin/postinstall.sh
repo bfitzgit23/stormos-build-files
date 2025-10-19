@@ -28,18 +28,176 @@ mkdir -p /home/$USER_NAME/Music
 mkdir -p /home/$USER_NAME/.oh-my-bash
 mkdir -p /home/$USER_NAME/.config/autostart
 
+# Set ownership of created directories
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.config
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.local
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/Desktop
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/Music
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.oh-my-bash
+
 # Copy configurations and themes
 cp -r /usr/share/oh-my-bash/* /home/$USER_NAME/.oh-my-bash/ || true
 cp -r /etc/skel/.config/* /home/$USER_NAME/.config/ || true
 
+# Set ownership of copied files
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.oh-my-bash
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/.config
+
 # Set Plymouth theme and sudo feedback
 plymouth-set-default-theme stormos
-echo "Defaults pwfeedback" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
+echo "Defaults pwfeedback" | EDITOR='tee -a' visudo >/dev/null 2>&1
 
 # Prepare XFCE backgrounds
-
 mkdir -p /usr/share/backgrounds/xfce
 cp /usr/share/backgrounds/*.png /usr/share/backgrounds/xfce/ || true
 
-sudo chmod +x /usr/local/bin/*.sh && sudo chmod +x /usr/local/bin/*.AppImage
+# CRITICAL: Ensure DNS works in installed system
+echo "Configuring network DNS for installed system..."
 
+# Detect if we're running in Calamares chroot context
+# Calamares mounts the target at a temporary path - check if we can detect it
+if mount | grep -q "on /tmp/calamares-root"; then
+    # We're in Calamares context - find the actual mount point
+    CALAMARES_ROOT=$(mount | grep "on /tmp/calamares-root" | awk '{print $3}' | head -1)
+    if [ -n "$CALAMARES_ROOT" ] && [ -d "$CALAMARES_ROOT" ]; then
+        echo "Detected Calamares installation context, target root: $CALAMARES_ROOT"
+        TARGET_ROOT="$CALAMARES_ROOT"
+    else
+        TARGET_ROOT=""
+    fi
+else
+    TARGET_ROOT=""
+fi
+
+# Create reliable DNS configuration in the correct location
+echo "Creating robust DNS configuration..."
+if [ -n "$TARGET_ROOT" ]; then
+    # We're in Calamares installation - create resolv.conf in target system
+    mkdir -p "$TARGET_ROOT/etc"
+    cat > "$TARGET_ROOT/etc/resolv.conf" << 'EOF'
+# StormOS - Reliable DNS Configuration
+# Primary DNS servers
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+nameserver 9.9.9.9
+# Secondary fallbacks
+nameserver 208.67.222.222
+nameserver 8.8.4.4
+nameserver 1.0.0.1
+# Options for better performance
+options timeout:1
+options attempts:2
+options rotate
+EOF
+    echo "✓ DNS configured in target system: $TARGET_ROOT/etc/resolv.conf"
+else
+    # We're in live system or manual context
+    # Remove existing resolv.conf if it's a broken symlink or doesn't exist
+    if [ ! -e /etc/resolv.conf ] || [ -L /etc/resolv.conf ]; then
+        rm -f /etc/resolv.conf
+        cat > /etc/resolv.conf << 'EOF'
+# StormOS - Reliable DNS Configuration
+# Primary DNS servers
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+nameserver 9.9.9.9
+# Secondary fallbacks
+nameserver 208.67.222.222
+nameserver 8.8.4.4
+nameserver 1.0.0.1
+# Options for better performance
+options timeout:1
+options attempts:2
+options rotate
+EOF
+        echo "✓ DNS configured in live system: /etc/resolv.conf"
+    else
+        echo "✓ DNS already configured in live system"
+    fi
+fi
+
+# Configure pacman mirrors - robust version
+echo "Configuring pacman mirrors..."
+
+# Backup original mirrorlist
+cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+
+# Function to check internet connectivity
+check_internet() {
+    echo "Checking internet connectivity..."
+    if ping -c 1 -W 5 archlinux.org >/dev/null 2>&1; then
+        echo "Internet connection detected"
+        return 0
+    else
+        echo "No internet connection available"
+        return 1
+    fi
+}
+
+# Only run reflector if we have internet connection
+if check_internet && command -v reflector >/dev/null 2>&1; then
+    echo "Generating optimized mirror list (this may take a moment)..."
+    
+    # Try reflector with longer timeout and fewer mirrors
+    if reflector --latest 10 --protocol https --download-timeout 30 --sort rate --save /etc/pacman.d/mirrorlist 2>/dev/null; then
+        echo "Successfully generated optimized mirror list"
+        echo "Top mirrors selected:"
+        head -n 10 /etc/pacman.d/mirrorlist | grep -E "^(Server|# Server)" || true
+    else
+        echo "Reflector failed due to timeouts, using fallback mirrors"
+        # Create manual mirror list with known reliable mirrors
+        tee /etc/pacman.d/mirrorlist > /dev/null << 'EOF'
+## StormOS - Reliable Fallback Mirrors
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
+Server = https://mirror.f4st.host/archlinux/$repo/os/$arch
+Server = https://arch.mirror.constant.com/$repo/os/$arch
+Server = https://mirror.metal-rocks.org/archlinux/$repo/os/$arch
+EOF
+    fi
+else
+    if ! check_internet; then
+        echo "Skipping reflector - no internet connection detected"
+    elif ! command -v reflector >/dev/null 2>&1; then
+        echo "Skipping reflector - command not available"
+    fi
+    echo "Using reliable fallback mirror list"
+    tee /etc/pacman.d/mirrorlist > /dev/null << 'EOF'
+## StormOS - Pre-configured Reliable Mirrors
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
+Server = https://mirror.f4st.host/archlinux/$repo/os/$arch
+EOF
+fi
+
+# Only update package database if we have internet and we're NOT in Calamares context
+if check_internet && [ -z "$TARGET_ROOT" ]; then
+    echo "Updating package database with new mirrors..."
+    pacman -Sy --noconfirm || echo "Package database update failed, but continuing installation..."
+else
+    echo "Skipping package database update"
+fi
+
+# Set execute permissions for scripts and AppImages
+chmod +x /usr/local/bin/*.sh 2>/dev/null || true
+chmod +x /usr/local/bin/*.AppImage 2>/dev/null || true
+
+# Final ownership setup
+chown -R $USER_NAME:$USER_NAME /home/$USER_NAME/
+
+# Create a marker file to indicate successful post-install
+touch /home/$USER_NAME/.stormos-install-complete
+chown $USER_NAME:$USER_NAME /home/$USER_NAME/.stormos-install-complete
+
+echo ""
+echo "=========================================="
+echo "StormOS setup completed successfully!"
+echo "User: $USER_NAME"
+if [ -n "$TARGET_ROOT" ]; then
+    echo "Environment: Running in Calamares installation context"
+else
+    echo "Environment: Running in live system"
+fi
+echo "DNS: Configured with multiple reliable servers"
+echo "Mirrors: Optimized for best performance"
+echo "=========================================="
