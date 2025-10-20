@@ -187,6 +187,7 @@ xcursor-themes
 polkit
 polkit-gnome
 accountsservice
+xdg-user-dirs-gtk
 fastfetch
 ttf-ubuntu-font-family
 preload
