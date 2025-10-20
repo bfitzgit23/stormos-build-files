@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Modern Application Launcher
+A sleek, feature-rich application launcher with favorites, recent apps, and system controls.
+"""
+
 import sys
 import os
 import subprocess
@@ -6,204 +11,450 @@ import json
 import re
 from pathlib import Path
 from collections import defaultdict, deque
+from typing import List, Dict, Any
+
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
-    QScrollArea, QPushButton, QLabel, QFrame, QButtonGroup
+    QScrollArea, QPushButton, QLabel, QFrame, QButtonGroup, QShortcut
 )
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QPixmap, QFont, QIcon
+from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt5.QtGui import QPixmap, QFont, QIcon, QKeySequence, QPainter, QColor
 
-CONFIG_DIR = Path.home() / ".config" / "simple_launcher"
+# =============================================================================
+# CONSTANTS AND CONFIGURATION
+# =============================================================================
+
+CONFIG_DIR = Path.home() / ".config" / "modern_launcher"
 FAV_FILE = CONFIG_DIR / "favorites.json"
 RECENT_FILE = CONFIG_DIR / "recent.json"
 CACHE_FILE = CONFIG_DIR / "apps_cache.json"
 
-def load_json(path, default):
+# Color scheme - Modern dark theme
+COLORS = {
+    "primary": "#2d3436",
+    "secondary": "#636e72",
+    "accent": "#0984e3",
+    "accent_hover": "#74b9ff",
+    "background": "rgba(45, 52, 54, 0.95)",
+    "surface": "rgba(99, 110, 114, 0.3)",
+    "text_primary": "#dfe6e9",
+    "text_secondary": "#b2bec3",
+    "success": "#00b894",
+    "warning": "#fdcb6e",
+    "danger": "#d63031"
+}
+
+# Category icons and mapping
+CATEGORIES = {
+    "Favorites": {"icon": "⭐", "color": COLORS["warning"]},
+    "Recent": {"icon": "🕐", "color": COLORS["accent"]},
+    "All Apps": {"icon": "💻", "color": COLORS["text_primary"]},
+    "Multimedia": {"icon": "🎵", "color": "#e84393"},
+    "Dev": {"icon": "🔧", "color": COLORS["success"]},
+    "Games": {"icon": "🎮", "color": "#e17055"},
+    "Graphics": {"icon": "🎨", "color": "#6c5ce7"},
+    "Internet": {"icon": "🌐", "color": COLORS["accent"]},
+    "Office": {"icon": "📊", "color": "#00cec9"},
+    "System": {"icon": "⚙️", "color": COLORS["text_secondary"]},
+    "Other": {"icon": "📦", "color": COLORS["secondary"]}
+}
+
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
+
+def load_json(path: Path, default: Any) -> Any:
+    """Safely load JSON data from file."""
     if path.exists():
         try:
             return json.loads(path.read_text())
-        except:
+        except (json.JSONDecodeError, OSError):
             pass
     return default
 
-def save_json(path, data):
+def save_json(path: Path, data: Any) -> None:
+    """Safely save JSON data to file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2))
+    try:
+        path.write_text(json.dumps(data, indent=2))
+    except OSError:
+        pass
+
+def get_system_icon_theme() -> str:
+    """Detect system icon theme."""
+    try:
+        result = subprocess.run(
+            ["xfconf-query", "-c", "xsettings", "-p", "/Net/IconThemeName"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    
+    # Fallback icon themes
+    for fallback in ["Papirus", "Adwaita", "gnome", "hicolor"]:
+        if (Path("/usr/share/icons") / fallback).exists():
+            return fallback
+    return "hicolor"
+
+# =============================================================================
+# WIDGET COMPONENTS
+# =============================================================================
 
 class AppItem(QWidget):
-    def __init__(self, app, launcher):
+    """Widget representing a single application item."""
+    
+    def __init__(self, app: Dict[str, Any], launcher: 'Launcher'):
         super().__init__()
         self.app = app
         self.launcher = launcher
-        self.init_ui()
+        self.is_favorite = app["name"] in launcher.favorites
+        self._init_ui()
+        self._setup_animation()
 
-    def init_ui(self):
+    def _init_ui(self) -> None:
+        """Initialize the user interface."""
+        self.setFixedHeight(60)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 6, 8, 6)
-        icon_label = QLabel()
-        icon_label.setFixedSize(32, 32)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(12)
 
+        # Application icon
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(40, 40)
+        self._load_icon()
+        layout.addWidget(self.icon_label)
+
+        # Application info
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(2)
+        
+        self.name_label = QLabel(self.app["name"])
+        self.name_label.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        self.name_label.setStyleSheet(f"color: {COLORS['text_primary']};")
+        text_layout.addWidget(self.name_label)
+        
+        if self.app.get("comment"):
+            self.comment_label = QLabel(self.app["comment"])
+            self.comment_label.setFont(QFont("Segoe UI", 9))
+            self.comment_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
+            text_layout.addWidget(self.comment_label)
+        
+        layout.addLayout(text_layout)
+        layout.addStretch()
+
+        # Favorite indicator
+        self.fav_indicator = QLabel("★" if self.is_favorite else "")
+        self.fav_indicator.setFont(QFont("Segoe UI", 14))
+        self.fav_indicator.setStyleSheet(f"color: {COLORS['warning']};")
+        self.fav_indicator.setFixedWidth(20)
+        layout.addWidget(self.fav_indicator)
+
+        # Styling
+        self.setStyleSheet(f"""
+            AppItem {{
+                background: transparent;
+                border-radius: 8px;
+                margin: 2px;
+            }}
+            AppItem:hover {{
+                background: {COLORS['surface']};
+                border: 1px solid {COLORS['accent']};
+            }}
+        """)
+
+    def _load_icon(self) -> None:
+        """Load and display application icon."""
         icon_name = self.app.get("icon")
         if icon_name:
             qicon = QIcon.fromTheme(icon_name)
             if not qicon.isNull():
-                pix = qicon.pixmap(32, 32)
-                icon_label.setPixmap(pix)
-            else:
-                icon_label.setText("📦")
-                icon_label.setStyleSheet("font-size: 18px;")
-        else:
-            icon_label.setText("📦")
-            icon_label.setStyleSheet("font-size: 18px;")
+                pixmap = qicon.pixmap(40, 40)
+                self.icon_label.setPixmap(pixmap)
+                return
+        
+        # Fallback icon
+        self.icon_label.setText("📦")
+        self.icon_label.setAlignment(Qt.AlignCenter)
+        self.icon_label.setStyleSheet(f"""
+            font-size: 20px;
+            background: {COLORS['surface']};
+            border-radius: 6px;
+        """)
 
-        text_layout = QVBoxLayout()
-        name_label = QLabel(self.app["name"])
-        name_label.setFont(QFont("", 10, QFont.Bold))
-        text_layout.addWidget(name_label)
-        if self.app.get("comment"):
-            comment_label = QLabel(self.app["comment"])
-            comment_label.setStyleSheet("font-size: 9pt; color: #aaa;")
-            text_layout.addWidget(comment_label)
+    def _setup_animation(self) -> None:
+        """Setup hover animation."""
+        self.animation = QPropertyAnimation(self, b"geometry")
+        self.animation.setDuration(150)
+        self.animation.setEasingCurve(QEasingCurve.OutCubic)
 
-        layout.addWidget(icon_label)
-        layout.addLayout(text_layout)
-        layout.addStretch()
-        self.setStyleSheet("AppItem:hover { background: rgba(52, 152, 219, 0.2); border-radius: 6px; }")
-
-    def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton:
-            if e.modifiers() & Qt.ControlModifier:
-                self.toggle_favorite()
+    def mousePressEvent(self, event) -> None:
+        """Handle mouse press events."""
+        if event.button() == Qt.LeftButton:
+            if event.modifiers() & Qt.ControlModifier:
+                self._toggle_favorite()
             else:
                 self.launcher.launch_app(self.app)
-        elif e.button() == Qt.RightButton:
-            self.toggle_favorite()
+        elif event.button() == Qt.RightButton:
+            self._toggle_favorite()
         else:
-            super().mousePressEvent(e)
+            super().mousePressEvent(event)
 
-    def toggle_favorite(self):
+    def _toggle_favorite(self) -> None:
+        """Toggle favorite status of the app."""
         name = self.app["name"]
         if name in self.launcher.favorites:
             self.launcher.favorites.remove(name)
+            self.is_favorite = False
+            self.fav_indicator.setText("")
         else:
             self.launcher.favorites.append(name)
+            self.is_favorite = True
+            self.fav_indicator.setText("★")
+        
         save_json(FAV_FILE, self.launcher.favorites)
+        self.launcher.filter_apps()  # Refresh to update favorites view
+
+# =============================================================================
+# MAIN LAUNCHER
+# =============================================================================
 
 class Launcher(QWidget):
+    """Modern application launcher main window."""
+    
     def __init__(self):
         super().__init__()
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFocusPolicy(Qt.StrongFocus)
-
-        self.setStyleSheet("""
-            QWidget { background: #1e1e1e; color: white; border-radius: 12px; }
-            QLineEdit {
-                background: #2a2a2a; color: white; border: 2px solid #444;
-                border-radius: 8px; padding: 10px; font-size: 14px;
-            }
-            QPushButton {
-                background: #2a2a2a; color: white; border: 1px solid #444;
-                border-radius: 6px; padding: 6px; text-align: left;
-            }
-            QPushButton:hover { background: rgba(255,255,255,0.1); }
-            QPushButton:checked { background: #3498db; font-weight: bold; }
-        """)
         self.favorites = load_json(FAV_FILE, [])
-        self.recent = deque(load_json(RECENT_FILE, []), maxlen=10)
-        self.apps = []
+        self.recent = deque(load_json(RECENT_FILE, []), maxlen=15)
+        self.apps: List[Dict[str, Any]] = []
         self.categories = defaultdict(list)
         self.current_category = "All Apps"
         self.category_buttons = {}
-        self.init_ui()
-        self.center()
+        
+        self._init_window()
+        self._init_ui()
+        self._setup_shortcuts()
+        self._center_window()
+        
+        # Load applications with a slight delay for smoother UI
+        QTimer.singleShot(50, self.load_apps)
+        
+        # *** NEW: Focus the search bar after UI is initialized ***
         self.search_bar.setFocus()
+        # *** END NEW ***
 
-        from PyQt5.QtWidgets import QShortcut
-        from PyQt5.QtGui import QKeySequence
-        QShortcut(QKeySequence("Escape"), self).activated.connect(self.close_launcher)
 
-        QTimer.singleShot(0, self.load_apps)
+    def _init_window(self) -> None:
+        """Initialize window properties."""
+        # *** CHANGED: Re-added Qt.Popup flag, kept Qt.WindowStaysOnTopHint ***
+        # Qt.Popup is generally better for closing on external clicks.
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup | Qt.WindowStaysOnTopHint)
+        # *** END CHANGED ***
+        
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        # *** CHANGED: Set focus policy to ensure focusOutEvent works with Qt.Popup ***
+        self.setFocusPolicy(Qt.StrongFocus)
+        # *** END CHANGED ***
+        self.setFixedSize(800, 600)
 
-    def focusOutEvent(self, event):
-        self.close()
+    def _init_ui(self) -> None:
+        """Initialize the user interface."""
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
 
-    def init_ui(self):
-        # Wider window to accommodate all categories
-        self.resize(720, 560)
-        main = QVBoxLayout(self)
-        main.setContentsMargins(15, 15, 15, 15)
+        # Search bar
+        self._create_search_bar(main_layout)
+        
+        # Body content
+        body_layout = QHBoxLayout()
+        body_layout.setSpacing(20)
+        
+        self._create_sidebar(body_layout)
+        self._create_apps_area(body_layout)
+        
+        main_layout.addLayout(body_layout)
+        
+        # System controls
+        self._create_system_controls(main_layout)
 
+    def _create_search_bar(self, parent_layout: QVBoxLayout) -> None:
+        """Create the search bar component."""
         self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Search apps or type: calc 2+2 | web query | run command")
+        self.search_bar.setPlaceholderText("🔍 Search applications or type: calc 2+2 | web query | run command")
         self.search_bar.textChanged.connect(self.filter_apps)
-        self.search_bar.returnPressed.connect(self.handle_return)
-        main.addWidget(self.search_bar)
+        self.search_bar.returnPressed.connect(self._handle_special_commands)
+        self.search_bar.setStyleSheet(f"""
+            QLineEdit {{
+                background: {COLORS['surface']};
+                color: {COLORS['text_primary']};
+                border: 2px solid {COLORS['secondary']};
+                border-radius: 12px;
+                padding: 12px 16px;
+                font-size: 14px;
+                font-family: 'Segoe UI';
+            }}
+            QLineEdit:focus {{
+                border-color: {COLORS['accent']};
+            }}
+        """)
+        parent_layout.addWidget(self.search_bar)
 
-        body = QHBoxLayout()
-
+    def _create_sidebar(self, parent_layout: QHBoxLayout) -> None:
+        """Create the category sidebar."""
         sidebar_layout = QVBoxLayout()
-        sidebar_layout.setSpacing(4)  # tighter spacing
+        sidebar_layout.setSpacing(6)
+        
         self.cat_group = QButtonGroup(self)
         self.cat_group.setExclusive(True)
 
-        # All categories — buttons always shown
-        categories = [
-            ("Favorites", "⭐ Favorites"),
-            ("Recent", "🕐 Recent"),
-            ("All Apps", "💻 All Apps"),
-            ("Multimedia", "🎵 Multimedia"),
-            ("Dev", "💻 Development"),
-            ("Games", "🎮 Games"),
-            ("Graphics", "🖼️ Graphics"),
-            ("Internet", "🌐 Internet"),
-            ("Office", "💼 Office"),
-            ("System", "🔧 System"),
-            ("Other", "📁 Other"),
-        ]
-
-        for key, label in categories:
-            btn = QPushButton(label)
+        for cat_key, cat_info in CATEGORIES.items():
+            btn = QPushButton(f"{cat_info['icon']} {cat_key}")
             btn.setCheckable(True)
-            btn.clicked.connect(lambda _, k=key: self.switch_category(k))
+            btn.setFixedHeight(40)
+            btn.clicked.connect(lambda checked, k=cat_key: self.switch_category(k))
+            
+            # Dynamic styling based on category color
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {COLORS['surface']};
+                    color: {COLORS['text_primary']};
+                    border: 1px solid transparent;
+                    border-radius: 8px;
+                    padding: 8px 12px;
+                    text-align: left;
+                    font-family: 'Segoe UI';
+                }}
+                QPushButton:hover {{
+                    background: {cat_info['color']}33;
+                    border-color: {cat_info['color']};
+                }}
+                QPushButton:checked {{
+                    background: {cat_info['color']}44;
+                    border: 2px solid {cat_info['color']};
+                    font-weight: bold;
+                }}
+            """)
+            
             self.cat_group.addButton(btn)
-            self.category_buttons[key] = btn
+            self.category_buttons[cat_key] = btn
             sidebar_layout.addWidget(btn)
 
         sidebar_layout.addStretch()
         sidebar_frame = QFrame()
         sidebar_frame.setLayout(sidebar_layout)
-        sidebar_frame.setMaximumWidth(190)  # more room for labels
-        body.addWidget(sidebar_frame)
+        sidebar_frame.setFixedWidth(200)
+        parent_layout.addWidget(sidebar_frame)
 
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.container = QWidget()
-        self.app_layout = QVBoxLayout(self.container)
-        self.app_layout.addStretch()
-        self.scroll.setWidget(self.container)
-        body.addWidget(self.scroll)
+    def _create_apps_area(self, parent_layout: QHBoxLayout) -> None:
+        """Create the applications scroll area."""
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                border: none;
+                background: transparent;
+            }}
+            QScrollBar:vertical {{
+                background: {COLORS['surface']};
+                width: 10px;
+                margin: 0px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {COLORS['accent']};
+                border-radius: 5px;
+                min-height: 20px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {COLORS['accent_hover']};
+            }}
+        """)
 
-        main.addLayout(body)
+        self.apps_container = QWidget()
+        self.apps_layout = QVBoxLayout(self.apps_container)
+        self.apps_layout.setSpacing(4)
+        # Removed the initial addStretch() to prevent whitespace
+        self.scroll_area.setWidget(self.apps_container)
+        
+        # *** NEW: Explicitly set the background of the apps container to be transparent ***
+        self.apps_container.setStyleSheet("background: transparent;")
+        # *** END NEW ***
+        
+        parent_layout.addWidget(self.scroll_area)
 
-        sys_row = QHBoxLayout()
-        actions = [
-            ("🔒 Lock", self.lock),
-            ("🚪 Logout", self.logout),
-            ("🔄 Reboot", self.reboot),
-            ("🛑 Power Off", self.shutdown)
+    def _create_system_controls(self, parent_layout: QVBoxLayout) -> None:
+        """Create system control buttons."""
+        controls_layout = QHBoxLayout()
+        controls_layout.setSpacing(8)
+        
+        system_actions = [
+            ("🔒 Lock", self._lock_system, COLORS["secondary"]),
+            ("🚪 Logout", self._logout, COLORS["warning"]),
+            ("🔄 Reboot", self._reboot, COLORS["accent"]),
+            ("⏻ Shutdown", self._shutdown, COLORS["danger"])
         ]
-        for text, func in actions:
+
+        for text, callback, color in system_actions:
             btn = QPushButton(text)
-            btn.clicked.connect(func)
-            sys_row.addWidget(btn)
-        main.addLayout(sys_row)
+            btn.clicked.connect(callback)
+            btn.setFixedHeight(35)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {color}33;
+                    color: {COLORS['text_primary']};
+                    border: 1px solid {color};
+                    border-radius: 6px;
+                    padding: 6px;
+                    font-family: 'Segoe UI';
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background: {color}66;
+                }}
+            """)
+            controls_layout.addWidget(btn)
 
-    def center(self):
-        screen = QApplication.primaryScreen().availableGeometry()
-        self.move(screen.center() - self.rect().center())
+        parent_layout.addLayout(controls_layout)
 
-    def load_apps(self):
+    def _setup_shortcuts(self) -> None:
+        """Setup keyboard shortcuts."""
+        # Escape key shortcut - explicitly connects to close
+        QShortcut(QKeySequence("Escape"), self).activated.connect(self.close)
+        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(
+            lambda: self.search_bar.setFocus()
+        )
+
+    def _center_window(self) -> None:
+        """Center the window on screen."""
+        screen_geo = QApplication.primaryScreen().availableGeometry()
+        self.move(
+            screen_geo.center().x() - self.width() // 2,
+            screen_geo.center().y() - self.height() // 2
+        )
+
+    def paintEvent(self, event) -> None:
+        """Draw window background with rounded corners."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setBrush(QColor(COLORS["background"]))
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(self.rect(), 16, 16)
+
+    def focusOutEvent(self, event) -> None:
+        """Close launcher when focus is lost (e.g., clicking outside)."""
+        # This should be triggered reliably with Qt.Popup flag when clicking outside
+        self.close()
+
+    # =========================================================================
+    # APPLICATION MANAGEMENT
+    # =========================================================================
+
+    def load_apps(self) -> None:
+        """Load applications from desktop files with caching."""
         desktop_dirs = [
             Path("/usr/share/applications"),
             Path.home() / ".local/share/applications"
@@ -243,8 +494,7 @@ class Launcher(QWidget):
             self.switch_category(self.current_category)
             return
 
-        self.apps.clear()
-        self.categories.clear()
+        # Category mapping (same as your original)
         cat_map = {
             "Audio": "Multimedia",
             "Video": "Multimedia",
@@ -319,6 +569,9 @@ class Launcher(QWidget):
             "Accessibility": "Other",
         }
 
+        self.apps.clear()
+        self.categories.clear()
+
         for d in desktop_dirs:
             if not d.is_dir():
                 continue
@@ -364,20 +617,24 @@ class Launcher(QWidget):
         save_json(CACHE_FILE, cache_data)
         self.switch_category(self.current_category)
 
-    def switch_category(self, cat):
-        self.current_category = cat
-        if cat in self.category_buttons:
-            self.category_buttons[cat].setChecked(True)
+    def switch_category(self, category: str) -> None:
+        """Switch to a different application category."""
+        self.current_category = category
+        if category in self.category_buttons:
+            self.category_buttons[category].setChecked(True)
         self.filter_apps()
 
-    def filter_apps(self):
-        query = self.search_bar.text().lower()
+    def filter_apps(self) -> None:
+        """Filter applications based on search query and category."""
+        query = self.search_bar.text().lower().strip()
 
-        while self.app_layout.count() > 1:
-            item = self.app_layout.takeAt(0)
+        # Clear existing apps (but keep the stretch at the end)
+        while self.apps_layout.count() > 1:
+            item = self.apps_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
 
+        # Get apps for current category
         if self.current_category == "Favorites":
             apps = [a for a in self.apps if a["name"] in self.favorites]
         elif self.current_category == "Recent":
@@ -387,93 +644,153 @@ class Launcher(QWidget):
         else:
             apps = self.categories.get(self.current_category, [])
 
+        # Apply search filter
         if query:
             apps = [
                 a for a in apps
-                if query in a["name"].lower() or (a.get("comment") and query in a["comment"].lower())
+                if query in a["name"].lower() or 
+                   (a.get("comment") and query in a["comment"].lower())
             ]
 
-        for app in apps:
-            self.app_layout.insertWidget(self.app_layout.count() - 1, AppItem(app, self))
+        # Display apps
+        for app in sorted(apps, key=lambda x: x["name"].lower()):
+            self.apps_layout.insertWidget(
+                self.apps_layout.count() - 1, 
+                AppItem(app, self)
+            )
 
-    def launch_app(self, app):
+        # Show empty state if no apps found
+        if not apps:
+            empty_label = QLabel("No applications found")
+            empty_label.setAlignment(Qt.AlignCenter)
+            empty_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-style: italic; padding: 40px;")
+            self.apps_layout.insertWidget(0, empty_label)
+
+    def launch_app(self, app: Dict[str, Any]) -> None:
+        """Launch an application."""
+        # Add to recent apps
+        if app["name"] in self.recent:
+            self.recent.remove(app["name"])
         self.recent.appendleft(app["name"])
         save_json(RECENT_FILE, list(self.recent))
+
+        # Launch application
         try:
-            subprocess.Popen(app["exec"].split(), start_new_session=True)
+            # Clean up Exec command (remove field codes)
+            exec_cmd = re.sub(r' %[UuFf]', '', app["exec"]).strip()
+            subprocess.Popen(exec_cmd.split(), start_new_session=True)
         except Exception as e:
-            print("Launch error:", e)
+            print(f"Failed to launch {app['name']}: {e}")
+
         self.close()
 
-    def handle_return(self):
+    def _handle_special_commands(self) -> None:
+        """Handle special commands in search bar."""
         text = self.search_bar.text().strip()
         if not text:
             return
+
         if text.startswith("calc "):
-            try:
-                res = eval(text[5:].replace('^', '**'))
-                print("Result:", res)
-            except Exception:
-                pass
+            self._calculate_expression(text[5:])
         elif text.startswith("web "):
-            import urllib.parse
-            q = urllib.parse.quote(text[4:])
-            subprocess.Popen(["xdg-open", f"https://duckduckgo.com/?q={q}"])
-            self.close()
+            self._web_search(text[4:])
         elif text.startswith("run "):
-            subprocess.Popen(text[4:], shell=True, start_new_session=True)
-            self.close()
+            self._run_command(text[4:])
         else:
-            for i in range(self.app_layout.count() - 1):
-                w = self.app_layout.itemAt(i).widget()
-                if isinstance(w, AppItem):
-                    self.launch_app(w.app)
-                    return
+            # Launch first matching app
+            for i in range(self.apps_layout.count() - 1):
+                item = self.apps_layout.itemAt(i)
+                if item and (widget := item.widget()):
+                    if isinstance(widget, AppItem):
+                        self.launch_app(widget.app)
+                        return
 
-    def close_launcher(self):
+    def _calculate_expression(self, expression: str) -> None:
+        """Calculate mathematical expression."""
+        try:
+            # Replace common symbols
+            expr = expression.replace('^', '**').replace('×', '*').replace('÷', '/')
+            result = eval(expr, {"__builtins__": {}})
+            print(f"Calculation result: {result}")
+        except Exception as e:
+            print(f"Calculation error: {e}")
+
+    def _web_search(self, query: str) -> None:
+        """Perform web search."""
+        import urllib.parse
+        encoded_query = urllib.parse.quote(query)
+        subprocess.Popen([
+            "xdg-open", f"https://duckduckgo.com/?q={encoded_query}"
+        ])
         self.close()
 
-    def lock(self):
-        for cmd in ["i3lock", "loginctl lock-session"]:
-            if subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+    def _run_command(self, command: str) -> None:
+        """Run shell command."""
+        subprocess.Popen(command, shell=True, start_new_session=True)
+        self.close()
+
+    # =========================================================================
+    # SYSTEM ACTIONS
+    # =========================================================================
+
+    def _lock_system(self) -> None:
+        """Lock the system."""
+        for cmd in ["i3lock", "loginctl lock-session", "xdg-screensaver lock"]:
+            try:
+                subprocess.run(cmd, shell=True, start_new_session=True)
                 break
+            except Exception:
+                continue
         self.close()
 
-    def logout(self):
-        for cmd in ["i3-msg exit", "xfce4-session-logout --logout"]:
-            if subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+    def _logout(self) -> None:
+        """Log out from the session."""
+        for cmd in ["i3-msg exit", "xfce4-session-logout --logout", "gnome-session-quit"]:
+            try:
+                subprocess.run(cmd, shell=True, start_new_session=True)
                 break
+            except Exception:
+                continue
         self.close()
 
-    def reboot(self):
+    def _reboot(self) -> None:
+        """Reboot the system."""
         subprocess.run(["systemctl", "reboot"])
         self.close()
 
-    def shutdown(self):
+    def _shutdown(self) -> None:
+        """Shutdown the system."""
         subprocess.run(["systemctl", "poweroff"])
         self.close()
 
-if __name__ == "__main__":
+# =============================================================================
+# APPLICATION ENTRY POINT
+# =============================================================================
+
+def main():
+    """Application entry point."""
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyle("Fusion")
-
-    # Set icon theme to match XFCE
-    try:
-        result = subprocess.run(
-            ["xfconf-query", "-c", "xsettings", "-p", "/Net/IconThemeName"],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            QIcon.setThemeName(result.stdout.strip())
-        else:
-            for fallback in ["Papirus", "Adwaita", "gnome", "hicolor"]:
-                if (Path("/usr/share/icons") / fallback).exists():
-                    QIcon.setThemeName(fallback)
-                    break
-    except Exception:
-        pass
-
+    
+    # Set application-wide font
+    font = QFont("Segoe UI", 10)
+    app.setFont(font)
+    
+    # Configure icon theme
+    icon_theme = get_system_icon_theme()
+    QIcon.setThemeName(icon_theme)
+    
+    # Create and show launcher
     launcher = Launcher()
     launcher.show()
+    # *** NEW: Ensure the window gets focus and is raised to the top, then focus the search bar ***
+    launcher.raise_()
+    launcher.activateWindow()
+    # launcher.search_bar.setFocus() # This is now done in __init__ after UI setup
+    # *** END NEW ***
+    
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
