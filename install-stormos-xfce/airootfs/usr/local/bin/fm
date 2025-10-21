@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 """
-Modern File Manager – Vibrant Edition (with Tabs, Icon View, Thumbnails, Breadcrumbs & Enhanced Drive Detection)
-A sleek, colorful, and feature-rich file browser for Linux.
-Based on the large UI version with added features.
-Fixed tab text color.
-Fixed Breadcrumbs.
-Fixed View Toggle.
-Added Drag & Drop to Sidebar and between folders.
-Added context menu with New File, Copy, Paste, Delete, and Delete Permanently options.
-✅ Added video thumbnail support via ffmpeg.
-✅ Added context menu option to toggle executable permissions (chmod +x / -x).
-✅ Added About / Shortcuts window accessible via Ctrl+/ or empty area context menu.
+Modern File Manager – Nemo-Style Edition (with Tabs, Icon View, Thumbnails, Breadcrumbs & Enhanced Drive Detection)
+A clean, minimal, and feature-rich file browser for Linux.
+Based on the Royal Purple Dark Edition, but styled like Nemo.
 """
 import sys
 import os
@@ -36,44 +28,48 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtCore import Qt, QMimeDatabase, QTimer, QUrl, QFileInfo, QSize, QPoint, QMimeData
 from PyQt5.Qt import QShortcut
-from PyQt5.QtCore import QSettings # Import QSettings
+from PyQt5.QtCore import QSettings
+
 # =============================================================================
-# VIBRANT COLOR SCHEME
+# NEUTRAL COLOR SCHEME - Nemo-like Dark Theme (Gray/Blue Focus)
 # =============================================================================
 COLORS = {
-    "background": "#1e1e2e",  # Dark purple
-    "surface": "#313244",     # Muted purple
-    "surface_frosted": "rgba(49, 50, 68, 0.95)",  # Stronger frosted glass
-    "accent": "#cba6f7",      # Lavender
-    "accent_hover": "#f5c2e7", # Pink
-    "text_primary": "#cdd6f4", # Light blue
-    "text_secondary": "#6c7086", # Muted gray
-    "success": "#a6e3a1",     # Green
-    "warning": "#f9e2af",     # Yellow
-    "danger": "#f38ba8",      # Red
-    "border": "#45475a",      # Darker border
-    "highlight": "rgba(203, 166, 247, 0.2)"  # Lavender highlight
+    "background": "#2e2e2e",         # Neutral dark background
+    "surface": "#3c3c3c",            # Sidebar/file area
+    "surface_frosted": "#3c3c3c",    # No transparency
+    "accent": "#5d8ab4",             # Muted blue (like Nemo selection)
+    "accent_hover": "#6d9ac4",
+    "text_primary": "#ffffff",
+    "text_secondary": "#bbbbbb",
+    "success": "#73d216",
+    "warning": "#f57900",
+    "danger": "#cc0000",
+    "border": "#555555",
+    "highlight": "rgba(93, 138, 180, 0.3)"
 }
-# Enhanced file type colors with more vibrancy
+
 FILE_TYPE_COLORS = {
-    'folder': '#89b4fa',      # Blue
-    'image': '#cba6f7',       # Lavender
-    'audio': '#f5c2e7',       # Pink
-    'video': '#fab387',       # Orange
-    'archive': '#f9e2af',     # Yellow
-    'document': '#a6e3a1',    # Green
-    'code': '#74c7ec',        # Sky
-    'generic': '#9399b2'      # Muted blue-gray
+    'folder': '#89b4fa',
+    'image': '#cba6f7',
+    'audio': '#f5c2e7',
+    'video': '#fab387',
+    'archive': '#f9e2af',
+    'document': '#a6e3a1',
+    'code': '#74c7ec',
+    'generic': '#9399b2'
 }
-TERMINALS = ['kitty', 'alacritty', 'gnome-terminal', 'konsole', 'xfce4-terminal', 'xterm']
+
+TERMINALS = ['xterm', 'gnome-terminal', 'xfce4-terminal', 'konsole', 'kitty', 'alacritty']
 FILE_MANAGERS = {'Thunar': 'thunar', 'Nemo': 'nemo', 'Dolphin': 'dolphin', 'Nautilus': 'nautilus'}
+
 # =============================================================================
 # GLOBALS
 # =============================================================================
 ICON_PROVIDER = QFileIconProvider()
 CLIPBOARD_PATHS: List[Path] = []
 CLIPBOARD_IS_CUT = False
-THUMBNAIL_CACHE = {}  # Simple in-memory cache: {path: QPixmap}
+THUMBNAIL_CACHE = {}
+
 # =============================================================================
 # UTILS
 # =============================================================================
@@ -88,21 +84,26 @@ def get_file_type_category(path: Path) -> str:
     if mime.startswith('text/') or any(ext in str(path).lower() for ext in ['.py', '.js', '.ts', '.sh', '.json', '.yml', '.yaml', '.toml', '.ini', '.cfg', '.md']): return 'code'
     if any(t in mime for t in ['pdf', 'msword', 'vnd.oasis.opendocument', 'vnd.ms-excel']): return 'document'
     return 'generic'
+
 def get_file_emoji(path: Path) -> str:
     cat = get_file_type_category(path)
     emojis = {'folder': '📁','image': '🖼️','audio': '🎵','video': '🎬','archive': '📦','document': '📄','code': '💻','generic': '📄'}
     return emojis.get(cat, '📄')
+
 def format_size(num: int) -> str:
     for unit in ['B', 'K', 'M', 'G', 'T']:
         if abs(num) < 1024.0: return f"{num:.1f} {unit}"
         num /= 1024.0
     return f"{num:.1f} P"
+
 def get_permissions_str(path: Path) -> str:
     try: return stat.filemode(path.stat().st_mode)
     except: return '------'
+
 def get_modified_str(path: Path) -> str:
     try: return datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y-%m-%d %H:%M')
     except: return '---'
+
 # =============================================================================
 # FILE ITEM
 # =============================================================================
@@ -115,39 +116,37 @@ class FileItem(QListWidgetItem):
         self.file_type = get_file_type_category(self.path)
         self.accent_color = FILE_TYPE_COLORS.get(self.file_type, FILE_TYPE_COLORS['generic'])
         self.setText(self.path.name)
-        # Determine icon size based on view mode and zoom (using larger base from original large version)
-        # Base icon size is now 48 (from pixmap call in original), we'll scale it based on zoom and view mode
-        icon_size = 48 + (parent_manager.zoom_level - 14) * 2  # Scales with zoom, starting from 48
+
+        icon_size = 48 + (parent_manager.zoom_level - 14) * 2
         if parent_manager.view_mode == "icon":
-            icon_size = max(64, icon_size + 10)  # Larger in icon mode
-        # Use thumbnail for images and videos, system icon otherwise
+            icon_size = max(64, icon_size + 10)
+
         if self._is_image_file(path) or self._is_video_file(path):
             pixmap = self._load_thumbnail(path, icon_size)
-            # If thumbnail loading fails, fall back to system icon
             icon = QIcon(pixmap) if not pixmap.isNull() else QIcon(ICON_PROVIDER.icon(QFileInfo(str(path))))
         else:
-            # Use the system icon provider and scale it
             icon = QIcon(ICON_PROVIDER.icon(QFileInfo(str(path))))
             if not icon.isNull():
                 pixmap = icon.pixmap(icon_size, icon_size)
                 if not pixmap.isNull():
                     icon = QIcon(pixmap)
+
         self.setIcon(icon)
         self.setToolTip(str(self.path))
         color = QColor(self.accent_color)
         self.setForeground(color)
-        # Enable dragging for this item
         self.setFlags(self.flags() | Qt.ItemIsDragEnabled)
+
     def _is_image_file(self, path: Path) -> bool:
-        if not path.is_file():
-            return False
+        if not path.is_file(): return False
         suffix = path.suffix.lower()
         return suffix in {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.svg', '.gif', '.tiff', '.ico'}
+
     def _is_video_file(self, path: Path) -> bool:
-        if not path.is_file():
-            return False
+        if not path.is_file(): return False
         suffix = path.suffix.lower()
         return suffix in {'.mp4', '.mkv', '.avi', '.mov', '.flv', '.webm', '.m4v', '.wmv', '.3gp', '.ogv'}
+
     def _load_thumbnail(self, path: Path, size: int) -> QPixmap:
         cache_key = (str(path), size)
         if cache_key in THUMBNAIL_CACHE:
@@ -165,31 +164,47 @@ class FileItem(QListWidgetItem):
                     renderer.render(painter)
                     painter.end()
                 else:
-                    pixmap = QPixmap()  # fallback
+                    pixmap = QPixmap()
             elif self._is_image_file(path):
-                pixmap = QPixmap(str(path))
-                if not pixmap.isNull():
-                    pixmap = pixmap.scaled(
-                        size, size,
-                        Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation
-                    )
+                # Use QImage for more reliable image loading
+                from PyQt5.QtGui import QImage
+                img = QImage(str(path))
+                if not img.isNull():
+                    pixmap = QPixmap.fromImage(img)
+                    if not pixmap.isNull():
+                        pixmap = pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             elif self._is_video_file(path):
-                with tempfile.NamedTemporaryFile(suffix='.jpg') as tmp:
-                    result = subprocess.run([
-                        'ffmpeg', '-ss', '1', '-i', str(path),
-                        '-vframes', '1', '-q:v', '2', '-y', tmp.name
-                    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
-                    if result.returncode == 0:
-                        pixmap = QPixmap(tmp.name)
-                        if not pixmap.isNull():
-                            pixmap = pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                # Try to use ffmpegthumbnailer first (more reliable than ffmpeg)
+                if shutil.which('ffmpegthumbnailer'):
+                    with tempfile.NamedTemporaryFile(suffix='.jpg') as tmp:
+                        result = subprocess.run([
+                            'ffmpegthumbnailer', '-i', str(path), 
+                            '-o', tmp.name, '-s', str(size), '-t', '10'
+                        ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
+                        if result.returncode == 0 and Path(tmp.name).exists() and Path(tmp.name).stat().st_size > 0:
+                            pixmap = QPixmap(tmp.name)
+                            if not pixmap.isNull():
+                                pixmap = pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                # Fallback to ffmpeg if ffmpegthumbnailer is not available
+                elif shutil.which('ffmpeg'):
+                    with tempfile.NamedTemporaryFile(suffix='.jpg') as tmp:
+                        result = subprocess.run([
+                            'ffmpeg', '-ss', '10', '-i', str(path),
+                            '-vframes', '1', '-q:v', '2', '-y', tmp.name
+                        ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10)
+                        if result.returncode == 0 and Path(tmp.name).exists() and Path(tmp.name).stat().st_size > 0:
+                            pixmap = QPixmap(tmp.name)
+                            if not pixmap.isNull():
+                                pixmap = pixmap.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                else:
+                    print(f"No video thumbnailer available (ffmpegthumbnailer or ffmpeg)", file=sys.stderr)
         except Exception as e:
             print(f"Thumbnail error for {path}: {e}", file=sys.stderr)
             pixmap = QPixmap()
-        THUMBNAIL_CACHE[cache_key] = pixmap
+        if not pixmap.isNull():
+            THUMBNAIL_CACHE[cache_key] = pixmap
         return pixmap
-# Custom QListWidget to handle drag & drop events correctly
+
 class FileListWidget(QListWidget):
     def __init__(self, parent_manager: 'FileManager'):
         super().__init__()
@@ -198,55 +213,46 @@ class FileListWidget(QListWidget):
         self.setDragEnabled(True)
         self.setDropIndicatorShown(True)
         self.setDragDropMode(QAbstractItemView.DragDrop)
-        self.setDefaultDropAction(Qt.MoveAction) # Default for internal d&d
+        self.setDefaultDropAction(Qt.MoveAction)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
     def dragEnterEvent(self, event: QDragEnterEvent):
-        """Handle drag enter for the file list."""
-        if event.mimeData().hasUrls():
-            urls = event.mimeData().urls()
-            # Check if all URLs are local files
-            if all(url.isLocalFile() for url in urls):
-                event.acceptProposedAction() # Accept copy/move/link
-                return
-        event.ignore()
-    def dragMoveEvent(self, event: QDragMoveEvent):
-        """Handle drag move for the file list."""
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
             if all(url.isLocalFile() for url in urls):
                 event.acceptProposedAction()
                 return
         event.ignore()
+
+    def dragMoveEvent(self, event: QDragMoveEvent):
+        if event.mimeData().hasUrls():
+            urls = event.mimeData().urls()
+            if all(url.isLocalFile() for url in urls):
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
     def dropEvent(self, event: QDropEvent):
-        """Handle drop event for the file list."""
         if event.mimeData().hasUrls():
             self.parent_manager._handle_file_list_drop(event, self)
         else:
             event.ignore()
+
     def startDrag(self, supportedActions):
-        """Handle starting drag operations from the file list."""
         items = self.selectedItems()
-        if not items:
-            return
+        if not items: return
         drag = QDrag(self)
         mime_data = QMimeData()
-        # Create URLs for all selected items
-        urls = []
-        for item in items:
-            if hasattr(item, 'path'):
-                url = QUrl.fromLocalFile(str(item.path))
-                urls.append(url)
+        urls = [QUrl.fromLocalFile(str(item.path)) for item in items if hasattr(item, 'path')]
         mime_data.setUrls(urls)
         drag.setMimeData(mime_data)
-        # Create a preview pixmap for the drag
+
         if len(items) == 1:
             pixmap = items[0].icon().pixmap(32, 32)
             if pixmap.isNull():
-                # Fallback to a simple colored rectangle
                 pixmap = QPixmap(32, 32)
                 pixmap.fill(QColor(COLORS['accent']))
         else:
-            # Create a multiple items pixmap
             pixmap = QPixmap(48, 48)
             pixmap.fill(QColor(COLORS['surface']))
             painter = QPainter(pixmap)
@@ -254,67 +260,62 @@ class FileListWidget(QListWidget):
             painter.setPen(QColor(COLORS['text_primary']))
             painter.drawText(pixmap.rect(), Qt.AlignCenter, f"{len(items)}")
             painter.end()
+
         drag.setPixmap(pixmap)
         drag.setHotSpot(QPoint(pixmap.width() // 2, pixmap.height() // 2))
-        # Execute the drag
-        result = drag.exec_(supportedActions, Qt.MoveAction)
-        print(f"Drag executed with result: {result}")
-# Custom QPushButton for sidebar buttons to handle drag & drop
+        drag.exec_(supportedActions, Qt.MoveAction)
+
 class SidebarButton(QPushButton):
-    def __init__(self, name: str, path: Path, parent_manager: 'FileManager'):
+    def __init__(self, name: str, path: Path, parent_manager: 'FileManager', is_bookmark: bool = True):
         super().__init__(name)
         self.target_path = path.resolve()
         self.parent_manager = parent_manager
+        self.is_bookmark = is_bookmark
         self.setStyleSheet(self.parent_manager._get_sidebar_button_style())
         self.clicked.connect(lambda _: self.parent_manager._navigate_to_tab(self.target_path))
-        # Middle-click → new tab
         self.original_mouse_release = self.mouseReleaseEvent
         self.mouseReleaseEvent = self.enhanced_mouse_release
-        # Context menu
         self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(lambda pos: self.parent_manager._sidebar_context_menu(self.target_path, self.mapToGlobal(pos)))
-        # --- Enable Drop Target ---
+        self.customContextMenuRequested.connect(lambda pos: self.parent_manager._sidebar_context_menu(self.target_path, self.mapToGlobal(pos), self.is_bookmark))
         self.setAcceptDrops(True)
+
     def enhanced_mouse_release(self, e):
         if e.button() == Qt.MiddleButton:
             self.parent_manager._add_new_tab(self.target_path)
             e.accept()
         else:
             self.original_mouse_release(e)
+
     def dragEnterEvent(self, event: QDragEnterEvent):
-        """Handle drag enter for sidebar buttons."""
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
             if all(url.isLocalFile() for url in urls):
-                # Indicate visually that the button accepts the drop
                 self.setStyleSheet(f"""
                     QPushButton {{
                         background: {COLORS['highlight']};
                         color: {COLORS['accent']};
                         border: 2px dashed {COLORS['accent']};
-                        padding: 14px 18px;
+                        padding: 6px 12px;
                         text-align: left;
-                        font-family: 'Segoe UI';
+                        font-family: 'Sans';
                         font-size: {self.parent_manager.zoom_level + 2}px;
-                        font-weight: 500;
-                        border-radius: 8px;
-                        min-height: 32px;
+                        border-radius: 0;
                     }}
                 """)
-                event.acceptProposedAction() # Accept copy/move/link
+                event.acceptProposedAction()
                 return
         event.ignore()
+
     def dragLeaveEvent(self, event):
-        """Reset button style when drag leaves."""
         self.setStyleSheet(self.parent_manager._get_sidebar_button_style())
+
     def dropEvent(self, event: QDropEvent):
-        """Handle drop event for sidebar buttons."""
-        # Reset button style immediately
         self.setStyleSheet(self.parent_manager._get_sidebar_button_style())
         if event.mimeData().hasUrls():
             self.parent_manager._handle_sidebar_drop(event, self, self.target_path)
         else:
             event.ignore()
+
 # =============================================================================
 # MAIN FILE MANAGER
 # =============================================================================
@@ -324,161 +325,163 @@ class FileManager(QWidget):
         self.current_path: Path = Path.home().resolve()
         self.show_hidden: bool = False
         self.search_text: str = ''
-        # Increased base zoom level for larger UI elements (was 14 in large version)
         self.zoom_level: int = 16
-        self.view_mode: str = "list"  # "list" or "icon"
-        self.show_breadcrumb: bool = False  # Flag for address bar vs. breadcrumb
-        self.settings = QSettings("Seeker", "ModernFileManager_Large") # Initialize settings
+        self.view_mode: str = "list"
+        self.show_breadcrumb: bool = False
+        self.settings = QSettings("Seeker", "ModernFileManager_NemoStyle")
+        self.custom_bookmarks = self.settings.value("customBookmarks", [])
+        if not self.custom_bookmarks:
+            self.custom_bookmarks = []
         self._init_window()
         self._init_ui()
         self._setup_shortcuts()
         self._center_window()
         self.navigate_to(self.current_path)
+
     def _init_window(self):
-        self.setWindowTitle("Modern File Manager (Large & Featureful)")
+        self.setWindowTitle("Modern File Manager – Nemo Style")
         self.setWindowFlags(Qt.Window)
-        self.setAttribute(Qt.WA_OpaquePaintEvent)
-        self.setAutoFillBackground(False)
-        self.setFocusPolicy(Qt.StrongFocus)
-        # Restore window geometry from settings
+        # Remove custom rounded window painting
         geometry = self.settings.value("geometry")
         if geometry:
             self.restoreGeometry(geometry)
         else:
-            # Fallback: Use the original large size (1200x800) if no settings found
             self.resize(1200, 800)
-        # Set minimum size for the window (keeping it relatively large)
-        self.setMinimumSize(1000, 600) # Increased minimum size
+        self.setMinimumSize(1000, 600)
+
     def _create_sidebar(self, parent_layout):
         sidebar = QFrame()
         sidebar.setStyleSheet(f"""
             QFrame {{
-                background: {COLORS['surface_frosted']};
-                border-radius: 12px;
-                padding: 14px;
-                border: 1px solid {COLORS['border']};
-                box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+                background: {COLORS['surface']};
+                padding: 8px;
+                border: none;
             }}
         """)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setSpacing(10)
-        sidebar_layout.setContentsMargins(6, 10, 6, 10)
-        header = QLabel("Quick Access")
-        header.setStyleSheet(f"""
-            color: {COLORS['accent']};
-            font-weight: 700;
-            font-size: 16px; /* Increased font size */
-            padding: 6px 0px;
-            border-bottom: 2px solid {COLORS['accent']}30;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        sidebar_layout.setSpacing(6)
+        sidebar_layout.setContentsMargins(6, 8, 6, 8)
+
+        bookmarks_header = QHBoxLayout()
+        bookmarks_header_label = QLabel("Bookmarks")
+        bookmarks_header_label.setStyleSheet(f"""
+            color: {COLORS['text_primary']};
+            font-weight: bold;
+            font-size: 14px;
+            padding: 4px 0;
         """)
-        sidebar_layout.addWidget(header)
+        bookmarks_header.addWidget(bookmarks_header_label)
+
+        add_bookmark_btn = QPushButton("+")
+        add_bookmark_btn.setFixedSize(24, 24)
+        add_bookmark_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS['success']}40;
+                color: {COLORS['success']};
+                border: 1px solid {COLORS['success']}60;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: {COLORS['success']}60;
+            }}
+        """)
+        add_bookmark_btn.clicked.connect(self._add_current_to_bookmarks)
+        bookmarks_header.addWidget(add_bookmark_btn)
+        bookmarks_header.addStretch()
+        sidebar_layout.addLayout(bookmarks_header)
+
         self.bookmarks_layout = QVBoxLayout()
-        self.bookmarks_layout.setSpacing(6)
+        self.bookmarks_layout.setSpacing(4)
         self._populate_bookmarks()
         sidebar_layout.addLayout(self.bookmarks_layout)
+
         drives_header = QLabel("Storage")
         drives_header.setStyleSheet(f"""
-            color: {COLORS['accent']};
-            font-weight: 700;
-            font-size: 16px; /* Increased font size */
-            padding: 10px 0px 6px 0px;
-            border-bottom: 2px solid {COLORS['accent']}30;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: {COLORS['text_primary']};
+            font-weight: bold;
+            font-size: 14px;
+            padding: 8px 0 4px 0;
         """)
         sidebar_layout.addWidget(drives_header)
+
         self.drives_layout = QVBoxLayout()
-        self.drives_layout.setSpacing(6)
+        self.drives_layout.setSpacing(4)
         self._populate_drives()
         sidebar_layout.addLayout(self.drives_layout)
         sidebar_layout.addStretch()
-        # Keep the wider sidebar from the large version (was 260)
-        sidebar.setFixedWidth(260)
+
+        sidebar.setFixedWidth(220)
         parent_layout.addWidget(sidebar)
+
     def _create_file_area(self, parent_layout):
         self.tab_widget = QTabWidget()
         self.tab_widget.setStyleSheet(f"""
-            QTabWidget {{
-                background: transparent;
-                border: none;
-            }}
             QTabWidget::pane {{
-                background: {COLORS['surface_frosted']};
-                border-radius: 12px;
-                padding: 8px;
                 border: 1px solid {COLORS['border']};
-                box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-            }}
-            QTabBar {{
-                background: transparent;
-                border: none;
+                background: {COLORS['background']};
+                top: -1px;
             }}
             QTabBar::tab {{
                 background: {COLORS['surface']};
                 color: {COLORS['text_primary']};
-                padding: 12px 24px; /* Increased padding */
-                margin: 0px 6px;
-                border-top-left-radius: 10px;
-                border-top-right-radius: 10px;
-                font-size: 14px; /* Increased font size */
-                font-weight: 600;
-                border-bottom: 2px solid transparent;
+                padding: 6px 16px;
+                border: 1px solid {COLORS['border']};
+                border-bottom: none;
+                margin-right: 2px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
             }}
             QTabBar::tab:selected {{
-                background: {COLORS['success']}22; /* Changed background color */
-                border-bottom: 2px solid {COLORS['success']}; /* Changed border color */
-                color: black; /* ✅ FIXED: Changed text color to black for readability */
-            }}
-            QTabBar::tab:hover {{
-                background: {COLORS['accent']}11;
+                background: {COLORS['background']};
+                border-bottom: 1px solid {COLORS['background']};
             }}
         """)
         self._add_new_tab(self.current_path)
         parent_layout.addWidget(self.tab_widget)
+
     def _add_new_tab(self, path: Path = None):
         if path is None:
             path = Path.home()
         tab_container = QFrame()
         tab_layout = QVBoxLayout(tab_container)
-        tab_layout.setContentsMargins(6, 6, 6, 6)
-        # Use the custom FileListWidget
+        tab_layout.setContentsMargins(4, 4, 4, 4)
+
         file_list = FileListWidget(self)
         file_list.setContextMenuPolicy(Qt.CustomContextMenu)
         file_list.customContextMenuRequested.connect(self._on_list_context_menu)
         file_list.itemDoubleClicked.connect(self._on_item_double_clicked)
-        # Apply styles similar to the large version but allow for view modes
-        list_font_size = 16 if self.view_mode == 'list' else 14 # Increased font size
+
+        list_font_size = 14 if self.view_mode == 'list' else 13
         file_list.setStyleSheet(f"""
             QListWidget {{
-                background: transparent;
+                background: {COLORS['background']};
                 border: none;
                 outline: none;
                 font-size: {list_font_size}px;
             }}
             QListWidget::item {{
-                padding: 20px 16px;  /* Increased padding from 16px 12px */
-                border-radius: 10px;
-                margin: 4px;
-                border: 1px solid transparent;
+                padding: 8px 12px;
+                border-radius: 4px;
+                margin: 2px;
             }}
             QListWidget::item:selected {{
                 background: {COLORS['highlight']};
-                border: 1px solid {COLORS['accent']}60;
             }}
             QListWidget::item:hover {{
-                background: {COLORS['surface']}99;
-                border: 1px solid {COLORS['accent']}30;
+                background: {COLORS['surface']}aa;
             }}
         """)
         tab_layout.addWidget(file_list)
+
         tab_index = self.tab_widget.addTab(tab_container, path.name)
         self.tab_widget.setCurrentIndex(tab_index)
         setattr(tab_container, 'file_list', file_list)
         setattr(tab_container, 'current_path', path)
         self._populate_files_for_tab(tab_container, path)
         return tab_container
+
     def _populate_files_for_tab(self, tab_container, path: Path):
         file_list = getattr(tab_container, 'file_list')
         file_list.clear()
@@ -499,119 +502,119 @@ class FileManager(QWidget):
             item.setTextAlignment(Qt.AlignCenter)
             file_list.addItem(item)
             return
+
         for p in items:
             try: file_list.addItem(FileItem(p, self))
             except Exception as e: print(f"Item error: {e}", file=sys.stderr); continue
+
         if not items:
             empty_item = QListWidgetItem("Folder is empty")
             empty_item.setFlags(empty_item.flags() & ~Qt.ItemIsSelectable)
             empty_item.setTextAlignment(Qt.AlignCenter)
             file_list.addItem(empty_item)
-        # Apply view mode specific settings
+
         if self.view_mode == "icon":
             file_list.setResizeMode(QListWidget.Adjust)
-            file_list.setGridSize(QSize(140, 140)) # Increased grid size
+            file_list.setGridSize(QSize(120, 120))
             file_list.setViewMode(QListWidget.IconMode)
             file_list.setWordWrap(True)
-            icon_size = 64 + (self.zoom_level - 16) * 2 # Base icon size increased
+            icon_size = 64 + (self.zoom_level - 16) * 2
             file_list.setIconSize(QSize(icon_size, icon_size))
         else:
             file_list.setViewMode(QListWidget.ListMode)
-            # Icon size is handled in FileItem based on zoom
-            # file_list.setIconSize(QSize(48, 48)) # This is now dynamic
+
     def _init_ui(self):
-        # Increased margins and spacing (was 18, 14)
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(20, 20, 20, 20) # Increased margins
-        main_layout.setSpacing(16) # Increased spacing
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(12)
+
         top_bar = QHBoxLayout()
-        top_bar.setSpacing(12) # Increased spacing
+        top_bar.setSpacing(8)
+
         self.address_bar = QLineEdit(str(self.current_path))
         self.address_bar.setPlaceholderText("Navigate or search...")
         self.address_bar.setStyleSheet(f"""
             QLineEdit {{
                 background: {COLORS['surface']};
                 color: {COLORS['text_primary']};
-                border: 2px solid {COLORS['border']};
-                border-radius: 10px;
-                padding: 12px 18px; /* Increased padding */
-                font-family: 'Segoe UI';
-                font-size: 15px; /* Increased font size */
-                min-height: 28px; /* Increased height */
-                box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.1);
+                border: 1px solid {COLORS['border']};
+                border-radius: 4px;
+                padding: 6px 10px;
+                font-size: 13px;
+                min-height: 24px;
             }}
             QLineEdit:focus {{
-                border: 2px solid {COLORS['accent']};
-                box-shadow: inset 0px 2px 4px rgba(0, 0, 0, 0.1), 0px 0px 8px {COLORS['accent']}40;
+                border: 1px solid {COLORS['accent']};
             }}
         """)
         self.address_bar.returnPressed.connect(self._on_address_bar_return)
         self._setup_address_bar_completer()
         top_bar.addWidget(self.address_bar)
-        # Breadcrumb Bar Widget (initially hidden)
+
         self.breadcrumb_widget = QWidget()
         self.breadcrumb_layout = QHBoxLayout()
-        self.breadcrumb_layout.setSpacing(4) # Smaller spacing between crumbs
+        self.breadcrumb_layout.setSpacing(4)
         self.breadcrumb_layout.setContentsMargins(0, 0, 0, 0)
         self.breadcrumb_widget.setLayout(self.breadcrumb_layout)
         self.breadcrumb_widget.setVisible(False)
         top_bar.addWidget(self.breadcrumb_widget)
+
         button_style = self._get_large_button_style()
-        # Toggle Address Bar / Breadcrumb - Using text instead of emoji
-        toggle_nav_btn = QPushButton("N") # Use "N" or a simple icon if desired
-        toggle_nav_btn.setFixedSize(46, 46) # Increased size
+
+        toggle_nav_btn = QPushButton("N")
+        toggle_nav_btn.setFixedSize(32, 32)
         toggle_nav_btn.setStyleSheet(button_style)
         toggle_nav_btn.clicked.connect(self._toggle_navigation_bar)
-        toggle_nav_btn.setToolTip("Toggle Address Bar / Breadcrumb")
         top_bar.addWidget(toggle_nav_btn)
-        # Add new tab button - Using text instead of emoji
+
         new_tab_btn = QPushButton("+")
-        new_tab_btn.setFixedSize(46, 46) # Increased size
+        new_tab_btn.setFixedSize(32, 32)
         new_tab_btn.setStyleSheet(button_style)
         new_tab_btn.clicked.connect(lambda: self._add_new_tab())
-        new_tab_btn.setToolTip("New Tab (Ctrl+T)")
         top_bar.addWidget(new_tab_btn)
-        refresh_btn = QPushButton("⟳") # Use text or simple icon
-        refresh_btn.setFixedSize(46, 46) # Increased size
+
+        refresh_btn = QPushButton("⟳")
+        refresh_btn.setFixedSize(32, 32)
         refresh_btn.setStyleSheet(button_style)
         refresh_btn.clicked.connect(self.refresh)
-        refresh_btn.setToolTip("Refresh (F5)")
         top_bar.addWidget(refresh_btn)
-        up_btn = QPushButton("↑") # Use text or simple icon
-        up_btn.setFixedSize(46, 46) # Increased size
+
+        up_btn = QPushButton("↑")
+        up_btn.setFixedSize(32, 32)
         up_btn.setStyleSheet(button_style)
         up_btn.clicked.connect(self.go_up)
-        up_btn.setToolTip("Go Up (Backspace)")
         top_bar.addWidget(up_btn)
-        hidden_btn = QPushButton("•••") # Use text or simple icon
-        hidden_btn.setFixedSize(46, 46) # Increased size
+
+        hidden_btn = QPushButton("•••")
+        hidden_btn.setFixedSize(32, 32)
         hidden_btn.setStyleSheet(button_style)
         hidden_btn.clicked.connect(self.toggle_hidden)
-        hidden_btn.setToolTip("Toggle Hidden Files (Ctrl+H)")
         top_bar.addWidget(hidden_btn)
-        # View Mode Toggle Button
-        view_btn = QPushButton("V") # Use "L" for list, "V" for grid/icon
-        view_btn.setFixedSize(46, 46) # Increased size
+
+        view_btn = QPushButton("V")
+        view_btn.setFixedSize(32, 32)
         view_btn.setStyleSheet(button_style)
         view_btn.clicked.connect(self._toggle_view_mode)
-        view_btn.setToolTip("Toggle View Mode (Ctrl+Shift+V)")
         top_bar.addWidget(view_btn)
+
         main_layout.addLayout(top_bar)
+
         content_splitter = QHBoxLayout()
-        content_splitter.setSpacing(24) # Increased spacing (was 20)
+        content_splitter.setSpacing(12)
         self._create_sidebar(content_splitter)
         self._create_file_area(content_splitter)
         main_layout.addLayout(content_splitter)
+
         self.status_label = QLabel()
         self.status_label.setStyleSheet(f"""
             color: {COLORS['text_secondary']};
-            font-size: 13px; /* Increased font size */
-            padding: 10px 8px; /* Increased padding */
+            font-size: 12px;
+            padding: 6px 8px;
             border-top: 1px solid {COLORS['border']};
-            background: {COLORS['surface']}60;
-            border-radius: 8px; /* Increased radius */
+            background: {COLORS['surface']};
         """)
         main_layout.addWidget(self.status_label)
+
     def _setup_address_bar_completer(self):
         completer = QCompleter()
         completer_model = QFileSystemModel()
@@ -619,72 +622,133 @@ class FileManager(QWidget):
         completer.setModel(completer_model)
         completer.setCaseSensitivity(Qt.CaseInsensitive)
         self.address_bar.setCompleter(completer)
+
     def _get_large_button_style(self) -> str:
         return f"""
             QPushButton {{
                 background: {COLORS['surface']};
                 color: {COLORS['text_primary']};
-                border: 2px solid {COLORS['border']};
-                border-radius: 10px;
-                font-family: 'Segoe UI';
-                font-size: 15px; /* Increased font size */
-                font-weight: 600;
+                border: 1px solid {COLORS['border']};
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: normal;
+                width: 32px;
+                height: 32px;
             }}
             QPushButton:hover {{
-                background: {COLORS['accent']}22;
-                border: 2px solid {COLORS['accent']}60;
-            }}
-            QPushButton:pressed {{
-                background: {COLORS['accent']}44;
-                border: 2px solid {COLORS['accent']};
+                background: {COLORS['highlight']};
             }}
         """
+
     def _get_sidebar_button_style(self) -> str:
-        # Increased base font size for sidebar buttons (was zoom_level, which was 14)
-        font_size = self.zoom_level + 2 # This makes it effectively 18 when zoom is 16
+        font_size = self.zoom_level + 2
         return f"""
             QPushButton {{
                 background: transparent;
                 color: {COLORS['text_primary']};
-                border: 1px solid transparent;
-                padding: 14px 18px;  /* Increased padding */
+                border: none;
+                padding: 6px 12px;
                 text-align: left;
-                font-family: 'Segoe UI';
-                font-size: {font_size}px; /* Increased font size */
-                font-weight: 500;
-                border-radius: 8px;
-                min-height: 32px; /* Increased height */
-                transition: all 0.2s ease;
+                font-family: 'Sans';
+                font-size: {font_size}px;
+                border-radius: 0;
             }}
             QPushButton:hover {{
                 background: {COLORS['highlight']};
-                color: {COLORS['accent']};
-                border: 1px solid {COLORS['accent']}30;
-            }}
-            QPushButton:pressed {{
-                background: {COLORS['accent']}33;
-                border: 1px solid {COLORS['accent']};
+                color: white;
             }}
         """
+
     def _populate_bookmarks(self):
         while self.bookmarks_layout.count():
             child = self.bookmarks_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        specs = [
-            (Path.home(), "🏠 Home"),
-            (Path.home() / "Desktop", "🖥️ Desktop"),
-            (Path.home() / "Documents", "📄 Documents"),
-            (Path.home() / "Downloads", "📥 Downloads"),
-            (Path.home() / "Pictures", "🖼️ Pictures"),
-            (Path.home() / "Music", "🎵 Music"),
-            (Path.home() / "Videos", "🎬 Videos"),
+
+        for bookmark_path_str in self.custom_bookmarks:
+            try:
+                path = Path(bookmark_path_str)
+                if path.exists():
+                    btn = SidebarButton(f"📌 {path.name}", path, self, is_bookmark=True)
+                    self.bookmarks_layout.addWidget(btn)
+            except Exception as e:
+                print(f"Error loading bookmark {bookmark_path_str}: {e}")
+
+        gtk_bookmarks = self._get_gtk_bookmarks()
+        for path, name in gtk_bookmarks:
+            btn = SidebarButton(f"⭐ {name}", path, self, is_bookmark=False)
+            self.bookmarks_layout.addWidget(btn)
+
+    def _get_gtk_bookmarks(self) -> List[tuple[Path, str]]:
+        bookmarks = []
+        bookmark_files = [
+            Path.home() / ".config" / "gtk-3.0" / "bookmarks",
+            Path.home() / ".gtk-bookmarks"
         ]
-        for path, name in specs:
-            if path.exists():
-                # Use the custom SidebarButton
-                btn = SidebarButton(name, path, self)
-                self.bookmarks_layout.addWidget(btn)
+        for bookmark_file in bookmark_files:
+            if bookmark_file.exists():
+                try:
+                    with open(bookmark_file, 'r', encoding='utf-8') as f:
+                        for line in f:
+                            line = line.strip()
+                            if line:
+                                parts = line.split(' ', 1)
+                                uri = parts[0]
+                                if uri.startswith('file://'):
+                                    path_str = uri[7:]
+                                    path = Path(path_str).expanduser()
+                                    name = parts[1] if len(parts) > 1 else path.name
+                                    if path.exists():
+                                        bookmarks.append((path, name))
+                                elif not uri.startswith(('ftp', 'sftp')):
+                                    path = Path(uri).expanduser()
+                                    if path.exists():
+                                        name = path.name
+                                        bookmarks.append((path, name))
+                except (IOError, OSError) as e:
+                    print(f"Could not read GTK bookmarks file {bookmark_file}: {e}", file=sys.stderr)
+                break
+        return bookmarks
+
+    def _add_current_to_bookmarks(self):
+        current_tab = self.tab_widget.currentWidget()
+        if not current_tab or not hasattr(current_tab, 'current_path'): return
+        path = current_tab.current_path
+        path_str = str(path)
+        if path_str in self.custom_bookmarks:
+            QMessageBox.information(self, "Already Bookmarked", f"'{path.name}' is already in your bookmarks.")
+            return
+        self.custom_bookmarks.append(path_str)
+        self.settings.setValue("customBookmarks", self.custom_bookmarks)
+        self._populate_bookmarks()
+        QMessageBox.information(self, "Bookmark Added", f"Added '{path.name}' to bookmarks.")
+
+    def _remove_from_bookmarks(self, path: Path):
+        path_str = str(path)
+        if path_str in self.custom_bookmarks:
+            self.custom_bookmarks.remove(path_str)
+            self.settings.setValue("customBookmarks", self.custom_bookmarks)
+            self._populate_bookmarks()
+            QMessageBox.information(self, "Bookmark Removed", f"Removed '{path.name}' from bookmarks.")
+
+    def _move_bookmark_up(self, path: Path):
+        path_str = str(path)
+        if path_str in self.custom_bookmarks:
+            index = self.custom_bookmarks.index(path_str)
+            if index > 0:
+                self.custom_bookmarks[index], self.custom_bookmarks[index-1] = self.custom_bookmarks[index-1], self.custom_bookmarks[index]
+                self.settings.setValue("customBookmarks", self.custom_bookmarks)
+                self._populate_bookmarks()
+
+    def _move_bookmark_down(self, path: Path):
+        path_str = str(path)
+        if path_str in self.custom_bookmarks:
+            index = self.custom_bookmarks.index(path_str)
+            if index < len(self.custom_bookmarks) - 1:
+                self.custom_bookmarks[index], self.custom_bookmarks[index+1] = self.custom_bookmarks[index+1], self.custom_bookmarks[index]
+                self.settings.setValue("customBookmarks", self.custom_bookmarks)
+                self._populate_bookmarks()
+
     def _populate_drives(self):
         while self.drives_layout.count():
             child = self.drives_layout.takeAt(0)
@@ -711,26 +775,11 @@ class FileManager(QWidget):
                         r = mp.resolve()
                         if r not in seen:
                             seen.add(r)
-                            # Use the custom SidebarButton
-                            btn = SidebarButton(f"💾 {r.name or str(r)}", r, self)
+                            btn = SidebarButton(f"💾 {r.name or str(r)}", r, self, is_bookmark=False)
                             self.drives_layout.addWidget(btn)
-            try:
-                import json
-                result = subprocess.run(['lsblk', '-J', '-f'], capture_output=True, text=True, timeout=5)
-                if result.returncode == 0:
-                    lsblk_data = json.loads(result.stdout)
-                    for blockdev in lsblk_data['blockdevices']:
-                        if blockdev.get('type') in ('disk', 'part') and blockdev.get('mountpoint') is None:
-                            if blockdev.get('fstype') and blockdev.get('mountpoint') is None:
-                                device_path = Path(f"/dev/{blockdev['name']}")
-                                if device_path.exists():
-                                    # Use the custom SidebarButton for unmounted drives
-                                    btn = SidebarButton(f"⚠️ {blockdev['name']} ({blockdev.get('fstype', 'unknown')})", Path('/'), self)
-                                    self.drives_layout.addWidget(btn)
-            except Exception as e:
-                print(f"lsblk detection error: {e}", file=sys.stderr)
         except Exception as e:
             print(f"Drive scan error: {e}", file=sys.stderr)
+
     def _setup_shortcuts(self):
         QShortcut(QKeySequence("Escape"), self).activated.connect(self._clear_search)
         QShortcut(QKeySequence("Ctrl+L"), self).activated.connect(lambda: self.address_bar.selectAll() or self.address_bar.setFocus())
@@ -745,18 +794,16 @@ class FileManager(QWidget):
         QShortcut(QKeySequence("Ctrl+V"), self).activated.connect(self._paste_paths)
         QShortcut(QKeySequence("Delete"), self).activated.connect(self._delete_selected)
         QShortcut(QKeySequence("F2"), self).activated.connect(self._rename_selected)
-        # Zoom shortcuts
         QShortcut(QKeySequence("Ctrl+="), self).activated.connect(lambda: self._adjust_zoom(1))
         QShortcut(QKeySequence("Ctrl++"), self).activated.connect(lambda: self._adjust_zoom(1))
         QShortcut(QKeySequence("Ctrl+-"), self).activated.connect(lambda: self._adjust_zoom(-1))
-        # View mode shortcut
         QShortcut(QKeySequence("Ctrl+Shift+V"), self).activated.connect(self._toggle_view_mode)
-        # About/Shortcuts shortcut
         QShortcut(QKeySequence("Ctrl+/"), self).activated.connect(self._show_about)
+        QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(self._add_current_to_bookmarks)
+
     def _toggle_view_mode(self):
         self.view_mode = "icon" if self.view_mode == "list" else "list"
         current_btn = None
-        # Find the view button to update its text
         for i in range(self.layout().count()):
             item = self.layout().itemAt(i)
             if isinstance(item, QHBoxLayout):
@@ -766,64 +813,55 @@ class FileManager(QWidget):
                         current_btn = w
                         break
         if current_btn:
-            current_btn.setText("L" if self.view_mode == "icon" else "V") # Update button text
+            current_btn.setText("L" if self.view_mode == "icon" else "V")
         self._populate_files()
+
     def _adjust_zoom(self, delta: int):
-        # Increased zoom range (was max(12, min(22, ...)))
         self.zoom_level = max(14, min(24, self.zoom_level + delta))
         self._update_sidebar_styles()
-        # Update icon sizes in list view mode if applicable
         current_tab = self.tab_widget.currentWidget()
         if current_tab and self.view_mode == "icon":
             file_list = getattr(current_tab, 'file_list', None)
             if file_list:
-                 # Recalculate icon size based on new zoom
                 icon_size = 64 + (self.zoom_level - 16) * 2
                 file_list.setIconSize(QSize(icon_size, icon_size))
         self._update_status()
+
     def _update_sidebar_styles(self):
-        # Update styles for bookmarks
-        for i in range(self.bookmarks_layout.count()):
-            item = self.bookmarks_layout.itemAt(i)
-            if item.widget() and isinstance(item.widget(), SidebarButton):
-                 item.widget().setStyleSheet(self._get_sidebar_button_style())
-        # Update styles for drives
-        for i in range(self.drives_layout.count()):
-            item = self.drives_layout.itemAt(i)
-            if item.widget() and isinstance(item.widget(), SidebarButton):
-                 item.widget().setStyleSheet(self._get_sidebar_button_style())
+        for layout in [self.bookmarks_layout, self.drives_layout]:
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item.widget() and isinstance(item.widget(), SidebarButton):
+                    item.widget().setStyleSheet(self._get_sidebar_button_style())
+
     def _center_window(self):
         geo = QApplication.primaryScreen().availableGeometry()
         self.move(geo.center().x() - self.width() // 2, geo.center().y() - self.height() // 2)
+
     def closeEvent(self, event):
-        # Save window geometry to settings when the window is closed
         self.settings.setValue("geometry", self.saveGeometry())
-        event.accept() # Accept the close event
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setBrush(QColor(COLORS["background"]))
-        painter.setPen(Qt.NoPen)
-        # Increased corner radius (was 16)
-        painter.drawRoundedRect(self.rect(), 20, 20)
+        event.accept()
+
+    # Removed paintEvent to use native window style
+
     def _navigate_to_tab(self, path: Path):
-        """Navigate the current tab to a new path"""
         current_tab = self.tab_widget.currentWidget()
         if current_tab:
             current_tab.current_path = path
             self._populate_files_for_tab(current_tab, path)
             self.tab_widget.setTabText(self.tab_widget.currentIndex(), path.name)
             self.address_bar.setText(str(path))
-            self._update_breadcrumb() # Update breadcrumb when navigating
+            self._update_breadcrumb()
             self._update_status()
+
     def navigate_to(self, path: Path):
         try: resolved = path.resolve()
         except Exception as e: self._show_error(f"Invalid path: {e}"); return
         if not resolved.exists(): self._show_error(f"Path does not exist: {resolved}"); return
         if resolved.is_file(): resolved = resolved.parent
         if not resolved.is_dir(): self._show_error("Not a directory"); return
-        # Navigate current tab to new path
         self._navigate_to_tab(resolved)
+
     def _on_address_bar_return(self):
         text = self.address_bar.text().strip()
         if text.lower().startswith('search:'):
@@ -834,92 +872,74 @@ class FileManager(QWidget):
         else:
             path = Path(text)
             self.navigate_to(path)
+
     def _populate_files(self):
-        """Populate files for the current tab"""
         current_tab = self.tab_widget.currentWidget()
         if current_tab:
             self._populate_files_for_tab(current_tab, current_tab.current_path)
+
     def _update_status(self):
         current_tab = self.tab_widget.currentWidget()
         if current_tab:
             try:
                 path = current_tab.current_path
                 all_items = [p for p in path.iterdir() if self.show_hidden or not p.name.startswith('.')]
-                # Find the file list for this tab
                 file_list = getattr(current_tab, 'file_list')
                 shown_items = file_list.count()
                 total_size = sum(p.stat().st_size for p in all_items if p.is_file())
                 usage = shutil.disk_usage(path)
                 free_str = format_size(usage.free)
-                self.status_label.setText(f"Zoom: {self.zoom_level}px • Showing {shown_items} of {len(all_items)} items • Total: {format_size(total_size)} • Free: {free_str}")
+                self.status_label.setText(f"Zoom: {self.zoom_level} • Showing {shown_items} of {len(all_items)} items • Total: {format_size(total_size)} • Free: {free_str}")
             except Exception as e:
-                self.status_label.setText(f"Zoom: {self.zoom_level}px • Error: {e}")
+                self.status_label.setText(f"Zoom: {self.zoom_level} • Error: {e}")
         else:
-            self.status_label.setText(f"Zoom: {self.zoom_level}px • No active tab")
+            self.status_label.setText(f"Zoom: {self.zoom_level} • No active tab")
+
     def _show_error(self, msg: str):
         QMessageBox.warning(self, "Error", msg)
+
     def refresh(self):
         global THUMBNAIL_CACHE
-        THUMBNAIL_CACHE.clear()  # Clear thumbnail cache on refresh
+        THUMBNAIL_CACHE.clear()
         self._populate_files()
         self._update_status()
+
     def go_up(self):
         current_tab = self.tab_widget.currentWidget()
         if current_tab and hasattr(current_tab, 'current_path'):
             parent = current_tab.current_path.parent
             if parent != current_tab.current_path:
                 self._navigate_to_tab(parent)
+
     def toggle_hidden(self):
         self.show_hidden = not self.show_hidden
         self._populate_files()
         self._update_status()
+
     def _clear_search(self):
         self.search_text = ''
         self.address_bar.clear()
         self._populate_files()
         self._update_status()
 
-
-    def _on_item_double_clicked(self, item):
-        # --- CORRECTED SECTION ---
-        # Ensure 'item' is the custom FileItem which has the .path attribute
-        # The 'item' argument from the signal *should* be the FileItem added via addItem(),
-        # but let's make it robust.
-        if not hasattr(item, 'path'):
-            # This should ideally not happen if FileItem is correctly added,
-            # but adding a check for safety.
-            print(f"DEBUG: Item clicked does not have 'path' attribute: {type(item)}", file=sys.stderr)
-            return
-
+    def _on_item_double_clicked(self, item: FileItem):
         path = item.path
-        # --- END CORRECTED SECTION ---
-
         if path.is_dir():
             self.navigate_to(path)
         else:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
-
-
-
-
-
-
-        
     def _on_list_context_menu(self, position):
-        # Find which tab was clicked
         sender = self.sender()
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab:
-            return
+        if not current_tab: return
         file_list = getattr(current_tab, 'file_list')
         item = file_list.itemAt(position)
         if item:
             self._show_context_menu(item, file_list.mapToGlobal(position))
-        else: # Empty area
+        else:
             menu = QMenu(self)
             menu.setStyleSheet(self._get_menu_style())
-            # New File action using touch command
             new_file_action = QAction("📄 New File", self)
             new_file_action.triggered.connect(self._create_new_file)
             menu.addAction(new_file_action)
@@ -927,35 +947,48 @@ class FileManager(QWidget):
             new_folder_action.triggered.connect(self._create_new_folder)
             menu.addAction(new_folder_action)
             menu.addSeparator()
-            # Paste action
+            add_bookmark_action = QAction("📌 Add to Bookmarks", self)
+            add_bookmark_action.triggered.connect(self._add_current_to_bookmarks)
+            menu.addAction(add_bookmark_action)
+            menu.addSeparator()
             paste_action = QAction("📋 Paste", self)
+            paste_action.setEnabled(bool(CLIPBOARD_PATHS))
             paste_action.triggered.connect(self._paste_paths)
-            if CLIPBOARD_PATHS:
-                paste_action.setEnabled(True)
-            else:
-                paste_action.setEnabled(False)
             menu.addAction(paste_action)
-            menu.addSeparator() # Separator before About
-            # About / Shortcuts action
+            menu.addSeparator()
             about_action = QAction("ℹ️ About / Shortcuts", self)
             about_action.triggered.connect(self._show_about)
             menu.addAction(about_action)
             menu.exec_(file_list.mapToGlobal(position))
+
     def _show_context_menu(self, item: FileItem, global_pos: 'QPoint'):
         menu = QMenu(self)
         menu.setStyleSheet(self._get_menu_style())
         path = item.path
         is_dir = path.is_dir()
-        # Open actions
+
         open_action = QAction("🚀 Open", self)
         open_action.triggered.connect(lambda: self.navigate_to(path) if is_dir else QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))))
         menu.addAction(open_action)
+
         if not is_dir:
             open_with_menu = self._build_open_with_menu(path)
             if open_with_menu.actions():
                 menu.addMenu(open_with_menu)
         menu.addSeparator()
-        # Copy/Cut/Paste actions
+
+        if is_dir:
+            path_str = str(path)
+            if path_str in self.custom_bookmarks:
+                remove_bookmark_action = QAction("📌 Remove from Bookmarks", self)
+                remove_bookmark_action.triggered.connect(lambda: self._remove_from_bookmarks(path))
+                menu.addAction(remove_bookmark_action)
+            else:
+                add_bookmark_action = QAction("📌 Add to Bookmarks", self)
+                add_bookmark_action.triggered.connect(lambda: self._add_folder_to_bookmarks(path))
+                menu.addAction(add_bookmark_action)
+            menu.addSeparator()
+
         copy_action = QAction("📋 Copy", self)
         copy_action.triggered.connect(self._copy_paths)
         menu.addAction(copy_action)
@@ -963,18 +996,15 @@ class FileManager(QWidget):
         cut_action.triggered.connect(self._cut_paths)
         menu.addAction(cut_action)
         paste_action = QAction("📋 Paste", self)
+        paste_action.setEnabled(bool(CLIPBOARD_PATHS))
         paste_action.triggered.connect(self._paste_paths)
-        if CLIPBOARD_PATHS:
-            paste_action.setEnabled(True)
-        else:
-            paste_action.setEnabled(False)
         menu.addAction(paste_action)
         menu.addSeparator()
-        # File operations
+
         rename_action = QAction("✏️ Rename", self)
         rename_action.triggered.connect(lambda: self._rename_path(path))
         menu.addAction(rename_action)
-        # --- Executable Permission Toggle ---
+
         if not is_dir:
             is_executable = os.access(path, os.X_OK)
             if is_executable:
@@ -984,7 +1014,7 @@ class FileManager(QWidget):
                 exec_action = QAction("⚡ Make Executable", self)
                 exec_action.triggered.connect(lambda: self._make_executable(path))
             menu.addAction(exec_action)
-        # ---
+
         delete_action = QAction("🗑️ Delete to Trash", self)
         delete_action.triggered.connect(lambda: self._delete_path(path, to_trash=True))
         menu.addAction(delete_action)
@@ -992,7 +1022,7 @@ class FileManager(QWidget):
         delete_permanent_action.triggered.connect(lambda: self._delete_path(path, to_trash=False))
         menu.addAction(delete_permanent_action)
         menu.addSeparator()
-        # Additional actions
+
         copy_path_action = QAction("📋 Copy Path", self)
         copy_path_action.triggered.connect(lambda: QApplication.clipboard().setText(str(path)))
         menu.addAction(copy_path_action)
@@ -1000,27 +1030,57 @@ class FileManager(QWidget):
         properties_action.triggered.connect(lambda: self._show_properties(path))
         menu.addAction(properties_action)
         menu.addSeparator()
+
         if is_dir:
+            open_new_window_action = QAction("🌐 Open in New Window", self)
+            open_new_window_action.triggered.connect(lambda: self._open_in_new_window(path))
+            menu.addAction(open_new_window_action)
+
+            # Terminal and Root options for all folders
+            open_terminal_as_root_action = QAction("🔒 Open as Root in Terminal", self)
+            open_terminal_as_root_action.triggered.connect(lambda: self._open_terminal_as_root_in_path(path))
+            menu.addAction(open_terminal_as_root_action)
+
+            open_as_root = QAction("🔒 Open as Root", self)
+            open_as_root.triggered.connect(lambda: self._open_as_root(path))
+            menu.addAction(open_as_root)
+
             terminal_menu = self._build_terminal_menu(path)
             if terminal_menu.actions():
                 menu.addMenu(terminal_menu)
             fm_menu = self._build_file_manager_menu(path)
             if fm_menu.actions():
                 menu.addMenu(fm_menu)
-        menu.addSeparator()
-        if os.geteuid() != 0:
-            open_as_root = QAction("🔒 Open as Root", self)
-            open_as_root.triggered.connect(lambda: self._open_as_root(path))
-            menu.addAction(open_as_root)
-        if not is_dir:
+        else:
+            # For files, add option to open parent folder as root
+            open_parent_as_root = QAction("🔒 Open Parent as Root", self)
+            open_parent_as_root.triggered.connect(lambda: self._open_as_root(path.parent))
+            menu.addAction(open_parent_as_root)
+
             reveal_action = QAction("📂 Reveal in File Manager", self)
             reveal_action.triggered.connect(lambda: self._reveal_in_file_manager(path))
             menu.addAction(reveal_action)
+
         menu.exec_(global_pos)
-    def _make_executable(self, path: Path):
-        """Make a file executable using chmod +x."""
-        if not path.is_file():
+
+    def _add_folder_to_bookmarks(self, path: Path):
+        path_str = str(path)
+        if path_str in self.custom_bookmarks:
+            QMessageBox.information(self, "Already Bookmarked", f"'{path.name}' is already in your bookmarks.")
             return
+        self.custom_bookmarks.append(path_str)
+        self.settings.setValue("customBookmarks", self.custom_bookmarks)
+        self._populate_bookmarks()
+        QMessageBox.information(self, "Bookmark Added", f"Added '{path.name}' to bookmarks.")
+
+    def _open_in_new_window(self, path: Path):
+        try:
+            subprocess.Popen([sys.executable, __file__, str(path)])
+        except Exception as e:
+            self._show_error(f"Failed to open new window:\n{e}")
+
+    def _make_executable(self, path: Path):
+        if not path.is_file(): return
         try:
             current_mode = path.stat().st_mode
             path.chmod(current_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -1029,13 +1089,11 @@ class FileManager(QWidget):
             self._show_error(f"Permission denied: cannot modify {path.name}")
         except Exception as e:
             self._show_error(f"Failed to make executable:\n{e}")
+
     def _make_non_executable(self, path: Path):
-        """Remove execute permissions from a file (chmod -x)."""
-        if not path.is_file():
-            return
+        if not path.is_file(): return
         try:
             current_mode = path.stat().st_mode
-            # Clear all execute bits: user, group, others
             new_mode = current_mode & ~(stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
             path.chmod(new_mode)
             self._update_status()
@@ -1043,20 +1101,120 @@ class FileManager(QWidget):
             self._show_error(f"Permission denied: cannot modify {path.name}")
         except Exception as e:
             self._show_error(f"Failed to remove executable permission:\n{e}")
-    def _create_new_file(self):
-        """Create a new empty file using touch command"""
-        current_tab = self.tab_widget.currentWidget()
-        if not current_tab or not hasattr(current_tab, 'current_path'):
+
+    def _open_terminal_in_path(self, path: Path, terminal_cmd: str = None):
+        """Opens a terminal in the specified path."""
+        cmd = terminal_cmd or os.environ.get('TERMINAL', 'xterm') # Fallback to $TERMINAL or xterm
+        try:
+            if cmd in ('gnome-terminal', 'xfce4-terminal'):
+                subprocess.Popen([cmd, '--working-directory', str(path)], start_new_session=True)
+            elif cmd == 'konsole':
+                subprocess.Popen([cmd, '--workdir', str(path)], start_new_session=True)
+            else:
+                # Default behavior for most terminals
+                subprocess.Popen([cmd, '-e', f'bash -c "cd \\"{path}\\" && exec bash"'], start_new_session=True)
+        except FileNotFoundError:
+            self._show_error(f"Terminal '{cmd}' not found.")
+        except Exception as e:
+            self._show_error(f"Failed to open terminal:\n{e}")
+
+    def _open_terminal_as_root_in_path(self, path: Path):
+        """Attempts to open a terminal as root in the specified path."""
+        # Find available terminals first
+        available_terminals = []
+        for term in TERMINALS:
+            if shutil.which(term):
+                available_terminals.append(term)
+        
+        if not available_terminals:
+            self._show_error("No terminal emulator found. Please install a terminal like xterm, gnome-terminal, or konsole.")
             return
+            
+        # Define methods in order of preference for root terminal access
+        root_terminal_methods = []
+        
+        # Add methods for each available terminal
+        for term in available_terminals:
+            if term == 'xterm':
+                # Try with sudo and X11 forwarding
+                root_terminal_methods.append(['sudo', 'env', 'DISPLAY=$DISPLAY', 'XAUTHORITY=$XAUTHORITY', 'xterm', '-e', f'bash -c "cd \\"{path}\\" && exec bash"'])
+                # Keep pkexec as fallback
+                root_terminal_methods.append(['pkexec', 'xterm', '-e', f'bash -c "cd \\"{path}\\" && exec bash"'])
+            elif term == 'gnome-terminal':
+                root_terminal_methods.append(['sudo', 'env', 'DISPLAY=$DISPLAY', 'XAUTHORITY=$XAUTHORITY', 'gnome-terminal', '--working-directory', str(path)])
+                root_terminal_methods.append(['pkexec', 'gnome-terminal', '--working-directory', str(path)])
+            elif term == 'xfce4-terminal':
+                root_terminal_methods.append(['sudo', 'env', 'DISPLAY=$DISPLAY', 'XAUTHORITY=$XAUTHORITY', 'xfce4-terminal', '--working-directory', str(path)])
+                root_terminal_methods.append(['pkexec', 'xfce4-terminal', '--working-directory', str(path)])
+            elif term == 'konsole':
+                root_terminal_methods.append(['sudo', 'env', 'DISPLAY=$DISPLAY', 'XAUTHORITY=$XAUTHORITY', 'konsole', '--workdir', str(path)])
+                root_terminal_methods.append(['pkexec', 'konsole', '--workdir', str(path)])
+            elif term == 'kitty':
+                root_terminal_methods.append(['sudo', 'env', 'DISPLAY=$DISPLAY', 'XAUTHORITY=$XAUTHORITY', 'kitty', '--directory', str(path)])
+                root_terminal_methods.append(['pkexec', 'kitty', '--directory', str(path)])
+            elif term == 'alacritty':
+                root_terminal_methods.append(['sudo', 'env', 'DISPLAY=$DISPLAY', 'XAUTHORITY=$XAUTHORITY', 'alacritty', '--working-directory', str(path)])
+                root_terminal_methods.append(['pkexec', 'alacritty', '--working-directory', str(path)])
+        
+        # Add fallback methods with gksudo/kdesudo if available
+        if shutil.which('gksudo'):
+            for term in available_terminals[:3]:  # Limit to top 3 terminals
+                if term == 'xterm':
+                    root_terminal_methods.append(['gksudo', 'xterm', '-e', f'bash -c "cd \\"{path}\\" && exec bash"'])
+                elif term == 'gnome-terminal':
+                    root_terminal_methods.append(['gksudo', 'gnome-terminal', '--working-directory', str(path)])
+                elif term == 'konsole':
+                    root_terminal_methods.append(['gksudo', 'konsole', '--workdir', str(path)])
+        
+        if shutil.which('kdesudo'):
+            for term in available_terminals[:3]:  # Limit to top 3 terminals
+                if term == 'xterm':
+                    root_terminal_methods.append(['kdesudo', 'xterm', '-e', f'bash -c "cd \\"{path}\\" && exec bash"'])
+                elif term == 'gnome-terminal':
+                    root_terminal_methods.append(['kdesudo', 'gnome-terminal', '--working-directory', str(path)])
+                elif term == 'konsole':
+                    root_terminal_methods.append(['kdesudo', 'konsole', '--workdir', str(path)])
+
+        # Try each method until one works
+        for method in root_terminal_methods:
+            try:
+                print(f"Attempting root terminal with: {' '.join(method)}") # Debug print
+                
+                # If using sudo, expand environment variables
+                if method[0] == 'sudo' and 'env' in method:
+                    # Replace environment variables with actual values
+                    new_method = []
+                    for item in method:
+                        if item == 'DISPLAY=$DISPLAY':
+                            new_method.append(f'DISPLAY={os.environ.get("DISPLAY", ":0")}')
+                        elif item == 'XAUTHORITY=$XAUTHORITY':
+                            new_method.append(f'XAUTHORITY={os.environ.get("XAUTHORITY", "")}')
+                        else:
+                            new_method.append(item)
+                    method = new_method
+                
+                subprocess.Popen(method, start_new_session=True)
+                return
+            except Exception as e:
+                print(f"Failed with method [{' '.join(method)}]: {e}") # Debug print
+                continue
+
+        self._show_error(
+            "No suitable method found to open a root terminal.\n"
+            "Please ensure 'sudo', 'pkexec', 'gksudo', or 'kdesudo' is installed,\n"
+            "or configure a root-capable terminal."
+        )
+
+    def _create_new_file(self):
+        current_tab = self.tab_widget.currentWidget()
+        if not current_tab or not hasattr(current_tab, 'current_path'): return
         name, ok = QInputDialog.getText(self, "New File", "File name:")
         if ok and name:
             new_path = current_tab.current_path / name
             try:
-                # Use touch command to create an empty file
                 subprocess.run(['touch', str(new_path)], check=True)
                 self.refresh()
             except subprocess.CalledProcessError:
-                # Fallback to Python method if touch command fails
                 try:
                     new_path.touch()
                     self.refresh()
@@ -1064,6 +1222,7 @@ class FileManager(QWidget):
                     self._show_error(f"Could not create file: {e}")
             except Exception as e:
                 self._show_error(f"Could not create file: {e}")
+
     def _build_open_with_menu(self, path: Path) -> QMenu:
         menu = QMenu("Open With", self)
         mime_db = QMimeDatabase()
@@ -1084,6 +1243,7 @@ class FileManager(QWidget):
             no_app.setEnabled(False)
             menu.addAction(no_app)
         return menu
+
     def _build_terminal_menu(self, path: Path) -> QMenu:
         menu = QMenu("💻 Open in Terminal", self)
         for term in TERMINALS:
@@ -1092,6 +1252,7 @@ class FileManager(QWidget):
                 action.triggered.connect(lambda _, t=term: self._open_terminal_in(path, t))
                 menu.addAction(action)
         return menu
+
     def _build_file_manager_menu(self, path: Path) -> QMenu:
         menu = QMenu("📁 Open in File Manager", self)
         for name, cmd in FILE_MANAGERS.items():
@@ -1100,6 +1261,7 @@ class FileManager(QWidget):
                 action.triggered.connect(lambda _, c=cmd: self._open_in_file_manager(path, c))
                 menu.addAction(action)
         return menu
+
     def _get_default_app(self, mime_type: str) -> Optional[str]:
         try:
             result = subprocess.run(['xdg-mime', 'query', 'default', mime_type], capture_output=True, text=True, timeout=2)
@@ -1108,6 +1270,7 @@ class FileManager(QWidget):
                 return desktop_file.replace('.desktop', '').replace('-', ' ').title()
         except Exception: pass
         return None
+
     def _get_apps_for_mime(self, mime_type: str) -> List[tuple]:
         apps = []
         try:
@@ -1122,11 +1285,13 @@ class FileManager(QWidget):
                     except Exception: continue
         except Exception: pass
         return apps
+
     def _launch_app(self, desktop_file: str, path: Path):
         try:
             subprocess.Popen(['gtk-launch', desktop_file, str(path)], start_new_session=True)
         except Exception as e:
             QMessageBox.warning(self, "Launch Failed", f"Could not launch application:\n{e}")
+
     def _open_terminal_in(self, path: Path, terminal: str):
         try:
             if terminal in ('gnome-terminal', 'xfce4-terminal'):
@@ -1137,16 +1302,19 @@ class FileManager(QWidget):
                 subprocess.Popen([terminal, '-e', f'bash -c "cd \\"{path}\\" && exec bash"'], start_new_session=True)
         except Exception as e:
             self._show_error(f"Failed to open {terminal}:\n{e}")
+
     def _open_in_file_manager(self, path: Path, fm_cmd: str):
         try:
             subprocess.Popen([fm_cmd, str(path)], start_new_session=True)
         except Exception as e:
             self._show_error(f"Failed to open {fm_cmd}:\n{e}")
+
     def _reveal_in_file_manager(self, file_path: Path):
         try:
             subprocess.Popen(['xdg-open', str(file_path.parent)], start_new_session=True)
         except Exception as e:
             self._show_error(f"Could not reveal file:\n{e}")
+
     def _open_as_root(self, path: Path):
         for method in (['pkexec', 'thunar'], ['gksudo', 'thunar'], ['sudo', '-E', 'thunar']):
             if shutil.which(method[0]):
@@ -1156,6 +1324,7 @@ class FileManager(QWidget):
                 except Exception:
                     continue
         self._show_error("No graphical sudo method available.\nInstall PolicyKit (pkexec).")
+
     def _show_properties(self, path: Path):
         try:
             stat_info = path.stat()
@@ -1172,10 +1341,10 @@ class FileManager(QWidget):
             QMessageBox.information(self, "Properties", msg)
         except Exception as e:
             self._show_error(f"Could not get properties: {e}")
+
     def _create_new_folder(self):
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab or not hasattr(current_tab, 'current_path'):
-            return
+        if not current_tab or not hasattr(current_tab, 'current_path'): return
         name, ok = QInputDialog.getText(self, "New Folder", "Folder name:")
         if ok and name:
             new_path = current_tab.current_path / name
@@ -1184,6 +1353,7 @@ class FileManager(QWidget):
                 self.refresh()
             except Exception as e:
                 self._show_error(f"Could not create folder: {e}")
+
     def _rename_path(self, path: Path):
         old_name = path.name
         new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=old_name)
@@ -1194,29 +1364,21 @@ class FileManager(QWidget):
                 self.refresh()
             except Exception as e:
                 self._show_error(f"Could not rename: {e}")
+
     def _delete_path(self, path: Path, to_trash=True):
-        """Delete a file or folder, with option to move to trash or delete permanently"""
         if to_trash:
-            reply = QMessageBox.question(self, "Confirm Delete", 
-                                       f"Move '{path.name}' to trash?",
-                                       QMessageBox.Yes | QMessageBox.No)
+            reply = QMessageBox.question(self, "Confirm Delete", f"Move '{path.name}' to trash?", QMessageBox.Yes | QMessageBox.No)
         else:
-            reply = QMessageBox.question(self, "Confirm Permanent Delete", 
-                                       f"Permanently delete '{path.name}'? This cannot be undone!",
-                                       QMessageBox.Yes | QMessageBox.No)
+            reply = QMessageBox.question(self, "Confirm Permanent Delete", f"Permanently delete '{path.name}'? This cannot be undone!", QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             try:
                 if to_trash:
-                    # Try to use system trash mechanism
                     try:
-                        # Try using gio trash command (GNOME)
                         subprocess.run(['gio', 'trash', str(path)], check=True, capture_output=True)
                     except (subprocess.CalledProcessError, FileNotFoundError):
-                        # Fallback to Python method
                         from send2trash import send2trash
                         send2trash(str(path))
                 else:
-                    # Permanent delete
                     if path.is_dir():
                         shutil.rmtree(path)
                     else:
@@ -1224,31 +1386,30 @@ class FileManager(QWidget):
                 self.refresh()
             except Exception as e:
                 self._show_error(f"Could not delete: {e}")
+
     def _copy_paths(self):
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab:
-            return
+        if not current_tab: return
         file_list = getattr(current_tab, 'file_list')
         global CLIPBOARD_PATHS, CLIPBOARD_IS_CUT
         CLIPBOARD_PATHS = [item.path for item in file_list.selectedItems()]
         CLIPBOARD_IS_CUT = False
         self._update_status()
+
     def _cut_paths(self):
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab:
-            return
+        if not current_tab: return
         file_list = getattr(current_tab, 'file_list')
         global CLIPBOARD_PATHS, CLIPBOARD_IS_CUT
         CLIPBOARD_PATHS = [item.path for item in file_list.selectedItems()]
         CLIPBOARD_IS_CUT = True
         self._update_status()
+
     def _paste_paths(self):
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab or not hasattr(current_tab, 'current_path'):
-            return
+        if not current_tab or not hasattr(current_tab, 'current_path'): return
         global CLIPBOARD_PATHS, CLIPBOARD_IS_CUT
-        if not CLIPBOARD_PATHS:
-            return
+        if not CLIPBOARD_PATHS: return
         errors = []
         for src_path in CLIPBOARD_PATHS:
             dest_path = current_tab.current_path / src_path.name
@@ -1267,14 +1428,13 @@ class FileManager(QWidget):
         self.refresh()
         if errors:
             self._show_error("\n".join(errors))
+
     def _delete_selected(self):
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab:
-            return
+        if not current_tab: return
         file_list = getattr(current_tab, 'file_list')
         items = file_list.selectedItems()
-        if not items:
-            return
+        if not items: return
         paths = [item.path for item in items]
         names = [p.name for p in paths]
         reply = QMessageBox.question(self, "Confirm Delete", f"Permanently delete {len(names)} item(s)?\n{', '.join(names[:3])}{'...' if len(names) > 3 else ''}", QMessageBox.Yes | QMessageBox.No)
@@ -1291,107 +1451,91 @@ class FileManager(QWidget):
             self.refresh()
             if errors:
                 self._show_error("\n".join(errors))
+
     def _rename_selected(self):
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab:
-            return
+        if not current_tab: return
         file_list = getattr(current_tab, 'file_list')
         items = file_list.selectedItems()
         if len(items) == 1:
             self._rename_path(items[0].path)
+
     def _close_current_tab(self):
-        if self.tab_widget.count() > 1:  # Don't close the last tab
+        if self.tab_widget.count() > 1:
             current_index = self.tab_widget.currentIndex()
             self.tab_widget.removeTab(current_index)
         else:
             self._show_error("Cannot close the last tab")
+
     def _get_menu_style(self) -> str:
         return f"""
             QMenu {{
                 background-color: {COLORS['surface']};
                 color: {COLORS['text_primary']};
                 border: 1px solid {COLORS['border']};
-                padding: 8px; /* Increased padding */
-                border-radius: 12px; /* Increased radius */
-                font-size: 14px; /* Increased font size */
-                box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+                padding: 6px;
+                font-size: 13px;
             }}
             QMenu::item {{
-                padding: 10px 28px; /* Increased padding */
-                border-radius: 8px; /* Increased radius */
+                padding: 6px 24px;
             }}
             QMenu::item:selected {{
                 background-color: {COLORS['highlight']};
-                color: {COLORS['accent']};
+                color: white;
             }}
             QMenu::separator {{
                 height: 1px;
                 background: {COLORS['border']};
-                margin: 8px 0px; /* Increased margin */
+                margin: 6px 0px;
             }}
         """
+
     def _toggle_navigation_bar(self):
         self.show_breadcrumb = not self.show_breadcrumb
         self.address_bar.setVisible(not self.show_breadcrumb)
         self.breadcrumb_widget.setVisible(self.show_breadcrumb)
         if self.show_breadcrumb:
             self._update_breadcrumb()
+
     def _update_breadcrumb(self):
-        # Clear existing breadcrumb buttons
         while self.breadcrumb_layout.count():
             child = self.breadcrumb_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        if not self.current_path:
-            return
-        # Create path parts for the CURRENT TAB
         current_tab = self.tab_widget.currentWidget()
-        if not current_tab or not hasattr(current_tab, 'current_path'):
-             return # Safety check
+        if not current_tab or not hasattr(current_tab, 'current_path'): return
         path_to_navigate = current_tab.current_path
         parts = []
         current = path_to_navigate
         while current != current.parent:
             parts.insert(0, current)
             current = current.parent
-        # Add root
-        if current.parts: # Only if not already root
+        if current.parts:
             parts.insert(0, current)
         for i, part in enumerate(parts):
             btn = QToolButton()
-            btn.setText(part.name if part.name else "/") # Show "/" for root
+            btn.setText(part.name if part.name else "/")
             btn.setStyleSheet(f"""
                 QToolButton {{
                     background: transparent;
                     color: {COLORS['text_primary']};
-                    border: 1px solid transparent;
-                    padding: 8px 12px; /* Increased padding */
-                    font-family: 'Segoe UI';
-                    font-size: 14px;  /* Increased font */
-                    font-weight: 500;
-                    border-radius: 6px; /* Increased radius */
-                    min-height: 24px;  /* Increased height */
+                    border: none;
+                    padding: 4px 8px;
+                    font-size: 13px;
                 }}
                 QToolButton:hover {{
                     background: {COLORS['highlight']};
-                    color: {COLORS['accent']};
-                    border: 1px solid {COLORS['accent']}30;
-                }}
-                QToolButton:pressed {{
-                    background: {COLORS['accent']}33;
-                    border: 1px solid {COLORS['accent']};
+                    color: white;
                 }}
             """)
-            # Navigate the CURRENT TAB when breadcrumb is clicked
             btn.clicked.connect(lambda _, p=part: self._navigate_to_tab(p))
             self.breadcrumb_layout.addWidget(btn)
-            # Add separator (except for the last item)
             if i < len(parts) - 1:
                 sep = QLabel(" > ")
-                sep.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 14px;") # Increased font
+                sep.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
                 self.breadcrumb_layout.addWidget(sep)
-    def _sidebar_context_menu(self, path: Path, global_pos: 'QPoint'):
-        """Context menu for sidebar items"""
+
+    def _sidebar_context_menu(self, path: Path, global_pos: 'QPoint', is_bookmark: bool):
         menu = QMenu(self)
         menu.setStyleSheet(self._get_menu_style())
         open_action = QAction("🚀 Open", self)
@@ -1400,7 +1544,41 @@ class FileManager(QWidget):
         open_new_tab_action = QAction("➕ Open in New Tab", self)
         open_new_tab_action.triggered.connect(lambda: self._add_new_tab(path))
         menu.addAction(open_new_tab_action)
+        open_new_window_action = QAction("🌐 Open in New Window", self)
+        open_new_window_action.triggered.connect(lambda: self._open_in_new_window(path))
+        menu.addAction(open_new_window_action)
         menu.addSeparator()
+
+        if is_bookmark:
+            move_up_action = QAction("⬆️ Move Up", self)
+            move_up_action.triggered.connect(lambda: self._move_bookmark_up(path))
+            menu.addAction(move_up_action)
+            move_down_action = QAction("⬇️ Move Down", self)
+            move_down_action.triggered.connect(lambda: self._move_bookmark_down(path))
+            menu.addAction(move_down_action)
+            remove_bookmark_action = QAction("📌 Remove from Bookmarks", self)
+            remove_bookmark_action.triggered.connect(lambda: self._remove_from_bookmarks(path))
+            menu.addAction(remove_bookmark_action)
+        else:
+            add_bookmark_action = QAction("📌 Add to Bookmarks", self)
+            add_bookmark_action.triggered.connect(lambda: self._add_folder_to_bookmarks(path))
+            menu.addAction(add_bookmark_action)
+
+        menu.addSeparator()
+        
+        # Terminal and Root options for all folders in sidebar
+        open_terminal_as_root_action = QAction("🔒 Open as Root in Terminal", self)
+        open_terminal_as_root_action.triggered.connect(lambda: self._open_terminal_as_root_in_path(path))
+        menu.addAction(open_terminal_as_root_action)
+
+        open_as_root = QAction("🔒 Open as Root", self)
+        open_as_root.triggered.connect(lambda: self._open_as_root(path))
+        menu.addAction(open_as_root)
+        
+        terminal_menu = self._build_terminal_menu(path)
+        if terminal_menu.actions():
+            menu.addMenu(terminal_menu)
+            
         reveal_action = QAction("📂 Reveal in File Manager", self)
         reveal_action.triggered.connect(lambda: self._reveal_in_file_manager(path))
         menu.addAction(reveal_action)
@@ -1408,13 +1586,10 @@ class FileManager(QWidget):
         properties_action.triggered.connect(lambda: self._show_properties(path))
         menu.addAction(properties_action)
         menu.exec_(global_pos)
-    # --- Drag & Drop Handlers ---
+
     def _handle_file_list_drop(self, event: QDropEvent, file_list: FileListWidget):
-        """Handle drop event for the file list."""
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
-            # Get the destination path (current path of the tab containing this file_list)
-            # Find the parent tab container
             tab_container = None
             for i in range(self.tab_widget.count()):
                 potential_tab = self.tab_widget.widget(i)
@@ -1422,7 +1597,6 @@ class FileManager(QWidget):
                     tab_container = potential_tab
                     break
             if not tab_container or not hasattr(tab_container, 'current_path'):
-                print("Could not find tab container or current path for drop target.", file=sys.stderr)
                 event.ignore()
                 return
             dest_path = tab_container.current_path
@@ -1431,33 +1605,25 @@ class FileManager(QWidget):
                 if url.isLocalFile():
                     source_path = Path(url.toLocalFile())
                     try:
-                        # Check keyboard modifiers to determine action
                         modifiers = event.keyboardModifiers()
                         if modifiers & Qt.ControlModifier:
-                            # Copy operation
                             if source_path.is_dir():
                                 shutil.copytree(source_path, dest_path / source_path.name)
                             else:
                                 shutil.copy2(source_path, dest_path)
-                            print(f"Copied {source_path.name} to {dest_path}", file=sys.stderr)
                         else:
-                            # Move operation (default)
                             source_path.rename(dest_path / source_path.name)
-                            print(f"Moved {source_path.name} to {dest_path}", file=sys.stderr)
                     except Exception as e:
                         errors.append(f"Failed to drop {source_path.name}: {e}")
-                        print(f"Drop error: {e}", file=sys.stderr)
             if errors:
                 self._show_error("\n".join(errors))
-            # Refresh only the destination tab
             self._populate_files_for_tab(tab_container, dest_path)
             self._update_status()
             event.acceptProposedAction()
         else:
             event.ignore()
+
     def _handle_sidebar_drop(self, event: QDropEvent, button: SidebarButton, target_path: Path):
-        """Handle drop event for sidebar buttons."""
-        # Reset button style is handled in SidebarButton.dropEvent
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
             errors = []
@@ -1465,37 +1631,29 @@ class FileManager(QWidget):
                 if url.isLocalFile():
                     source_path = Path(url.toLocalFile())
                     try:
-                        # Check keyboard modifiers to determine action
                         modifiers = event.keyboardModifiers()
                         if modifiers & Qt.ControlModifier:
-                            # Copy operation
                             if source_path.is_dir():
                                 shutil.copytree(source_path, target_path / source_path.name)
                             else:
                                 shutil.copy2(source_path, target_path)
-                            print(f"Sidebar Copied {source_path.name} into {target_path}", file=sys.stderr)
                         else:
-                            # Move operation (default)
                             source_path.rename(target_path / source_path.name)
-                            print(f"Sidebar Moved {source_path.name} into {target_path}", file=sys.stderr)
                     except Exception as e:
                         errors.append(f"Failed to drop {source_path.name} into {target_path.name}: {e}")
-                        print(f"Sidebar drop error: {e}", file=sys.stderr)
             if errors:
                 self._show_error("\n".join(errors))
-            # Refresh current view
             self.refresh()
             event.acceptProposedAction()
         else:
             event.ignore()
+
     def _show_about(self):
-        """Show the About / Shortcuts dialog."""
         dialog = QDialog(self)
         dialog.setWindowTitle("About / Shortcuts")
         dialog.setModal(True)
         dialog.resize(600, 500)
         layout = QVBoxLayout(dialog)
-
         browser = QTextBrowser()
         browser.setOpenExternalLinks(True)
         browser.setStyleSheet(f"""
@@ -1503,18 +1661,17 @@ class FileManager(QWidget):
                 background: {COLORS['surface']};
                 color: {COLORS['text_primary']};
                 border: 1px solid {COLORS['border']};
-                border-radius: 10px;
-                padding: 16px;
-                font-family: 'Segoe UI';
-                font-size: 14px;
+                border-radius: 6px;
+                padding: 12px;
+                font-family: 'Sans';
+                font-size: 13px;
             }}
         """)
-
         shortcuts_html = """
-        <h2 style="color: #cba6f7;">Modern File Manager – Vibrant Edition</h2>
-        <p>A sleek, colorful, and feature-rich file browser for Linux.</p>
-        <h3 style="color: #89b4fa;">Keyboard Shortcuts</h3>
-        <table border="0" cellspacing="6" cellpadding="4" style="font-family: 'Segoe UI';">
+        <h2>Modern File Manager – Nemo Style</h2>
+        <p>A clean, minimal, and feature-rich file browser for Linux.</p>
+        <h3>Keyboard Shortcuts</h3>
+        <table border="0" cellspacing="4" cellpadding="4">
         <tr><td><b>Ctrl+L</b></td><td>Focus address bar</td></tr>
         <tr><td><b>Ctrl+T</b></td><td>New tab</td></tr>
         <tr><td><b>Ctrl+W</b></td><td>Close tab</td></tr>
@@ -1529,21 +1686,26 @@ class FileManager(QWidget):
         <tr><td><b>Ctrl+Shift+V</b></td><td>Toggle view mode</td></tr>
         <tr><td><b>Ctrl+= / Ctrl++</b></td><td>Zoom in</td></tr>
         <tr><td><b>Ctrl+-</b></td><td>Zoom out</td></tr>
+        <tr><td><b>Ctrl+B</b></td><td>Add current folder to bookmarks</td></tr>
         <tr><td><b>Ctrl+/</b></td><td>Show this window</td></tr>
         <tr><td><b>Escape</b></td><td>Clear search</td></tr>
         </table>
-        <p style="margin-top: 20px; color: #6c7086;">
-        Built with ❤️ using PyQt5. Designed for Arch Linux & XFCE.
+        <h3>Bookmark Features</h3>
+        <ul>
+        <li>Click the <b>+</b> button in sidebar to add current folder</li>
+        <li>Right-click any folder to add/remove from bookmarks</li>
+        <li>Right-click bookmarks to move them up/down or remove</li>
+        </ul>
+        <p style="margin-top: 20px; color: #bbbbbb;">
+        Built with PyQt5. Inspired by Nemo.
         </p>
         """
         browser.setHtml(shortcuts_html)
         layout.addWidget(browser)
-
         close_btn = QPushButton("Close")
         close_btn.setStyleSheet(self._get_large_button_style())
         close_btn.clicked.connect(dialog.accept)
         layout.addWidget(close_btn)
-
         dialog.exec_()
 
 # =============================================================================
@@ -1553,29 +1715,40 @@ def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(True)
     app.setStyle("Fusion")
-    # Increased default font size for application (was 11)
-    font = QFont("Segoe UI", 13) # Increased base font size
-    font.setHintingPreference(QFont.PreferFullHinting)
+
+    font = QFont()
     app.setFont(font)
+
     palette = QPalette()
     palette.setColor(QPalette.Window, QColor(COLORS["background"]))
     palette.setColor(QPalette.WindowText, QColor(COLORS["text_primary"]))
     palette.setColor(QPalette.Base, QColor(COLORS["surface"]))
     palette.setColor(QPalette.AlternateBase, QColor(COLORS["background"]))
-    # Set ToolTip colors explicitly
     palette.setColor(QPalette.ToolTipBase, QColor(COLORS["surface"]))
     palette.setColor(QPalette.ToolTipText, QColor(COLORS["text_primary"]))
     palette.setColor(QPalette.Text, QColor(COLORS["text_primary"]))
     palette.setColor(QPalette.Button, QColor(COLORS["surface"]))
     palette.setColor(QPalette.ButtonText, QColor(COLORS["text_primary"]))
-    palette.setColor(QPalette.BrightText, QColor(COLORS["danger"]))  # Red for warnings
+    palette.setColor(QPalette.BrightText, QColor(COLORS["danger"]))
     palette.setColor(QPalette.Highlight, QColor(COLORS["accent"]))
-    palette.setColor(QPalette.HighlightedText, QColor("black"))
+    palette.setColor(QPalette.HighlightedText, QColor("white"))
     app.setPalette(palette)
+
+    initial_path = Path.home().resolve()
+    if len(sys.argv) > 1:
+        try:
+            arg_path = Path(sys.argv[1]).resolve()
+            if arg_path.is_dir():
+                initial_path = arg_path
+        except Exception as e:
+            print(f"Error processing argument: {e}. Using home directory.", file=sys.stderr)
+
     fm = FileManager()
+    fm.navigate_to(initial_path)
     fm.show()
     fm.raise_()
     fm.activateWindow()
     sys.exit(app.exec_())
+
 if __name__ == "__main__":
     main()
