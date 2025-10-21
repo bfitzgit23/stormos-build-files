@@ -19,7 +19,7 @@ _msg() {
 }
 
 _msg "Checking for newer files online."
-git pull
+#git pull
 
 _msg "Backing up everything in project folder."
 git add --all .
