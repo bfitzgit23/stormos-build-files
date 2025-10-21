@@ -79,3 +79,5 @@ cp -af /usr/share/backgrounds/*.* /usr/share/backgrounds/xfce
 chown -R liveuser:liveuser /tmp
 
 plymouth-set-default-theme stormos
+
+ ln -svf /usr/lib/libboost_python313.so.1.89.0 /usr/lib/libboost_python313.so.1.88.0
