@@ -33,4 +33,5 @@ file_permissions=(
   ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
+  ["/usr/local/bin/fm"]="0:0:755"
 )

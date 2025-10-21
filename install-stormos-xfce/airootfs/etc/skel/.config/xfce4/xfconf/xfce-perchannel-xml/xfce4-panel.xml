@@ -60,6 +60,7 @@
     <property name="plugin-6" type="string" value="systray">
       <property name="square-icons" type="bool" value="true"/>
       <property name="known-legacy-items" type="array">
+        <value type="string" value="wi-fi network connection “spirit-of-76” active: spirit-of-76 (65%)"/>
         <value type="string" value="wi-fi network connection “spirit-of-76” active: spirit-of-76 (56%)"/>
         <value type="string" value="networking disabled"/>
         <value type="string" value="wi-fi network connection “spectrumsetup-3891” active: spectrumsetup-3891 (64%)"/>
