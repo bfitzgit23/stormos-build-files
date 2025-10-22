@@ -179,6 +179,7 @@ stormos-grub-theme
 fzf
 gnome-disk-utility
 vivaldi
+vivaldi-ffmpeg-codecs
 xdg-user-dirs
 plymouth
 xorg
@@ -193,3 +194,5 @@ ttf-ubuntu-font-family
 preload
 mintstick-git
 ffmpegthumbnailer
+system-config-printer
+

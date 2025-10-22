@@ -29,13 +29,16 @@ if ! grep -q "liveuser" /etc/sudoers;  then
 	echo "liveuser ALL=(ALL) ALL" >> /etc/sudoers
 fi
 
-systemctl enable haveged
+sudo systemctl enable thermald.service
+sudo systemctl enable auto-cpufreq.service
+systemctl enable haveged.service
 systemctl enable NetworkManager.service
 systemctl enable pacman-init.service choose-mirror.service
 systemctl enable sshd.service
 systemctl enable bluetooth.service
 systemctl enable lightdm.service
 systemctl set-default graphical.target
+systemctl enable cups.service
 
 ## Fix permissions
 chmod 750 /etc/sudoers.d
@@ -68,7 +71,7 @@ chage -E -1 lightdm
 
 #pacman -Rs xfwm4-themes --noconfirm
 
-LC_ALL=C xdg-user-dirs-update --force
+xdg-user-dirs-update --force
 
 
 mkdir -p /usr/share/backgrounds/xfce

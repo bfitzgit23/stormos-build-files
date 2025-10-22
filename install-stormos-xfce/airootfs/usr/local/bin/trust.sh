@@ -6,4 +6,4 @@ for f in ~/Desktop/*.desktop; do
 done
 
 
-
+#rm -f "$HOME/Desktop/calamares.desktop" || true
