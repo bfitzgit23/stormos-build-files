@@ -131,7 +131,7 @@ zsh
 
 os-prober
 ntfs-3g
-auto-cpufreq
+#auto-cpufreq
 thermald
 pipewire
 pipewire-pulse

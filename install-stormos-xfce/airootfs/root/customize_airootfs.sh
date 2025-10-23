@@ -29,8 +29,7 @@ if ! grep -q "liveuser" /etc/sudoers;  then
 	echo "liveuser ALL=(ALL) ALL" >> /etc/sudoers
 fi
 
-sudo systemctl enable thermald.service
-sudo systemctl enable auto-cpufreq.service
+systemctl enable thermald.service
 systemctl enable haveged.service
 systemctl enable NetworkManager.service
 systemctl enable pacman-init.service choose-mirror.service
