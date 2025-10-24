@@ -12,7 +12,7 @@ USER_NAME=$(logname)
 # Remove unwanted launchers
 rm -f "/home/$USER_NAME/Desktop/calamares.desktop" || true
 
-
+reflector --protocol https --latest 20 --sort rate --save /etc/pacman.d/mirrorlist && pacman -Syu --noconfirm
 
 
 # Check if running as root

@@ -1,0 +1,353 @@
+#!/usr/bin/env python3.11
+# stormos_console.py
+
+import gi
+import os
+
+gi.require_version('Gtk', '3.0')
+gi.require_version('Vte', '2.91')
+from gi.repository import Gtk, Gdk, Vte, GLib, Pango
+
+# --- Configuration ---
+DEFAULT_FONT_FAMILY = "Monospace"
+DEFAULT_FONT_SIZE = 13
+MIN_FONT_SIZE = 6
+MAX_FONT_SIZE = 32
+
+class TerminalWidget(Gtk.Box):
+    """
+    A wrapper for the Vte.Terminal widget with full mouse and font support.
+    """
+    def __init__(self, on_child_exited_callback, window, tab):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.on_child_exited_callback = on_child_exited_callback
+        self.window = window
+        self.tab = tab
+        self.font_size = DEFAULT_FONT_SIZE
+
+        # Create the Vte terminal
+        self.terminal = Vte.Terminal()
+        self._apply_font()
+        self.terminal.set_colors(
+            Gdk.RGBA(0.85, 0.85, 0.85, 1),
+            Gdk.RGBA(0.0, 0.0, 0.0, 1),
+            None
+        )
+
+        # Enable mouse and focus behavior
+        self.terminal.set_can_focus(True)
+        self.terminal.set_focus_on_click(True)
+        self.terminal.set_mouse_autohide(True)
+
+        # Auto-copy selection to PRIMARY clipboard (for middle-click paste)
+        self.terminal.connect("selection-changed", self._on_selection_changed)
+
+        # Spawn the shell
+        shell = os.environ.get('SHELL') or '/bin/bash'
+        self.terminal.spawn_sync(
+            Vte.PtyFlags.DEFAULT,
+            None,
+            [shell],
+            None,
+            GLib.SpawnFlags.SEARCH_PATH_FROM_ENVP,
+            None,
+            None
+        )
+
+        # Connect signals
+        self.terminal.connect("child-exited", self._on_child_exited)
+        self.terminal.connect("button-press-event", self._on_button_press)
+        self.terminal.connect("key-press-event", self._on_key_press)
+
+        self.pack_start(self.terminal, True, True, 0)
+        self.show_all()
+
+    def _apply_font(self):
+        desc = Pango.FontDescription.from_string(f"{DEFAULT_FONT_FAMILY} {self.font_size}")
+        self.terminal.set_font(desc)
+
+    def increase_font_size(self):
+        if self.font_size < MAX_FONT_SIZE:
+            self.font_size += 1
+            self._apply_font()
+
+    def decrease_font_size(self):
+        if self.font_size > MIN_FONT_SIZE:
+            self.font_size -= 1
+            self._apply_font()
+
+    def _on_selection_changed(self, terminal):
+        """Copy selection to PRIMARY clipboard for middle-click paste."""
+        if terminal.get_has_selection():
+            terminal.copy_primary()
+
+    def _on_child_exited(self, terminal, status):
+        self.on_child_exited_callback(self)
+
+    def _on_button_press(self, terminal, event):
+        if event.button == 3:  # Right click → context menu
+            self.show_context_menu(event)
+            return True
+        # Left and middle clicks: let VTE handle them
+        return False
+
+    def _on_key_press(self, widget, event):
+        """Handle Ctrl+Plus/Minus for font scaling."""
+        if event.state & Gdk.ModifierType.CONTROL_MASK:
+            if event.keyval in [Gdk.KEY_plus, Gdk.KEY_equal]:
+                self.increase_font_size()
+                return True
+            elif event.keyval == Gdk.KEY_minus:
+                self.decrease_font_size()
+                return True
+        return False
+
+    def show_context_menu(self, event):
+        menu = Gtk.Menu()
+
+        # Clipboard
+        copy_item = Gtk.MenuItem(label="Copy")
+        paste_item = Gtk.MenuItem(label="Paste")
+        select_all_item = Gtk.MenuItem(label="Select All")
+
+        copy_item.connect("activate", lambda _: self.terminal.copy_clipboard())
+        paste_item.connect("activate", lambda _: self.terminal.paste_clipboard())
+        select_all_item.connect("activate", lambda _: self.terminal.select_all())
+
+        menu.append(copy_item)
+        menu.append(paste_item)
+        menu.append(select_all_item)
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Font reset
+        reset_font_item = Gtk.MenuItem(label=f"Reset Font Size ({DEFAULT_FONT_SIZE})")
+        reset_font_item.connect("activate", lambda _: setattr(self, 'font_size', DEFAULT_FONT_SIZE) or self._apply_font())
+        menu.append(reset_font_item)
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Terminal actions
+        reset_item = Gtk.MenuItem(label="Reset")
+        clear_item = Gtk.MenuItem(label="Clear Scrollback")
+        reset_item.connect("activate", lambda _: self.terminal.reset(True, True))
+        clear_item.connect("activate", lambda _: self.terminal.scroll_to_bottom())
+        menu.append(reset_item)
+        menu.append(clear_item)
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Layout
+        new_tab_item = Gtk.MenuItem(label="New Tab")
+        close_tab_item = Gtk.MenuItem(label="Close Tab")
+        split_h_item = Gtk.MenuItem(label="Split Horizontally")
+        split_v_item = Gtk.MenuItem(label="Split Vertically")
+        close_pane_item = Gtk.MenuItem(label="Close Pane")
+
+        new_tab_item.connect("activate", lambda _: self.window.new_tab())
+        close_tab_item.connect("activate", lambda _: self.window.close_tab())
+        split_h_item.connect("activate", lambda _: self.tab.split_horizontal())
+        split_v_item.connect("activate", lambda _: self.tab.split_vertical())
+        close_pane_item.connect("activate", lambda _: self.tab.remove_terminal(self))
+
+        menu.append(new_tab_item)
+        menu.append(close_tab_item)
+        menu.append(split_h_item)
+        menu.append(split_v_item)
+        menu.append(close_pane_item)
+        menu.append(Gtk.SeparatorMenuItem())
+
+        # Window
+        close_window_item = Gtk.MenuItem(label="Close Window")
+        close_window_item.connect("activate", lambda _: self.window.close())
+        menu.append(close_window_item)
+
+        menu.show_all()
+        menu.popup_at_pointer(event)
+
+    def get_vte(self):
+        return self.terminal
+
+
+class TerminalTab(Gtk.Box):
+    def __init__(self, notebook, window):
+        super().__init__(orientation=Gtk.Orientation.HORIZONTAL)
+        self.notebook = notebook
+        self.window = window
+        self.terminals = []
+        self.add_terminal(self)
+
+    def add_terminal(self, parent_container):
+        """Used only when initially adding a terminal to a container (e.g., new tab)."""
+        terminal_widget = TerminalWidget(
+            on_child_exited_callback=self.remove_terminal,
+            window=self.window,
+            tab=self
+        )
+        parent_container.pack_start(terminal_widget, True, True, 0)
+        self.terminals.append(terminal_widget)
+        terminal_widget.show_all()
+        terminal_widget.get_vte().grab_focus()
+
+    def remove_terminal(self, terminal_widget):
+        if terminal_widget in self.terminals:
+            self.terminals.remove(terminal_widget)
+        terminal_widget.destroy()
+        if not self.terminals:
+            page_num = self.notebook.page_num(self)
+            self.notebook.remove_page(page_num)
+            if self.notebook.get_n_pages() == 0:
+                self.window.close()
+
+    def split_horizontal(self):
+        self._split(Gtk.Orientation.HORIZONTAL)
+
+    def split_vertical(self):
+        self._split(Gtk.Orientation.VERTICAL)
+
+    def _split(self, orientation):
+        """Core logic for splitting a terminal — fixed for nested panes."""
+        focused_terminal = self.window.get_focus()
+        if not isinstance(focused_terminal, Vte.Terminal):
+            return
+
+        # Walk up the widget tree to find the TerminalWidget
+        widget = focused_terminal.get_parent()
+        while widget and not isinstance(widget, TerminalWidget):
+            widget = widget.get_parent()
+        if not widget or widget not in self.terminals:
+            return
+
+        terminal_widget_to_split = widget
+        parent = terminal_widget_to_split.get_parent()
+        if not parent:
+            return
+
+        # Create new paned container
+        new_paned = Gtk.Paned(orientation=orientation)
+        new_paned.show_all()
+
+        # Remove the terminal from its current parent
+        parent.remove(terminal_widget_to_split)
+        new_paned.pack1(terminal_widget_to_split, resize=True, shrink=True)
+
+        # Create new terminal for the other pane
+        new_terminal = TerminalWidget(
+            on_child_exited_callback=self.remove_terminal,
+            window=self.window,
+            tab=self
+        )
+        self.terminals.append(new_terminal)
+        new_paned.pack2(new_terminal, resize=True, shrink=True)
+
+        # Insert the new paned back into the original parent
+        if isinstance(parent, Gtk.Paned):
+            # Determine which side the original terminal was on
+            if parent.get_child1() is None or parent.get_child1() == terminal_widget_to_split:
+                parent.pack1(new_paned, resize=True, shrink=True)
+            else:
+                parent.pack2(new_paned, resize=True, shrink=True)
+        elif isinstance(parent, Gtk.Box):
+            parent.pack_start(new_paned, True, True, 0)
+        else:
+            # Fallback (should not occur in normal usage)
+            parent.add(new_paned)
+
+        new_terminal.get_vte().grab_focus()
+
+
+class KonsoleCloneWindow(Gtk.ApplicationWindow):
+    def __init__(self, application):
+        super().__init__(application=application, title="StormOS Console")
+        self.set_default_size(900, 600)
+        self.set_border_width(0)
+
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.add(main_box)
+
+        self.create_menu_bar(main_box)
+
+        self.notebook = Gtk.Notebook()
+        self.notebook.set_scrollable(True)
+        main_box.pack_start(self.notebook, True, True, 0)
+
+        self.new_tab()
+        self.connect("delete-event", self.on_close)
+
+    def create_menu_bar(self, parent_box):
+        menubar = Gtk.MenuBar()
+
+        file_menu = Gtk.Menu()
+        file_item = Gtk.MenuItem(label="File")
+        file_item.set_submenu(file_menu)
+
+        new_tab_item = Gtk.MenuItem(label="New Tab")
+        new_tab_item.connect("activate", lambda _: self.new_tab())
+        file_menu.append(new_tab_item)
+
+        close_tab_item = Gtk.MenuItem(label="Close Tab")
+        close_tab_item.connect("activate", lambda _: self.close_tab())
+        file_menu.append(close_tab_item)
+
+        file_menu.append(Gtk.SeparatorMenuItem())
+
+        quit_item = Gtk.MenuItem(label="Quit")
+        quit_item.connect("activate", lambda _: self.close())
+        file_menu.append(quit_item)
+
+        view_menu = Gtk.Menu()
+        view_item = Gtk.MenuItem(label="View")
+        view_item.set_submenu(view_menu)
+
+        split_h_item = Gtk.MenuItem(label="Split Horizontal")
+        split_h_item.connect("activate", self.on_split_horizontal)
+        view_menu.append(split_h_item)
+
+        split_v_item = Gtk.MenuItem(label="Split Vertical")
+        split_v_item.connect("activate", self.on_split_vertical)
+        view_menu.append(split_v_item)
+
+        menubar.append(file_item)
+        menubar.append(view_item)
+
+        parent_box.pack_start(menubar, False, False, 0)
+        menubar.show_all()
+
+    def new_tab(self):
+        tab_label = Gtk.Label(label=f"Terminal {self.notebook.get_n_pages() + 1}")
+        tab_content = TerminalTab(self.notebook, self)
+        self.notebook.append_page(tab_content, tab_label)
+        self.notebook.show_all()
+        self.notebook.set_current_page(self.notebook.get_n_pages() - 1)
+
+    def close_tab(self):
+        page_num = self.notebook.get_current_page()
+        if page_num != -1:
+            self.notebook.remove_page(page_num)
+            if self.notebook.get_n_pages() == 0:
+                self.close()
+
+    def on_split_horizontal(self, action):
+        current_tab = self.notebook.get_nth_page(self.notebook.get_current_page())
+        if isinstance(current_tab, TerminalTab):
+            current_tab.split_horizontal()
+
+    def on_split_vertical(self, action):
+        current_tab = self.notebook.get_nth_page(self.notebook.get_current_page())
+        if isinstance(current_tab, TerminalTab):
+            current_tab.split_vertical()
+
+    def on_close(self, widget, event):
+        self.get_application().quit()
+        return Gdk.EVENT_PROPAGATE
+
+
+class KonsoleCloneApplication(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id='com.example.stormosconsole')
+
+    def do_activate(self):
+        win = KonsoleCloneWindow(application=self)
+        win.show_all()
+
+
+if __name__ == "__main__":
+    app = KonsoleCloneApplication()
+    app.run()

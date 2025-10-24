@@ -5,7 +5,6 @@ A sleek, feature-rich application launcher with favorites, recent apps, and syst
 """
 
 import sys
-import os
 import subprocess
 import json
 import re
@@ -17,8 +16,8 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
     QScrollArea, QPushButton, QLabel, QFrame, QButtonGroup, QShortcut
 )
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QPixmap, QFont, QIcon, QKeySequence, QPainter, QColor
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QFont, QIcon, QKeySequence, QPainter, QColor
 
 # =============================================================================
 # CONSTANTS AND CONFIGURATION
@@ -91,7 +90,7 @@ def get_system_icon_theme() -> str:
             return result.stdout.strip()
     except Exception:
         pass
-    
+
     # Fallback icon themes
     for fallback in ["Papirus", "Adwaita", "gnome", "hicolor"]:
         if (Path("/usr/share/icons") / fallback).exists():
@@ -104,14 +103,13 @@ def get_system_icon_theme() -> str:
 
 class AppItem(QWidget):
     """Widget representing a single application item."""
-    
+
     def __init__(self, app: Dict[str, Any], launcher: 'Launcher'):
         super().__init__()
         self.app = app
         self.launcher = launcher
         self.is_favorite = app["name"] in launcher.favorites
         self._init_ui()
-        self._setup_animation()
 
     def _init_ui(self) -> None:
         """Initialize the user interface."""
@@ -129,18 +127,18 @@ class AppItem(QWidget):
         # Application info
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
-        
+
         self.name_label = QLabel(self.app["name"])
         self.name_label.setFont(QFont("Segoe UI", 11, QFont.Bold))
         self.name_label.setStyleSheet(f"color: {COLORS['text_primary']};")
         text_layout.addWidget(self.name_label)
-        
+
         if self.app.get("comment"):
             self.comment_label = QLabel(self.app["comment"])
             self.comment_label.setFont(QFont("Segoe UI", 9))
             self.comment_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
             text_layout.addWidget(self.comment_label)
-        
+
         layout.addLayout(text_layout)
         layout.addStretch()
 
@@ -165,7 +163,7 @@ class AppItem(QWidget):
         """)
 
     def _load_icon(self) -> None:
-        """Load and display application icon."""
+        """Load and display application icon using theme."""
         icon_name = self.app.get("icon")
         if icon_name:
             qicon = QIcon.fromTheme(icon_name)
@@ -173,7 +171,7 @@ class AppItem(QWidget):
                 pixmap = qicon.pixmap(40, 40)
                 self.icon_label.setPixmap(pixmap)
                 return
-        
+
         # Fallback icon
         self.icon_label.setText("📦")
         self.icon_label.setAlignment(Qt.AlignCenter)
@@ -181,13 +179,8 @@ class AppItem(QWidget):
             font-size: 20px;
             background: {COLORS['surface']};
             border-radius: 6px;
+            color: {COLORS['text_secondary']};
         """)
-
-    def _setup_animation(self) -> None:
-        """Setup hover animation."""
-        self.animation = QPropertyAnimation(self, b"geometry")
-        self.animation.setDuration(150)
-        self.animation.setEasingCurve(QEasingCurve.OutCubic)
 
     def mousePressEvent(self, event) -> None:
         """Handle mouse press events."""
@@ -212,9 +205,9 @@ class AppItem(QWidget):
             self.launcher.favorites.append(name)
             self.is_favorite = True
             self.fav_indicator.setText("★")
-        
+
         save_json(FAV_FILE, self.launcher.favorites)
-        self.launcher.filter_apps()  # Refresh to update favorites view
+        self.launcher.filter_apps()
 
 # =============================================================================
 # MAIN LAUNCHER
@@ -222,7 +215,7 @@ class AppItem(QWidget):
 
 class Launcher(QWidget):
     """Modern application launcher main window."""
-    
+
     def __init__(self):
         super().__init__()
         self.favorites = load_json(FAV_FILE, [])
@@ -231,31 +224,20 @@ class Launcher(QWidget):
         self.categories = defaultdict(list)
         self.current_category = "All Apps"
         self.category_buttons = {}
-        
+
         self._init_window()
         self._init_ui()
         self._setup_shortcuts()
         self._center_window()
-        
-        # Load applications with a slight delay for smoother UI
-        QTimer.singleShot(50, self.load_apps)
-        
-        # *** NEW: Focus the search bar after UI is initialized ***
-        self.search_bar.setFocus()
-        # *** END NEW ***
 
+        # Load apps after UI is ready
+        QTimer.singleShot(50, self.load_apps)
 
     def _init_window(self) -> None:
         """Initialize window properties."""
-        # *** CHANGED: Re-added Qt.Popup flag, kept Qt.WindowStaysOnTopHint ***
-        # Qt.Popup is generally better for closing on external clicks.
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup | Qt.WindowStaysOnTopHint)
-        # *** END CHANGED ***
-        
         self.setAttribute(Qt.WA_TranslucentBackground)
-        # *** CHANGED: Set focus policy to ensure focusOutEvent works with Qt.Popup ***
         self.setFocusPolicy(Qt.StrongFocus)
-        # *** END CHANGED ***
         self.setFixedSize(800, 600)
 
     def _init_ui(self) -> None:
@@ -264,19 +246,12 @@ class Launcher(QWidget):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
-        # Search bar
         self._create_search_bar(main_layout)
-        
-        # Body content
         body_layout = QHBoxLayout()
         body_layout.setSpacing(20)
-        
         self._create_sidebar(body_layout)
         self._create_apps_area(body_layout)
-        
         main_layout.addLayout(body_layout)
-        
-        # System controls
         self._create_system_controls(main_layout)
 
     def _create_search_bar(self, parent_layout: QVBoxLayout) -> None:
@@ -305,7 +280,7 @@ class Launcher(QWidget):
         """Create the category sidebar."""
         sidebar_layout = QVBoxLayout()
         sidebar_layout.setSpacing(6)
-        
+
         self.cat_group = QButtonGroup(self)
         self.cat_group.setExclusive(True)
 
@@ -314,8 +289,7 @@ class Launcher(QWidget):
             btn.setCheckable(True)
             btn.setFixedHeight(40)
             btn.clicked.connect(lambda checked, k=cat_key: self.switch_category(k))
-            
-            # Dynamic styling based on category color
+
             btn.setStyleSheet(f"""
                 QPushButton {{
                     background: {COLORS['surface']};
@@ -336,7 +310,7 @@ class Launcher(QWidget):
                     font-weight: bold;
                 }}
             """)
-            
+
             self.cat_group.addButton(btn)
             self.category_buttons[cat_key] = btn
             sidebar_layout.addWidget(btn)
@@ -377,20 +351,15 @@ class Launcher(QWidget):
         self.apps_container = QWidget()
         self.apps_layout = QVBoxLayout(self.apps_container)
         self.apps_layout.setSpacing(4)
-        # Removed the initial addStretch() to prevent whitespace
-        self.scroll_area.setWidget(self.apps_container)
-        
-        # *** NEW: Explicitly set the background of the apps container to be transparent ***
         self.apps_container.setStyleSheet("background: transparent;")
-        # *** END NEW ***
-        
+        self.scroll_area.setWidget(self.apps_container)
         parent_layout.addWidget(self.scroll_area)
 
     def _create_system_controls(self, parent_layout: QVBoxLayout) -> None:
         """Create system control buttons."""
         controls_layout = QHBoxLayout()
         controls_layout.setSpacing(8)
-        
+
         system_actions = [
             ("🔒 Lock", self._lock_system, COLORS["secondary"]),
             ("🚪 Logout", self._logout, COLORS["warning"]),
@@ -422,11 +391,8 @@ class Launcher(QWidget):
 
     def _setup_shortcuts(self) -> None:
         """Setup keyboard shortcuts."""
-        # Escape key shortcut - explicitly connects to close
         QShortcut(QKeySequence("Escape"), self).activated.connect(self.close)
-        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(
-            lambda: self.search_bar.setFocus()
-        )
+        QShortcut(QKeySequence("Ctrl+F"), self).activated.connect(lambda: self.search_bar.setFocus())
 
     def _center_window(self) -> None:
         """Center the window on screen."""
@@ -445,8 +411,7 @@ class Launcher(QWidget):
         painter.drawRoundedRect(self.rect(), 16, 16)
 
     def focusOutEvent(self, event) -> None:
-        """Close launcher when focus is lost (e.g., clicking outside)."""
-        # This should be triggered reliably with Qt.Popup flag when clicking outside
+        """Close launcher when focus is lost."""
         self.close()
 
     # =========================================================================
@@ -454,7 +419,7 @@ class Launcher(QWidget):
     # =========================================================================
 
     def load_apps(self) -> None:
-        """Load applications from desktop files with caching."""
+        """Load applications from desktop files with caching and deduplication."""
         desktop_dirs = [
             Path("/usr/share/applications"),
             Path.home() / ".local/share/applications"
@@ -471,7 +436,7 @@ class Launcher(QWidget):
         current_files_sorted = sorted(current_files)
         current_files_hash = str(hash(tuple(current_files_sorted)))
 
-        use_cache = False
+        # Try to use cache
         if CACHE_FILE.exists():
             try:
                 cache_data = json.loads(CACHE_FILE.read_text())
@@ -486,86 +451,36 @@ class Launcher(QWidget):
                     self.categories = defaultdict(list)
                     for app in self.apps:
                         self.categories[app["category"]].append(app)
-                    use_cache = True
+                    self.switch_category(self.current_category)
+                    return
             except Exception:
                 pass
 
-        if use_cache:
-            self.switch_category(self.current_category)
-            return
-
-        # Category mapping (same as your original)
+        # Category mapping
         cat_map = {
-            "Audio": "Multimedia",
-            "Video": "Multimedia",
-            "AudioVideo": "Multimedia",
-            "Development": "Dev",
-            "Game": "Games",
-            "Graphics": "Graphics",
-            "Network": "Internet",
-            "Office": "Office",
-            "Science": "Other",
-            "Settings": "System",
-            "System": "System",
-            "Utility": "Other",
-            "Building": "Dev",
-            "Debugger": "Dev",
-            "IDE": "Dev",
-            "GUIDesigner": "Dev",
-            "Profiling": "Dev",
-            "RevisionControl": "Dev",
-            "Translation": "Dev",
-            "Calendar": "Office",
-            "ContactManagement": "Office",
-            "Database": "Office",
-            "Dictionary": "Office",
-            "Chart": "Office",
-            "Email": "Internet",
-            "Telephony": "Internet",
-            "WebBrowser": "Internet",
-            "InstantMessaging": "Internet",
-            "Feed": "Internet",
-            "News": "Internet",
-            "P2P": "Internet",
-            "RemoteAccess": "Internet",
-            "TelephonyTools": "Internet",
-            "TextTools": "Office",
-            "Viewer": "Office",
-            "2DGraphics": "Graphics",
-            "3DGraphics": "Graphics",
-            "RasterGraphics": "Graphics",
-            "VectorGraphics": "Graphics",
-            "Scanning": "Graphics",
-            "OCR": "Graphics",
-            "Photography": "Graphics",
-            "Publishing": "Graphics",
-            "Music": "Multimedia",
-            "Midi": "Multimedia",
-            "Sequencer": "Multimedia",
-            "Tuner": "Multimedia",
-            "TV": "Multimedia",
-            "AudioVideoEditing": "Multimedia",
-            "Player": "Multimedia",
-            "Recorder": "Multimedia",
-            "DiscBurning": "Multimedia",
-            "ActionGame": "Games",
-            "AdventureGame": "Games",
-            "ArcadeGame": "Games",
-            "BoardGame": "Games",
-            "BlocksGame": "Games",
-            "CardGame": "Games",
-            "KidsGame": "Games",
-            "LogicGame": "Games",
-            "RolePlaying": "Games",
-            "Simulation": "Games",
-            "SportsGame": "Games",
-            "StrategyGame": "Games",
-            "Art": "Other",
-            "Construction": "Other",
-            "Education": "Other",
-            "Languages": "Other",
-            "Religion": "Other",
-            "Security": "System",
+            "Audio": "Multimedia", "Video": "Multimedia", "AudioVideo": "Multimedia",
+            "Development": "Dev", "Game": "Games", "Graphics": "Graphics",
+            "Network": "Internet", "Office": "Office", "Science": "Other",
+            "Settings": "System", "System": "System", "Utility": "Other",
+            "Building": "Dev", "Debugger": "Dev", "IDE": "Dev", "GUIDesigner": "Dev",
+            "Profiling": "Dev", "RevisionControl": "Dev", "Translation": "Dev",
+            "Calendar": "Office", "ContactManagement": "Office", "Database": "Office",
+            "Dictionary": "Office", "Chart": "Office", "Email": "Internet",
+            "Telephony": "Internet", "WebBrowser": "Internet", "InstantMessaging": "Internet",
+            "Feed": "Internet", "News": "Internet", "P2P": "Internet",
+            "RemoteAccess": "Internet", "TelephonyTools": "Internet", "TextTools": "Office",
+            "Viewer": "Office", "2DGraphics": "Graphics", "3DGraphics": "Graphics",
+            "RasterGraphics": "Graphics", "VectorGraphics": "Graphics", "Scanning": "Graphics",
+            "OCR": "Graphics", "Photography": "Graphics", "Publishing": "Graphics",
+            "Music": "Multimedia", "Midi": "Multimedia", "Sequencer": "Multimedia",
+            "Tuner": "Multimedia", "TV": "Multimedia", "AudioVideoEditing": "Multimedia",
+            "Player": "Multimedia", "Recorder": "Multimedia", "DiscBurning": "Multimedia",
+            "ActionGame": "Games", "AdventureGame": "Games", "ArcadeGame": "Games",
+            "BoardGame": "Games", "BlocksGame": "Games", "CardGame": "Games",
+            "KidsGame": "Games", "LogicGame": "Games", "RolePlaying": "Games",
+            "Simulation": "Games", "SportsGame": "Games", "StrategyGame": "Games",
+            "Art": "Other", "Construction": "Other", "Education": "Other",
+            "Languages": "Other", "Religion": "Other", "Security": "System",
             "Accessibility": "Other",
         }
 
@@ -596,9 +511,24 @@ class Launcher(QWidget):
                                 app_cat = cat_map[c]
                                 break
 
+                    clean_exec = re.sub(r'%[uUfF].*', '', exec_match.group(1)).strip()
+                    app_name = name_match.group(1)
+                    base_exec = clean_exec.split()[0] if clean_exec else ""
+
+                    # Deduplication: skip if same name and base exec already loaded
+                    duplicate = False
+                    for existing in self.apps:
+                        if existing["name"] == app_name:
+                            existing_base = existing["exec"].split()[0] if existing["exec"] else ""
+                            if existing_base == base_exec:
+                                duplicate = True
+                                break
+                    if duplicate:
+                        continue
+
                     app = {
-                        "name": name_match.group(1),
-                        "exec": re.sub(r'%[uUfF].*', '', exec_match.group(1)).strip(),
+                        "name": app_name,
+                        "exec": clean_exec,
                         "icon": icon_match.group(1) if icon_match else None,
                         "comment": comment_match.group(1) if comment_match else "",
                         "category": app_cat,
@@ -609,10 +539,10 @@ class Launcher(QWidget):
                 except Exception:
                     continue
 
+        # Save cache
         cache_data = {
             "desktop_files_hash": current_files_hash,
             "apps": self.apps,
-            "categories": dict(self.categories)
         }
         save_json(CACHE_FILE, cache_data)
         self.switch_category(self.current_category)
@@ -628,7 +558,7 @@ class Launcher(QWidget):
         """Filter applications based on search query and category."""
         query = self.search_bar.text().lower().strip()
 
-        # Clear existing apps (but keep the stretch at the end)
+        # Clear existing apps
         while self.apps_layout.count() > 1:
             item = self.apps_layout.takeAt(0)
             if item.widget():
@@ -648,18 +578,14 @@ class Launcher(QWidget):
         if query:
             apps = [
                 a for a in apps
-                if query in a["name"].lower() or 
-                   (a.get("comment") and query in a["comment"].lower())
+                if query in a["name"].lower() or (a.get("comment") and query in a["comment"].lower())
             ]
 
         # Display apps
         for app in sorted(apps, key=lambda x: x["name"].lower()):
-            self.apps_layout.insertWidget(
-                self.apps_layout.count() - 1, 
-                AppItem(app, self)
-            )
+            self.apps_layout.insertWidget(self.apps_layout.count() - 1, AppItem(app, self))
 
-        # Show empty state if no apps found
+        # Show empty state
         if not apps:
             empty_label = QLabel("No applications found")
             empty_label.setAlignment(Qt.AlignCenter)
@@ -668,19 +594,16 @@ class Launcher(QWidget):
 
     def launch_app(self, app: Dict[str, Any]) -> None:
         """Launch an application."""
-        # Add to recent apps
         if app["name"] in self.recent:
             self.recent.remove(app["name"])
         self.recent.appendleft(app["name"])
         save_json(RECENT_FILE, list(self.recent))
 
-        # Launch application
         try:
-            # Clean up Exec command (remove field codes)
             exec_cmd = re.sub(r' %[UuFf]', '', app["exec"]).strip()
             subprocess.Popen(exec_cmd.split(), start_new_session=True)
         except Exception as e:
-            print(f"Failed to launch {app['name']}: {e}")
+            print(f"Failed to launch {app['name']}: {e}", file=sys.stderr)
 
         self.close()
 
@@ -700,28 +623,25 @@ class Launcher(QWidget):
             # Launch first matching app
             for i in range(self.apps_layout.count() - 1):
                 item = self.apps_layout.itemAt(i)
-                if item and (widget := item.widget()):
-                    if isinstance(widget, AppItem):
-                        self.launch_app(widget.app)
-                        return
+                widget = item.widget() if item else None
+                if isinstance(widget, AppItem):
+                    self.launch_app(widget.app)
+                    return
 
     def _calculate_expression(self, expression: str) -> None:
         """Calculate mathematical expression."""
         try:
-            # Replace common symbols
             expr = expression.replace('^', '**').replace('×', '*').replace('÷', '/')
             result = eval(expr, {"__builtins__": {}})
-            print(f"Calculation result: {result}")
+            print(f"Result: {result}")
         except Exception as e:
-            print(f"Calculation error: {e}")
+            print(f"Calculation error: {e}", file=sys.stderr)
 
     def _web_search(self, query: str) -> None:
         """Perform web search."""
         import urllib.parse
         encoded_query = urllib.parse.quote(query)
-        subprocess.Popen([
-            "xdg-open", f"https://duckduckgo.com/?q={encoded_query}"
-        ])
+        subprocess.Popen(["xdg-open", f"https://duckduckgo.com/?q={encoded_query}"])
         self.close()
 
     def _run_command(self, command: str) -> None:
@@ -734,7 +654,6 @@ class Launcher(QWidget):
     # =========================================================================
 
     def _lock_system(self) -> None:
-        """Lock the system."""
         for cmd in ["i3lock", "loginctl lock-session", "xdg-screensaver lock"]:
             try:
                 subprocess.run(cmd, shell=True, start_new_session=True)
@@ -744,7 +663,6 @@ class Launcher(QWidget):
         self.close()
 
     def _logout(self) -> None:
-        """Log out from the session."""
         for cmd in ["i3-msg exit", "xfce4-session-logout --logout", "gnome-session-quit"]:
             try:
                 subprocess.run(cmd, shell=True, start_new_session=True)
@@ -754,12 +672,10 @@ class Launcher(QWidget):
         self.close()
 
     def _reboot(self) -> None:
-        """Reboot the system."""
         subprocess.run(["systemctl", "reboot"])
         self.close()
 
     def _shutdown(self) -> None:
-        """Shutdown the system."""
         subprocess.run(["systemctl", "poweroff"])
         self.close()
 
@@ -768,28 +684,19 @@ class Launcher(QWidget):
 # =============================================================================
 
 def main():
-    """Application entry point."""
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyle("Fusion")
-    
-    # Set application-wide font
-    font = QFont("Segoe UI", 10)
-    app.setFont(font)
-    
-    # Configure icon theme
+    app.setFont(QFont("Segoe UI", 10))
+
     icon_theme = get_system_icon_theme()
     QIcon.setThemeName(icon_theme)
-    
-    # Create and show launcher
+
     launcher = Launcher()
     launcher.show()
-    # *** NEW: Ensure the window gets focus and is raised to the top, then focus the search bar ***
     launcher.raise_()
     launcher.activateWindow()
-    # launcher.search_bar.setFocus() # This is now done in __init__ after UI setup
-    # *** END NEW ***
-    
+
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
