@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                             QPushButton, QCheckBox, QLabel, QSpinBox, QProgressBar, 
                             QTextEdit, QMessageBox, QGroupBox, QGridLayout, QMenu)
 from PyQt5.QtCore import Qt, QProcess, pyqtSignal, QObject, QTimer, QPoint
-from PyQt5.QtGui import QFont, QTextCursor, QClipboard
+from PyQt5.QtGui import QFont, QTextCursor, QPalette, QColor
 
 class TerminalProcess(QObject):
     """Handles terminal operations in a separate thread"""
@@ -55,20 +55,20 @@ class TerminalProcess(QObject):
 
 class ArchIsoBuilder(QMainWindow):
     REQUIRED_PACKAGES = [
-        'archiso', 'mkinitcpio-archiso',  # Changed from calamares-app to calamares-git
+        'archiso', 'mkinitcpio-archiso',
     ]
     GIT_REPO = "https://github.com/bfitzgit23/stormos-build-files"
-    
+
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("StormOS ISO Builder v3")
+        self.setWindowTitle("StormOS ISO Builder v3.2")
         self.setMinimumSize(800, 600)
         
         # Initialize paths
         self.USER_HOME = os.path.expanduser("~")
         self.STORMOS_DIR = os.path.join(self.USER_HOME, "Desktop", "stormos-build-files", "install-stormos-xfce")
         self.OUTPUT_DIR = os.path.join(self.USER_HOME, "Desktop", "StormOS-ISO")
-        self.LOCAL_PACKAGE_DIR = os.path.join(self.STORMOS_DIR, "local_packages")  # Directory containing local .zst files
+        self.LOCAL_PACKAGE_DIR = os.path.join(self.STORMOS_DIR, "local_packages")
         
         # State variables
         self.root_commands = []
@@ -78,6 +78,7 @@ class ArchIsoBuilder(QMainWindow):
         self.build_timer = None
         self.last_output_time = 0
         self.current_progress = 0
+        self.iso_built_successfully = False
         
         # Setup UI
         self.setup_ui()
@@ -129,7 +130,7 @@ class ArchIsoBuilder(QMainWindow):
         
         # Git options
         self.use_existing_checkbox = QCheckBox("Use existing git clone")
-        self.use_existing_checkbox.setChecked(True)  # Default to using existing clone if available
+        self.use_existing_checkbox.setChecked(True)
         controls_layout.addWidget(self.use_existing_checkbox, 0, 0)
         
         self.update_git_button = QPushButton("Update Git Clone")
@@ -140,6 +141,12 @@ class ArchIsoBuilder(QMainWindow):
         self.build_button = QPushButton("Build ISO")
         self.build_button.clicked.connect(self.on_build_button_clicked)
         controls_layout.addWidget(self.build_button, 0, 2)
+        
+        # Open ISO Folder button
+        self.open_iso_button = QPushButton("Open ISO Folder")
+        self.open_iso_button.clicked.connect(self.open_iso_folder)
+        self.open_iso_button.setEnabled(False)
+        controls_layout.addWidget(self.open_iso_button, 0, 3)
         
         # Processor selection
         controls_layout.addWidget(QLabel("Processors:"), 1, 0)
@@ -162,13 +169,10 @@ class ArchIsoBuilder(QMainWindow):
         copy_action = menu.addAction("Copy")
         paste_action = menu.addAction("Paste")
         
-        # Get the current selection
         cursor = self.terminal.textCursor()
         has_selection = cursor.hasSelection()
-        
         copy_action.setEnabled(has_selection)
         
-        # Show menu and handle actions
         action = menu.exec_(self.terminal.mapToGlobal(position))
         
         if action == copy_action:
@@ -182,16 +186,13 @@ class ArchIsoBuilder(QMainWindow):
         self.terminal.insertPlainText(text)
         self.terminal.ensureCursorVisible()
         
-        # Update status bar with last line
         lines = text.strip().split('\n')
         if lines:
             self.statusBar().showMessage(lines[-1][:50] + "..." if len(lines[-1]) > 50 else lines[-1])
         
-        # Update last output time for progress tracking
         if text.strip():
             self.last_output_time = time.time()
         
-        # Log to file
         try:
             with open(os.path.join(self.USER_HOME, 'stormos_build.log'), 'a') as log_file:
                 log_file.write(text)
@@ -202,21 +203,15 @@ class ArchIsoBuilder(QMainWindow):
         """Ensure that OUTPUT_DIR and STORMOS_DIR exist, create them if necessary"""
         self.append_terminal_text("Checking if necessary directories exist...\n")
         
-        # Check and create OUTPUT_DIR if it does not exist
         if not os.path.exists(self.OUTPUT_DIR):
-            self.append_terminal_text(f"Output directory {self.OUTPUT_DIR} does not exist. Creating...\n")
             os.makedirs(self.OUTPUT_DIR, exist_ok=True)
             self.append_terminal_text(f"Created output directory: {self.OUTPUT_DIR}\n")
         
-        # Check and create STORMOS_DIR if it does not exist
         if not os.path.exists(self.STORMOS_DIR):
-            self.append_terminal_text(f"StormOS directory {self.STORMOS_DIR} does not exist. Creating...\n")
             os.makedirs(self.STORMOS_DIR, exist_ok=True)
             self.append_terminal_text(f"Created StormOS directory: {self.STORMOS_DIR}\n")
         
-        # Ensure LOCAL_PACKAGE_DIR exists
         if not os.path.exists(self.LOCAL_PACKAGE_DIR):
-            self.append_terminal_text(f"Local package directory {self.LOCAL_PACKAGE_DIR} does not exist. Creating...\n")
             os.makedirs(self.LOCAL_PACKAGE_DIR, exist_ok=True)
             self.append_terminal_text(f"Created local package directory: {self.LOCAL_PACKAGE_DIR}\n")
 
@@ -225,12 +220,10 @@ class ArchIsoBuilder(QMainWindow):
         self.append_terminal_text("Checking required packages...\n")
         missing_packages = []
         
-        # Check if each required package is installed
         for package in self.REQUIRED_PACKAGES:
             if not self.is_package_installed(package):
                 missing_packages.append(package)
         
-        # Collect missing packages to install later
         if missing_packages:
             self.install_missing_packages(missing_packages)
             self.all_requirements_met = False
@@ -260,25 +253,20 @@ class ArchIsoBuilder(QMainWindow):
         """Collect the command to install missing packages"""
         for package in packages:
             if package == 'calamares-git':
-                # Path to the local calamares-git.zst file
                 local_zst = os.path.join(self.LOCAL_PACKAGE_DIR, f"{package}.zst")
                 if os.path.exists(local_zst):
-                    # Install from the local .zst file
                     self.append_terminal_text(f"Installing '{package}' from local file: {local_zst}\n")
                     command = f"pacman -U '{local_zst}' --noconfirm"
                 else:
-                    # Attempt to install from the official repositories
                     self.append_terminal_text(f"Local package file for '{package}' not found. Attempting to install from repository.\n")
                     command = f"pacman -S --needed --noconfirm {package}"
             else:
-                # Install other packages from the official repositories
                 self.append_terminal_text(f"Installing package from repository: {package}\n")
                 command = f"pacman -S --needed --noconfirm {package}"
             
             self.root_commands.append(command)
             self.append_terminal_text(f"Queued command: {command}\n")
         
-        # Inform the user that the installation commands have been collected
         self.append_terminal_text("Missing packages have been queued for installation.\n")
 
     def update_build_button_state(self):
@@ -296,7 +284,6 @@ class ArchIsoBuilder(QMainWindow):
         self.append_terminal_text("Re-checking requirements after build...\n")
         missing_packages = []
         
-        # Check if each required package is installed
         for package in self.REQUIRED_PACKAGES:
             if not self.is_package_installed(package):
                 missing_packages.append(package)
@@ -324,11 +311,9 @@ class ArchIsoBuilder(QMainWindow):
         """Clone or update the git repository"""
         use_existing = self.use_existing_checkbox.isChecked()
         
-        # Only clone or update the repo when explicitly requested
         if not use_existing or force_update:
             repo_parent_dir = os.path.dirname(self.STORMOS_DIR)
             
-            # If "Use existing" is unchecked or force_update is True, delete and re-clone the repo
             if os.path.exists(repo_parent_dir):
                 self.append_terminal_text("Deleting existing repository to download a fresh copy...\n")
                 try:
@@ -474,10 +459,9 @@ modules:
         self.current_progress = 0
         self.build_iso()
         
-        # Start a timer to monitor progress
         self.build_timer = QTimer(self)
         self.build_timer.timeout.connect(self.monitor_build_progress)
-        self.build_timer.start(1000)  # Check every second for more responsive updates
+        self.build_timer.start(1000)
 
     def monitor_build_progress(self):
         """Monitor the build progress and update the progress bar"""
@@ -486,30 +470,22 @@ modules:
                 self.build_timer.stop()
             return
             
-        # Check if the process is still running
         if self.terminal_process.process.state() == QProcess.Running:
-            # Update progress bar based on time elapsed and output activity
             current_time = time.time()
             elapsed = current_time - self.start_time
-            
-            # Base progress on time (max 30 minutes)
             time_progress = min(90, int((elapsed / 1800) * 100))
             
-            # Increase progress if we've had recent output
-            if current_time - self.last_output_time < 5:  # Had output in the last 5 seconds
+            if current_time - self.last_output_time < 5:
                 self.current_progress = min(95, self.current_progress + 1)
             else:
-                # If no output for a while, show a pulsing effect to indicate activity
-                pulse = int((current_time % 4) * 25)  # Pulse every 4 seconds
+                pulse = int((current_time % 4) * 25)
                 self.current_progress = max(time_progress, pulse)
             
             self.progress_bar.setValue(self.current_progress)
             
-            # Check if we haven't received any output in the last 60 seconds
             if current_time - self.last_output_time > 60:
                 self.append_terminal_text("Build process seems to be taking longer than expected. This is normal for large builds.\n")
         else:
-            # Process has finished
             if self.build_timer:
                 self.build_timer.stop()
 
@@ -535,26 +511,21 @@ modules:
         """Build the ISO image"""
         try:
             self.progress_bar.setValue(0)
-            
             self.clean_up_previous_build()
             self.scan_stormos_dir()
             
             self.append_terminal_text("Starting mkarchiso build process...\n")
             self.append_terminal_text("This may take a while depending on your system performance...\n")
             
-            # Ensure work directory exists before starting mkarchiso
             work_dir = os.path.join(self.OUTPUT_DIR, 'work')
-            os.makedirs(work_dir, exist_ok=True)  # Create the work directory if it doesn't exist
+            os.makedirs(work_dir, exist_ok=True)
             
-            # Get the number of processors from the spin box
             processors = int(self.processor_spinbox.value())
             self.append_terminal_text(f"Using {processors} processor(s) for the build process.\n")
             
-            # Generate the CPU list for taskset
             cpu_list = ",".join(map(str, range(processors)))
             self.append_terminal_text(f"CPU Affinity set to CPUs: {cpu_list}\n")
             
-            # Use multi-threading for mksquashfs
             mksquashfs_options = f"-processors {processors}"
             mkarchiso_command = (
                 f"export MKSQUASHFS_OPTIONS='{mksquashfs_options}'; "
@@ -564,15 +535,13 @@ modules:
             self.root_commands.append(mkarchiso_command)
             self.append_terminal_text(f"Queued build command: {mkarchiso_command}\n")
             
-            # Now write all root commands to a script with verification
             script_path = os.path.join(self.USER_HOME, 'build.sh')
             with open(script_path, 'w') as script_file:
                 script_file.write('#!/bin/bash\n')
-                script_file.write('set -e\n')  # Exit immediately if a command exits with a non-zero status
-                script_file.write('set -x\n')  # Print commands as they are executed
+                script_file.write('set -e\n')
+                script_file.write('set -x\n')
                 for cmd in self.root_commands:
                     script_file.write(f"{cmd}\n")
-                    # Extract the package name for verification
                     if 'pacman -U' in cmd:
                         package_name = cmd.split("'")[1].replace('.zst', '')
                     elif 'pacman -S' in cmd:
@@ -580,17 +549,13 @@ modules:
                     else:
                         package_name = None
                     if package_name:
-                        # Add verification step after installation
                         script_file.write(f"pacman -Qs {package_name} > /dev/null || {{ echo \"Error: Package '{package_name}' failed to install.\"; exit 1; }}\n")
             os.chmod(script_path, 0o755)
             self.append_terminal_text(f"Build script created at: {script_path}\n")
             
-            # Now run pkexec bash script.sh in the terminal
             command = f"pkexec bash '{script_path}'"
             self.append_terminal_text(f"Executing build script with command: {command}\n")
             self.terminal_process.run_command(command)
-            
-            # Clear root_commands for next time
             self.root_commands.clear()
         
         except Exception as e:
@@ -608,11 +573,9 @@ modules:
             
         self.append_terminal_text(f"Process completed with exit code: {exit_code}\n")
         
-        # Stop the progress monitoring timer
         if self.build_timer:
             self.build_timer.stop()
         
-        # End the timer
         end_time = time.time()
         
         if exit_code == 0:
@@ -622,11 +585,11 @@ modules:
                 iso_path = os.path.join(self.OUTPUT_DIR, iso_files[0])
                 self.append_terminal_text(f"ISO build completed successfully. ISO located at: {iso_path}\n")
                 self.progress_bar.setValue(100)
+                self.iso_built_successfully = True
+                self.open_iso_button.setEnabled(True)
             else:
                 self.append_terminal_text("Build completed, but no ISO file found.\n")
                 self.progress_bar.setValue(0)
-            
-            # Re-check requirements after successful build
             self.recheck_requirements()
         else:
             self.append_terminal_text("Build process failed due to package installation errors.\n")
@@ -634,12 +597,18 @@ modules:
             self.show_error_dialog("Build Failed", "One or more packages failed to install. Please check the terminal output for details.")
             self.progress_bar.setValue(0)
         
-        # Calculate and display the total build time
         total_time = end_time - self.start_time
         minutes, seconds = divmod(total_time, 60)
         self.append_terminal_text(f"Total build time: {int(minutes)} minutes and {int(seconds)} seconds.\n")
         
         self.build_in_progress = False
+
+    def open_iso_folder(self):
+        """Open the output ISO directory in the file manager"""
+        try:
+            subprocess.run(["xdg-open", self.OUTPUT_DIR])
+        except Exception as e:
+            self.append_terminal_text(f"Failed to open folder: {e}\n")
 
     def show_error_dialog(self, title, message):
         """Show an error dialog to alert the user of an issue"""
@@ -658,14 +627,67 @@ modules:
                 self.terminal_process.terminate()
                 if self.build_timer:
                     self.build_timer.stop()
-        
         event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setStyle('Fusion')  # Modern look
+    app.setStyle('Fusion')
     
+    # Dark palette
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor(53, 53, 53))
+    palette.setColor(QPalette.WindowText, Qt.white)
+    palette.setColor(QPalette.Base, QColor(25, 25, 25))
+    palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    palette.setColor(QPalette.ToolTipBase, Qt.white)
+    palette.setColor(QPalette.ToolTipText, Qt.white)
+    palette.setColor(QPalette.Text, Qt.white)
+    palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    palette.setColor(QPalette.ButtonText, Qt.white)
+    palette.setColor(QPalette.BrightText, Qt.red)
+    palette.setColor(QPalette.Link, QColor(42, 130, 218))
+    palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+    palette.setColor(QPalette.HighlightedText, Qt.black)
+    app.setPalette(palette)
+
+    # Enhanced stylesheet: clean dark buttons with proper disabled state
+    app.setStyleSheet("""
+        QToolTip {
+            color: #ffffff;
+            background-color: #2a82da;
+            border: 1px solid white;
+        }
+        QGroupBox {
+            border: 1px solid #555555;
+            margin-top: 10px;
+            color: white;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 3px 0 3px;
+            color: white;
+        }
+        QPushButton {
+            background-color: #2d2d2d;
+            border: 1px solid #555555;
+            padding: 5px 10px;
+            color: white;
+            min-width: 80px;
+        }
+        QPushButton:hover:!pressed {
+            background-color: #3a3a3a;
+        }
+        QPushButton:pressed {
+            background-color: #4a4a4a;
+        }
+        QPushButton:disabled {
+            background-color: #353535;
+            color: #606060;
+            border: 1px solid #444444;
+        }
+    """)
+
     window = ArchIsoBuilder()
     window.show()
-    
     sys.exit(app.exec_())

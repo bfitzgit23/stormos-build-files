@@ -1,6 +1,7 @@
 alsa-utils
 amd-ucode
 arch-install-scripts
+archiso
 archinstall
 archlinux-keyring
 b43-fwcutter
@@ -9,7 +10,7 @@ bcachefs-tools
 bind
 bolt
 brltty
-broadcom-wl
+broadcom-wl-dkms
 btrfs-progs
 clonezilla
 cloud-init
@@ -196,4 +197,4 @@ preload
 mintstick-git
 ffmpegthumbnailer
 system-config-printer
-pavucontrol
+
