@@ -1,4 +1,5 @@
 FileManager=custom-FileManager
 MailReader=custom-MailReader
-TerminalEmulator=alacritty
+TerminalEmulator=custom-TerminalEmulator
+TerminalEmulatorDismissed=true
 

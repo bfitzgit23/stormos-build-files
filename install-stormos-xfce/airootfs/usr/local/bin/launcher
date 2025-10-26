@@ -360,8 +360,10 @@ class Launcher(QWidget):
         controls_layout = QHBoxLayout()
         controls_layout.setSpacing(8)
 
+        # Updated system actions with suspend button
         system_actions = [
             ("🔒 Lock", self._lock_system, COLORS["secondary"]),
+            ("⏾ Suspend", self._suspend_system, "#6c5ce7"),  # Purple color for suspend
             ("🚪 Logout", self._logout, COLORS["warning"]),
             ("🔄 Reboot", self._reboot, COLORS["accent"]),
             ("⏻ Shutdown", self._shutdown, COLORS["danger"])
@@ -650,33 +652,57 @@ class Launcher(QWidget):
         self.close()
 
     # =========================================================================
-    # SYSTEM ACTIONS
+    # SYSTEM ACTIONS - UPDATED FOR XFCE4 ARCH LINUX
     # =========================================================================
 
     def _lock_system(self) -> None:
-        for cmd in ["i3lock", "loginctl lock-session", "xdg-screensaver lock"]:
+        """Lock screen using Xfce4 screen locker."""
+        try:
+            # Try xflock4 (Xfce4's screen locker)
+            subprocess.Popen(["xflock4"], start_new_session=True)
+        except Exception:
             try:
-                subprocess.run(cmd, shell=True, start_new_session=True)
-                break
+                # Fallback to i3lock if available
+                subprocess.Popen(["i3lock"], start_new_session=True)
             except Exception:
-                continue
+                print("No screen locker found", file=sys.stderr)
+        self.close()
+
+    def _suspend_system(self) -> None:
+        """Suspend the system."""
+        try:
+            subprocess.run(["systemctl", "suspend"], check=True)
+        except Exception as e:
+            print(f"Failed to suspend: {e}", file=sys.stderr)
         self.close()
 
     def _logout(self) -> None:
-        for cmd in ["i3-msg exit", "xfce4-session-logout --logout", "gnome-session-quit"]:
+        """Logout using Xfce4 session manager."""
+        try:
+            # Xfce4 logout command
+            subprocess.Popen(["xfce4-session-logout", "--logout"], start_new_session=True)
+        except Exception:
             try:
-                subprocess.run(cmd, shell=True, start_new_session=True)
-                break
+                # Alternative methods
+                subprocess.Popen(["pkill", "-u", "$USER"], start_new_session=True)
             except Exception:
-                continue
+                print("Failed to logout", file=sys.stderr)
         self.close()
 
     def _reboot(self) -> None:
-        subprocess.run(["systemctl", "reboot"])
+        """Reboot the system."""
+        try:
+            subprocess.run(["systemctl", "reboot"], check=True)
+        except Exception as e:
+            print(f"Failed to reboot: {e}", file=sys.stderr)
         self.close()
 
     def _shutdown(self) -> None:
-        subprocess.run(["systemctl", "poweroff"])
+        """Shutdown the system."""
+        try:
+            subprocess.run(["systemctl", "poweroff"], check=True)
+        except Exception as e:
+            print(f"Failed to shutdown: {e}", file=sys.stderr)
         self.close()
 
 # =============================================================================
@@ -696,6 +722,9 @@ def main():
     launcher.show()
     launcher.raise_()
     launcher.activateWindow()
+
+    # Force focus to search bar after a short delay to ensure window is ready
+    QTimer.singleShot(100, launcher.search_bar.setFocus)
 
     sys.exit(app.exec_())
 

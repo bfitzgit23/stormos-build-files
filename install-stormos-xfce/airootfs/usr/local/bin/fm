@@ -18,12 +18,408 @@ import time
 import glob
 import re
 import getpass
+import tarfile
+import zipfile
+import shlex
+
 # Try to import PIL, make it optional
 try:
     from PIL import Image
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
+
+class FileOperations:
+    """Handles advanced file operations"""
+    
+    @staticmethod
+    def create_symlink(source, destination):
+        """Create symbolic link"""
+        try:
+            os.symlink(source, destination)
+            return True
+        except Exception as e:
+            print(f"Error creating symlink: {e}")
+            return False
+    
+    @staticmethod
+    def change_permissions(path, mode):
+        """Change file permissions"""
+        try:
+            os.chmod(path, mode)
+            return True
+        except Exception as e:
+            print(f"Error changing permissions: {e}")
+            return False
+    
+    @staticmethod
+    def change_ownership(path, user=None, group=None):
+        """Change file ownership (requires root)"""
+        try:
+            uid = -1
+            gid = -1
+            
+            if user:
+                import pwd
+                uid = pwd.getpwnam(user).pw_uid
+            if group:
+                import grp
+                gid = grp.getgrnam(group).gr_gid
+            
+            os.chown(path, uid, gid)
+            return True
+        except Exception as e:
+            print(f"Error changing ownership: {e}")
+            return False
+    
+    @staticmethod
+    def create_archive(files, archive_path):
+        """Create compressed archive"""
+        try:
+            if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
+                with tarfile.open(archive_path, 'w:gz') as tar:
+                    for file_path in files:
+                        tar.add(file_path, arcname=os.path.basename(file_path))
+            elif archive_path.endswith('.tar.bz2'):
+                with tarfile.open(archive_path, 'w:bz2') as tar:
+                    for file_path in files:
+                        tar.add(file_path, arcname=os.path.basename(file_path))
+            elif archive_path.endswith('.zip'):
+                with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for file_path in files:
+                        zipf.write(file_path, arcname=os.path.basename(file_path))
+            else:
+                # Default to zip
+                with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    for file_path in files:
+                        zipf.write(file_path, arcname=os.path.basename(file_path))
+            return True
+        except Exception as e:
+            print(f"Error creating archive: {e}")
+            return False
+    
+    @staticmethod
+    def extract_archive(archive_path, extract_to=None):
+        """Extract compressed archive"""
+        try:
+            if extract_to is None:
+                extract_to = os.path.dirname(archive_path)
+            
+            if archive_path.endswith('.tar.gz') or archive_path.endswith('.tgz'):
+                with tarfile.open(archive_path, 'r:gz') as tar:
+                    tar.extractall(extract_to)
+            elif archive_path.endswith('.tar.bz2'):
+                with tarfile.open(archive_path, 'r:bz2') as tar:
+                    tar.extractall(extract_to)
+            elif archive_path.endswith('.tar'):
+                with tarfile.open(archive_path, 'r:') as tar:
+                    tar.extractall(extract_to)
+            elif archive_path.endswith('.zip'):
+                with zipfile.ZipFile(archive_path, 'r') as zipf:
+                    zipf.extractall(extract_to)
+            else:
+                return False
+            return True
+        except Exception as e:
+            print(f"Error extracting archive: {e}")
+            return False
+
+    @staticmethod
+    def get_unique_filename(destination_path):
+        """Generate a unique filename if the destination already exists"""
+        if not os.path.exists(destination_path):
+            return destination_path
+        
+        base, ext = os.path.splitext(destination_path)
+        counter = 1
+        while True:
+            new_path = f"{base} ({counter}){ext}"
+            if not os.path.exists(new_path):
+                return new_path
+            counter += 1
+
+class TerminalLauncher:
+    """Handles terminal operations"""
+    
+    @staticmethod
+    def get_available_terminals():
+        """Get list of available terminals"""
+        terminals = [
+            ('gnome-terminal', ['--working-directory']),
+            ('konsole', ['--workdir']),
+            ('xfce4-terminal', ['--default-working-directory']),
+            ('terminator', ['--working-directory']),
+            ('tilix', ['-w']),
+            ('urxvt', ['-cd']),
+            ('xterm', ['-e', 'bash -c "cd {}; bash"']),
+            ('alacritty', ['--working-directory']),
+            ('kitty', ['--directory']),
+        ]
+        available = []
+        for term, args in terminals:
+            if shutil.which(term):
+                available.append((term, args))
+        return available
+    
+    @staticmethod
+    def open_terminal(path):
+        """Open terminal at specified path"""
+        terminals = TerminalLauncher.get_available_terminals()
+        if not terminals:
+            return False
+        
+        term, args = terminals[0]  # Use first available terminal
+        try:
+            if term == 'xterm':
+                # Special handling for xterm
+                cmd = ['xterm', '-e', f'bash -c "cd {shlex.quote(path)}; bash"']
+            else:
+                cmd = [term] + args + [path]
+            
+            subprocess.Popen(cmd)
+            return True
+        except Exception as e:
+            print(f"Error opening terminal: {e}")
+            return False
+
+    @staticmethod
+    def open_terminal_as_root(path):
+        """Open terminal as root at specified path using sudo"""
+        terminals = TerminalLauncher.get_available_terminals()
+        if not terminals:
+            return False
+        
+        term, args = terminals[0]  # Use first available terminal
+        
+        try:
+            if term == 'xterm':
+                # Special handling for xterm with sudo
+                cmd = ['sudo', 'xterm', '-e', f'bash -c "cd {shlex.quote(path)}; bash"']
+            else:
+                cmd = ['sudo', term] + args + [path]
+            
+            subprocess.Popen(cmd)
+            return True
+        except Exception as e:
+            print(f"Error opening terminal as root: {e}")
+            return False
+
+class FilePropertiesDialog(QDialog):
+    """Advanced file properties dialog"""
+    
+    def __init__(self, paths, parent=None):
+        super().__init__(parent)
+        self.paths = paths if isinstance(paths, list) else [paths]
+        self.setWindowTitle("Properties")
+        self.setModal(True)
+        self.setMinimumWidth(500)
+        self.setup_ui()
+        self.load_properties()
+        
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        
+        # Tab widget for different property categories
+        tabs = QTabWidget()
+        
+        # Basic tab
+        basic_tab = QWidget()
+        basic_layout = QVBoxLayout(basic_tab)
+        self.basic_widget = self.create_basic_widget()
+        basic_layout.addWidget(self.basic_widget)
+        
+        # Permissions tab
+        perm_tab = QWidget()
+        perm_layout = QVBoxLayout(perm_tab)
+        self.perm_widget = self.create_permissions_widget()
+        perm_layout.addWidget(self.perm_widget)
+        
+        tabs.addTab(basic_tab, "Basic")
+        tabs.addTab(perm_tab, "Permissions")
+        
+        layout.addWidget(tabs)
+        
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+    
+    def create_basic_widget(self):
+        widget = QWidget()
+        layout = QFormLayout(widget)
+        
+        self.name_label = QLabel()
+        self.path_label = QLabel()
+        self.type_label = QLabel()
+        self.size_label = QLabel()
+        self.modified_label = QLabel()
+        self.accessed_label = QLabel()
+        
+        layout.addRow("Name:", self.name_label)
+        layout.addRow("Path:", self.path_label)
+        layout.addRow("Type:", self.type_label)
+        layout.addRow("Size:", self.size_label)
+        layout.addRow("Modified:", self.modified_label)
+        layout.addRow("Accessed:", self.accessed_label)
+        
+        return widget
+    
+    def create_permissions_widget(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        
+        # Owner permissions
+        owner_group = QGroupBox("Owner")
+        owner_layout = QHBoxLayout(owner_group)
+        
+        self.owner_read = QCheckBox("Read")
+        self.owner_write = QCheckBox("Write")
+        self.owner_execute = QCheckBox("Execute")
+        
+        owner_layout.addWidget(self.owner_read)
+        owner_layout.addWidget(self.owner_write)
+        owner_layout.addWidget(self.owner_execute)
+        
+        # Group permissions
+        group_group = QGroupBox("Group")
+        group_layout = QHBoxLayout(group_group)
+        
+        self.group_read = QCheckBox("Read")
+        self.group_write = QCheckBox("Write")
+        self.group_execute = QCheckBox("Execute")
+        
+        group_layout.addWidget(self.group_read)
+        group_layout.addWidget(self.group_write)
+        group_layout.addWidget(self.group_execute)
+        
+        # Others permissions
+        others_group = QGroupBox("Others")
+        others_layout = QHBoxLayout(others_group)
+        
+        self.others_read = QCheckBox("Read")
+        self.others_write = QCheckBox("Write")
+        self.others_execute = QCheckBox("Execute")
+        
+        others_layout.addWidget(self.others_read)
+        others_layout.addWidget(self.others_write)
+        others_layout.addWidget(self.others_execute)
+        
+        layout.addWidget(owner_group)
+        layout.addWidget(group_group)
+        layout.addWidget(others_group)
+        
+        # Connect signals
+        self.owner_read.toggled.connect(self.update_permissions)
+        self.owner_write.toggled.connect(self.update_permissions)
+        self.owner_execute.toggled.connect(self.update_permissions)
+        self.group_read.toggled.connect(self.update_permissions)
+        self.group_write.toggled.connect(self.update_permissions)
+        self.group_execute.toggled.connect(self.update_permissions)
+        self.others_read.toggled.connect(self.update_permissions)
+        self.others_write.toggled.connect(self.update_permissions)
+        self.others_execute.toggled.connect(self.update_permissions)
+        
+        return widget
+    
+    def load_properties(self):
+        if not self.paths:
+            return
+        
+        path = self.paths[0]
+        stat_info = os.stat(path)
+        
+        # Basic info
+        self.name_label.setText(os.path.basename(path))
+        self.path_label.setText(path)
+        
+        if os.path.isdir(path):
+            self.type_label.setText("Directory")
+        else:
+            mime_type, _ = mimetypes.guess_type(path)
+            self.type_label.setText(mime_type or "Unknown")
+        
+        # Size
+        if os.path.isfile(path):
+            size = stat_info.st_size
+            self.size_label.setText(self.format_size(size))
+        else:
+            self.size_label.setText("Calculating...")
+            # Calculate directory size in background
+            QTimer.singleShot(100, self.calculate_directory_size)
+        
+        # Dates
+        self.modified_label.setText(datetime.fromtimestamp(stat_info.st_mtime).strftime('%Y-%m-%d %H:%M:%S'))
+        self.accessed_label.setText(datetime.fromtimestamp(stat_info.st_atime).strftime('%Y-%m-%d %H:%M:%S'))
+        
+        # Permissions
+        self.load_permissions(stat_info.st_mode)
+    
+    def calculate_directory_size(self):
+        if not self.paths:
+            return
+        
+        path = self.paths[0]
+        if os.path.isdir(path):
+            total_size = 0
+            for dirpath, dirnames, filenames in os.walk(path):
+                for filename in filenames:
+                    filepath = os.path.join(dirpath, filename)
+                    try:
+                        total_size += os.path.getsize(filepath)
+                    except OSError:
+                        pass
+            self.size_label.setText(self.format_size(total_size))
+    
+    def format_size(self, size):
+        """Format file size in human readable format"""
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} PB"
+    
+    def load_permissions(self, mode):
+        """Load current permissions into checkboxes"""
+        # Owner permissions
+        self.owner_read.setChecked(mode & stat.S_IRUSR)
+        self.owner_write.setChecked(mode & stat.S_IWUSR)
+        self.owner_execute.setChecked(mode & stat.S_IXUSR)
+        
+        # Group permissions
+        self.group_read.setChecked(mode & stat.S_IRGRP)
+        self.group_write.setChecked(mode & stat.S_IWGRP)
+        self.group_execute.setChecked(mode & stat.S_IXGRP)
+        
+        # Others permissions
+        self.others_read.setChecked(mode & stat.S_IROTH)
+        self.others_write.setChecked(mode & stat.S_IWOTH)
+        self.others_execute.setChecked(mode & stat.S_IXOTH)
+    
+    def update_permissions(self):
+        """Update file permissions based on checkbox states"""
+        if not self.paths:
+            return
+        
+        mode = 0
+        # Owner
+        if self.owner_read.isChecked(): mode |= stat.S_IRUSR
+        if self.owner_write.isChecked(): mode |= stat.S_IWUSR
+        if self.owner_execute.isChecked(): mode |= stat.S_IXUSR
+        # Group
+        if self.group_read.isChecked(): mode |= stat.S_IRGRP
+        if self.group_write.isChecked(): mode |= stat.S_IWGRP
+        if self.group_execute.isChecked(): mode |= stat.S_IXGRP
+        # Others
+        if self.others_read.isChecked(): mode |= stat.S_IROTH
+        if self.others_write.isChecked(): mode |= stat.S_IWOTH
+        if self.others_execute.isChecked(): mode |= stat.S_IXOTH
+        
+        for path in self.paths:
+            try:
+                os.chmod(path, mode)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Could not change permissions for {path}: {e}")
 
 class SettingsManager:
     """Manages application settings persistence"""
@@ -32,7 +428,11 @@ class SettingsManager:
         self.settings = {
             'default_view_mode': 'detail',  # Can be 'icon', 'list', or 'detail'
             'window_geometry': None,
-            'window_state': None
+            'window_state': None,
+            'show_hidden_files': False,  # Add setting for hidden files
+            'window_size': None,  # Store window size separately
+            'window_position': None,  # Store window position
+            'splitter_sizes': [300, 900]  # Store splitter sizes - FIXED: Default value instead of None
         }
         self.load_settings()
 
@@ -61,7 +461,13 @@ class SettingsManager:
 
     def get_setting(self, key, default=None):
         """Get a setting value"""
-        return self.settings.get(key, default)
+        value = self.settings.get(key, default)
+        
+        # Special handling for splitter_sizes to ensure it's always a list
+        if key == 'splitter_sizes' and (value is None or not isinstance(value, list)):
+            return [300, 900]  # Return default splitter sizes
+            
+        return value
 
     def set_setting(self, key, value):
         """Set a setting value"""
@@ -197,6 +603,20 @@ class FileSystemModel(QFileSystemModel):
         self.icon_provider = QFileIconProvider()
         # Get application style for icons
         self.app_style = QApplication.style()
+        # Add a flag to track if hidden files should be shown
+        self.show_hidden_files = False
+
+    def setShowHiddenFiles(self, show):
+        """Toggle visibility of hidden files"""
+        if self.show_hidden_files != show:
+            self.show_hidden_files = show
+            # Update the filter based on the flag
+            if show:
+                self.setFilter(QDir.AllEntries | QDir.NoDotAndDotDot | QDir.Hidden)
+            else:
+                self.setFilter(QDir.AllEntries | QDir.NoDotAndDotDot)
+            # Refresh the model
+            self.setRootPath(self.rootPath())
 
     def data(self, index, role=Qt.DisplayRole):
         if role == Qt.DecorationRole and index.column() == 0:
@@ -244,6 +664,82 @@ class FileSystemModel(QFileSystemModel):
             return self.app_style.standardIcon(QStyle.SP_FileIcon)
         return self.icon_provider.icon(QFileInfo(path))
 
+class DragDropListView(QListView):
+    """Custom ListView with drag and drop support"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QAbstractItemView.DragDrop)
+        self.setDefaultDropAction(Qt.CopyAction)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        
+    def dragEnterEvent(self, event):
+        """Handle drag enter event"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+    
+    def dragMoveEvent(self, event):
+        """Handle drag move event"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+    
+    def dropEvent(self, event):
+        """Handle drop event"""
+        if event.mimeData().hasUrls():
+            # Get the parent file manager
+            parent = self.parent()
+            while parent and not hasattr(parent, 'handle_drop_event'):
+                parent = parent.parent()
+            
+            if parent:
+                parent.handle_drop_event(event, self)
+        else:
+            super().dropEvent(event)
+
+class DragDropTreeView(QTreeView):
+    """Custom TreeView with drag and drop support"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QAbstractItemView.DragDrop)
+        self.setDefaultDropAction(Qt.CopyAction)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        
+    def dragEnterEvent(self, event):
+        """Handle drag enter event"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+    
+    def dragMoveEvent(self, event):
+        """Handle drag move event"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+    
+    def dropEvent(self, event):
+        """Handle drop event"""
+        if event.mimeData().hasUrls():
+            # Get the parent file manager
+            parent = self.parent()
+            while parent and not hasattr(parent, 'handle_drop_event'):
+                parent = parent.parent()
+            
+            if parent:
+                parent.handle_drop_event(event, self)
+        else:
+            super().dropEvent(event)
+
 class AutoMounter(QThread):
     """Thread for automatically mounting USB devices with proper permission handling"""
     mount_success = pyqtSignal(str, str)  # device, mount_point
@@ -256,6 +752,7 @@ class AutoMounter(QThread):
         self.username = getpass.getuser()
         self.uid = os.getuid()
         self.gid = os.getgid()
+        self.actual_mount_point = None  # Store the actual mount point
 
     def run(self):
         while self.running:
@@ -274,17 +771,29 @@ class AutoMounter(QThread):
         if platform.system() != "Linux":
             return
         try:
+            print(f"AutoMounter: Attempting to mount {device}")
+            
             # Check if device is already mounted
             result = subprocess.run(['findmnt', '-n', '-o', 'TARGET', '-S', device], 
                                   capture_output=True, text=True)
             if result.returncode == 0 and result.stdout.strip():
+                print(f"AutoMounter: {device} is already mounted at {result.stdout.strip()}")
+                self.mount_success.emit(device, result.stdout.strip())
                 return  # Already mounted
+            
+            # Try udisks2 first (recommended approach)
+            if self.try_udisks_mount(device):
+                return
+                
+            # If udisks2 fails, try manual mounting
             # Get device info
             device_name = os.path.basename(device)
             # Try multiple mount paths in order of preference
             mount_paths = self.get_mount_paths(device_name)
             # Detect filesystem type
             fstype = self.detect_filesystem(device)
+            print(f"AutoMounter: Detected filesystem type: {fstype}")
+            
             # Try each mount path
             for mount_path in mount_paths:
                 success = self.mount_at_path(device, mount_path, fstype)
@@ -292,93 +801,73 @@ class AutoMounter(QThread):
                     return
             self.mount_failed.emit(device, "Mount failed - no suitable mount point")
         except Exception as e:
+            print(f"AutoMounter: Error mounting {device}: {e}")
             self.mount_failed.emit(device, str(e))
 
     def get_mount_paths(self, device_name):
-        """Get list of possible mount paths in order of preference"""
-        mount_paths = []
-        # 1. Try user's media directory first
-        user_media = f"/media/{self.username}"
-        if os.path.exists(user_media) and os.access(user_media, os.W_OK):
-            mount_paths.append(f"{user_media}/{device_name}")
-        # 2. Try /run/media/username
+        """Get list of user-writable mount paths (avoid /media entirely)"""
+        paths = []
+
+        # ✅ Preferred: /run/media/$USER — created automatically by udisks2
         run_media = f"/run/media/{self.username}"
-        if os.path.exists(run_media) and os.access(run_media, os.W_OK):
-            mount_paths.append(f"{run_media}/{device_name}")
-        # 3. Try /mnt/username
-        mnt_user = f"/mnt/{self.username}"
-        if os.path.exists(mnt_user) and os.access(mnt_user, os.W_OK):
-            mount_paths.append(f"{mnt_user}/{device_name}")
-        # 4. Try user's home directory
-        home_mount = os.path.expanduser(f"~/usb_{device_name}")
-        mount_paths.append(home_mount)
-        # 5. Try creating /media/username if it doesn't exist
-        if not os.path.exists(user_media):
-            try:
-                os.makedirs(user_media, exist_ok=True)
-                mount_paths.insert(0, f"{user_media}/{device_name}")
-            except:
-                pass
-        # 6. Try /media as last resort
-        mount_paths.append(f"/media/{device_name}")
-        return mount_paths
+        if os.path.exists(run_media):
+            paths.append(f"{run_media}/{device_name}")
+
+        # ✅ Fallback: ~/media — fully user-controlled
+        home_media = os.path.expanduser("~/media")
+        os.makedirs(home_media, exist_ok=True)  # Safe: inside your home
+        paths.append(f"{home_media}/{device_name}")
+
+        # ✅ Last resort: temporary mount in /tmp (if needed for testing)
+        tmp_mount = f"/tmp/mount_{device_name}_{os.getpid()}"
+        paths.append(tmp_mount)
+
+        return paths
+
+    def try_udisks_mount(self, device):
+        """Mount using udisks2 — let it choose the mount point"""
+        try:
+            print(f"AutoMounter: Trying udisks2 for {device}")
+            result = subprocess.run(
+                ['udisksctl', 'mount', '--block-device', device, '--no-user-interaction'],
+                capture_output=True, text=True, timeout=15
+            )
+            print(f"AutoMounter: udisksctl output: {result.stdout}")
+            print(f"AutoMounter: udisksctl error: {result.stderr}")
+            print(f"AutoMounter: udisksctl return code: {result.returncode}")
+            
+            if result.returncode == 0:
+                # Extract actual mount point from udisisksctl output
+                # Example output: "Mounted /dev/sdb1 at /run/media/user/UNTITLED."
+                for word in result.stdout.split():
+                    if word.startswith('/run/media/'):
+                        self.actual_mount_point = word
+                        self.mount_success.emit(device, word)
+                        return True
+            return False
+        except (FileNotFoundError, subprocess.SubprocessError) as e:
+            print(f"AutoMounter: udisks2 exception: {e}")
+            return False
 
     def mount_at_path(self, device, mount_path, fstype):
-        """Mount device at specific path"""
+        """Mount device at specified path"""
         try:
-            # Create mount directory
+            print(f"AutoMounter: Trying manual mount at {mount_path}")
+            # Create mount directory if it doesn't exist
             os.makedirs(mount_path, exist_ok=True)
-            # Get mount options for filesystem type
+            
+            # Get appropriate mount options for filesystem type
             mount_options = self.get_mount_options(fstype)
-            # Try different mount methods
-            # Method 1: Try with udisks2 (no sudo needed)
-            if self.try_udisks_mount(device, mount_path):
-                self.mount_success.emit(device, mount_path)
-                return True
-            # Method 2: Try mount without sudo
-            if self.try_standard_mount(device, mount_path, mount_options, sudo=False):
-                self.mount_success.emit(device, mount_path)
-                return True
-            # Method 3: Try mount with sudo
-            if self.try_standard_mount(device, mount_path, mount_options, sudo=True):
-                self.mount_success.emit(device, mount_path)
-                return True
-            return False
-        except Exception as e:
-            return False
-
-    def try_udisks_mount(self, device, mount_path):
-        """Try mounting with udisks2 (polkit)"""
-        try:
-            # Check if udisksctl is available
-            subprocess.run(['which', 'udisksctl'], check=True, capture_output=True)
-            # Use udisksctl to mount (this uses polkit for authentication)
-            cmd = ['udisksctl', 'mount', '--block-device', device, '--no-user-interaction']
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-            if result.returncode == 0:
-                # udisksctl mounted it somewhere, find where
-                mounted_at = self.find_mount_point(device)
-                if mounted_at:
-                    # Create symlink to our desired location
-                    if os.path.exists(mounted_at) and mounted_at != mount_path:
-                        try:
-                            os.symlink(mounted_at, mount_path)
-                        except:
-                            pass
-                    return True
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-            pass
-        return False
-
-    def try_standard_mount(self, device, mount_path, mount_options, sudo=False):
-        """Try standard mount command"""
-        try:
+            
+            # Try mounting with appropriate options
             cmd = ['mount'] + mount_options + [device, mount_path]
-            if sudo:
-                cmd = ['sudo'] + cmd
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            
             if result.returncode == 0:
+                self.actual_mount_point = mount_path
+                self.mount_success.emit(device, mount_path)
                 return True
+                
             # If mount failed, try with different options
             fallback_options = [
                 ['-t', fstype],
@@ -388,28 +877,17 @@ class AutoMounter(QThread):
             ]
             for opts in fallback_options:
                 cmd = ['mount'] + opts + [device, mount_path]
-                if sudo:
-                    cmd = ['sudo'] + cmd
                 try:
                     result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
                     if result.returncode == 0:
+                        self.actual_mount_point = mount_path
+                        self.mount_success.emit(device, mount_path)
                         return True
                 except:
                     continue
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            pass
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            print(f"AutoMounter: Manual mount exception: {e}")
         return False
-
-    def find_mount_point(self, device):
-        """Find where a device is mounted"""
-        try:
-            result = subprocess.run(['findmnt', '-n', '-o', 'TARGET', '-S', device], 
-                                  capture_output=True, text=True)
-            if result.returncode == 0:
-                return result.stdout.strip()
-        except:
-            pass
-        return None
 
     def detect_filesystem(self, device):
         """Detect filesystem type of device"""
@@ -417,14 +895,16 @@ class AutoMounter(QThread):
             # Try blkid
             result = subprocess.run(['blkid', '-o', 'value', '-s', 'TYPE', device], 
                                   capture_output=True, text=True)
+            print(f"AutoMounter: blkid output for {device}: {result.stdout}")
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
-        except:
-            pass
+        except Exception as e:
+            print(f"AutoMounter: blkid exception: {e}")
         try:
             # Try file command
             result = subprocess.run(['file', '-s', device], 
                                   capture_output=True, text=True)
+            print(f"AutoMounter: file command output for {device}: {result.stdout}")
             if result.returncode == 0:
                 output = result.stdout.lower()
                 if 'fat' in output or 'vfat' in output:
@@ -435,8 +915,8 @@ class AutoMounter(QThread):
                     return 'ext4'
                 elif 'exfat' in output:
                     return 'exfat'
-        except:
-            pass
+        except Exception as e:
+            print(f"AutoMounter: file command exception: {e}")
         return 'auto'
 
     def get_mount_options(self, fstype):
@@ -457,6 +937,7 @@ class AutoMounter(QThread):
 class USBMonitor(QThread):
     """Advanced USB monitoring thread with auto-mount capability"""
     usb_detected = pyqtSignal(list)  # Signal with list of USB devices
+    status_message = pyqtSignal(str)  # Status message signal
 
     def __init__(self):
         super().__init__()
@@ -474,13 +955,18 @@ class USBMonitor(QThread):
                 # Get current mounts and devices
                 current_mounts = self.get_all_mounts()
                 current_devices = self.get_all_usb_devices()
+                
                 # Check for new devices
                 new_devices = current_devices - self.last_devices
                 for device in new_devices:
-                    # Check if device has partitions
-                    if self.has_filesystem(device):
+                    print(f"USBMonitor: New device detected: {device}")
+                    # For USB devices, we'll try to mount them regardless of filesystem detection
+                    # since udisks2 can handle the mounting process
+                    if device.startswith('/dev/sd') and not device.startswith('/dev/sda'):
+                        print(f"USBMonitor: Adding USB device {device} to mount queue")
                         self.auto_mounter.add_device(device)
                         self.status_message.emit(f"Auto-mounting {device}...")
+                
                 # Check for changes
                 if current_mounts != self.last_mounts or current_devices != self.last_devices:
                     all_devices = list(current_mounts.union(current_devices))
@@ -494,28 +980,10 @@ class USBMonitor(QThread):
 
     def has_filesystem(self, device):
         """Check if device has a recognizable filesystem"""
-        try:
-            # Try to read first sector to check for filesystem
-            with open(device, 'rb') as f:
-                sector = f.read(512)
-                # Check for common filesystem signatures
-                if sector.startswith(b'NTFS'):  # NTFS
-                    return True
-                elif sector[54:62] == b'FAT32   ':  # FAT32
-                    return True
-                elif sector[3:11] == b'FAT16   ':  # FAT16
-                    return True
-                elif sector[1030:1034] == b'EXFAT':  # exFAT
-                    return True
-                elif sector[1024:1032] == b'EXT4':  # EXT4
-                    return True
-                # Try blkid
-                result = subprocess.run(['blkid', device], 
-                                      capture_output=True, text=True)
-                if result.returncode == 0 and result.stdout.strip():
-                    return True
-        except:
-            pass
+        # Since we're having permission issues, we'll just assume USB devices have filesystems
+        # and let udisks2 handle the actual mounting
+        if device.startswith('/dev/sd') and not device.startswith('/dev/sda'):
+            return True
         return False
 
     def get_all_mounts(self):
@@ -568,6 +1036,9 @@ class USBMonitor(QThread):
                 for device in data.get('blockdevices', []):
                     if self.lsblk_is_usb(device):
                         devices.add(f"/dev/{device['name']}")
+                        # Also add partitions
+                        for child in device.get('children', []):
+                            devices.add(f"/dev/{child['name']}")
         except:
             pass
         # Method 3: Check /dev/disk/by-id
@@ -620,13 +1091,13 @@ class USBMonitor(QThread):
 
     def on_mount_success(self, device, mount_point):
         """Handle successful mount"""
-        self.status_message.emit(f"Auto-mounted {device} at {mount_point}")
+        self.status_message.emit(f"Mounted {device} at {mount_point}")
+        # Refresh drives list after a short delay to ensure mount is fully registered
+        QTimer.singleShot(1000, lambda: self.usb_detected.emit(list(self.get_all_mounts().union(self.get_all_usb_devices()))))
 
     def on_mount_failed(self, device, error):
         """Handle failed mount"""
         self.status_message.emit(f"Failed to auto-mount {device}: {error}")
-
-    status_message = pyqtSignal(str)
 
     def stop(self):
         self.running = False
@@ -671,12 +1142,43 @@ class TabWidget(QTabWidget):
         self.tabCloseRequested.connect(self.close_tab)
         self.setMovable(True)
         self.setUsesScrollButtons(True)
+        self.setAcceptDrops(True)  # Enable drag and drop on tabs
 
     def close_tab(self, index):
         if self.count() > 1:  # Don't close the last tab
             self.tab_closed.emit(index)
 
-    def add_new_tab(self, path=None, label="New Tab", default_view_mode="detail"):
+    def dragEnterEvent(self, event):
+        """Handle drag enter event on tab bar"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dropEvent(self, event):
+        """Handle drop event on tab bar"""
+        if event.mimeData().hasUrls():
+            # Get the tab at the drop position
+            tab_index = self.tabBar().tabAt(event.pos())
+            if tab_index >= 0:
+                # Get the browser widget for this tab
+                browser = self.widget(tab_index)
+                if browser and hasattr(browser, 'current_path'):
+                    # Get the parent file manager
+                    parent = self.parent()
+                    while parent and not hasattr(parent, 'handle_urls_drop'):
+                        parent = parent.parent()
+                    
+                    if parent:
+                        # Create a custom drop event
+                        mime_data = event.mimeData()
+                        drop_action = event.dropAction()
+                        parent.handle_urls_drop(mime_data.urls(), browser.current_path, drop_action)
+                        event.acceptProposedAction()
+                        return
+        super().dropEvent(event)
+
+    def add_new_tab(self, path=None, label="New Tab", default_view_mode="detail", show_hidden=False):
         """Add a new tab with a file browser"""
         from PyQt5.QtWidgets import QStackedWidget, QListView, QTreeView
         # Create a new file browser widget
@@ -685,10 +1187,11 @@ class TabWidget(QTabWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         # Create file system model for this tab
         file_model = FileSystemModel()
+        file_model.setShowHiddenFiles(show_hidden)
         # Create stacked widget for views
         view_stack = QStackedWidget()
-        # Create different views
-        icon_view = QListView()
+        # Create different views with drag and drop support
+        icon_view = DragDropListView()
         icon_view.setModel(file_model)
         icon_view.setViewMode(QListView.IconMode)
         icon_view.setIconSize(QSize(96, 96))
@@ -697,12 +1200,12 @@ class TabWidget(QTabWidget):
         icon_view.setWordWrap(True)
         icon_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
         icon_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        list_view = QListView()
+        list_view = DragDropListView()
         list_view.setModel(file_model)
         list_view.setViewMode(QListView.ListMode)
         list_view.setEditTriggers(QAbstractItemView.NoEditTriggers)
         list_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        detail_view = QTreeView()
+        detail_view = DragDropTreeView()
         detail_view.setModel(file_model)
         detail_view.setRootIsDecorated(False)
         detail_view.setAlternatingRowColors(True)
@@ -748,10 +1251,8 @@ class TabWidget(QTabWidget):
 class DarkNemo(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Dark Nemo - File Manager")
-        self.setGeometry(100, 100, 1200, 800)
-        # Apply black theme
-        self.setStyleSheet(self.get_black_stylesheet())
+        self.setWindowTitle("Dark File Manager")
+        
         # Initialize variables
         self.clipboard_paths = []
         self.clipboard_operation = None  # 'copy' or 'cut'
@@ -768,17 +1269,41 @@ class DarkNemo(QMainWindow):
         # Setup mount point watcher
         self.mount_watcher = MountPointWatcher(self)
         self.mount_watcher.directoryChanged.connect(self.on_mount_changed)
+        
+        # Apply black theme
+        self.setStyleSheet(self.get_black_stylesheet())
+        
         # Setup UI
         self.setup_ui()
         self.setup_connections()
+        
+        # Restore window geometry and state if available
+        self.restore_window_state()
+        
         # Load initial directory
         QTimer.singleShot(100, self.load_initial_directory)
+        
         # Auto-refresh drives every 10 seconds
         self.drive_refresh_timer = QTimer()
         self.drive_refresh_timer.timeout.connect(self.load_drives)
         self.drive_refresh_timer.start(10000)  # 10 seconds
-        # Restore window geometry and state if available
-        self.restore_window_state()
+        
+        # Timer to save window state after resize/move
+        self.save_state_timer = QTimer()
+        self.save_state_timer.setSingleShot(True)
+        self.save_state_timer.timeout.connect(self.save_window_state)
+
+    def resizeEvent(self, event):
+        """Handle window resize event"""
+        super().resizeEvent(event)
+        # Save window state after a short delay to avoid too many saves
+        self.save_state_timer.start(500)  # 500ms delay
+
+    def moveEvent(self, event):
+        """Handle window move event"""
+        super().moveEvent(event)
+        # Save window state after a short delay to avoid too many saves
+        self.save_state_timer.start(500)  # 500ms delay
 
     def closeEvent(self, event):
         """Clean up when closing"""
@@ -789,6 +1314,8 @@ class DarkNemo(QMainWindow):
             self.usb_monitor.wait()
         if hasattr(self, 'drive_refresh_timer'):
             self.drive_refresh_timer.stop()
+        if hasattr(self, 'save_state_timer'):
+            self.save_state_timer.stop()
         event.accept()
 
     def save_window_state(self):
@@ -798,11 +1325,20 @@ class DarkNemo(QMainWindow):
             state = self.saveState()
             self.settings_manager.set_setting('window_geometry', geometry.data().hex())
             self.settings_manager.set_setting('window_state', state.data().hex())
+            
+            # Also save splitter sizes
+            if hasattr(self, 'splitter'):
+                splitter_sizes = self.splitter.sizes()
+                self.settings_manager.set_setting('splitter_sizes', splitter_sizes)
+                
+            # Save window size and position
+            self.settings_manager.set_setting('window_size', [self.width(), self.height()])
+            self.settings_manager.set_setting('window_position', [self.x(), self.y()])
         except Exception as e:
             print(f"Error saving window state: {e}")
 
     def restore_window_state(self):
-        """Restore window geometry and state"""
+        """Restore window geometry and state - FIXED: Handle splitter_sizes properly"""
         try:
             geometry_hex = self.settings_manager.get_setting('window_geometry')
             state_hex = self.settings_manager.get_setting('window_state')
@@ -810,12 +1346,39 @@ class DarkNemo(QMainWindow):
             if geometry_hex:
                 geometry = QByteArray.fromHex(geometry_hex.encode())
                 self.restoreGeometry(geometry)
+            else:
+                # Default size if no saved geometry
+                self.setGeometry(100, 100, 1200, 800)
             
             if state_hex:
                 state = QByteArray.fromHex(state_hex.encode())
                 self.restoreState(state)
+                
+            # Restore splitter sizes - FIX: Ensure we never pass None
+            splitter_sizes = self.settings_manager.get_setting('splitter_sizes')
+            if splitter_sizes and hasattr(self, 'splitter'):
+                self.splitter.setSizes(splitter_sizes)
+            elif hasattr(self, 'splitter'):
+                # Set default splitter sizes if none are saved
+                self.splitter.setSizes([300, 900])
+                
+            # Restore window size and position if geometry restoration failed
+            window_size = self.settings_manager.get_setting('window_size')
+            window_position = self.settings_manager.get_setting('window_position')
+            
+            if window_size and not geometry_hex:
+                self.resize(window_size[0], window_size[1])
+                
+            if window_position and not geometry_hex:
+                self.move(window_position[0], window_position[1])
+                
         except Exception as e:
             print(f"Error restoring window state: {e}")
+            # Set default geometry if restoration fails
+            self.setGeometry(100, 100, 1200, 800)
+            # Set default splitter sizes
+            if hasattr(self, 'splitter'):
+                self.splitter.setSizes([300, 900])
 
     def on_usb_detected(self, devices):
         """Handle USB detection"""
@@ -841,17 +1404,17 @@ class DarkNemo(QMainWindow):
         return """
             QMainWindow {
                 background-color: #000000;
-                color: #e0e0e0;
+                color: #ffffff;
             }
             QWidget {
                 background-color: #000000;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-family: 'Cantarell', 'Ubuntu', 'Segoe UI', Arial, sans-serif;
                 font-size: 11pt;
             }
             QMenuBar {
                 background-color: #1a1a1a;
-                color: #e0e0e0;
+                color: #ffffff;
                 border-bottom: 1px solid #333333;
                 padding: 2px;
             }
@@ -865,7 +1428,7 @@ class DarkNemo(QMainWindow):
             }
             QMenu {
                 background-color: #1a1a1a;
-                color: #e0e0e0;
+                color: #ffffff;
                 border: 1px solid #333333;
                 border-radius: 6px;
                 padding: 4px;
@@ -873,9 +1436,11 @@ class DarkNemo(QMainWindow):
             QMenu::item {
                 padding: 8px 20px;
                 border-radius: 4px;
+                color: #ffffff;
             }
             QMenu::item:selected {
                 background-color: #333333;
+                color: #ffffff;
             }
             QToolBar {
                 background-color: #1a1a1a;
@@ -888,7 +1453,7 @@ class DarkNemo(QMainWindow):
                 border: 1px solid #444444;
                 border-radius: 6px;
                 padding: 8px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 11pt;
                 font-weight: bold;
                 min-width: 40px;
@@ -912,7 +1477,7 @@ class DarkNemo(QMainWindow):
                 border: 1px solid #444444;
                 border-radius: 3px;
                 padding: 2px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 9pt;
                 min-width: 22px;
                 min-height: 20px;
@@ -926,12 +1491,16 @@ class DarkNemo(QMainWindow):
             QPushButton#navButton:pressed {
                 background-color: #4a4a4a;
             }
+            QPushButton#navButton:checked {
+                background-color: #0066cc;
+                border-color: #0088ff;
+            }
             QPushButton#goButton {
                 background-color: #2a2a2a;
                 border: 1px solid #444444;
                 border-radius: 3px;
                 padding: 2px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 9pt;
                 font-weight: bold;
                 min-width: 22px;
@@ -951,7 +1520,7 @@ class DarkNemo(QMainWindow):
                 border: 1px solid #444444;
                 border-radius: 6px;
                 padding: 8px;
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 11pt;
             }
             QLineEdit:focus {
@@ -962,22 +1531,26 @@ class DarkNemo(QMainWindow):
                 border: 1px solid #333333;
                 alternate-background-color: #111111;
                 selection-background-color: #0066cc;
+                color: #ffffff;
                 font-size: 11pt;
             }
             QTreeView::item {
                 padding: 6px;
                 border: none;
                 height: 28px;
+                color: #ffffff;
             }
             QTreeView::item:selected {
                 background-color: #0066cc;
+                color: #ffffff;
             }
             QTreeView::item:hover {
                 background-color: #222222;
+                color: #ffffff;
             }
             QHeaderView::section {
                 background-color: #1a1a1a;
-                color: #e0e0e0;
+                color: #ffffff;
                 padding: 8px;
                 border: 1px solid #333333;
                 font-weight: bold;
@@ -985,7 +1558,7 @@ class DarkNemo(QMainWindow):
             }
             QStatusBar {
                 background-color: #1a1a1a;
-                color: #e0e0e0;
+                color: #ffffff;
                 border-top: 1px solid #333333;
                 font-size: 10pt;
             }
@@ -999,7 +1572,7 @@ class DarkNemo(QMainWindow):
                 height: 3px;
             }
             QLabel {
-                color: #e0e0e0;
+                color: #ffffff;
                 font-size: 11pt;
             }
             QProgressBar {
@@ -1009,6 +1582,7 @@ class DarkNemo(QMainWindow):
                 background-color: #1a1a1a;
                 height: 12px;
                 font-size: 9pt;
+                color: #ffffff;
             }
             QProgressBar::chunk {
                 background-color: #0066cc;
@@ -1021,7 +1595,7 @@ class DarkNemo(QMainWindow):
             }
             QTabBar::tab {
                 background-color: #2a2a2a;
-                color: #e0e0e0;
+                color: #ffffff;
                 padding: 8px 16px;
                 border: 1px solid #333333;
                 border-bottom: none;
@@ -1032,9 +1606,11 @@ class DarkNemo(QMainWindow):
             }
             QTabBar::tab:selected {
                 background-color: #0a0a0a;
+                color: #ffffff;
             }
             QTabBar::tab:hover {
                 background-color: #333333;
+                color: #ffffff;
             }
             QScrollArea {
                 background-color: #0a0a0a;
@@ -1046,16 +1622,20 @@ class DarkNemo(QMainWindow):
                 border: 1px solid #333333;
                 border-radius: 6px;
                 font-size: 11pt;
+                color: #ffffff;
             }
             QListWidget::item {
                 padding: 8px;
                 border-radius: 4px;
+                color: #ffffff;
             }
             QListWidget::item:selected {
                 background-color: #0066cc;
+                color: #ffffff;
             }
             QListWidget::item:hover {
                 background-color: #222222;
+                color: #ffffff;
             }
             QGroupBox {
                 font-weight: bold;
@@ -1064,32 +1644,82 @@ class DarkNemo(QMainWindow):
                 border-radius: 6px;
                 margin-top: 12px;
                 padding-top: 12px;
-                color: #e0e0e0;
+                color: #ffffff;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 10px;
                 padding: 0 5px 0 5px;
-                color: #e0e0e0;
+                color: #ffffff;
             }
             QListView {
                 background-color: #0a0a0a;
                 border: 1px solid #333333;
                 border-radius: 6px;
                 font-size: 11pt;
+                color: #ffffff;
             }
             QListView::item {
                 padding: 6px;
                 border-radius: 4px;
+                color: #ffffff;
             }
             QListView::item:selected {
                 background-color: #0066cc;
+                color: #ffffff;
             }
             QListView::item:hover {
                 background-color: #222222;
+                color: #ffffff;
             }
             QFrame[frameShape="5"] {
                 color: #444444;
+            }
+            QDialog {
+                background-color: #000000;
+                color: #ffffff;
+            }
+            QCheckBox {
+                color: #ffffff;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            QCheckBox::indicator:unchecked {
+                border: 1px solid #666666;
+                background-color: #1a1a1a;
+            }
+            QCheckBox::indicator:checked {
+                border: 1px solid #0066cc;
+                background-color: #0066cc;
+            }
+            QRadioButton {
+                color: #ffffff;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            QRadioButton::indicator:unchecked {
+                border: 1px solid #666666;
+                background-color: #1a1a1a;
+                border-radius: 8px;
+            }
+            QRadioButton::indicator:checked {
+                border: 1px solid #0066cc;
+                background-color: #0066cc;
+                border-radius: 8px;
+            }
+            QTextEdit {
+                background-color: #1a1a1a;
+                color: #ffffff;
+                border: 1px solid #444444;
+                border-radius: 6px;
+            }
+            QInputDialog {
+                background-color: #000000;
+                color: #ffffff;
             }
         """
 
@@ -1112,10 +1742,11 @@ class DarkNemo(QMainWindow):
         # Tab widget for multiple tabs
         self.tab_widget = TabWidget()
         self.tab_widget.tab_closed.connect(self.close_tab)
-        # Get default view mode from settings
+        # Get default view mode and hidden files setting from settings
         default_view_mode = self.settings_manager.get_setting('default_view_mode', 'detail')
-        # Add initial tab with saved view mode
-        initial_browser = self.tab_widget.add_new_tab(QDir.homePath(), "Home", default_view_mode)
+        show_hidden = self.settings_manager.get_setting('show_hidden_files', False)
+        # Add initial tab with saved settings
+        initial_browser = self.tab_widget.add_new_tab(QDir.homePath(), "Home", default_view_mode, show_hidden)
         # Connect context menu for the initial tab
         initial_browser.icon_view.customContextMenuRequested.connect(self.show_context_menu)
         initial_browser.list_view.customContextMenuRequested.connect(self.show_context_menu)
@@ -1124,13 +1755,75 @@ class DarkNemo(QMainWindow):
         initial_browser.list_view.doubleClicked.connect(self.item_double_clicked)
         initial_browser.detail_view.doubleClicked.connect(self.item_double_clicked)
         self.splitter.addWidget(self.tab_widget)
-        self.splitter.setSizes([300, 900])
+        # Set proper stretch factors for the splitter
+        self.splitter.setStretchFactor(0, 0)  # Sidebar doesn't stretch
+        self.splitter.setStretchFactor(1, 1)  # Main content stretches
+        # Set initial splitter sizes - FIXED: Ensure splitter_sizes is never None
+        splitter_sizes = self.settings_manager.get_setting('splitter_sizes')
+        if not splitter_sizes:  # If None or empty list
+            splitter_sizes = [300, 900]  # Default sizes
+        self.splitter.setSizes(splitter_sizes)
         main_layout.addWidget(self.splitter)
         # Status bar
         self.create_status_bar()
         self.setStatusBar(self.status_bar)
         # Create menu bar
         self.create_menu_bar()
+        # Set initial state of hidden files button
+        self.hidden_files_button.setChecked(show_hidden)
+        
+        # Set size policies for proper resizing
+        central_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.tab_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.sidebar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+    def create_navigation_path_bar(self):
+        """Create the navigation and path bar with hidden files toggle"""
+        self.navigation_path_bar = QWidget()
+        nav_layout = QHBoxLayout(self.navigation_path_bar)
+        nav_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Back button
+        self.back_button = QPushButton("◀")
+        self.back_button.setObjectName("navButton")
+        self.back_button.setToolTip("Back")
+        nav_layout.addWidget(self.back_button)
+        
+        # Forward button
+        self.forward_button = QPushButton("▶")
+        self.forward_button.setObjectName("navButton")
+        self.forward_button.setToolTip("Forward")
+        nav_layout.addWidget(self.forward_button)
+        
+        # Up button
+        self.up_button = QPushButton("▲")
+        self.up_button.setObjectName("navButton")
+        self.up_button.setToolTip("Up")
+        nav_layout.addWidget(self.up_button)
+        
+        # Home button
+        self.home_button = QPushButton("⌂")
+        self.home_button.setObjectName("navButton")
+        self.home_button.setToolTip("Home")
+        nav_layout.addWidget(self.home_button)
+        
+        # Path entry
+        self.path_entry = QLineEdit()
+        nav_layout.addWidget(self.path_entry)
+        
+        # Go button
+        self.go_button = QPushButton("Go")
+        self.go_button.setObjectName("goButton")
+        self.go_button.setToolTip("Go to path")
+        nav_layout.addWidget(self.go_button)
+        
+        # Hidden files toggle button
+        self.hidden_files_button = QPushButton("👁")
+        self.hidden_files_button.setObjectName("navButton")
+        self.hidden_files_button.setToolTip("Show/Hide Hidden Files")
+        self.hidden_files_button.setCheckable(True)
+        nav_layout.addWidget(self.hidden_files_button)
 
     def create_menu_bar(self):
         menubar = self.menuBar()
@@ -1158,6 +1851,7 @@ class DarkNemo(QMainWindow):
         exit_action.setShortcut('Ctrl+Q')
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
+        
         # Edit menu
         edit_menu = menubar.addMenu('Edit')
         copy_action = QAction('Copy', self)
@@ -1177,79 +1871,168 @@ class DarkNemo(QMainWindow):
         select_all_action.setShortcut('Ctrl+A')
         select_all_action.triggered.connect(self.select_all)
         edit_menu.addAction(select_all_action)
-        # Bookmarks menu
-        bookmarks_menu = menubar.addMenu('Bookmarks')
-        add_current_bookmark_action = QAction('Add Current Folder', self)
-        add_current_bookmark_action.setShortcut('Ctrl+B')
-        add_current_bookmark_action.triggered.connect(self.add_current_to_bookmarks)
-        bookmarks_menu.addAction(add_current_bookmark_action)
-        add_selected_bookmark_action = QAction('Add Selected Folder', self)
-        add_selected_bookmark_action.setShortcut('Ctrl+Shift+B')
-        add_selected_bookmark_action.triggered.connect(self.add_selected_to_bookmarks)
-        bookmarks_menu.addAction(add_selected_bookmark_action)
-        bookmarks_menu.addSeparator()
-        manage_bookmarks_action = QAction('Manage Bookmarks', self)
-        manage_bookmarks_action.triggered.connect(self.manage_bookmarks)
-        bookmarks_menu.addAction(manage_bookmarks_action)
+        
         # View menu
         view_menu = menubar.addMenu('View')
-        refresh_action = QAction('Refresh', self)
-        refresh_action.setShortcut('F5')
-        refresh_action.triggered.connect(self.refresh_view)
-        view_menu.addAction(refresh_action)
-        refresh_drives_action = QAction('Refresh Drives', self)
-        refresh_drives_action.setShortcut('F6')
-        refresh_drives_action.triggered.connect(self.load_drives)
-        view_menu.addAction(refresh_drives_action)
+        show_hidden_action = QAction('Show Hidden Files', self)
+        show_hidden_action.setCheckable(True)
+        show_hidden_action.setShortcut('Ctrl+H')
+        show_hidden_action.triggered.connect(self.toggle_hidden_files_menu)
+        view_menu.addAction(show_hidden_action)
         view_menu.addSeparator()
-        # View modes
         icon_view_action = QAction('Icon View', self)
-        icon_view_action.setShortcut('Ctrl+1')
-        icon_view_action.triggered.connect(lambda: self.change_view_mode('icon'))
+        icon_view_action.triggered.connect(lambda: self.change_view('icon'))
         view_menu.addAction(icon_view_action)
         list_view_action = QAction('List View', self)
-        list_view_action.setShortcut('Ctrl+2')
-        list_view_action.triggered.connect(lambda: self.change_view_mode('list'))
+        list_view_action.triggered.connect(lambda: self.change_view('list'))
         view_menu.addAction(list_view_action)
         detail_view_action = QAction('Detail View', self)
-        detail_view_action.setShortcut('Ctrl+3')
-        detail_view_action.triggered.connect(lambda: self.change_view_mode('detail'))
+        detail_view_action.triggered.connect(lambda: self.change_view('detail'))
         view_menu.addAction(detail_view_action)
-        # Go menu
-        go_menu = menubar.addMenu('Go')
-        home_action = QAction('Home', self)
-        home_action.setShortcut('Alt+Home')
-        home_action.triggered.connect(self.go_home)
-        go_menu.addAction(home_action)
-        up_action = QAction('Parent', self)
-        up_action.setShortcut('Alt+Up')
-        up_action.triggered.connect(self.go_up)
-        go_menu.addAction(up_action)
-        back_action = QAction('Back', self)
-        back_action.setShortcut('Alt+Left')
-        back_action.triggered.connect(self.go_back)
-        go_menu.addAction(back_action)
-        forward_action = QAction('Forward', self)
-        forward_action.setShortcut('Alt+Right')
-        forward_action.triggered.connect(self.go_forward)
-        go_menu.addAction(forward_action)
-        # Tools menu
-        tools_menu = menubar.addMenu('Tools')
-        mount_usb_action = QAction('Mount USB Devices', self)
-        mount_usb_action.triggered.connect(self.mount_usb_devices)
-        tools_menu.addAction(mount_usb_action)
-        unmount_all_action = QAction('Unmount All USB', self)
-        unmount_all_action.triggered.connect(self.unmount_all_usb)
-        tools_menu.addAction(unmount_all_action)
-        open_root_action = QAction('Open Thunar as Root', self)
-        open_root_action.triggered.connect(self.open_as_root)
-        tools_menu.addAction(open_root_action)
+        
+        # Bookmarks menu
+        bookmarks_menu = menubar.addMenu('Bookmarks')
+        add_bookmark_action = QAction('Add Bookmark', self)
+        add_bookmark_action.setShortcut('Ctrl+D')
+        add_bookmark_action.triggered.connect(self.add_bookmark)
+        bookmarks_menu.addAction(add_bookmark_action)
+        
+        # Help menu
+        help_menu = menubar.addMenu('Help')
+        about_action = QAction('About', self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
+
+    def create_sidebar(self):
+        """Create the sidebar with places and drives"""
+        self.sidebar = QWidget()
+        sidebar_layout = QVBoxLayout(self.sidebar)
+        sidebar_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # Places section
+        places_group = QGroupBox("Places")
+        places_layout = QVBoxLayout(places_group)
+        
+        self.places_list = QListWidget()
+        self.places_list.setMaximumHeight(150)
+        places_layout.addWidget(self.places_list)
+        
+        # Add common places
+        self.places_list.addItem(QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DirHomeIcon), "Home"))
+        self.places_list.addItem(QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DesktopIcon), "Desktop"))
+        self.places_list.addItem(QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DirIcon), "Documents"))
+        self.places_list.addItem(QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DirIcon), "Downloads"))
+        self.places_list.addItem(QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DirIcon), "Pictures"))
+        self.places_list.addItem(QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DirIcon), "Music"))
+        self.places_list.addItem(QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DirIcon), "Videos"))
+        
+        sidebar_layout.addWidget(places_group)
+        
+        # Bookmarks section
+        bookmarks_group = QGroupBox("Bookmarks")
+        bookmarks_layout = QVBoxLayout(bookmarks_group)
+        
+        self.bookmarks_list = QListWidget()
+        self.bookmarks_list.setMaximumHeight(150)
+        bookmarks_layout.addWidget(self.bookmarks_list)
+        
+        sidebar_layout.addWidget(bookmarks_group)
+        
+        # Drives section
+        drives_group = QGroupBox("Drives")
+        drives_layout = QVBoxLayout(drives_group)
+        
+        self.drives_list = QListWidget()
+        drives_layout.addWidget(self.drives_list)
+        
+        sidebar_layout.addWidget(drives_group)
+        
+        # Load bookmarks
+        self.load_bookmarks()
+        
+        # Load drives
+        self.load_drives()
+
+    def create_status_bar(self):
+        """Create the status bar"""
+        self.status_bar = QStatusBar()
+        self.status_label = QLabel("Ready")
+        self.status_bar.addWidget(self.status_label)
+
+    def setup_connections(self):
+        """Setup signal connections"""
+        # Navigation buttons
+        self.back_button.clicked.connect(self.go_back)
+        self.forward_button.clicked.connect(self.go_forward)
+        self.up_button.clicked.connect(self.go_up)
+        self.home_button.clicked.connect(self.go_home)
+        self.go_button.clicked.connect(self.navigate_to_path)
+        self.path_entry.returnPressed.connect(self.navigate_to_path)
+        
+        # Hidden files toggle
+        self.hidden_files_button.toggled.connect(self.toggle_hidden_files)
+        
+        # Tab widget
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
+        
+        # Places list
+        self.places_list.itemClicked.connect(self.place_clicked)
+        
+        # Drives list
+        self.drives_list.itemClicked.connect(self.drive_clicked)
+        
+        # Bookmarks
+        self.bookmarks_list.itemClicked.connect(self.bookmark_clicked)
+        self.bookmarks_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.bookmarks_list.customContextMenuRequested.connect(self.bookmark_context_menu)
+        
+        # Splitter
+        self.splitter.splitterMoved.connect(self.on_splitter_moved)
+
+    def on_splitter_moved(self):
+        """Handle splitter movement"""
+        # Save splitter state after a short delay
+        self.save_state_timer.start(500)
+
+    def toggle_hidden_files(self, checked):
+        """Toggle visibility of hidden files in the current tab"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'file_model'):
+            current_browser.file_model.setShowHiddenFiles(checked)
+            # Update the button tooltip
+            if checked:
+                self.hidden_files_button.setToolTip("Hide Hidden Files")
+            else:
+                self.hidden_files_button.setToolTip("Show Hidden Files")
+            # Save setting
+            self.settings_manager.set_setting('show_hidden_files', checked)
+
+    def toggle_hidden_files_menu(self):
+        """Toggle hidden files from menu"""
+        self.hidden_files_button.setChecked(not self.hidden_files_button.isChecked())
+
+    def on_tab_changed(self, index):
+        """Handle tab change"""
+        if index >= 0:
+            browser = self.tab_widget.widget(index)
+            if browser and hasattr(browser, 'current_path'):
+                self.current_path = browser.current_path
+                self.path_entry.setText(self.current_path)
+                # Update the hidden files button state to match the current tab
+                if hasattr(browser, 'file_model'):
+                    self.hidden_files_button.blockSignals(True)  # Prevent triggering the toggle
+                    self.hidden_files_button.setChecked(browser.file_model.show_hidden_files)
+                    if browser.file_model.show_hidden_files:
+                        self.hidden_files_button.setToolTip("Hide Hidden Files")
+                    else:
+                        self.hidden_files_button.setToolTip("Show Hidden Files")
+                    self.hidden_files_button.blockSignals(False)
 
     def new_tab(self):
         """Create a new tab"""
-        # Get default view mode from settings
         default_view_mode = self.settings_manager.get_setting('default_view_mode', 'detail')
-        browser = self.tab_widget.add_new_tab(self.current_path, os.path.basename(self.current_path) or "Home", default_view_mode)
+        show_hidden = self.settings_manager.get_setting('show_hidden_files', False)
+        browser = self.tab_widget.add_new_tab(self.current_path, "New Tab", default_view_mode, show_hidden)
         # Connect signals for the new tab
         browser.icon_view.customContextMenuRequested.connect(self.show_context_menu)
         browser.list_view.customContextMenuRequested.connect(self.show_context_menu)
@@ -1257,1419 +2040,1081 @@ class DarkNemo(QMainWindow):
         browser.icon_view.doubleClicked.connect(self.item_double_clicked)
         browser.list_view.doubleClicked.connect(self.item_double_clicked)
         browser.detail_view.doubleClicked.connect(self.item_double_clicked)
-        # Connect selection models
-        browser.icon_view.selectionModel().selectionChanged.connect(self.update_status)
-        browser.list_view.selectionModel().selectionChanged.connect(self.update_status)
-        browser.detail_view.selectionModel().selectionChanged.connect(self.update_status)
 
     def new_window(self):
         """Create a new window"""
-        new_window = DarkNemo()
-        new_window.show()
+        # This would create a new instance of the application
+        # For simplicity, we'll just create a new window
+        new_app = QApplication.instance()
+        if new_app is None:
+            new_app = QApplication(sys.argv)
+        window = DarkNemo()
+        window.show()
 
     def close_tab(self, index):
         """Close a tab"""
-        if self.tab_widget.count() > 1:
-            self.tab_widget.removeTab(index)
-
-    def get_current_browser(self):
-        """Get the current browser widget"""
-        return self.tab_widget.currentWidget()
-
-    def get_current_view(self):
-        """Get the current view widget"""
-        browser = self.get_current_browser()
-        if browser:
-            return browser.current_view
-        return None
-
-    def get_current_file_model(self):
-        """Get the current file model"""
-        browser = self.get_current_browser()
-        if browser:
-            return browser.file_model
-        return None
-
-    def create_navigation_path_bar(self):
-        """Create combined navigation and path bar"""
-        self.navigation_path_bar = QWidget()
-        self.navigation_path_bar.setMaximumHeight(40)
-        nav_path_layout = QHBoxLayout(self.navigation_path_bar)
-        nav_path_layout.setContentsMargins(8, 5, 8, 5)
-        nav_path_layout.setSpacing(5)
-        # Navigation buttons on the left - extra small size
-        button_size = 22  # Further reduced from 30
-        # Back button
-        self.back_button = QPushButton()
-        self.back_button.setObjectName("navButton")  # Set object name for styling
-        self.back_button.setIcon(self.style().standardIcon(QStyle.SP_ArrowBack))
-        self.back_button.setFixedSize(button_size, 20)  # Further reduced height
-        self.back_button.clicked.connect(self.go_back)
-        self.back_button.setToolTip("Back")
-        nav_path_layout.addWidget(self.back_button)
-        # Forward button
-        self.forward_button = QPushButton()
-        self.forward_button.setObjectName("navButton")  # Set object name for styling
-        self.forward_button.setIcon(self.style().standardIcon(QStyle.SP_ArrowForward))
-        self.forward_button.setFixedSize(button_size, 20)  # Further reduced height
-        self.forward_button.clicked.connect(self.go_forward)
-        self.forward_button.setToolTip("Forward")
-        nav_path_layout.addWidget(self.forward_button)
-        # Up button
-        self.up_button = QPushButton()
-        self.up_button.setObjectName("navButton")  # Set object name for styling
-        self.up_button.setIcon(self.style().standardIcon(QStyle.SP_ArrowUp))
-        self.up_button.setFixedSize(button_size, 20)  # Further reduced height
-        self.up_button.clicked.connect(self.go_up)
-        self.up_button.setToolTip("Up")
-        nav_path_layout.addWidget(self.up_button)
-        # Home button
-        self.home_button = QPushButton()
-        self.home_button.setObjectName("navButton")  # Set object name for styling
-        self.home_button.setIcon(self.style().standardIcon(QStyle.SP_DirHomeIcon))
-        self.home_button.setFixedSize(button_size, 20)  # Further reduced height
-        self.home_button.clicked.connect(self.go_home)
-        self.home_button.setToolTip("Home")
-        nav_path_layout.addWidget(self.home_button)
-        # Separator
-        separator = QFrame()
-        separator.setFrameShape(QFrame.VLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        separator.setLineWidth(1)
-        nav_path_layout.addWidget(separator)
-        # Path label
-        self.path_label = QLabel("Location:")
-        nav_path_layout.addWidget(self.path_label)
-        # Path line edit
-        self.path_edit = QLineEdit()
-        self.path_edit.returnPressed.connect(self.navigate_to_path)
-        nav_path_layout.addWidget(self.path_edit)
-        # Go button
-        self.go_button = QPushButton("Go")
-        self.go_button.setObjectName("goButton")  # Set object name for styling
-        self.go_button.clicked.connect(self.navigate_to_path)
-        self.go_button.setFixedSize(button_size, 20)  # Further reduced size
-        nav_path_layout.addWidget(self.go_button)
-        # Navigation history
-        self.navigation_history = []
-        self.history_index = -1
-
-    def create_sidebar(self):
-        self.sidebar = QWidget()
-        sidebar_layout = QVBoxLayout(self.sidebar)
-        sidebar_layout.setContentsMargins(0, 0, 0, 0)
-        # Tab widget for sidebar
-        self.sidebar_tabs = QTabWidget()
-        # Places tab (with bookmarks and drives)
-        self.places_widget = QWidget()
-        places_layout = QVBoxLayout(self.places_widget)
-        places_layout.setContentsMargins(5, 5, 5, 5)
-        # Bookmarks section (now at top)
-        bookmarks_group = QGroupBox("Bookmarks")
-        bookmarks_layout = QVBoxLayout(bookmarks_group)
-        self.bookmarks_list = QListWidget()
-        self.bookmarks_list.itemDoubleClicked.connect(self.navigate_to_bookmark)
-        self.bookmarks_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.bookmarks_list.customContextMenuRequested.connect(self.show_bookmark_context_menu)
-        bookmarks_layout.addWidget(self.bookmarks_list)
-        # Load bookmarks from manager
-        self.load_bookmarks_from_manager()
-        places_layout.addWidget(bookmarks_group)
-        # Drives section (now at bottom)
-        drives_group = QGroupBox("Drives & Volumes")
-        drives_layout = QVBoxLayout(drives_group)
-        self.drives_list = QListWidget()
-        self.drives_list.itemDoubleClicked.connect(self.navigate_to_drive)
-        drives_layout.addWidget(self.drives_list)
-        # Load drives
-        self.load_drives()
-        places_layout.addWidget(drives_group)
-        self.sidebar_tabs.addTab(self.places_widget, "Places")
-        # Tree view tab
-        self.tree_widget = QWidget()
-        tree_layout = QVBoxLayout(self.tree_widget)
-        self.tree_model = QFileSystemModel()
-        self.tree_model.setRootPath(QDir.homePath())
-        self.tree_model.setFilter(QDir.AllDirs | QDir.NoDotAndDotDot)
-        self.tree_view = QTreeView()
-        self.tree_view.setModel(self.tree_model)
-        self.tree_view.setRootIndex(self.tree_model.index(QDir.homePath()))
-        self.tree_view.setHeaderHidden(True)
-        self.tree_view.clicked.connect(self.tree_clicked)
-        tree_layout.addWidget(self.tree_view)
-        self.sidebar_tabs.addTab(self.tree_widget, "Tree")
-        sidebar_layout.addWidget(self.sidebar_tabs)
-
-    def load_bookmarks_from_manager(self):
-        """Load bookmarks from the bookmark manager"""
-        self.bookmarks_list.clear()
-        # Add default bookmarks if they don't exist
-        if not self.bookmark_manager.bookmarks:
-            self.bookmark_manager.add_bookmark("Home", QDir.homePath())
-            self.bookmark_manager.add_bookmark("Documents", os.path.join(QDir.homePath(), "Documents"))
-            self.bookmark_manager.add_bookmark("Downloads", os.path.join(QDir.homePath(), "Downloads"))
-            self.bookmark_manager.add_bookmark("Pictures", os.path.join(QDir.homePath(), "Pictures"))
-            self.bookmark_manager.add_bookmark("Music", os.path.join(QDir.homePath(), "Music"))
-            self.bookmark_manager.add_bookmark("Videos", os.path.join(QDir.homePath(), "Videos"))
-            self.bookmark_manager.add_bookmark("Desktop", os.path.join(QDir.homePath(), "Desktop"))
-            if platform.system() == "Linux":
-                self.bookmark_manager.add_bookmark("Root", "/")
-                self.bookmark_manager.add_bookmark("usr", "/usr")
-                self.bookmark_manager.add_bookmark("etc", "/etc")
-                self.bookmark_manager.add_bookmark("var", "/var")
-                self.bookmark_manager.add_bookmark("opt", "/opt")
-        # Load bookmarks from manager
-        for bookmark in self.bookmark_manager.bookmarks:
-            item = QListWidgetItem(bookmark['name'])
-            item.setData(Qt.UserRole, bookmark['path'])
-            # Set appropriate icon
-            if bookmark['path'] == QDir.homePath():
-                item.setIcon(self.style().standardIcon(QStyle.SP_DirHomeIcon))
-            elif "Documents" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))
-            elif "Downloads" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_ArrowDown))
-            elif "Pictures" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
-            elif "Music" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
-            elif "Videos" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-            elif "Desktop" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
-            else:
-                item.setIcon(self.style().standardIcon(QStyle.SP_DirIcon))
-            self.bookmarks_list.addItem(item)
-
-    def get_volume_name(self, path):
-        """Get a user-friendly name for a volume/drive"""
-        try:
-            if platform.system() == "Windows":
-                # For Windows, try to get volume label
-                import ctypes
-                kernel32 = ctypes.windll.kernel32
-                volume_name_buffer = ctypes.create_unicode_buffer(1024)
-                file_system_name_buffer = ctypes.create_unicode_buffer(1024)
-                if kernel32.GetVolumeInformationW(
-                    ctypes.c_wchar_p(path),
-                    volume_name_buffer,
-                    ctypes.sizeof(volume_name_buffer),
-                    None,
-                    None,
-                    None,
-                    file_system_name_buffer,
-                    ctypes.sizeof(file_system_name_buffer)
-                ):
-                    if volume_name_buffer.value:
-                        return volume_name_buffer.value
-                # Fallback to drive letter
-                return path.split('\\')[0] + " Drive"
-            elif platform.system() == "Linux":
-                # For Linux, try to get a more descriptive name
-                if path == "/":
-                    return "Root Filesystem"
-                elif path.startswith("/media/"):
-                    # Extract device name from path
-                    parts = path.split("/")
-                    if len(parts) > 3:
-                        return parts[3].replace("_", " ").title()
-                elif path.startswith("/mnt/"):
-                    # Extract device name from path
-                    parts = path.split("/")
-                    if len(parts) > 3:
-                        return parts[3].replace("_", " ").title()
-                elif path.startswith("/run/media/"):
-                    # Newer Ubuntu/Debian path for user mounts
-                    parts = path.split("/")
-                    if len(parts) > 4:
-                        return parts[4].replace("_", " ").title()
-                # Fallback to mount point name
-                return os.path.basename(path) or path
-            elif platform.system() == "Darwin":  # macOS
-                # For macOS, try to get a more descriptive name
-                if path == "/":
-                    return "Macintosh HD"
-                elif path.startswith("/Volumes/"):
-                    # Extract volume name from path
-                    parts = path.split("/")
-                    if len(parts) > 2:
-                        return parts[2]
-                # Fallback to mount point name
-                return os.path.basename(path) or path
-            # Default fallback
-            return os.path.basename(path) or path
-        except Exception:
-            # If all else fails, return the basename or path
-            return os.path.basename(path) or path
-
-    def is_removable_drive(self, mount):
-        """Check if a mount point is a removable drive"""
-        try:
-            # Check common indicators for removable drives
-            if platform.system() == "Linux":
-                # Check mount options
-                if 'usb' in mount.opts.lower():
-                    return True
-                # Check device path
-                if '/dev/sd' in mount.device and mount.device not in ['/dev/sda', '/dev/sda1', '/dev/sda2', '/dev/sda3', '/dev/sda4', '/dev/sda5']:
-                    return True
-                # Check if it's in media directories
-                if mount.mountpoint.startswith(('/media/', '/mnt/', '/run/media/')):
-                    return True
-                # Check filesystem types commonly used for removable drives
-                if mount.fstype.lower() in ['vfat', 'exfat', 'ntfs', 'msdos', 'fat32']:
-                    return True
-            elif platform.system() == "Windows":
-                # Check if it's a removable drive
-                if 'cdrom' not in mount.opts.lower():
-                    # Try to get drive type
-                    import ctypes
-                    kernel32 = ctypes.windll.kernel32
-                    drive_type = kernel32.GetDriveTypeW(mount.device + '\\')
-                    if drive_type == 2:  # DRIVE_REMOVABLE
-                        return True
-            elif platform.system() == "Darwin":  # macOS
-                # Check if it's an external volume
-                if mount.mountpoint.startswith('/Volumes/') and mount.mountpoint != '/Volumes/Macintosh HD':
-                    return True
-        except Exception:
-            pass
-        return False
-
-    def load_drives(self):
-        """Load system drives and storage devices with comprehensive detection"""
-        self.drives_list.clear()
-        try:
-            partitions = psutil.disk_partitions()
-        except Exception:
-            return
-        # Collect all drives
-        all_drives = []
-        if platform.system() == "Windows":
-            # Get Windows drives
-            for drive in partitions:
-                if 'cdrom' in drive.opts or drive.fstype == '':
-                    continue
-                drive_path = drive.mountpoint
-                # Get drive size
-                try:
-                    usage = psutil.disk_usage(drive_path)
-                    size_str = self.format_size(usage.total)
-                    volume_name = self.get_volume_name(drive_path)
-                    display_name = f"{volume_name} ({size_str})"
-                except:
-                    volume_name = self.get_volume_name(drive_path)
-                    display_name = volume_name
-                all_drives.append({
-                    'name': display_name,
-                    'path': drive_path,
-                    'is_usb': False,
-                    'mounted': True
-                })
-        elif platform.system() == "Linux":
-            # Get all block devices
-            block_devices = []
-            try:
-                result = subprocess.run(['lsblk', '-J'], capture_output=True, text=True)
-                if result.returncode == 0:
-                    import json
-                    data = json.loads(result.stdout)
-                    for device in data.get('blockdevices', []):
-                        self.process_lsblk_device(device, block_devices)
-            except:
-                pass
-            # Process psutil partitions
-            for mount in partitions:
-                # Skip system mounts
-                if (not mount.fstype or 
-                    mount.mountpoint in ['/proc', '/sys', '/dev', '/run', '/tmp', '/var/tmp', '/var/lock'] or
-                    mount.mountpoint.startswith('/sys/fs/') or
-                    mount.mountpoint.startswith('/run/user/') or
-                    'tmpfs' in mount.fstype or
-                    'proc' in mount.fstype or
-                    'sysfs' in mount.fstype or
-                    'devtmpfs' in mount.fstype):
-                    continue
-                # Get drive size
-                try:
-                    usage = psutil.disk_usage(mount.mountpoint)
-                    size_str = self.format_size(usage.total)
-                    volume_name = self.get_volume_name(mount.mountpoint)
-                    display_name = f"{volume_name} ({size_str})"
-                except:
-                    volume_name = self.get_volume_name(mount.mountpoint)
-                    display_name = volume_name
-                is_usb = self.is_removable_drive(mount)
-                all_drives.append({
-                    'name': display_name,
-                    'path': mount.mountpoint,
-                    'is_usb': is_usb,
-                    'mounted': True
-                })
-            # Check for unmounted USB devices
-            for device in block_devices:
-                if (device.get('name', '').startswith('sd') and 
-                    device.get('name') not in ['sda', 'sda1', 'sda2', 'sda3', 'sda4', 'sda5'] and
-                    not device.get('mountpoint')):
-                    display_name = f"USB {device['name']} ({device.get('size', 'Unknown')}) - Not mounted"
-                    all_drives.append({
-                        'name': display_name,
-                        'path': f"/dev/{device['name']}",
-                        'is_usb': True,
-                        'mounted': False
-                    })
-        elif platform.system() == "Darwin":  # macOS
-            # Get macOS mounts
-            for mount in partitions:
-                if mount.fstype == '' or not mount.mountpoint.startswith('/'):
-                    continue
-                # Skip system mounts
-                if mount.mountpoint in ['/Volumes', '/dev', '/net', '/home']:
-                    continue
-                # Get drive size
-                try:
-                    usage = psutil.disk_usage(mount.mountpoint)
-                    size_str = self.format_size(usage.total)
-                    volume_name = self.get_volume_name(mount.mountpoint)
-                    display_name = f"{volume_name} ({size_str})"
-                except:
-                    volume_name = self.get_volume_name(mount.mountpoint)
-                    display_name = volume_name
-                all_drives.append({
-                    'name': display_name,
-                    'path': mount.mountpoint,
-                    'is_usb': mount.mountpoint != '/Volumes/Macintosh HD',
-                    'mounted': True
-                })
-        # Sort drives: USB first, then others
-        all_drives.sort(key=lambda x: (not x['is_usb'], x['name']))
-        # Add drives to list
-        for drive in all_drives:
-            item = QListWidgetItem(drive['name'])
-            item.setData(Qt.UserRole, drive['path'])
-            if drive['is_usb']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
-            else:
-                item.setIcon(self.style().standardIcon(QStyle.SP_DriveHDIcon))
-            if not drive['mounted']:
-                item.setForeground(QBrush(QColor('#ff6666')))  # Red text for unmounted
-            self.drives_list.addItem(item)
-
-    def process_lsblk_device(self, device, block_devices):
-        """Recursively process lsblk device data"""
-        block_devices.append({
-            'name': device.get('name'),
-            'size': device.get('size'),
-            'mountpoint': device.get('mountpoint'),
-            'fstype': device.get('fstype'),
-            'rm': device.get('rm', '0')
-        })
-        # Process children
-        for child in device.get('children', []):
-            self.process_lsblk_device(child, block_devices)
-
-    def mount_usb_devices(self):
-        """Attempt to mount USB devices"""
-        if platform.system() != "Linux":
-            QMessageBox.information(self, "Info", "This feature is only available on Linux")
-            return
-        # Try to find and mount USB devices
-        mounted_count = 0
-        try:
-            # Get list of block devices
-            result = subprocess.run(['lsblk', '-o', 'NAME,MOUNTPOINT,FSTYPE', '-n'], 
-                                  capture_output=True, text=True)
-            if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if line.strip():
-                        parts = line.split()
-                        if len(parts) >= 3:
-                            name = parts[0]
-                            mountpoint = parts[1]
-                            fstype = parts[2]
-                            # Check if it's a likely USB device and not mounted
-                            if (name.startswith('sd') and 
-                                name not in ['sda', 'sda1', 'sda2', 'sda3', 'sda4', 'sda5'] and
-                                mountpoint == '-' and fstype != '-'):
-                                # Try to mount it
-                                device_path = f"/dev/{name}"
-                                mount_path = f"/media/{getpass.getuser()}/{name}"
-                                # Create mount directory
-                                os.makedirs(mount_path, exist_ok=True)
-                                # Try to mount
-                                try:
-                                    subprocess.run(['sudo', 'mount', device_path, mount_path], 
-                                                 check=True, capture_output=True)
-                                    mounted_count += 1
-                                    self.status_label.setText(f"Mounted {device_path} to {mount_path}")
-                                except subprocess.CalledProcessError:
-                                    # Try without sudo
-                                    try:
-                                        subprocess.run(['mount', device_path, mount_path], 
-                                                     check=True, capture_output=True)
-                                        mounted_count += 1
-                                        self.status_label.setText(f"Mounted {device_path} to {mount_path}")
-                                    except:
-                                        self.status_label.setText(f"Failed to mount {device_path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Error mounting devices: {str(e)}")
-        if mounted_count > 0:
-            self.load_drives()
-            QMessageBox.information(self, "Success", f"Mounted {mounted_count} devices")
-        else:
-            QMessageBox.information(self, "Info", "No USB devices found to mount")
-
-    def unmount_all_usb(self):
-        """Unmount all USB devices"""
-        if platform.system() != "Linux":
-            QMessageBox.information(self, "Info", "This feature is only available on Linux")
-            return
-        unmounted_count = 0
-        errors = []
-        try:
-            # Get all mounted USB devices
-            result = subprocess.run(['findmnt', '-l'], capture_output=True, text=True)
-            if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    if line.strip():
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            mount_point = parts[0]
-                            device = parts[1]
-                            # Check if it's a USB mount
-                            if (mount_point.startswith(('/media/', '/mnt/', '/run/media/')) and
-                                '/dev/sd' in device and not device.startswith('/dev/sda')):
-                                try:
-                                    # Try to unmount
-                                    subprocess.run(['sudo', 'umount', mount_point], 
-                                                 check=True, capture_output=True)
-                                    unmounted_count += 1
-                                except subprocess.CalledProcessError:
-                                    try:
-                                        # Try without sudo
-                                        subprocess.run(['umount', mount_point], 
-                                                     check=True, capture_output=True)
-                                        unmounted_count += 1
-                                    except:
-                                        errors.append(f"Failed to unmount {mount_point}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Error unmounting devices: {str(e)}")
-        if unmounted_count > 0:
-            self.load_drives()
-            QMessageBox.information(self, "Success", f"Unmounted {unmounted_count} devices")
-        if errors:
-            QMessageBox.warning(self, "Errors", "\n".join(errors))
-
-    def create_file_view(self):
-        # This method is no longer needed as we use TabWidget
-        pass
-
-    def create_status_bar(self):
-        self.status_bar = QStatusBar()
-        self.status_label = QLabel("Ready")
-        self.status_bar.addWidget(self.status_label)
-        # Add progress bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        self.status_bar.addPermanentWidget(self.progress_bar)
-        # Add item count label
-        self.item_count_label = QLabel("0 items")
-        self.status_bar.addPermanentWidget(self.item_count_label)
-        # Add free space label
-        self.free_space_label = QLabel("")
-        self.status_bar.addPermanentWidget(self.free_space_label)
-        # Show PIL availability status
-        if not PIL_AVAILABLE:
-            pil_label = QLabel("Image thumbnails disabled (PIL not installed)")
-            pil_label.setStyleSheet("color: #ff6666;")
-            self.status_bar.addPermanentWidget(pil_label)
-
-    def setup_connections(self):
-        # Connections are now handled in setup_ui for each tab
-        pass
-
-    def load_directory(self, path):
-        if not path or not os.path.exists(path):
-            return
-        self.current_path = path
-        browser = self.get_current_browser()
-        if browser:
-            browser.current_path = path
-            index = browser.file_model.setRootPath(path)
-            # Update all views
-            browser.icon_view.setRootIndex(index)
-            browser.list_view.setRootIndex(index)
-            browser.detail_view.setRootIndex(index)
-        # Update path bar
-        self.path_edit.setText(path)
-        # Update tree view
-        tree_index = self.tree_model.index(path)
-        if tree_index.isValid():
-            self.tree_view.setCurrentIndex(tree_index)
-            self.tree_view.expand(tree_index)
-        # Update status
-        self.update_status()
-        # Add to history
-        self.add_to_history(path)
-        # Update tab label
-        if self.tab_widget.count() > 0:
-            self.tab_widget.setTabText(self.tab_widget.currentIndex(), os.path.basename(path) or path)
-
-    def add_to_history(self, path):
-        # Remove any forward history
-        if self.history_index < len(self.navigation_history) - 1:
-            self.navigation_history = self.navigation_history[:self.history_index + 1]
-        # Add new path
-        self.navigation_history.append(path)
-        self.history_index = len(self.navigation_history) - 1
-        # Update buttons
-        self.update_navigation_buttons()
-
-    def update_navigation_buttons(self):
-        # Update button states
-        self.back_button.setEnabled(self.history_index > 0)
-        self.forward_button.setEnabled(self.history_index < len(self.navigation_history) - 1)
-        self.up_button.setEnabled(os.path.dirname(self.current_path) != self.current_path)
+        self.tab_widget.removeTab(index)
 
     def go_back(self):
-        if self.history_index > 0:
-            self.history_index -= 1
-            self.load_directory(self.navigation_history[self.history_index])
+        """Navigate back"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            # Implement back navigation
+            pass
 
     def go_forward(self):
-        if self.history_index < len(self.navigation_history) - 1:
-            self.history_index += 1
-            self.load_directory(self.navigation_history[self.history_index])
+        """Navigate forward"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            # Implement forward navigation
+            pass
 
     def go_up(self):
-        parent = os.path.dirname(self.current_path)
-        if parent != self.current_path:
-            self.load_directory(parent)
+        """Navigate up one directory"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_path'):
+            parent_path = os.path.dirname(current_browser.current_path)
+            if parent_path and parent_path != current_browser.current_path:
+                self.load_directory(parent_path)
 
     def go_home(self):
+        """Navigate to home directory"""
         self.load_directory(QDir.homePath())
 
     def navigate_to_path(self):
-        path = self.path_edit.text()
-        if path and os.path.exists(path):
+        """Navigate to the path in the entry field"""
+        path = self.path_entry.text()
+        if os.path.exists(path):
             self.load_directory(path)
-        else:
-            QMessageBox.warning(self, "Error", "Path does not exist")
 
-    def navigate_to_bookmark(self, item):
+    def load_directory(self, path):
+        """Load a directory in the current tab"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'file_model'):
+            index = current_browser.file_model.setRootPath(path)
+            current_browser.icon_view.setRootIndex(index)
+            current_browser.list_view.setRootIndex(index)
+            current_browser.detail_view.setRootIndex(index)
+            current_browser.current_path = path
+            self.current_path = path
+            self.path_entry.setText(path)
+            # Update tab title
+            tab_index = self.tab_widget.indexOf(current_browser)
+            self.tab_widget.setTabText(tab_index, os.path.basename(path) or path)
+
+    def place_clicked(self, item):
+        """Handle place click"""
+        place_name = item.text()
+        home_path = QDir.homePath()
+        
+        places_map = {
+            "Home": home_path,
+            "Desktop": os.path.join(home_path, "Desktop"),
+            "Documents": os.path.join(home_path, "Documents"),
+            "Downloads": os.path.join(home_path, "Downloads"),
+            "Pictures": os.path.join(home_path, "Pictures"),
+            "Music": os.path.join(home_path, "Music"),
+            "Videos": os.path.join(home_path, "Videos")
+        }
+        
+        if place_name in places_map:
+            path = places_map[place_name]
+            if os.path.exists(path):
+                self.load_directory(path)
+
+    def drive_clicked(self, item):
+        """Handle drive click"""
+        drive_path = item.data(Qt.UserRole)
+        if drive_path and os.path.exists(drive_path):
+            self.load_directory(drive_path)
+
+    def load_drives(self):
+        """Load available drives"""
+        self.drives_list.clear()
+        
+        # Get all mount points
+        mounts = []
+        try:
+            for partition in psutil.disk_partitions():
+                if os.path.exists(partition.mountpoint):
+                    mounts.append((partition.device, partition.mountpoint, partition.fstype))
+        except:
+            pass
+        
+        # Add drives to list
+        for device, mountpoint, fstype in mounts:
+            if mountpoint.startswith('/run/media/') or mountpoint.startswith('/media/') or mountpoint.startswith('/mnt/'):
+                # External drive
+                item = QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DriveHDIcon), 
+                                     f"{os.path.basename(mountpoint)} ({fstype})")
+                item.setData(Qt.UserRole, mountpoint)
+                self.drives_list.addItem(item)
+            elif mountpoint == '/':
+                # Root filesystem
+                item = QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_ComputerIcon), 
+                                     "Filesystem")
+                item.setData(Qt.UserRole, mountpoint)
+                self.drives_list.addItem(item)
+
+    def load_bookmarks(self):
+        """Load bookmarks"""
+        self.bookmarks_list.clear()
+        for bookmark in self.bookmark_manager.bookmarks:
+            item = QListWidgetItem(QApplication.style().standardIcon(QStyle.SP_DirIcon), 
+                                 bookmark['name'])
+            item.setData(Qt.UserRole, bookmark['path'])
+            self.bookmarks_list.addItem(item)
+
+    def bookmark_clicked(self, item):
+        """Handle bookmark click"""
         bookmark_path = item.data(Qt.UserRole)
         if bookmark_path and os.path.exists(bookmark_path):
             self.load_directory(bookmark_path)
 
-    def navigate_to_drive(self, item):
-        drive_path = item.data(Qt.UserRole)
-        if drive_path:
-            if drive_path.startswith('/dev/'):
-                # It's an unmounted device, try to mount it
-                self.mount_device(drive_path)
-            elif os.path.exists(drive_path):
-                self.load_directory(drive_path)
-            else:
-                QMessageBox.warning(self, "Error", "Drive path does not exist")
+    def add_bookmark(self):
+        """Add current directory to bookmarks"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_path'):
+            path = current_browser.current_path
+            name = os.path.basename(path) or path
+            if self.bookmark_manager.add_bookmark(name, path):
+                self.load_bookmarks()
+                QMessageBox.information(self, "Bookmark Added", f"Added bookmark for {path}")
 
-    def mount_device(self, device_path):
-        """Mount a specific device"""
-        if platform.system() != "Linux":
-            return
-        try:
-            # Create mount point
-            device_name = os.path.basename(device_path)
-            mount_path = f"/media/{getpass.getuser()}/{device_name}"
-            os.makedirs(mount_path, exist_ok=True)
-            # Try to mount
-            try:
-                subprocess.run(['sudo', 'mount', device_path, mount_path], 
-                             check=True, capture_output=True)
-                self.status_label.setText(f"Mounted {device_path} to {mount_path}")
-                self.load_drives()  # Refresh drive list
-                self.load_directory(mount_path)  # Navigate to mounted drive
-            except subprocess.CalledProcessError:
-                # Try without sudo
-                try:
-                    subprocess.run(['mount', device_path, mount_path], 
-                                 check=True, capture_output=True)
-                    self.status_label.setText(f"Mounted {device_path} to {mount_path}")
-                    self.load_drives()  # Refresh drive list
-                    self.load_directory(mount_path)  # Navigate to mounted drive
-                except:
-                    QMessageBox.warning(self, "Error", f"Failed to mount {device_path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Error mounting device: {str(e)}")
-
-    def tree_clicked(self, index):
-        path = self.tree_model.filePath(index)
-        if os.path.isdir(path):
-            self.load_directory(path)
+    def bookmark_context_menu(self, position):
+        """Show bookmark context menu"""
+        item = self.bookmarks_list.itemAt(position)
+        if item:
+            menu = QMenu()
+            remove_action = menu.addAction("Remove Bookmark")
+            action = menu.exec_(self.bookmarks_list.mapToGlobal(position))
+            if action == remove_action:
+                bookmark_path = item.data(Qt.UserRole)
+                if bookmark_path:
+                    self.bookmark_manager.remove_bookmark(bookmark_path)
+                    self.load_bookmarks()
 
     def item_double_clicked(self, index):
-        browser = self.get_current_browser()
-        if browser:
-            path = browser.file_model.filePath(index)
+        """Handle item double click"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'file_model'):
+            path = current_browser.file_model.filePath(index)
             if os.path.isdir(path):
                 self.load_directory(path)
             else:
-                self.open_file(path)
+                # Open file with default application
+                try:
+                    if platform.system() == "Linux":
+                        subprocess.run(['xdg-open', path])
+                    elif platform.system() == "Darwin":  # macOS
+                        subprocess.run(['open', path])
+                    elif platform.system() == "Windows":
+                        os.startfile(path)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Could not open file: {e}")
 
-    def open_file(self, path):
-        try:
-            if platform.system() == "Windows":
-                os.startfile(path)
-            elif platform.system() == "Darwin":
-                subprocess.run(["open", path])
+    def show_context_menu(self, position):
+        """Enhanced context menu with comprehensive options"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            menu = QMenu()
+            
+            # Get selected items
+            selected = view.selectedIndexes()
+            selected_paths = []
+            if selected:
+                selected_paths = [current_browser.file_model.filePath(index) for index in selected]
+            
+            # Single file/directory context
+            if len(selected_paths) == 1:
+                self.add_single_item_context(menu, selected_paths[0], current_browser)
+            # Multiple selection context
+            elif len(selected_paths) > 1:
+                self.add_multi_item_context(menu, selected_paths, current_browser)
+            # Empty space context
             else:
-                subprocess.run(["xdg-open", path])
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open file: {str(e)}")
+                self.add_empty_space_context(menu, current_browser)
+            
+            # Show the menu
+            action = menu.exec_(view.mapToGlobal(position))
 
-    def change_view_mode(self, mode):
-        browser = self.get_current_browser()
-        if not browser:
+    def add_single_item_context(self, menu, path, browser):
+        """Add context menu items for single selection"""
+        is_dir = os.path.isdir(path)
+        is_file = os.path.isfile(path)
+        is_symlink = os.path.islink(path)
+        is_executable = os.access(path, os.X_OK) and is_file
+        
+        # Open actions
+        open_menu = menu.addMenu("Open")
+        if is_dir:
+            open_action = open_menu.addAction("Open in New Tab")
+            open_action.triggered.connect(lambda: self.open_in_new_tab(path))
+            
+            open_terminal_action = open_menu.addAction("Open in Terminal")
+            open_terminal_action.triggered.connect(lambda: TerminalLauncher.open_terminal(path))
+            
+            open_terminal_root_action = open_menu.addAction("Open in Terminal as Root")
+            open_terminal_root_action.triggered.connect(lambda: TerminalLauncher.open_terminal_as_root(path))
+            
+            open_as_root_action = open_menu.addAction("Open as Root")
+            open_as_root_action.triggered.connect(lambda: self.open_as_root(path))
+            
+            # Add "Open Folder as Root" as a separate top-level menu item
+            open_folder_root_action = menu.addAction("Open Folder as Root")
+            open_folder_root_action.triggered.connect(lambda: self.open_folder_as_root(path))
+        else:
+            open_action = open_menu.addAction("Open with Default Application")
+            open_action.triggered.connect(lambda: self.open_with_default(path))
+            
+            open_with_menu = open_menu.addMenu("Open With")
+            self.add_open_with_apps(open_with_menu, path)
+            
+            open_as_root_action = open_menu.addAction("Open as Root")
+            open_as_root_action.triggered.connect(lambda: self.open_as_root(path))
+        
+        # If it's an executable file
+        if is_executable:
+            run_action = menu.addAction("Run")
+            run_action.triggered.connect(lambda: self.run_executable(path))
+            
+            run_as_root_action = menu.addAction("Run as Root")
+            run_as_root_action.triggered.connect(lambda: self.run_executable_as_root(path))
+        
+        menu.addSeparator()
+        
+        # Cut, Copy, Paste operations
+        cut_action = menu.addAction("Cut")
+        cut_action.triggered.connect(self.cut_files)
+        
+        copy_action = menu.addAction("Copy")
+        copy_action.triggered.connect(self.copy_files)
+        
+        paste_action = menu.addAction("Paste")
+        paste_action.triggered.connect(self.paste_files)
+        paste_action.setEnabled(bool(self.clipboard_paths))
+        
+        menu.addSeparator()
+        
+        # Rename and Delete
+        rename_action = menu.addAction("Rename")
+        rename_action.triggered.connect(self.rename_file)
+        
+        delete_action = menu.addAction("Move to Trash" if self.has_trash() else "Delete")
+        delete_action.triggered.connect(self.move_to_trash_or_delete)
+        
+        menu.addSeparator()
+        
+        # Create links and shortcuts
+        link_menu = menu.addMenu("Create Link")
+        
+        symlink_action = link_menu.addAction("Create Symbolic Link")
+        symlink_action.triggered.connect(lambda: self.create_symlink(path, browser.current_path))
+        
+        hardlink_action = link_menu.addAction("Create Hard Link")
+        hardlink_action.triggered.connect(lambda: self.create_hardlink(path, browser.current_path))
+        
+        # Compression
+        compress_menu = menu.addMenu("Compress")
+        
+        zip_action = compress_menu.addAction("Create .zip Archive")
+        zip_action.triggered.connect(lambda: self.compress_files([path], 'zip'))
+        
+        tar_gz_action = compress_menu.addAction("Create .tar.gz Archive")
+        tar_gz_action.triggered.connect(lambda: self.compress_files([path], 'tar.gz'))
+        
+        # If it's an archive
+        if self.is_archive(path):
+            extract_menu = menu.addMenu("Extract")
+            
+            extract_here_action = extract_menu.addAction("Extract Here")
+            extract_here_action.triggered.connect(lambda: self.extract_archive(path))
+            
+            extract_to_action = extract_menu.addAction("Extract To...")
+            extract_to_action.triggered.connect(lambda: self.extract_archive_to(path))
+        
+        # Send To menu
+        send_to_menu = menu.addMenu("Send To")
+        self.add_send_to_options(send_to_menu, path)
+        
+        menu.addSeparator()
+        
+        # Bookmark if directory
+        if is_dir:
+            bookmark_action = menu.addAction("Add to Bookmarks")
+            bookmark_action.triggered.connect(lambda: self.add_bookmark_from_path(path))
+        
+        # Properties
+        properties_action = menu.addAction("Properties")
+        properties_action.triggered.connect(lambda: self.show_properties([path]))
+        
+        # Advanced permissions submenu
+        if platform.system() == "Linux":
+            perm_menu = menu.addMenu("Permissions")
+            self.add_permission_options(perm_menu, path)
+
+    def add_multi_item_context(self, menu, paths, browser):
+        """Add context menu items for multiple selection"""
+        # Basic operations
+        cut_action = menu.addAction("Cut")
+        cut_action.triggered.connect(self.cut_files)
+        
+        copy_action = menu.addAction("Copy")
+        copy_action.triggered.connect(self.copy_files)
+        
+        menu.addSeparator()
+        
+        delete_action = menu.addAction("Move to Trash" if self.has_trash() else "Delete")
+        delete_action.triggered.connect(self.move_to_trash_or_delete)
+        
+        menu.addSeparator()
+        
+        # Compression for multiple files
+        compress_menu = menu.addMenu("Compress")
+        
+        zip_action = compress_menu.addAction("Create .zip Archive")
+        zip_action.triggered.connect(lambda: self.compress_files(paths, 'zip'))
+        
+        tar_gz_action = compress_menu.addAction("Create .tar.gz Archive")
+        tar_gz_action.triggered.connect(lambda: self.compress_files(paths, 'tar.gz'))
+        
+        # Compare files (if exactly 2 files selected)
+        if len(paths) == 2 and all(os.path.isfile(p) for p in paths):
+            compare_action = menu.addAction("Compare Files")
+            compare_action.triggered.connect(lambda: self.compare_files(paths[0], paths[1]))
+        
+        menu.addSeparator()
+        
+        # Properties for multiple selection
+        properties_action = menu.addAction("Properties")
+        properties_action.triggered.connect(lambda: self.show_properties(paths))
+
+    def add_empty_space_context(self, menu, browser):
+        """Add context menu items for empty space"""
+        # New items
+        new_menu = menu.addMenu("New")
+        
+        folder_action = new_menu.addAction("Folder")
+        folder_action.triggered.connect(self.new_folder)
+        
+        file_action = new_menu.addAction("File")
+        file_action.triggered.connect(self.new_file)
+        
+        # Template files can be added here
+        template_menu = new_menu.addMenu("From Template")
+        self.add_template_options(template_menu, browser.current_path)
+        
+        menu.addSeparator()
+        
+        # Paste if clipboard has content
+        paste_action = menu.addAction("Paste")
+        paste_action.triggered.connect(self.paste_files)
+        paste_action.setEnabled(bool(self.clipboard_paths))
+        
+        menu.addSeparator()
+        
+        # Open terminal here
+        open_terminal_action = menu.addAction("Open Terminal Here")
+        open_terminal_action.triggered.connect(lambda: TerminalLauncher.open_terminal(browser.current_path))
+        
+        open_terminal_root_action = menu.addAction("Open Terminal Here as Root")
+        open_terminal_root_action.triggered.connect(lambda: TerminalLauncher.open_terminal_as_root(browser.current_path))
+        
+        # Open folder as root
+        open_folder_root_action = menu.addAction("Open Folder as Root")
+        open_folder_root_action.triggered.connect(lambda: self.open_folder_as_root(browser.current_path))
+        
+        # Refresh
+        refresh_action = menu.addAction("Refresh")
+        refresh_action.triggered.connect(lambda: self.load_directory(browser.current_path))
+        
+        menu.addSeparator()
+        
+        # Customize folder (view options, etc.)
+        customize_action = menu.addAction("Customize This Folder...")
+        customize_action.triggered.connect(lambda: self.customize_folder(browser))
+        
+        # Properties of current directory
+        properties_action = menu.addAction("Properties")
+        properties_action.triggered.connect(lambda: self.show_properties([browser.current_path]))
+
+    def add_open_with_apps(self, menu, path):
+        """Add applications to Open With submenu"""
+        mime_type, _ = mimetypes.guess_type(path)
+        if not mime_type:
             return
         
-        # Change view using stacked widget
-        if mode == 'icon':
-            browser.current_view = browser.icon_view
-            browser.view_stack.setCurrentWidget(browser.icon_view)
-        elif mode == 'list':
-            browser.current_view = browser.list_view
-            browser.view_stack.setCurrentWidget(browser.list_view)
-        else:  # detail
-            browser.current_view = browser.detail_view
-            browser.view_stack.setCurrentWidget(browser.detail_view)
+        # Common applications for different mime types
+        apps = []
         
-        # Save the view mode preference
-        self.settings_manager.set_setting('default_view_mode', mode)
+        if mime_type.startswith('text/'):
+            apps = ['gedit', 'kate', 'vim', 'nano', 'code']
+        elif mime_type.startswith('image/'):
+            apps = ['gimp', 'eog', 'feh', 'ristretto']
+        elif mime_type.startswith('video/'):
+            apps = ['vlc', 'mpv', 'smplayer']
+        elif mime_type.startswith('audio/'):
+            apps = ['vlc', 'audacious', 'clementine']
+        elif mime_type == 'application/pdf':
+            apps = ['evince', 'okular', 'acroread']
+        
+        for app in apps:
+            if shutil.which(app):
+                action = menu.addAction(app)
+                action.triggered.connect(lambda checked, a=app: self.open_with_application(path, a))
 
-    def refresh_view(self):
-        # Save current path
-        current_path = self.current_path
-        # Reset models to avoid the "No file name specified" error
-        browser = self.get_current_browser()
-        if browser:
-            browser.file_model.setRootPath("")
-        self.tree_model.setRootPath("")
-        # Clear thumbnail cache for refresh
-        if browser:
-            browser.file_model.thumbnail_cache = ThumbnailCache()
-        # Reload current directory
-        self.load_directory(current_path)
-        self.load_drives()  # Refresh drives as well
+    def add_send_to_options(self, menu, path):
+        """Add Send To options"""
+        # Email as attachment (if file)
+        if os.path.isfile(path):
+            email_action = menu.addAction("Email as Attachment")
+            email_action.triggered.connect(lambda: self.email_file(path))
+        
+        # Send to removable drives
+        removable_drives = self.get_removable_drives()
+        if removable_drives:
+            drives_menu = menu.addMenu("Send To Removable Drive")
+            for drive in removable_drives:
+                action = drives_menu.addAction(drive)
+                action.triggered.connect(lambda checked, d=drive, p=path: self.copy_to_drive(p, d))
+        
+        # Send to Bluetooth (if available)
+        if shutil.which('bluetooth-sendto'):
+            bluetooth_action = menu.addAction("Send via Bluetooth")
+            bluetooth_action.triggered.connect(lambda: self.send_via_bluetooth(path))
 
-    def get_selected_paths(self):
-        view = self.get_current_view()
-        if not view:
-            return []
-        selection = view.selectionModel().selectedIndexes()
-        paths = set()
-        for index in selection:
-            if index.column() == 0:  # Only get first column
-                browser = self.get_current_browser()
-                if browser:
-                    path = browser.file_model.filePath(index)
-                    if path:  # Ensure path is not empty
-                        paths.add(path)
-        return list(paths)
+    def add_permission_options(self, menu, path):
+        """Add permission options for Linux"""
+        try:
+            stat_info = os.stat(path)
+            current_mode = stat_info.st_mode
+            
+            # Read-only option
+            read_only_action = menu.addAction("Read-Only")
+            read_only_action.triggered.connect(lambda: FileOperations.change_permissions(path, 0o444))
+            
+            # Read-write option
+            read_write_action = menu.addAction("Read-Write")
+            read_write_action.triggered.connect(lambda: FileOperations.change_permissions(path, 0o666))
+            
+            # Executable option
+            if os.path.isfile(path):
+                executable_action = menu.addAction("Executable")
+                executable_action.triggered.connect(lambda: FileOperations.change_permissions(path, current_mode | stat.S_IXUSR))
+            
+            menu.addSeparator()
+            
+            # Advanced permissions dialog
+            advanced_action = menu.addAction("Advanced Permissions...")
+            advanced_action.triggered.connect(lambda: self.show_advanced_permissions(path))
+            
+        except Exception as e:
+            print(f"Error with permissions: {e}")
+
+    def add_template_options(self, menu, current_path):
+        """Add template file options"""
+        templates = [
+            ("Text File", ".txt"),
+            ("HTML File", ".html"),
+            ("Python Script", ".py"),
+            ("Shell Script", ".sh"),
+            ("XML File", ".xml"),
+            ("JSON File", ".json"),
+        ]
+        
+        for name, ext in templates:
+            action = menu.addAction(name)
+            action.triggered.connect(lambda checked, n=name, e=ext: self.create_from_template(current_path, n, e))
+
+    # New action implementations
+    
+    def open_in_new_tab(self, path):
+        """Open directory in new tab"""
+        self.new_tab()
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser:
+            self.load_directory(path)
+
+    def open_with_default(self, path):
+        """Open file with default application"""
+        try:
+            if platform.system() == "Linux":
+                subprocess.run(['xdg-open', path])
+            elif platform.system() == "Darwin":
+                subprocess.run(['open', path])
+            elif platform.system() == "Windows":
+                os.startfile(path)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open file: {e}")
+
+    def open_with_application(self, path, application):
+        """Open file with specific application"""
+        try:
+            subprocess.Popen([application, path])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open with {application}: {e}")
+
+    def open_as_root(self, path):
+        """Open file or directory as root using Thunar"""
+        try:
+            if os.path.isdir(path):
+                # For directories, open in Thunar as root
+                subprocess.Popen(['sudo', 'thunar', path])
+            else:
+                # For files, open the parent directory in Thunar as root
+                parent_dir = os.path.dirname(path)
+                subprocess.Popen(['sudo', 'thunar', parent_dir])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open as root: {e}")
+
+    def open_folder_as_root(self, path):
+        """Open folder as root in Thunar"""
+        try:
+            subprocess.Popen(['sudo', 'thunar', path])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open folder as root: {e}")
+
+    def run_executable(self, path):
+        """Run executable file"""
+        try:
+            subprocess.Popen([path])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not run executable: {e}")
+
+    def run_executable_as_root(self, path):
+        """Run executable file as root using sudo"""
+        try:
+            subprocess.Popen(['sudo', path])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not run executable as root: {e}")
+
+    def create_symlink(self, source_path, dest_dir):
+        """Create symbolic link"""
+        source_name = os.path.basename(source_path)
+        link_name = f"{source_name} (Link)"
+        link_path = os.path.join(dest_dir, link_name)
+        
+        if FileOperations.create_symlink(source_path, link_path):
+            self.load_directory(dest_dir)
+        else:
+            QMessageBox.warning(self, "Error", "Could not create symbolic link")
+
+    def create_hardlink(self, source_path, dest_dir):
+        """Create hard link"""
+        source_name = os.path.basename(source_path)
+        link_name = f"{source_name} (Hard Link)"
+        link_path = os.path.join(dest_dir, link_name)
+        
+        try:
+            os.link(source_path, link_path)
+            self.load_directory(dest_dir)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not create hard link: {e}")
+
+    def compress_files(self, files, format_type):
+        """Compress files into archive"""
+        if not files:
+            return
+        
+        dest_dir = os.path.dirname(files[0])
+        default_name = f"archive.{format_type}"
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Archive As", os.path.join(dest_dir, default_name),
+            f"Archive (*.{format_type})"
+        )
+        
+        if file_path:
+            if FileOperations.create_archive(files, file_path):
+                QMessageBox.information(self, "Success", "Archive created successfully")
+            else:
+                QMessageBox.warning(self, "Error", "Could not create archive")
+
+    def is_archive(self, path):
+        """Check if file is a supported archive"""
+        archive_extensions = ['.zip', '.tar', '.tar.gz', '.tgz', '.tar.bz2', '.rar', '.7z']
+        return any(path.lower().endswith(ext) for ext in archive_extensions)
+
+    def extract_archive(self, archive_path):
+        """Extract archive to current directory"""
+        if FileOperations.extract_archive(archive_path):
+            self.load_directory(os.path.dirname(archive_path))
+        else:
+            QMessageBox.warning(self, "Error", "Could not extract archive")
+
+    def extract_archive_to(self, archive_path):
+        """Extract archive to selected directory"""
+        dest_dir = QFileDialog.getExistingDirectory(self, "Extract To")
+        if dest_dir:
+            if FileOperations.extract_archive(archive_path, dest_dir):
+                QMessageBox.information(self, "Success", "Archive extracted successfully")
+            else:
+                QMessageBox.warning(self, "Error", "Could not extract archive")
+
+    def has_trash(self):
+        """Check if system has trash functionality"""
+        return platform.system() == "Linux" and shutil.which('gio')
+
+    def move_to_trash_or_delete(self):
+        """Move files to trash or delete permanently"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            selected = view.selectedIndexes()
+            if selected:
+                paths = [current_browser.file_model.filePath(index) for index in selected]
+                
+                if self.has_trash():
+                    # Use gio trash on Linux
+                    try:
+                        for path in paths:
+                            subprocess.run(['gio', 'trash', path], check=True)
+                    except subprocess.CalledProcessError as e:
+                        QMessageBox.warning(self, "Error", f"Could not move to trash: {e}")
+                        return
+                else:
+                    # Permanent deletion with confirmation
+                    reply = QMessageBox.question(
+                        self, "Confirm Delete",
+                        f"Permanently delete {len(paths)} item(s)?",
+                        QMessageBox.Yes | QMessageBox.No
+                    )
+                    if reply == QMessageBox.Yes:
+                        for path in paths:
+                            try:
+                                if os.path.isdir(path):
+                                    shutil.rmtree(path)
+                                else:
+                                    os.remove(path)
+                            except Exception as e:
+                                QMessageBox.warning(self, "Error", f"Could not delete {path}: {e}")
+                
+                # Refresh view
+                self.load_directory(current_browser.current_path)
+
+    def show_properties(self, paths):
+        """Show file properties dialog"""
+        dialog = FilePropertiesDialog(paths, self)
+        dialog.exec_()
+
+    def show_advanced_permissions(self, path):
+        """Show advanced permissions dialog"""
+        # This would be a more detailed permissions editor
+        # For now, we'll use the properties dialog
+        self.show_properties([path])
+
+    def create_from_template(self, current_path, name, extension):
+        """Create file from template"""
+        file_name = f"New{name.replace(' ', '')}{extension}"
+        file_path = os.path.join(current_path, file_name)
+        
+        try:
+            with open(file_path, 'w') as f:
+                # Add basic template content based on file type
+                if extension == '.py':
+                    f.write('#!/usr/bin/env python3\n\n')
+                elif extension == '.sh':
+                    f.write('#!/bin/bash\n\n')
+                elif extension == '.html':
+                    f.write('<!DOCTYPE html>\n<html>\n<head>\n<title>Page Title</title>\n</head>\n<body>\n\n</body>\n</html>')
+            
+            self.load_directory(current_path)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not create file: {e}")
+
+    def get_removable_drives(self):
+        """Get list of removable drives"""
+        drives = []
+        try:
+            for partition in psutil.disk_partitions():
+                if 'removable' in partition.opts or any(x in partition.mountpoint for x in ['/media/', '/run/media/']):
+                    drives.append(partition.mountpoint)
+        except:
+            pass
+        return drives
+
+    def copy_to_drive(self, source_path, drive_path):
+        """Copy file to removable drive"""
+        try:
+            dest_path = os.path.join(drive_path, os.path.basename(source_path))
+            if os.path.isdir(source_path):
+                shutil.copytree(source_path, dest_path)
+            else:
+                shutil.copy2(source_path, dest_path)
+            QMessageBox.information(self, "Success", "File copied to drive")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not copy to drive: {e}")
+
+    def send_via_bluetooth(self, path):
+        """Send file via Bluetooth"""
+        try:
+            subprocess.Popen(['bluetooth-sendto', path])
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not send via Bluetooth: {e}")
+
+    def email_file(self, path):
+        """Email file as attachment"""
+        try:
+            # Try to open default email client with attachment
+            if platform.system() == "Linux":
+                subprocess.Popen(['xdg-email', '--attach', path])
+            else:
+                QMessageBox.information(self, "Info", "Please attach the file to your email manually")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open email client: {e}")
+
+    def compare_files(self, file1, file2):
+        """Compare two files"""
+        try:
+            # Use diff command for comparison
+            result = subprocess.run(['diff', '-u', file1, file2], capture_output=True, text=True)
+            
+            # Show comparison result in dialog
+            dialog = QDialog(self)
+            dialog.setWindowTitle("File Comparison")
+            dialog.setMinimumSize(600, 400)
+            
+            layout = QVBoxLayout(dialog)
+            text_edit = QTextEdit()
+            text_edit.setFont(QFont("Monospace"))
+            
+            if result.returncode == 0:
+                text_edit.setText("Files are identical")
+            else:
+                text_edit.setText(result.stdout or "No differences found" if result.returncode == 1 else result.stderr)
+            
+            layout.addWidget(text_edit)
+            
+            button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+            button_box.accepted.connect(dialog.accept)
+            layout.addWidget(button_box)
+            
+            dialog.exec_()
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not compare files: {e}")
+
+    def customize_folder(self, browser):
+        """Customize folder view options"""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Customize Folder")
+        dialog.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        # View mode
+        view_group = QGroupBox("View Mode")
+        view_layout = QVBoxLayout(view_group)
+        
+        icon_radio = QRadioButton("Icon View")
+        list_radio = QRadioButton("List View")
+        detail_radio = QRadioButton("Detail View")
+        
+        # Set current view
+        if browser.view_stack.currentWidget() == browser.icon_view:
+            icon_radio.setChecked(True)
+        elif browser.view_stack.currentWidget() == browser.list_view:
+            list_radio.setChecked(True)
+        else:
+            detail_radio.setChecked(True)
+        
+        view_layout.addWidget(icon_radio)
+        view_layout.addWidget(list_radio)
+        view_layout.addWidget(detail_radio)
+        
+        # Sort options
+        sort_group = QGroupBox("Sort By")
+        sort_layout = QVBoxLayout(sort_group)
+        
+        name_radio = QRadioButton("Name")
+        size_radio = QRadioButton("Size")
+        date_radio = QRadioButton("Date")
+        type_radio = QRadioButton("Type")
+        
+        name_radio.setChecked(True)  # Default
+        
+        sort_layout.addWidget(name_radio)
+        sort_layout.addWidget(size_radio)
+        sort_layout.addWidget(date_radio)
+        sort_layout.addWidget(type_radio)
+        
+        layout.addWidget(view_group)
+        layout.addWidget(sort_group)
+        
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            # Apply view mode
+            if icon_radio.isChecked():
+                self.change_view('icon')
+            elif list_radio.isChecked():
+                self.change_view('list')
+            else:
+                self.change_view('detail')
+
+    def add_bookmark_from_path(self, path):
+        """Add bookmark from context menu"""
+        name = os.path.basename(path) or path
+        if self.bookmark_manager.add_bookmark(name, path):
+            self.load_bookmarks()
+            QMessageBox.information(self, "Bookmark Added", f"Added bookmark for {path}")
 
     def copy_files(self):
-        """Copy selected files to clipboard"""
-        paths = self.get_selected_paths()
-        if paths:
-            self.clipboard_paths = paths[:]  # Create a shallow copy
-            self.clipboard_operation = 'copy'
-            self.status_label.setText(f"Copied {len(paths)} item(s)")
+        """Copy selected files"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            selected = view.selectedIndexes()
+            if selected:
+                self.clipboard_paths = []
+                for index in selected:
+                    path = current_browser.file_model.filePath(index)
+                    self.clipboard_paths.append(path)
+                self.clipboard_operation = 'copy'
 
     def cut_files(self):
-        """Cut selected files to clipboard"""
-        paths = self.get_selected_paths()
-        if paths:
-            self.clipboard_paths = paths[:]  # Create a shallow copy
-            self.clipboard_operation = 'cut'
-            self.status_label.setText(f"Cut {len(paths)} item(s)")
+        """Cut selected files"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            selected = view.selectedIndexes()
+            if selected:
+                self.clipboard_paths = []
+                for index in selected:
+                    path = current_browser.file_model.filePath(index)
+                    self.clipboard_paths.append(path)
+                self.clipboard_operation = 'cut'
 
     def paste_files(self):
         """Paste files from clipboard"""
-        if not self.clipboard_paths or not self.clipboard_operation:
+        if not self.clipboard_paths:
             return
-        dest = self.current_path
-        count = 0
-        errors = []
-        successful_cuts = []
-        for src in self.clipboard_paths:
-            if not src or not os.path.exists(src):
-                continue
-            try:
-                dest_path = os.path.join(dest, os.path.basename(src))
-                # Handle name conflicts
-                counter = 1
-                original_dest = dest_path
-                while os.path.exists(dest_path):
-                    name, ext = os.path.splitext(original_dest)
-                    dest_path = f"{name} ({counter}){ext}"
-                    counter += 1
-                if self.clipboard_operation == 'copy':
-                    if os.path.isdir(src):
-                        shutil.copytree(src, dest_path)
-                    else:
-                        shutil.copy2(src, dest_path)
-                elif self.clipboard_operation == 'cut':
-                    shutil.move(src, dest_path)
-                    successful_cuts.append(src)  # Track successful moves
-                count += 1
-            except Exception as e:
-                errors.append(f"Could not paste {os.path.basename(src)}: {str(e)}")
-        # Only clear clipboard after successful cut operations
-        if self.clipboard_operation == 'cut':
-            # Only remove successfully moved items from clipboard
-            self.clipboard_paths = [p for p in self.clipboard_paths if p not in successful_cuts]
-            if not self.clipboard_paths:
+        
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_path'):
+            dest_path = current_browser.current_path
+            
+            for src_path in self.clipboard_paths:
+                try:
+                    # Get the intended destination path
+                    dest_file = os.path.join(dest_path, os.path.basename(src_path))
+                    
+                    # For copy operations, always use unique filename
+                    if self.clipboard_operation == 'copy':
+                        # Get unique filename if destination already exists
+                        dest_file = FileOperations.get_unique_filename(dest_file)
+                        
+                        if os.path.isdir(src_path):
+                            shutil.copytree(src_path, dest_file)
+                        else:
+                            shutil.copy2(src_path, dest_file)
+                            
+                    elif self.clipboard_operation == 'cut':
+                        # For move operations, check if source and destination are the same
+                        if os.path.dirname(src_path) == dest_path:
+                            # Moving within same folder - use unique filename
+                            dest_file = FileOperations.get_unique_filename(dest_file)
+                        shutil.move(src_path, dest_file)
+                        
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Could not paste {src_path}: {e}")
+            
+            # Clear clipboard if it was a cut operation
+            if self.clipboard_operation == 'cut':
+                self.clipboard_paths = []
                 self.clipboard_operation = None
-        self.refresh_view()
-        if errors:
-            QMessageBox.warning(self, "Paste Errors", "\n".join(errors))
-        self.status_label.setText(f"Pasted {count} item(s)")
+            
+            # Refresh view
+            self.load_directory(dest_path)
 
     def delete_files(self):
-        paths = self.get_selected_paths()
-        if not paths:
-            return
-        reply = QMessageBox.question(self, "Confirm Delete", 
-                                   f"Are you sure you want to delete {len(paths)} item(s)?",
-                                   QMessageBox.Yes | QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            count = 0
-            errors = []
-            for path in paths:
-                if not path or not os.path.exists(path):
-                    continue
-                try:
-                    if os.path.isdir(path):
-                        shutil.rmtree(path)
-                    else:
-                        os.remove(path)
-                    count += 1
-                except Exception as e:
-                    errors.append(f"Could not delete {os.path.basename(path)}: {str(e)}")
-            self.refresh_view()
-            if errors:
-                QMessageBox.warning(self, "Delete Errors", "\n".join(errors))
-            self.status_label.setText(f"Deleted {count} item(s)")
+        """Delete selected files"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            selected = view.selectedIndexes()
+            if selected:
+                reply = QMessageBox.question(self, "Confirm Delete", 
+                                           f"Are you sure you want to delete {len(selected)} item(s)?",
+                                           QMessageBox.Yes | QMessageBox.No)
+                if reply == QMessageBox.Yes:
+                    for index in selected:
+                        path = current_browser.file_model.filePath(index)
+                        try:
+                            if os.path.isdir(path):
+                                shutil.rmtree(path)
+                            else:
+                                os.remove(path)
+                        except Exception as e:
+                            QMessageBox.warning(self, "Error", f"Could not delete {path}: {e}")
+                    
+                    # Refresh view
+                    self.load_directory(current_browser.current_path)
 
     def rename_file(self):
-        paths = self.get_selected_paths()
-        if len(paths) != 1 or not paths[0]:
-            return
-        old_path = paths[0]
-        old_name = os.path.basename(old_path)
-        new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=old_name)
-        if ok and new_name and new_name != old_name:
-            new_path = os.path.join(os.path.dirname(old_path), new_name)
-            try:
-                os.rename(old_path, new_path)
-                self.refresh_view()
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Could not rename: {str(e)}")
-
-    def make_executable(self):
-        """Make selected files executable"""
-        paths = self.get_selected_paths()
-        if not paths:
-            return
-        count = 0
-        for path in paths:
-            if not path or not os.path.exists(path):
-                continue
-            try:
-                # Add execute permissions for user, group, and others
-                current_permissions = os.stat(path).st_mode
-                os.chmod(path, current_permissions | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-                count += 1
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Could not make {path} executable: {str(e)}")
-        if count > 0:
-            self.refresh_view()
-            self.status_label.setText(f"Made {count} file(s) executable")
-
-    def open_in_terminal(self):
-        """Open terminal in current directory"""
-        try:
-            if platform.system() == "Linux":
-                # Try common terminal emulators
-                terminals = ['gnome-terminal', 'konsole', 'xfce4-terminal', 'xterm']
-                for terminal in terminals:
+        """Rename selected file"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            selected = view.selectedIndexes()
+            if len(selected) == 1:
+                index = selected[0]
+                old_path = current_browser.file_model.filePath(index)
+                old_name = os.path.basename(old_path)
+                
+                new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=old_name)
+                if ok and new_name and new_name != old_name:
+                    new_path = os.path.join(os.path.dirname(old_path), new_name)
                     try:
-                        subprocess.Popen([terminal, '--working-directory', self.current_path])
-                        break
-                    except FileNotFoundError:
-                        continue
-                else:
-                    QMessageBox.warning(self, "Error", "No terminal emulator found")
-            elif platform.system() == "Darwin":  # macOS
-                script = f'tell application "Terminal" to do script "cd \\"{self.current_path}\\""'
-                subprocess.run(['osascript', '-e', script])
-            elif platform.system() == "Windows":
-                subprocess.Popen(['cmd', '/k', f'cd /d "{self.current_path}"'])
-            self.status_label.setText(f"Opened terminal in {self.current_path}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open terminal: {str(e)}")
-
-    def open_as_root(self):
-        """Open Thunar as root in current directory"""
-        try:
-            if platform.system() == "Linux":
-                # Use sudo thunar command directly
-                subprocess.Popen(['sudo', 'thunar', self.current_path])
-                self.status_label.setText(f"Opened Thunar as root in {self.current_path}")
-            elif platform.system() == "Darwin":  # macOS
-                QMessageBox.information(self, "Info", "On macOS, use 'sudo' in terminal to run as root")
-            elif platform.system() == "Windows":
-                # Run as administrator
-                import ctypes
-                if ctypes.windll.shell32.IsUserAnAdmin():
-                    QMessageBox.information(self, "Info", "Already running as administrator")
-                else:
-                    ctypes.windll.shell32.ShellExecuteW(None, "runas", "thunar", f'"{self.current_path}"', None, 1)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open Thunar as root: {str(e)}")
-
-    def new_folder(self):
-        name, ok = QInputDialog.getText(self, "New Folder", "Folder name:")
-        if ok and name:
-            path = os.path.join(self.current_path, name)
-            try:
-                os.makedirs(path)
-                self.refresh_view()
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Could not create folder: {str(e)}")
-
-    def new_file(self):
-        name, ok = QInputDialog.getText(self, "New File", "File name:")
-        if ok and name:
-            path = os.path.join(self.current_path, name)
-            try:
-                with open(path, 'w') as f:
-                    pass
-                self.refresh_view()
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Could not create file: {str(e)}")
-
-    def select_all(self):
-        view = self.get_current_view()
-        if view:
-            view.selectAll()
-
-    def add_current_to_bookmarks(self):
-        """Add current directory to bookmarks"""
-        path = self.current_path
-        name = os.path.basename(path) or path
-        # Check if already bookmarked
-        for bookmark in self.bookmark_manager.bookmarks:
-            if bookmark['path'] == path:
-                QMessageBox.information(self, "Info", "This folder is already bookmarked")
-                return
-        # Ask for custom name
-        custom_name, ok = QInputDialog.getText(self, "Add Bookmark", "Bookmark name:", text=name)
-        if ok and custom_name:
-            if self.bookmark_manager.add_bookmark(custom_name, path):
-                self.load_bookmarks_from_manager()  # Refresh the list
-                self.status_label.setText(f"Added bookmark: {custom_name}")
-            else:
-                QMessageBox.warning(self, "Error", "Failed to add bookmark")
+                        os.rename(old_path, new_path)
+                        # Refresh view
+                        self.load_directory(current_browser.current_path)
+                    except Exception as e:
+                        QMessageBox.warning(self, "Error", f"Could not rename: {e}")
 
     def add_selected_to_bookmarks(self):
-        """Add selected folder to bookmarks"""
-        paths = self.get_selected_paths()
-        folders = [p for p in paths if os.path.isdir(p)]
-        if not folders:
-            QMessageBox.warning(self, "Error", "No folder selected")
-            return
-        for path in folders:
-            name = os.path.basename(path) or path
-            # Check if already bookmarked
-            already_bookmarked = False
-            for bookmark in self.bookmark_manager.bookmarks:
-                if bookmark['path'] == path:
-                    already_bookmarked = True
-                    break
-            if not already_bookmarked:
-                # Ask for custom name
-                custom_name, ok = QInputDialog.getText(self, "Add Bookmark", "Bookmark name:", text=name)
-                if ok and custom_name:
-                    if self.bookmark_manager.add_bookmark(custom_name, path):
-                        self.load_bookmarks_from_manager()  # Refresh the list
-                        self.status_label.setText(f"Added bookmark: {custom_name}")
-                    else:
-                        QMessageBox.warning(self, "Error", f"Failed to add bookmark for {path}")
+        """Add selected directory to bookmarks"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            selected = view.selectedIndexes()
+            if len(selected) == 1:
+                path = current_browser.file_model.filePath(selected[0])
+                if os.path.isdir(path):
+                    name = os.path.basename(path)
+                    if self.bookmark_manager.add_bookmark(name, path):
+                        self.load_bookmarks()
+                        QMessageBox.information(self, "Bookmark Added", f"Added bookmark for {path}")
 
-    def remove_from_bookmarks(self):
-        """Remove selected bookmark"""
-        current_item = self.bookmarks_list.currentItem()
-        if current_item:
-            bookmark_path = current_item.data(Qt.UserRole)
-            bookmark_name = current_item.text()
-            reply = QMessageBox.question(self, "Remove Bookmark", 
-                                       f"Remove bookmark '{bookmark_name}'?",
-                                       QMessageBox.Yes | QMessageBox.No)
-            if reply == QMessageBox.Yes:
-                if self.bookmark_manager.remove_bookmark(bookmark_path):
-                    self.load_bookmarks_from_manager()  # Refresh the list
-                    self.status_label.setText(f"Removed bookmark: {bookmark_name}")
-                else:
-                    QMessageBox.warning(self, "Error", "Failed to remove bookmark")
-        else:
-            # If called from context menu in file view, check if current path is bookmarked
-            path = self.current_path
-            for bookmark in self.bookmark_manager.bookmarks:
-                if bookmark['path'] == path:
-                    bookmark_name = bookmark['name']
-                    reply = QMessageBox.question(self, "Remove Bookmark", 
-                                               f"Remove bookmark '{bookmark_name}'?",
-                                               QMessageBox.Yes | QMessageBox.No)
-                    if reply == QMessageBox.Yes:
-                        if self.bookmark_manager.remove_bookmark(path):
-                            self.load_bookmarks_from_manager()  # Refresh the list
-                            self.status_label.setText(f"Removed bookmark: {bookmark_name}")
-                    return
-            QMessageBox.information(self, "Info", "Current folder is not bookmarked")
+    def new_folder(self):
+        """Create a new folder"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_path'):
+            name, ok = QInputDialog.getText(self, "New Folder", "Folder name:")
+            if ok and name:
+                folder_path = os.path.join(current_browser.current_path, name)
+                try:
+                    os.makedirs(folder_path)
+                    # Refresh view
+                    self.load_directory(current_browser.current_path)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Could not create folder: {e}")
 
-    def manage_bookmarks(self):
-        """Open a dialog to manage bookmarks"""
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Manage Bookmarks")
-        dialog.setMinimumSize(500, 400)
-        layout = QVBoxLayout(dialog)
-        # Create list widget for bookmarks
-        bookmark_list = QListWidget()
-        # Copy bookmarks to the dialog
-        for bookmark in self.bookmark_manager.bookmarks:
-            item = QListWidgetItem(bookmark['name'])
-            item.setData(Qt.UserRole, bookmark['path'])
-            # Set appropriate icon
-            if bookmark['path'] == QDir.homePath():
-                item.setIcon(self.style().standardIcon(QStyle.SP_DirHomeIcon))
-            elif "Documents" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))
-            elif "Downloads" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_ArrowDown))
-            elif "Pictures" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_DialogSaveButton))
-            elif "Music" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
-            elif "Videos" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-            elif "Desktop" in bookmark['path']:
-                item.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
-            else:
-                item.setIcon(self.style().standardIcon(QStyle.SP_DirIcon))
-            bookmark_list.addItem(item)
-        layout.addWidget(bookmark_list)
-        # Buttons
-        button_layout = QHBoxLayout()
-        remove_button = QPushButton("Remove Selected")
-        def remove_selected():
-            current_item = bookmark_list.currentItem()
-            if current_item:
-                path = current_item.data(Qt.UserRole)
-                self.bookmark_manager.remove_bookmark(path)
-                row = bookmark_list.row(current_item)
-                bookmark_list.takeItem(row)
-        remove_button.clicked.connect(remove_selected)
-        button_layout.addWidget(remove_button)
-        def apply_changes():
-            # Reload bookmarks from manager
-            self.load_bookmarks_from_manager()
-            dialog.accept()
-        apply_button = QPushButton("Apply")
-        apply_button.clicked.connect(apply_changes)
-        button_layout.addWidget(apply_button)
-        close_button = QPushButton("Close")
-        close_button.clicked.connect(dialog.reject)
-        button_layout.addWidget(close_button)
-        layout.addLayout(button_layout)
-        dialog.exec_()
+    def new_file(self):
+        """Create a new file"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_path'):
+            name, ok = QInputDialog.getText(self, "New File", "File name:")
+            if ok and name:
+                file_path = os.path.join(current_browser.current_path, name)
+                try:
+                    with open(file_path, 'w') as f:
+                        pass
+                    # Refresh view
+                    self.load_directory(current_browser.current_path)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Could not create file: {e}")
 
-    def show_bookmark_context_menu(self, position):
-        """Show context menu for bookmarks list"""
-        menu = QMenu(self)
-        remove_action = menu.addAction("Remove Bookmark")
-        remove_action.triggered.connect(self.remove_from_bookmarks)
-        menu.addSeparator()
-        # Add option to navigate to bookmark
-        item = self.bookmarks_list.itemAt(position)
-        if item:
-            navigate_action = menu.addAction("Open")
-            navigate_action.triggered.connect(lambda: self.navigate_to_bookmark(item))
-        menu.exec_(self.bookmarks_list.mapToGlobal(position))
+    def select_all(self):
+        """Select all items in current view"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'current_view'):
+            view = current_browser.current_view
+            view.selectAll()
 
-    def check_application_exists(self, app_name):
-        """Check if an application exists on the system"""
-        try:
-            subprocess.run(['which', app_name], check=True, capture_output=True, timeout=3)
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-            return False
+    def change_view(self, view_mode):
+        """Change the view mode"""
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser and hasattr(current_browser, 'view_stack'):
+            if view_mode == 'icon':
+                current_browser.view_stack.setCurrentWidget(current_browser.icon_view)
+                current_browser.current_view = current_browser.icon_view
+            elif view_mode == 'list':
+                current_browser.view_stack.setCurrentWidget(current_browser.list_view)
+                current_browser.current_view = current_browser.list_view
+            else:  # detail
+                current_browser.view_stack.setCurrentWidget(current_browser.detail_view)
+                current_browser.current_view = current_browser.detail_view
+            
+            # Save setting
+            self.settings_manager.set_setting('default_view_mode', view_mode)
 
-    def get_mime_type(self, file_path):
-        """Get MIME type for file"""
-        try:
-            # Try python's mimetypes first
-            mime_type, _ = mimetypes.guess_type(file_path)
-            if mime_type:
-                return mime_type
-            # Try file command on Linux
-            if platform.system() == "Linux":
-                result = subprocess.run(['file', '--mime-type', '-b', file_path], 
-                                      capture_output=True, text=True, timeout=3)
-                if result.returncode == 0:
-                    return result.stdout.strip()
-        except:
-            pass
-        return None
+    def show_about(self):
+        """Show about dialog"""
+        QMessageBox.about(self, "About Dark Nemo", 
+                         "Dark Nemo File Manager\n\n"
+                         "A simple, dark-themed file manager\n"
+                         "with USB auto-mount support.\n\n"
+                         "Features:\n"
+                         "• Tabbed interface\n"
+                         "• Drag and drop support\n"
+                         "• Thumbnail generation\n"
+                         "• USB auto-mount\n"
+                         "• Hidden files toggle\n"
+                         "• Bookmarks")
 
-    def get_open_with_applications(self, file_path):
-        """Get list of applications that can open the file"""
-        applications = []
-        try:
-            ext = os.path.splitext(file_path)[1].lower()
-            mime_type = self.get_mime_type(file_path)
-            if platform.system() == "Linux":
-                # Text files and code
-                if mime_type and ('text' in mime_type or 'json' in mime_type or 'xml' in mime_type) or \
-                   ext in ['.txt', '.md', '.py', '.js', '.html', '.css', '.json', '.xml', '.log', '.yml', '.yaml', '.ini', '.cfg', '.conf']:
-                    text_apps = []
-                    if self.check_application_exists('gedit'):
-                        text_apps.append(("Gedit", "gedit"))
-                    if self.check_application_exists('kate'):
-                        text_apps.append(("Kate", "kate"))
-                    if self.check_application_exists('mousepad'):
-                        text_apps.append(("Mousepad", "mousepad"))
-                    if self.check_application_exists('leafpad'):
-                        text_apps.append(("Leafpad", "leafpad"))
-                    if self.check_application_exists('gvim'):
-                        text_apps.append(("Vim GUI", "gvim"))
-                    if self.check_application_exists('emacs'):
-                        text_apps.append(("Emacs", "emacs"))
-                    if self.check_application_exists('code'):
-                        text_apps.append(("VS Code", "code"))
-                    if self.check_application_exists('subl'):
-                        text_apps.append(("Sublime Text", "subl"))
-                    if self.check_application_exists('atom'):
-                        text_apps.append(("Atom", "atom"))
-                    if self.check_application_exists('geany'):
-                        text_apps.append(("Geany", "geany"))
-                    applications.extend(text_apps)
-                # Images
-                elif mime_type and 'image' in mime_type or ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg', '.webp', '.tiff', '.ico']:
-                    image_apps = []
-                    if self.check_application_exists('eog'):
-                        image_apps.append(("Eye of GNOME", "eog"))
-                    if self.check_application_exists('gimp'):
-                        image_apps.append(("GIMP", "gimp"))
-                    if self.check_application_exists('kolourpaint'):
-                        image_apps.append(("KolourPaint", "kolourpaint"))
-                    if self.check_application_exists('inkscape'):
-                        image_apps.append(("Inkscape", "inkscape"))
-                    if self.check_application_exists('feh'):
-                        image_apps.append(("feh", "feh"))
-                    if self.check_application_exists('gwenview'):
-                        image_apps.append(("Gwenview", "gwenview"))
-                    if self.check_application_exists('ristretto'):
-                        image_apps.append(("Ristretto", "ristretto"))
-                    applications.extend(image_apps)
-                # Audio
-                elif mime_type and 'audio' in mime_type or ext in ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.wma']:
-                    audio_apps = []
-                    if self.check_application_exists('vlc'):
-                        audio_apps.append(("VLC", "vlc"))
-                    if self.check_application_exists('rhythmbox'):
-                        audio_apps.append(("Rhythmbox", "rhythmbox"))
-                    if self.check_application_exists('audacious'):
-                        audio_apps.append(("Audacious", "audacious"))
-                    if self.check_application_exists('clementine'):
-                        audio_apps.append(("Clementine", "clementine"))
-                    if self.check_application_exists('amarok'):
-                        audio_apps.append(("Amarok", "amarok"))
-                    if self.check_application_exists('banshee'):
-                        audio_apps.append(("Banshee", "banshee"))
-                    applications.extend(audio_apps)
-                # Video
-                elif mime_type and 'video' in mime_type or ext in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp']:
-                    video_apps = []
-                    if self.check_application_exists('vlc'):
-                        video_apps.append(("VLC", "vlc"))
-                    if self.check_application_exists('smplayer'):
-                        video_apps.append(("SMPlayer", "smplayer"))
-                    if self.check_application_exists('mpv'):
-                        video_apps.append(("MPV", "mpv"))
-                    if self.check_application_exists('totem'):
-                        video_apps.append(("Totem", "totem"))
-                    if self.check_application_exists('gnome-mpv'):
-                        video_apps.append(("GNOME MPV", "gnome-mpv"))
-                    if self.check_application_exists('kdenlive'):
-                        video_apps.append(("Kdenlive", "kdenlive"))
-                    applications.extend(video_apps)
-                # PDF
-                elif mime_type and 'pdf' in mime_type or ext == '.pdf':
-                    pdf_apps = []
-                    if self.check_application_exists('evince'):
-                        pdf_apps.append(("Evince", "evince"))
-                    if self.check_application_exists('okular'):
-                        pdf_apps.append(("Okular", "okular"))
-                    if self.check_application_exists('mupdf'):
-                        pdf_apps.append(("MuPDF", "mupdf"))
-                    if self.check_application_exists('zathura'):
-                        pdf_apps.append(("Zathura", "zathura"))
-                    if self.check_application_exists('qpdfview'):
-                        pdf_apps.append(("qpdfview", "qpdfview"))
-                    applications.extend(pdf_apps)
-                # Archives
-                elif mime_type and ('archive' in mime_type or 'zip' in mime_type or 'rar' in mime_type or 'tar' in mime_type) or \
-                     ext in ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.deb', '.rpm']:
-                    archive_apps = []
-                    if self.check_application_exists('file-roller'):
-                        archive_apps.append(("Archive Manager", "file-roller"))
-                    if self.check_application_exists('ark'):
-                        archive_apps.append(("Ark", "ark"))
-                    if self.check_application_exists('engrampa'):
-                        archive_apps.append(("Engrampa", "engrampa"))
-                    applications.extend(archive_apps)
-                # Spreadsheets
-                elif ext in ['.xls', '.xlsx', '.ods', '.csv']:
-                    spreadsheet_apps = []
-                    if self.check_application_exists('libreoffice'):
-                        spreadsheet_apps.append(("LibreOffice Calc", "libreoffice --calc"))
-                    if self.check_application_exists('gnumeric'):
-                        spreadsheet_apps.append(("Gnumeric", "gnumeric"))
-                    applications.extend(spreadsheet_apps)
-                # Documents
-                elif ext in ['.doc', '.docx', '.odt', '.rtf']:
-                    document_apps = []
-                    if self.check_application_exists('libreoffice'):
-                        document_apps.append(("LibreOffice Writer", "libreoffice --writer"))
-                    if self.check_application_exists('abiword'):
-                        document_apps.append(("AbiWord", "abiword"))
-                    applications.extend(document_apps)
-                # Presentations
-                elif ext in ['.ppt', '.pptx', '.odp']:
-                    presentation_apps = []
-                    if self.check_application_exists('libreoffice'):
-                        presentation_apps.append(("LibreOffice Impress", "libreoffice --impress"))
-                    applications.extend(presentation_apps)
-                # Always add default option as last resort
-                if self.check_application_exists('xdg-open'):
-                    applications.append(("Default Application", "xdg-open"))
-                # Add terminal option for text files
-                if mime_type and 'text' in mime_type:
-                    if self.check_application_exists('gnome-terminal'):
-                        applications.append(("Terminal (nano)", "gnome-terminal -- nano"))
-                    if self.check_application_exists('konsole'):
-                        applications.append(("Terminal (nano)", "konsole -e nano"))
-                    if self.check_application_exists('xterm'):
-                        applications.append(("Terminal (nano)", "xterm -e nano"))
-            elif platform.system() == "Windows":
-                applications.append(("Default Application", "start"))
-            elif platform.system() == "Darwin":  # macOS
-                applications.append(("Default Application", "open"))
-        except Exception as e:
-            print(f"Error getting applications: {e}")
-        return applications
+    def handle_drop_event(self, event, view):
+        """Handle drop events for drag and drop"""
+        if event.mimeData().hasUrls():
+            urls = event.mimeData().urls()
+            current_browser = self.tab_widget.currentWidget()
+            if current_browser and hasattr(current_browser, 'current_path'):
+                dest_path = current_browser.current_path
+                self.handle_urls_drop(urls, dest_path, event.dropAction())
 
-    def open_with_application(self, file_path, app_cmd):
-        """Open file with specific application"""
-        try:
-            if platform.system() == "Linux":
-                # Handle different command formats
-                if ' ' in app_cmd and not app_cmd.startswith("'"):
-                    # Command with arguments
-                    if '--' in app_cmd:
-                        # Split on -- to separate command and args
-                        parts = app_cmd.split('--', 1)
-                        cmd = parts[0].strip()
-                        args = parts[1].strip().split() + [file_path]
-                        subprocess.Popen([cmd] + args)
-                    else:
-                        # Simple command with space
-                        parts = app_cmd.split()
-                        cmd = parts[0]
-                        args = parts[1:] + [file_path]
-                        subprocess.Popen([cmd] + args)
-                else:
-                    # Simple command
-                    subprocess.Popen([app_cmd, file_path])
-            elif platform.system() == "Windows":
-                if app_cmd == "start":
-                    os.startfile(file_path)
-            elif platform.system() == "Darwin":
-                if app_cmd == "open":
-                    subprocess.run(["open", file_path])
-            self.status_label.setText(f"Opened {os.path.basename(file_path)} with {app_cmd}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open file with {app_cmd}: {str(e)}")
-
-    def show_context_menu(self, position):
-        menu = QMenu(self)
-        # Check if we're in the bookmarks list or file view
-        sender = self.sender()
-        is_bookmark_context = (sender == self.bookmarks_list)
-        if is_bookmark_context:
-            # Bookmark-specific context menu
-            remove_action = menu.addAction("Remove Bookmark")
-            remove_action.triggered.connect(self.remove_from_bookmarks)
-        else:
-            # File view context menu
-            paths = self.get_selected_paths()
-            # Common actions
-            open_action = menu.addAction("Open")
-            open_action.triggered.connect(lambda: self.open_selected())
-            # Add Open With submenu for files
-            if len(paths) == 1 and not os.path.isdir(paths[0]):
-                open_with_menu = menu.addMenu("Open With")
-                applications = self.get_open_with_applications(paths[0])
-                if applications:
-                    for app_name, app_cmd in applications:
-                        action = open_with_menu.addAction(app_name)
-                        action.triggered.connect(lambda checked, cmd=app_cmd: self.open_with_application(paths[0], cmd))
-                else:
-                    no_apps_action = open_with_menu.addAction("No applications found")
-                    no_apps_action.setEnabled(False)
-            menu.addSeparator()
-            copy_action = menu.addAction("Copy")
-            copy_action.triggered.connect(self.copy_files)
-            cut_action = menu.addAction("Cut")
-            cut_action.triggered.connect(self.cut_files)
-            paste_action = menu.addAction("Paste")
-            paste_action.triggered.connect(self.paste_files)
-            menu.addSeparator()
-            rename_action = menu.addAction("Rename")
-            rename_action.triggered.connect(self.rename_file)
-            delete_action = menu.addAction("Delete")
-            delete_action.triggered.connect(self.delete_files)
-            menu.addSeparator()
-            # Add New submenu with file and folder options
-            new_menu = menu.addMenu("New")
-            new_file_action = new_menu.addAction("New File")
-            new_file_action.triggered.connect(self.new_file)
-            new_folder_action = new_menu.addAction("New Folder")
-            new_folder_action.triggered.connect(self.new_folder)
-            menu.addSeparator()
-            # Bookmark actions
-            if paths:
-                if len(paths) == 1 and os.path.isdir(paths[0]):
-                    add_bookmark_action = menu.addAction("Add Folder to Bookmarks")
-                    add_bookmark_action.triggered.connect(self.add_selected_to_bookmarks)
-                elif any(os.path.isdir(p) for p in paths):
-                    add_bookmark_action = menu.addAction("Add Selected Folders to Bookmarks")
-                    add_bookmark_action.triggered.connect(self.add_selected_to_bookmarks)
-            add_current_action = menu.addAction("Add Current Folder to Bookmarks")
-            add_current_action.triggered.connect(self.add_current_to_bookmarks)
-            # Check if current folder is bookmarked
-            current_bookmarked = False
-            for bookmark in self.bookmark_manager.bookmarks:
-                if bookmark['path'] == self.current_path:
-                    current_bookmarked = True
-                    break
-            if current_bookmarked:
-                remove_current_action = menu.addAction("Remove Current Folder from Bookmarks")
-                remove_current_action.triggered.connect(self.remove_from_bookmarks)
-            menu.addSeparator()
-            # New actions
-            make_executable_action = menu.addAction("Make Executable")
-            make_executable_action.triggered.connect(self.make_executable)
-            menu.addSeparator()
-            # System actions
-            open_terminal_action = menu.addAction("Open in Terminal")
-            open_terminal_action.triggered.connect(self.open_in_terminal)
-            open_root_action = QAction("Open Thunar as Root", self)
-            open_root_action.triggered.connect(self.open_as_root)
-            menu.addAction(open_root_action)
-            menu.addSeparator()
-            properties_action = menu.addAction("Properties")
-            properties_action.triggered.connect(self.show_properties)
-        menu.exec_(self.get_current_view().viewport().mapToGlobal(position))
-
-    def open_selected(self):
-        paths = self.get_selected_paths()
-        for path in paths:
-            if os.path.isdir(path):
-                self.load_directory(path)
-            else:
-                self.open_file(path)
-
-    def show_properties(self):
-        paths = self.get_selected_paths()
-        if len(paths) != 1 or not paths[0]:
-            return
-        path = paths[0]
-        info = QFileInfo(path)
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Properties")
-        dialog.setMinimumSize(450, 350)
-        layout = QVBoxLayout(dialog)
-        # File info
-        info_widget = QWidget()
-        info_layout = QFormLayout(info_widget)
-        info_layout.addRow("Name:", QLabel(info.fileName()))
-        info_layout.addRow("Path:", QLabel(info.absolutePath()))
-        info_layout.addRow("Size:", QLabel(self.format_size(info.size())))
-        info_layout.addRow("Type:", QLabel("Directory" if info.isDir() else "File"))
-        info_layout.addRow("Modified:", QLabel(info.lastModified().toString()))
-        info_layout.addRow("Permissions:", QLabel(self.format_permissions(info)))
-        layout.addWidget(info_widget)
-        # Close button
-        close_button = QPushButton("Close")
-        close_button.clicked.connect(dialog.close)
-        layout.addWidget(close_button)
-        dialog.exec_()
-
-    def format_size(self, size):
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if size < 1024.0:
-                return f"{size:.1f} {unit}"
-            size /= 1024.0
-        return f"{size:.1f} PB"
-
-    def format_permissions(self, info):
-        permissions = []
-        if info.isReadable():
-            permissions.append("Read")
-        if info.isWritable():
-            permissions.append("Write")
-        if info.isExecutable():
-            permissions.append("Execute")
-        return ", ".join(permissions) if permissions else "None"
-
-    def update_status(self):
-        # Update item count
-        browser = self.get_current_browser()
-        if browser:
-            root_index = browser.file_model.index(self.current_path)
-            count = browser.file_model.rowCount(root_index)
-            self.item_count_label.setText(f"{count} items")
-        # Update free space
-        try:
-            usage = psutil.disk_usage(self.current_path)
-            free = self.format_size(usage.free)
-            total = self.format_size(usage.total)
-            self.free_space_label.setText(f"{free} free of {total}")
-        except:
-            self.free_space_label.setText("")
-        # Update status based on selection
-        selected = len(self.get_selected_paths())
-        if selected > 0:
-            self.status_label.setText(f"{selected} item(s) selected")
-        else:
-            self.status_label.setText("Ready")
+    def handle_urls_drop(self, urls, dest_path, drop_action):
+        """Handle URLs dropped from external sources"""
+        for url in urls:
+            if url.isLocalFile():
+                src_path = url.toLocalFile()
+                try:
+                    # Get the intended destination path
+                    dest_file = os.path.join(dest_path, os.path.basename(src_path))
+                    
+                    # For copy operations, always use unique filename
+                    if drop_action == Qt.CopyAction:
+                        # Get unique filename if destination already exists
+                        dest_file = FileOperations.get_unique_filename(dest_file)
+                        
+                        if os.path.isdir(src_path):
+                            shutil.copytree(src_path, dest_file)
+                        else:
+                            shutil.copy2(src_path, dest_file)
+                            
+                    elif drop_action == Qt.MoveAction:
+                        # For move operations, check if source and destination are the same
+                        if os.path.dirname(src_path) == dest_path:
+                            # Moving within same folder - use unique filename
+                            dest_file = FileOperations.get_unique_filename(dest_file)
+                        shutil.move(src_path, dest_file)
+                        
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Could not move/copy {src_path}: {e}")
+        
+        # Refresh view
+        current_browser = self.tab_widget.currentWidget()
+        if current_browser:
+            self.load_directory(current_browser.current_path)
 
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Dark Nemo")
-    # Set application icon
-    app.setWindowIcon(app.style().standardIcon(QStyle.SP_ComputerIcon))
+    
+    # Check if we were launched with a path argument (for opening as root)
+    if len(sys.argv) > 1:
+        initial_path = sys.argv[1]
+    else:
+        initial_path = QDir.homePath()
+    
     window = DarkNemo()
+    
+    # If we were launched with a path argument, navigate to it
+    if len(sys.argv) > 1 and os.path.exists(initial_path):
+        window.load_directory(initial_path)
+    
     window.show()
     sys.exit(app.exec_())
 
