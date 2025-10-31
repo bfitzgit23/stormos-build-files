@@ -2,6 +2,7 @@
 """
 Modern Application Launcher
 A sleek, feature-rich application launcher with favorites, recent apps, and system controls.
+Tokyo Night theme with deep blues, purples, and vibrant accents.
 """
 
 import sys
@@ -23,39 +24,43 @@ from PyQt5.QtGui import QFont, QIcon, QKeySequence, QPainter, QColor
 # CONSTANTS AND CONFIGURATION
 # =============================================================================
 
-CONFIG_DIR = Path.home() / ".config" / "modern_launcher"
+CONFIG_DIR = Path.home() / ".config" / "stormos_launcher"
 FAV_FILE = CONFIG_DIR / "favorites.json"
 RECENT_FILE = CONFIG_DIR / "recent.json"
 CACHE_FILE = CONFIG_DIR / "apps_cache.json"
 
-# Color scheme - Modern dark theme
+# Tokyo Night color scheme
 COLORS = {
-    "primary": "#2d3436",
-    "secondary": "#636e72",
-    "accent": "#0984e3",
-    "accent_hover": "#74b9ff",
-    "background": "rgba(45, 52, 54, 0.95)",
-    "surface": "rgba(99, 110, 114, 0.3)",
-    "text_primary": "#dfe6e9",
-    "text_secondary": "#b2bec3",
-    "success": "#00b894",
-    "warning": "#fdcb6e",
-    "danger": "#d63031"
+    "primary": "#1a1b26",        # Deep navy blue
+    "secondary": "#16161e",      # Darker navy
+    "accent": "#7aa2f7",         # Soft blue
+    "accent_hover": "#bb9af7",   # Soft purple
+    "background": "rgba(26, 27, 38, 0.97)",
+    "surface": "rgba(22, 22, 30, 0.85)",
+    "text_primary": "#c0caf5",   # Light blue-gray
+    "text_secondary": "#a9b1d6", # Medium blue-gray
+    "success": "#9ece6a",        # Soft green
+    "warning": "#e0af68",        # Soft orange
+    "danger": "#f7768e",         # Soft red
+    "purple": "#bb9af7",         # Soft purple
+    "cyan": "#7dcfff",           # Light cyan
+    "moon": "#e0af68",           # Golden yellow
+    "storm": "#7aa2f7"           # Storm blue
 }
 
-# Category icons and mapping
+# Category icons and mapping with Tokyo Night colors
 CATEGORIES = {
-    "Favorites": {"icon": "⭐", "color": COLORS["warning"]},
-    "Recent": {"icon": "🕐", "color": COLORS["accent"]},
+    "Favorites": {"icon": "⭐", "color": COLORS["moon"]},
+    "Recent": {"icon": "🕐", "color": COLORS["cyan"]},
     "All Apps": {"icon": "💻", "color": COLORS["text_primary"]},
-    "Multimedia": {"icon": "🎵", "color": "#e84393"},
+    "Multimedia": {"icon": "🎵", "color": COLORS["purple"]},
     "Dev": {"icon": "🔧", "color": COLORS["success"]},
-    "Games": {"icon": "🎮", "color": "#e17055"},
-    "Graphics": {"icon": "🎨", "color": "#6c5ce7"},
+    "Games": {"icon": "🎮", "color": COLORS["danger"]},
+    "Graphics": {"icon": "🎨", "color": COLORS["accent_hover"]},
     "Internet": {"icon": "🌐", "color": COLORS["accent"]},
-    "Office": {"icon": "📊", "color": "#00cec9"},
+    "Office": {"icon": "📊", "color": COLORS["cyan"]},
     "System": {"icon": "⚙️", "color": COLORS["text_secondary"]},
-    "Other": {"icon": "📦", "color": COLORS["secondary"]}
+    "Other": {"icon": "📦", "color": COLORS["surface"]}
 }
 
 # =============================================================================
@@ -129,13 +134,13 @@ class AppItem(QWidget):
         text_layout.setSpacing(2)
 
         self.name_label = QLabel(self.app["name"])
-        self.name_label.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        self.name_label.setFont(QFont("JetBrains Mono", 11, QFont.Bold))
         self.name_label.setStyleSheet(f"color: {COLORS['text_primary']};")
         text_layout.addWidget(self.name_label)
 
         if self.app.get("comment"):
             self.comment_label = QLabel(self.app["comment"])
-            self.comment_label.setFont(QFont("Segoe UI", 9))
+            self.comment_label.setFont(QFont("JetBrains Mono", 9))
             self.comment_label.setStyleSheet(f"color: {COLORS['text_secondary']};")
             text_layout.addWidget(self.comment_label)
 
@@ -144,8 +149,8 @@ class AppItem(QWidget):
 
         # Favorite indicator
         self.fav_indicator = QLabel("★" if self.is_favorite else "")
-        self.fav_indicator.setFont(QFont("Segoe UI", 14))
-        self.fav_indicator.setStyleSheet(f"color: {COLORS['warning']};")
+        self.fav_indicator.setFont(QFont("JetBrains Mono", 14))
+        self.fav_indicator.setStyleSheet(f"color: {COLORS['moon']};")
         self.fav_indicator.setFixedWidth(20)
         layout.addWidget(self.fav_indicator)
 
@@ -155,10 +160,12 @@ class AppItem(QWidget):
                 background: transparent;
                 border-radius: 8px;
                 margin: 2px;
+                border: 1px solid transparent;
             }}
             AppItem:hover {{
                 background: {COLORS['surface']};
                 border: 1px solid {COLORS['accent']};
+                box-shadow: 0 0 10px {COLORS['accent']}33;
             }}
         """)
 
@@ -180,6 +187,7 @@ class AppItem(QWidget):
             background: {COLORS['surface']};
             border-radius: 6px;
             color: {COLORS['text_secondary']};
+            border: 1px solid {COLORS['accent']};
         """)
 
     def mousePressEvent(self, event) -> None:
@@ -264,14 +272,15 @@ class Launcher(QWidget):
             QLineEdit {{
                 background: {COLORS['surface']};
                 color: {COLORS['text_primary']};
-                border: 2px solid {COLORS['secondary']};
+                border: 2px solid {COLORS['accent']};
                 border-radius: 12px;
                 padding: 12px 16px;
                 font-size: 14px;
-                font-family: 'Segoe UI';
+                font-family: 'JetBrains Mono';
             }}
             QLineEdit:focus {{
-                border-color: {COLORS['accent']};
+                border-color: {COLORS['accent_hover']};
+                box-shadow: 0 0 15px {COLORS['accent']}66;
             }}
         """)
         parent_layout.addWidget(self.search_bar)
@@ -294,20 +303,23 @@ class Launcher(QWidget):
                 QPushButton {{
                     background: {COLORS['surface']};
                     color: {COLORS['text_primary']};
-                    border: 1px solid transparent;
+                    border: 1px solid {COLORS['accent']};
                     border-radius: 8px;
                     padding: 8px 12px;
                     text-align: left;
-                    font-family: 'Segoe UI';
+                    font-family: 'JetBrains Mono';
+                    font-weight: bold;
                 }}
                 QPushButton:hover {{
-                    background: {cat_info['color']}33;
-                    border-color: {cat_info['color']};
+                    background: {cat_info['color']}22;
+                    border: 2px solid {cat_info['color']};
+                    box-shadow: 0 0 8px {cat_info['color']}44;
                 }}
                 QPushButton:checked {{
-                    background: {cat_info['color']}44;
+                    background: {cat_info['color']}33;
                     border: 2px solid {cat_info['color']};
                     font-weight: bold;
+                    box-shadow: 0 0 12px {cat_info['color']}66;
                 }}
             """)
 
@@ -337,6 +349,7 @@ class Launcher(QWidget):
                 width: 10px;
                 margin: 0px;
                 border-radius: 5px;
+                border: 1px solid {COLORS['accent']};
             }}
             QScrollBar::handle:vertical {{
                 background: {COLORS['accent']};
@@ -345,6 +358,7 @@ class Launcher(QWidget):
             }}
             QScrollBar::handle:vertical:hover {{
                 background: {COLORS['accent_hover']};
+                box-shadow: 0 0 8px {COLORS['accent_hover']};
             }}
         """)
 
@@ -360,12 +374,12 @@ class Launcher(QWidget):
         controls_layout = QHBoxLayout()
         controls_layout.setSpacing(8)
 
-        # Updated system actions with suspend button
+        # System actions with Tokyo Night colors
         system_actions = [
-            ("🔒 Lock", self._lock_system, COLORS["secondary"]),
-            ("⏾ Suspend", self._suspend_system, "#6c5ce7"),  # Purple color for suspend
+            ("🔒 Lock", self._lock_system, COLORS["accent"]),
+            ("⏾ Suspend", self._suspend_system, COLORS["purple"]),
             ("🚪 Logout", self._logout, COLORS["warning"]),
-            ("🔄 Reboot", self._reboot, COLORS["accent"]),
+            ("🔄 Reboot", self._reboot, COLORS["success"]),
             ("⏻ Shutdown", self._shutdown, COLORS["danger"])
         ]
 
@@ -375,16 +389,18 @@ class Launcher(QWidget):
             btn.setFixedHeight(35)
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: {color}33;
+                    background: {color}22;
                     color: {COLORS['text_primary']};
                     border: 1px solid {color};
                     border-radius: 6px;
                     padding: 6px;
-                    font-family: 'Segoe UI';
+                    font-family: 'JetBrains Mono';
                     font-weight: bold;
                 }}
                 QPushButton:hover {{
-                    background: {color}66;
+                    background: {color}44;
+                    border: 2px solid {color};
+                    box-shadow: 0 0 8px {color}66;
                 }}
             """)
             controls_layout.addWidget(btn)
@@ -405,12 +421,20 @@ class Launcher(QWidget):
         )
 
     def paintEvent(self, event) -> None:
-        """Draw window background with rounded corners."""
+        """Draw window background with rounded corners and Tokyo Night glow."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Main background
         painter.setBrush(QColor(COLORS["background"]))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(QColor(COLORS["accent"]))
         painter.drawRoundedRect(self.rect(), 16, 16)
+        
+        # Tokyo Night border glow effect
+        painter.setPen(QColor(COLORS["accent"]))
+        for i in range(1, 4):
+            glow_rect = self.rect().adjusted(i, i, -i, -i)
+            painter.drawRoundedRect(glow_rect, 16, 16)
 
     def focusOutEvent(self, event) -> None:
         """Close launcher when focus is lost."""
@@ -591,7 +615,12 @@ class Launcher(QWidget):
         if not apps:
             empty_label = QLabel("No applications found")
             empty_label.setAlignment(Qt.AlignCenter)
-            empty_label.setStyleSheet(f"color: {COLORS['text_secondary']}; font-style: italic; padding: 40px;")
+            empty_label.setStyleSheet(f"""
+                color: {COLORS['text_secondary']}; 
+                font-style: italic; 
+                padding: 40px;
+                font-family: 'JetBrains Mono';
+            """)
             self.apps_layout.insertWidget(0, empty_label)
 
     def launch_app(self, app: Dict[str, Any]) -> None:
@@ -713,7 +742,7 @@ def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     app.setStyle("Fusion")
-    app.setFont(QFont("Segoe UI", 10))
+    app.setFont(QFont("JetBrains Mono", 10))
 
     icon_theme = get_system_icon_theme()
     QIcon.setThemeName(icon_theme)
