@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
-Exec=hyper2
+Exec=xfce4-panel --quit
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
-Name=Hyper2  Desktop Launchers
+Name=xquit  Desktop Launchers
 Icon=
 Comment=
 Path=
