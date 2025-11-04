@@ -61,6 +61,13 @@ configs:
       y: 0
       width: 1920
       height: 1080
+  - id: "592c488588ff555d3118445cb4f21c5f22882894"
+    display_name: "AU Optronics 0x63ED (eDP-2)"
+    geometry:
+      x: 0
+      y: 0
+      width: 1920
+      height: 1080
   - id: "ce3e162d19b5d88b0a753bf401ade6843cf9f898"
     display_name: "Chimei Innolux Corporation 0x175C (eDP-1)"
     geometry:

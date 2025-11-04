@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS_Familia"
-iso_label="StormOS_Familia_Release"
+iso_name="StormOS_Eco"
+iso_label="StormOS_Eco_Release"
 iso_publisher="StormOS"
 iso_application="StormOS Install Media"
 iso_version="October"
@@ -38,4 +38,6 @@ file_permissions=(
   ["/usr/local/bin/term"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
   ["/etc/skel/.config/autostart/cortile.desktop"]="0:0:755"
+  ["/etc/skel/.config/autostart/hyper.desktop"]="0:0:755"
+  ["/usr/local/bin/hyper2"]="0:0:755"
 )

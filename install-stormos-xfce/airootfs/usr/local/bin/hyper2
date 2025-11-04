@@ -1,0 +1,3423 @@
+#!/usr/bin/env python3
+"""
+Tokyo Night Qt5 Panel Bar - Modern stylish panel with settings
+Complete Xfce4 panel replacement with Tokyo Night theme
+Enhanced with workspace switcher, brightness control, weather, notifications, and wireless network management
+"""
+
+import sys
+import os
+import time
+import subprocess
+import threading
+import re
+import json
+import signal
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass, asdict
+
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, 
+                            QVBoxLayout, QLabel, QPushButton, QMenu, QSystemTrayIcon,
+                            QFrame, QToolButton, QStyle, QAction, QScrollArea,
+                            QDialog, QSlider, QCheckBox, QComboBox, QGroupBox,
+                            QFormLayout, QSpinBox, QColorDialog, QTabWidget,
+                            QSystemTrayIcon, QSizePolicy, QListWidget, QListWidgetItem,
+                            QLineEdit, QMessageBox, QInputDialog)
+from PyQt5.QtCore import Qt, QTimer, QPoint, QSize, pyqtSignal, QThread, QSettings, QEvent
+from PyQt5.QtGui import (QIcon, QFont, QPalette, QColor, QPainter, QLinearGradient, 
+                        QFontDatabase, QPixmap, QPen, QWheelEvent)
+
+# Try to import QX11Info from the correct module
+try:
+    from PyQt5.QtX11Extras import QX11Info
+    HAS_X11 = True
+except ImportError:
+    try:
+        from PyQt5.QtGui import QX11Info
+        HAS_X11 = True
+    except ImportError:
+        HAS_X11 = False
+        print("Warning: QX11Info not available. Some X11-specific features may be disabled.")
+
+# Tokyo Night Color Palette
+class TokyoNight:
+    # Base colors
+    BACKGROUND = "#1a1b26"
+    FOREGROUND = "#c0caf5"
+    
+    # Content colors
+    COMMENT = "#565f89"
+    SELECTION = "#283457"
+    
+    # Ansi colors
+    BLACK = "#15161e"
+    RED = "#f7768e"
+    GREEN = "#9ece6a"
+    YELLOW = "#e0af68"
+    BLUE = "#7aa2f7"
+    PURPLE = "#bb9af7"
+    CYAN = "#7dcfff"
+    WHITE = "#a9b1d6"
+    
+    # Bright colors
+    BRIGHT_BLACK = "#414868"
+    BRIGHT_RED = "#f7768e"
+    BRIGHT_GREEN = "#9ece6a"
+    BRIGHT_YELLOW = "#e0af68"
+    BRIGHT_BLUE = "#7aa2f7"
+    BRIGHT_PURPLE = "#bb9af7"
+    BRIGHT_CYAN = "#7dcfff"
+    BRIGHT_WHITE = "#c0caf5"
+    
+    # Additional accents
+    ORANGE = "#ff9e64"
+    PINK = "#ff007c"
+    TEAL = "#2ac3de"
+
+@dataclass
+class Application:
+    name: str
+    command: str
+    icon: str = "🚀"
+    args: str = ""  # Additional arguments for the command
+
+class WirelessNetworkDialog(QDialog):
+    """Dialog for managing wireless network connections"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+        self.scan_networks()
+        
+    def setup_ui(self):
+        self.setWindowTitle("Wireless Networks")
+        self.setFixedSize(500, 600)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background: {TokyoNight.BACKGROUND};
+                color: {TokyoNight.FOREGROUND};
+                border-radius: 8px;
+            }}
+            QListWidget {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.COMMENT};
+                border-radius: 4px;
+                padding: 5px;
+            }}
+            QListWidget::item {{
+                padding: 8px;
+                border-radius: 3px;
+            }}
+            QListWidget::item:selected {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+            }}
+            QPushButton {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: {TokyoNight.CYAN};
+            }}
+            QLabel {{
+                color: {TokyoNight.FOREGROUND};
+            }}
+            QLineEdit {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.COMMENT};
+                padding: 5px;
+                border-radius: 3px;
+            }}
+            QCheckBox {{
+                color: {TokyoNight.FOREGROUND};
+            }}
+            QGroupBox {{
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.COMMENT};
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+            }}
+        """)
+        
+        layout = QVBoxLayout()
+        
+        # Title
+        title = QLabel("Wireless Networks")
+        title.setStyleSheet(f"font-size: 14pt; font-weight: bold; color: {TokyoNight.CYAN};")
+        layout.addWidget(title)
+        
+        # Network list
+        self.network_list = QListWidget()
+        self.network_list.itemDoubleClicked.connect(self.connect_to_network)
+        layout.addWidget(self.network_list)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        self.refresh_btn = QPushButton("󰑐 Refresh")
+        self.refresh_btn.clicked.connect(self.scan_networks)
+        button_layout.addWidget(self.refresh_btn)
+        
+        self.connect_btn = QPushButton("󰖩 Connect")
+        self.connect_btn.clicked.connect(self.connect_to_selected)
+        button_layout.addWidget(self.connect_btn)
+        
+        self.disconnect_btn = QPushButton("󰖪 Disconnect")
+        self.disconnect_btn.clicked.connect(self.disconnect_current)
+        button_layout.addWidget(self.disconnect_btn)
+        
+        button_layout.addStretch()
+        
+        self.close_btn = QPushButton("Close")
+        self.close_btn.clicked.connect(self.close)
+        button_layout.addWidget(self.close_btn)
+        
+        layout.addLayout(button_layout)
+        
+        # Connection details section
+        self.details_group = QGroupBox("Connection Details")
+        details_layout = QFormLayout()
+        
+        self.ssid_label = QLabel("--")
+        self.signal_label = QLabel("--")
+        self.security_label = QLabel("--")
+        self.status_label = QLabel("--")
+        
+        details_layout.addRow("SSID:", self.ssid_label)
+        details_layout.addRow("Signal:", self.signal_label)
+        details_layout.addRow("Security:", self.security_label)
+        details_layout.addRow("Status:", self.status_label)
+        
+        self.details_group.setLayout(details_layout)
+        layout.addWidget(self.details_group)
+        
+        # Password input for secured networks
+        self.password_group = QGroupBox("Network Password")
+        password_layout = QVBoxLayout()
+        
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setPlaceholderText("Enter network password")
+        password_layout.addWidget(self.password_input)
+        
+        self.show_password_check = QCheckBox("Show password")
+        self.show_password_check.stateChanged.connect(self.toggle_password_visibility)
+        password_layout.addWidget(self.show_password_check)
+        
+        self.password_group.setLayout(password_layout)
+        self.password_group.setVisible(False)
+        layout.addWidget(self.password_group)
+        
+        self.setLayout(layout)
+        
+        # Update connection details when selection changes
+        self.network_list.itemSelectionChanged.connect(self.update_connection_details)
+    
+    def toggle_password_visibility(self, state):
+        """Toggle password visibility"""
+        if state == Qt.Checked:
+            self.password_input.setEchoMode(QLineEdit.Normal)
+        else:
+            self.password_input.setEchoMode(QLineEdit.Password)
+    
+    def scan_networks(self):
+        """Scan for available wireless networks"""
+        self.network_list.clear()
+        
+        try:
+            # Try to get wireless networks using nmcli
+            result = subprocess.run(
+                "nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if result.returncode == 0:
+                networks = []
+                for line in result.stdout.splitlines():
+                    parts = line.split(':')
+                    if len(parts) >= 3:
+                        ssid = parts[0]
+                        signal = parts[1]
+                        security = parts[2]
+                        
+                        # Skip empty SSIDs
+                        if not ssid:
+                            continue
+                            
+                        networks.append({
+                            'ssid': ssid,
+                            'signal': signal,
+                            'security': security,
+                            'connected': False
+                        })
+                
+                # Check which network is currently connected
+                try:
+                    current_result = subprocess.run(
+                        "nmcli -t -f NAME,TYPE connection show --active | grep wifi",
+                        shell=True, capture_output=True, text=True
+                    )
+                    
+                    if current_result.returncode == 0:
+                        current_ssid = current_result.stdout.split(':')[0]
+                        
+                        for network in networks:
+                            if network['ssid'] == current_ssid:
+                                network['connected'] = True
+                except:
+                    pass
+                
+                # Sort networks by signal strength (descending) and connection status
+                networks.sort(key=lambda x: (not x['connected'], -int(x['signal'])))
+                
+                # Add networks to the list
+                for network in networks:
+                    icon = "󰖩" if network['connected'] else "󰖪"
+                    security_icon = "🔒" if network['security'] else "🔓"
+                    
+                    item_text = f"{icon} {network['ssid']} {security_icon} ({network['signal']}%)"
+                    item = QListWidgetItem(item_text)
+                    item.setData(Qt.UserRole, network)
+                    
+                    if network['connected']:
+                        item.setForeground(QColor(TokyoNight.GREEN))
+                    
+                    self.network_list.addItem(item)
+            else:
+                # Fallback to iwlist if nmcli fails
+                self.scan_with_iwlist()
+                
+        except Exception as e:
+            print(f"Error scanning networks: {e}")
+            # Try fallback method
+            self.scan_with_iwlist()
+    
+    def scan_with_iwlist(self):
+        """Fallback method using iwlist to scan networks"""
+        try:
+            result = subprocess.run(
+                "iwlist scan 2>/dev/null | grep -E 'ESSID|Quality|Encryption key'",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if result.returncode == 0:
+                networks = []
+                current_network = {}
+                
+                for line in result.stdout.splitlines():
+                    if "ESSID" in line:
+                        if current_network:
+                            networks.append(current_network)
+                        ssid = line.split('"')[1] if '"' in line else "Hidden Network"
+                        current_network = {'ssid': ssid}
+                    elif "Quality" in line:
+                        quality = line.split('=')[1].split('/')[0]
+                        current_network['signal'] = int(quality)
+                    elif "Encryption key" in line:
+                        encrypted = "on" in line.split(':')[1]
+                        current_network['security'] = "WPA/WPA2" if encrypted else "Open"
+                
+                if current_network:
+                    networks.append(current_network)
+                
+                # Add networks to the list
+                for network in networks:
+                    security_icon = "🔒" if network.get('security') != "Open" else "🔓"
+                    signal = network.get('signal', 0)
+                    
+                    item_text = f"󰖪 {network['ssid']} {security_icon} ({signal}%)"
+                    item = QListWidgetItem(item_text)
+                    item.setData(Qt.UserRole, network)
+                    
+                    self.network_list.addItem(item)
+        except Exception as e:
+            print(f"Error with iwlist scan: {e}")
+            self.network_list.addItem(QListWidgetItem("Error scanning networks"))
+    
+    def update_connection_details(self):
+        """Update connection details when selection changes"""
+        current_item = self.network_list.currentItem()
+        if not current_item:
+            return
+            
+        network = current_item.data(Qt.UserRole)
+        if not network:
+            return
+            
+        self.ssid_label.setText(network.get('ssid', '--'))
+        self.signal_label.setText(f"{network.get('signal', '--')}%")
+        self.security_label.setText(network.get('security', '--'))
+        
+        status = "Connected" if network.get('connected', False) else "Available"
+        self.status_label.setText(status)
+        
+        # Show password input for secured networks
+        is_secured = network.get('security') and network.get('security') != "Open"
+        self.password_group.setVisible(is_secured and not network.get('connected', False))
+    
+    def connect_to_selected(self):
+        """Connect to the selected network"""
+        current_item = self.network_list.currentItem()
+        if not current_item:
+            return
+            
+        self.connect_to_network(current_item)
+    
+    def connect_to_network(self, item):
+        """Connect to a wireless network"""
+        network = item.data(Qt.UserRole)
+        if not network:
+            return
+            
+        ssid = network.get('ssid')
+        if not ssid:
+            return
+            
+        try:
+            # Check if already connected
+            if network.get('connected', False):
+                return
+                
+            # Check if network requires password
+            is_secured = network.get('security') and network.get('security') != "Open"
+            
+            if is_secured:
+                password = self.password_input.text()
+                if not password:
+                    self.password_group.setVisible(True)
+                    self.password_input.setFocus()
+                    return
+                
+                # Try to connect with password using nmcli
+                # Method 1: Direct connection
+                result = subprocess.run(
+                    f"nmcli dev wifi connect '{ssid}' password '{password}'",
+                    shell=True, capture_output=True, text=True
+                )
+                
+                if result.returncode != 0:
+                    # Method 2: Create connection first, then connect
+                    connection_name = ssid.replace(' ', '_')
+                    create_result = subprocess.run(
+                        f"nmcli connection add type wifi con-name '{connection_name}' ifname wlan0 ssid '{ssid}' wifi-sec.key-mgmt wpa-psk wifi-sec.psk '{password}'",
+                        shell=True, capture_output=True, text=True
+                    )
+                    
+                    if create_result.returncode == 0:
+                        # Now connect to the created connection
+                        result = subprocess.run(
+                            f"nmcli connection up '{connection_name}'",
+                            shell=True, capture_output=True, text=True
+                        )
+                    else:
+                        # Method 3: Try with different interface
+                        create_result = subprocess.run(
+                            f"nmcli connection add type wifi con-name '{connection_name}' ssid '{ssid}' wifi-sec.key-mgmt wpa-psk wifi-sec.psk '{password}'",
+                            shell=True, capture_output=True, text=True
+                        )
+                        
+                        if create_result.returncode == 0:
+                            result = subprocess.run(
+                                f"nmcli connection up '{connection_name}'",
+                                shell=True, capture_output=True, text=True
+                            )
+                
+                if result.returncode != 0:
+                    print(f"Failed to connect: {result.stderr}")
+                    # Show error message
+                    error_msg = result.stderr.strip() if result.stderr else "Connection failed"
+                    self.status_label.setText(f"Error: {error_msg}")
+                    
+                    # Show a more user-friendly error dialog
+                    QMessageBox.warning(
+                        self, "Connection Failed",
+                        f"Failed to connect to {ssid}.\n\nError: {error_msg}\n\nPlease check your password and try again."
+                    )
+                    return
+            else:
+                # Connect to open network
+                result = subprocess.run(
+                    f"nmcli dev wifi connect '{ssid}'",
+                    shell=True, capture_output=True, text=True
+                )
+                
+                if result.returncode != 0:
+                    print(f"Failed to connect: {result.stderr}")
+                    self.status_label.setText(f"Error: {result.stderr.strip()}")
+                    
+                    # Show a more user-friendly error dialog
+                    QMessageBox.warning(
+                        self, "Connection Failed",
+                        f"Failed to connect to {ssid}.\n\nError: {result.stderr.strip()}"
+                    )
+                    return
+            
+            # Update status
+            self.status_label.setText("Connecting...")
+            
+            # Refresh network list after a short delay
+            QTimer.singleShot(3000, self.scan_networks)
+            
+        except Exception as e:
+            print(f"Error connecting to network: {e}")
+            self.status_label.setText(f"Error: {str(e)}")
+            
+            # Show a more user-friendly error dialog
+            QMessageBox.warning(
+                self, "Connection Error",
+                f"An error occurred while connecting to {ssid}.\n\nError: {str(e)}"
+            )
+    
+    def disconnect_current(self):
+        """Disconnect from current network"""
+        try:
+            # Get the active WiFi connection
+            result = subprocess.run(
+                "nmcli -t -f NAME,TYPE connection show --active | grep wifi",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if result.returncode == 0 and result.stdout.strip():
+                connection_name = result.stdout.split(':')[0]
+                
+                # Disconnect the specific connection
+                result = subprocess.run(
+                    f"nmcli connection down '{connection_name}'",
+                    shell=True, capture_output=True, text=True
+                )
+                
+                if result.returncode == 0:
+                    self.status_label.setText("Disconnected")
+                    # Refresh network list after a short delay
+                    QTimer.singleShot(2000, self.scan_networks)
+                else:
+                    print(f"Failed to disconnect: {result.stderr}")
+                    self.status_label.setText(f"Error: {result.stderr.strip()}")
+                    
+                    # Show a more user-friendly error dialog
+                    QMessageBox.warning(
+                        self, "Disconnection Failed",
+                        f"Failed to disconnect from {connection_name}.\n\nError: {result.stderr.strip()}"
+                    )
+            else:
+                # Try alternative method if no active WiFi connection found
+                result = subprocess.run(
+                    "nmcli dev disconnect $(nmcli dev status | grep wifi | head -1 | awk '{print $1}')",
+                    shell=True, capture_output=True, text=True
+                )
+                
+                if result.returncode == 0:
+                    self.status_label.setText("Disconnected")
+                    # Refresh network list after a short delay
+                    QTimer.singleShot(2000, self.scan_networks)
+                else:
+                    print(f"Failed to disconnect: {result.stderr}")
+                    self.status_label.setText(f"Error: {result.stderr.strip()}")
+                    
+                    # Show a more user-friendly error dialog
+                    QMessageBox.warning(
+                        self, "Disconnection Failed",
+                        f"Failed to disconnect from WiFi.\n\nError: {result.stderr.strip()}"
+                    )
+        except Exception as e:
+            print(f"Error disconnecting: {e}")
+            self.status_label.setText(f"Error: {str(e)}")
+            
+            # Show a more user-friendly error dialog
+            QMessageBox.warning(
+                self, "Disconnection Error",
+                f"An error occurred while disconnecting from WiFi.\n\nError: {str(e)}"
+            )
+
+class NetworkManagerWidget(QWidget):
+    """Widget for Network Manager control with wireless network dialog"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+        
+    def setup_ui(self):
+        """Setup the network manager control UI"""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+        
+        # Network manager button (clickable to launch network manager)
+        self.network_button = QPushButton("󰤨")  # Network icon
+        self.network_button.setFixedSize(32, 32)
+        self.network_button.setStyleSheet(f"""
+            QPushButton {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: none;
+                border-radius: 6px;
+                font-size: 12pt;
+            }}
+            QPushButton:hover {{
+                background: {TokyoNight.BLUE}40;
+            }}
+        """)
+        self.network_button.setCursor(Qt.PointingHandCursor)
+        self.network_button.setToolTip("Left click: Wireless Networks\nRight click: Network Manager")
+        self.network_button.clicked.connect(self.launch_wireless_dialog)
+        self.network_button.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.network_button.customContextMenuRequested.connect(self.show_network_menu)
+        layout.addWidget(self.network_button)
+        
+    def launch_wireless_dialog(self):
+        """Launch wireless network dialog"""
+        try:
+            dialog = WirelessNetworkDialog(self)
+            dialog.exec_()
+        except Exception as e:
+            print(f"Failed to launch wireless dialog: {e}")
+            # Fallback to network manager
+            self.launch_network_manager()
+    
+    def show_network_menu(self, position):
+        """Show context menu for network options"""
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background: {TokyoNight.BACKGROUND};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.SELECTION};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                padding: 6px 16px;
+                border-radius: 4px;
+            }}
+            QMenu::item:selected {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+            }}
+        """)
+        
+        wireless_action = QAction("󰖩 Wireless Networks", self)
+        wireless_action.triggered.connect(self.launch_wireless_dialog)
+        menu.addAction(wireless_action)
+        
+        menu.addSeparator()
+        
+        manager_action = QAction("󰒓 Network Manager", self)
+        manager_action.triggered.connect(self.launch_network_manager)
+        menu.addAction(manager_action)
+        
+        menu.exec_(self.network_button.mapToGlobal(position))
+        
+    def launch_network_manager(self):
+        """Launch network manager when button is clicked"""
+        try:
+            # Try nm-connection-editor first (GUI version)
+            result = subprocess.run(
+                "which nm-connection-editor",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if result.returncode == 0:
+                # Check if nm-connection-editor is already running
+                result = subprocess.run(
+                    "pgrep -f nm-connection-editor",
+                    shell=True, capture_output=True, text=True
+                )
+                
+                if result.returncode == 0:
+                    # If running, focus it
+                    subprocess.run(
+                        "wmctrl -a 'Network Connections'",
+                        shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                else:
+                    # Launch nm-connection-editor
+                    subprocess.Popen(
+                        ["nm-connection-editor"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+            else:
+                # Fallback to nm-applet
+                subprocess.Popen(
+                    ["nm-applet"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                
+        except Exception as e:
+            print(f"Failed to launch network manager: {e}")
+            # Try alternative command
+            try:
+                subprocess.Popen(
+                    ["nm-applet"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            except Exception as e2:
+                print(f"Failed to launch nm-applet: {e2}")
+
+class BluetoothManagerWidget(QWidget):
+    """Widget for Bluetooth Manager control that launches blueman-manager"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+        
+    def setup_ui(self):
+        """Setup the bluetooth manager control UI"""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+        
+        # Bluetooth manager button (clickable to launch bluetooth manager)
+        self.bluetooth_button = QPushButton("󰂯")  # Bluetooth icon
+        self.bluetooth_button.setFixedSize(32, 32)
+        self.bluetooth_button.setStyleSheet(f"""
+            QPushButton {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: none;
+                border-radius: 6px;
+                font-size: 12pt;
+            }}
+            QPushButton:hover {{
+                background: {TokyoNight.BLUE}40;
+            }}
+        """)
+        self.bluetooth_button.setCursor(Qt.PointingHandCursor)
+        self.bluetooth_button.setToolTip("Click to open Bluetooth Manager")
+        self.bluetooth_button.clicked.connect(self.launch_bluetooth_manager)
+        layout.addWidget(self.bluetooth_button)
+        
+    def launch_bluetooth_manager(self):
+        """Launch bluetooth manager when button is clicked"""
+        try:
+            # Check if blueman-manager is available
+            result = subprocess.run(
+                "which blueman-manager",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if result.returncode == 0:
+                # Check if blueman-manager is already running
+                result = subprocess.run(
+                    "pgrep -f blueman-manager",
+                    shell=True, capture_output=True, text=True
+                )
+                
+                if result.returncode == 0:
+                    # If running, focus it
+                    subprocess.run(
+                        "wmctrl -a 'Bluetooth Manager'",
+                        shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                else:
+                    # Launch blueman-manager
+                    subprocess.Popen(
+                        ["blueman-manager"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+            else:
+                print("Blueman-manager not found. Please install it with: sudo apt install blueman")
+                # Try alternative bluetooth managers
+                try:
+                    # Try blueberry (alternative)
+                    subprocess.Popen(
+                        ["blueberry"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                except:
+                    # Try gnome-bluetooth
+                    subprocess.Popen(
+                        ["gnome-bluetooth"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    
+        except Exception as e:
+            print(f"Failed to launch bluetooth manager: {e}")
+
+class VolumeControlWidget(QWidget):
+    """Widget for volume control that launches pavucontrol"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.current_volume = 50
+        self.is_muted = False
+        self.setup_ui()
+        
+    def setup_ui(self):
+        """Setup the volume control UI"""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+        
+        # Volume label (clickable to launch pavucontrol)
+        self.volume_label = QLabel("󰕾 50%")
+        self.volume_label.setStyleSheet(f"""
+            padding: 4px 8px;
+            background: {TokyoNight.SELECTION};
+            border-radius: 6px;
+            font-size: 9pt;
+            color: {TokyoNight.FOREGROUND};
+        """)
+        self.volume_label.setCursor(Qt.PointingHandCursor)
+        self.volume_label.mousePressEvent = self.launch_pavucontrol
+        self.volume_label.setToolTip("Click to open PulseAudio Volume Control")
+        layout.addWidget(self.volume_label)
+        
+    def launch_pavucontrol(self, event):
+        """Launch pavucontrol when volume label is clicked"""
+        if event.button() == Qt.LeftButton:
+            try:
+                # Check if pavucontrol is already running
+                result = subprocess.run(
+                    "pgrep -f pavucontrol",
+                    shell=True, capture_output=True, text=True
+                )
+                
+                if result.returncode == 0:
+                    # If running, focus it
+                    subprocess.run(
+                        "wmctrl -a pavucontrol",
+                        shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
+                else:
+                    # Launch pavucontrol
+                    subprocess.Popen(
+                        ["pavucontrol"],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+            except Exception as e:
+                print(f"Failed to launch pavucontrol: {e}")
+                
+    def update_volume_display(self, volume, muted):
+        """Update the volume label display"""
+        self.current_volume = volume
+        self.is_muted = muted
+        
+        icon = "󰖁" if muted else "󰕾"  # Muted vs volume icon
+        color = TokyoNight.RED if muted else TokyoNight.CYAN
+        self.volume_label.setText(f"{icon} <font color='{color}'>{volume}%</font>")
+
+class XfceLauncherReader:
+    """Read XFCE panel launchers from configuration"""
+    
+    def __init__(self):
+        # Try multiple possible locations for XFCE configuration
+        self.config_dirs = [
+            Path.home() / ".config" / "xfce4" / "panel",
+            Path("/etc/xdg/xfce4/panel"),
+            Path("/usr/share/xfce4/panel")
+        ]
+        self.launchers_dir = Path.home() / ".config" / "xfce4" / "panel" / "launchers"
+    
+    def get_xfce_launchers(self) -> List[Application]:
+        """Get launchers from XFCE panel configuration"""
+        launchers = []
+        
+        # Try each possible config directory
+        for config_dir in self.config_dirs:
+            try:
+                panels_file = config_dir / "panels.xml"
+                if panels_file.exists():
+                    print(f"Found XFCE panels.xml at {panels_file}")
+                    return self.parse_panels_file(panels_file)
+            except Exception as e:
+                print(f"Error checking {config_dir}: {e}")
+                continue
+        
+        # If no panels.xml found, return empty list (no system apps)
+        print("XFCE panels.xml not found, no launchers loaded")
+        return []
+    
+    def parse_panels_file(self, panels_file):
+        """Parse the panels.xml file to extract launchers"""
+        launchers = []
+        
+        try:
+            tree = ET.parse(panels_file)
+            root = tree.getroot()
+            
+            # Find all panels
+            for panel in root.findall("panels/panel"):
+                # Find launcher plugins
+                for plugin in panel.findall("plugins/plugin"):
+                    if plugin.get("type") == "launcher":
+                        # Get launcher items
+                        for items in plugin.findall("items"):
+                            for item in items.findall("item"):
+                                launcher_id = item.text
+                                launcher = self.get_launcher_details(launcher_id)
+                                if launcher:
+                                    launchers.append(launcher)
+            
+            return launchers
+            
+        except Exception as e:
+            print(f"Error reading XFCE launchers: {e}")
+            return []
+    
+    def get_launcher_details(self, launcher_id: str) -> Optional[Application]:
+        """Get details for a specific launcher"""
+        try:
+            # Handle different launcher ID formats
+            if "/" not in launcher_id:
+                launcher_id = f"{launcher_id}.desktop"
+            
+            # Try to find the .desktop file
+            desktop_file = None
+            
+            # Check in launchers directory first
+            launcher_file = self.launchers_dir / launcher_id
+            if launcher_file.exists():
+                desktop_file = launcher_file
+            else:
+                # Check in standard application directories
+                app_dirs = [
+                    Path.home() / ".local" / "share" / "applications",
+                    Path("/usr/share/applications"),
+                    Path("/usr/local/share/applications")
+                ]
+                
+                for app_dir in app_dirs:
+                    potential_file = app_dir / launcher_id
+                    if potential_file.exists():
+                        desktop_file = potential_file
+                        break
+            
+            if not desktop_file:
+                print(f"Could not find desktop file for {launcher_id}")
+                return None
+            
+            return self.get_launcher_details_from_file(desktop_file)
+            
+        except Exception as e:
+            print(f"Error getting launcher details for {launcher_id}: {e}")
+            return None
+    
+    def get_launcher_details_from_file(self, desktop_file: Path) -> Optional[Application]:
+        """Get launcher details from a .desktop file"""
+        try:
+            # Parse the desktop file
+            with open(desktop_file, 'r') as f:
+                content = f.read()
+            
+            # Extract Name, Exec, and Icon
+            name = ""
+            command = ""
+            icon = ""
+            
+            for line in content.splitlines():
+                if line.startswith("Name="):
+                    name = line.split("=", 1)[1].strip()
+                elif line.startswith("Exec="):
+                    # Remove %U, %f, etc. from Exec
+                    command = re.sub(r'\s%[fFuU]', '', line.split("=", 1)[1].strip())
+                elif line.startswith("Icon="):
+                    icon = line.split("=", 1)[1].strip()
+            
+            if not name or not command:
+                return None
+            
+            # Use icon name or fallback to a default
+            if not icon:
+                icon = "🚀"
+            
+            return Application(name=name, command=command, icon=icon)
+            
+        except Exception as e:
+            print(f"Error parsing desktop file {desktop_file}: {e}")
+            return None
+
+class SystemMonitorThread(QThread):
+    cpu_updated = pyqtSignal(float)
+    memory_updated = pyqtSignal(float)
+    battery_updated = pyqtSignal(int, str, str)  # capacity, status, time
+    volume_updated = pyqtSignal(int, bool)
+    network_updated = pyqtSignal(str, str)  # ssid, status
+    brightness_updated = pyqtSignal(int)
+    workspace_updated = pyqtSignal(int)  # Current workspace index
+    active_window_updated = pyqtSignal(str)  # Active window ID
+    
+    def __init__(self):
+        super().__init__()
+        self.battery_path = self.find_battery_path()
+    
+    def find_battery_path(self):
+        """Find the correct battery path"""
+        battery_base = "/sys/class/power_supply"
+        try:
+            # List all power supply devices
+            devices = os.listdir(battery_base)
+            for device in devices:
+                if device.startswith(('BAT', 'bat')):
+                    # Check if capacity file exists
+                    capacity_file = os.path.join(battery_base, device, 'capacity')
+                    if os.path.exists(capacity_file):
+                        return os.path.join(battery_base, device)
+        except:
+            pass
+        return os.path.join(battery_base, 'BAT0')  # Default fallback
+    
+    def format_time(self, seconds):
+        """Format seconds into hours and minutes"""
+        if seconds <= 0:
+            return ""
+        
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        
+        if hours > 0:
+            return f"{hours}h{minutes:02d}m"
+        else:
+            return f"{minutes}m"
+    
+    def get_battery_time_upower(self, status):
+        """Get battery time using upower command"""
+        try:
+            if status.lower() == "discharging":
+                result = subprocess.run(
+                    "upower -i $(upower -e | grep battery) 2>/dev/null | grep 'time to empty' | cut -d':' -f2 | tr -d ' ' | head -1",
+                    shell=True, capture_output=True, text=True
+                )
+            elif status.lower() == "charging":
+                result = subprocess.run(
+                    "upower -i $(upower -e | grep battery) 2>/dev/null | grep 'time to full' | cut -d':' -f2 | tr -d ' ' | head -1",
+                    shell=True, capture_output=True, text=True
+                )
+            else:
+                return ""
+            
+            if result.returncode == 0 and result.stdout.strip():
+                time_str = result.stdout.strip()
+                # Parse time format like "1.5h" or "45min"
+                if 'h' in time_str and 'min' in time_str:
+                    # Format: "1.5h 30min"
+                    hours_part = time_str.split('h')[0]
+                    minutes_part = time_str.split('min')[0].split()[-1]
+                    try:
+                        hours = int(float(hours_part))
+                        minutes = int(minutes_part)
+                        return f"{hours}h{minutes:02d}m"
+                    except:
+                        return time_str
+                elif 'h' in time_str:
+                    return time_str.replace('h', 'h')
+                elif 'min' in time_str:
+                    return time_str.replace('min', 'm')
+        except:
+            pass
+        return ""
+    
+    def get_battery_info(self):
+        """Get comprehensive battery information"""
+        capacity = 0
+        status = "Unknown"
+        time_str = ""
+        
+        try:
+            # Get capacity
+            capacity_file = os.path.join(self.battery_path, 'capacity')
+            if os.path.exists(capacity_file):
+                with open(capacity_file, 'r') as f:
+                    capacity = int(f.read().strip())
+            else:
+                # Try alternative location
+                capacity_result = subprocess.run(
+                    "cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -1 || echo 0",
+                    shell=True, capture_output=True, text=True
+                )
+                capacity = int(capacity_result.stdout.strip()) if capacity_result.stdout.strip().isdigit() else 0
+            
+            # Get status
+            status_file = os.path.join(self.battery_path, 'status')
+            if os.path.exists(status_file):
+                with open(status_file, 'r') as f:
+                    status = f.read().strip()
+            else:
+                status_result = subprocess.run(
+                    "cat /sys/class/power_supply/BAT*/status 2>/dev/null | head -1 || echo Unknown",
+                    shell=True, capture_output=True, text=True
+                )
+                status = status_result.stdout.strip()
+            
+            # Get time information with multiple fallback methods
+            time_str = self.get_battery_time(status, capacity)
+            
+        except Exception as e:
+            print(f"Battery info error: {e}")
+        
+        return capacity, status, time_str
+    
+    def get_battery_time(self, status, capacity):
+        """Get battery time with multiple fallback methods"""
+        time_str = ""
+        
+        try:
+            # Method 1: Direct kernel files (most accurate)
+            if status.lower() == "discharging":
+                time_file = os.path.join(self.battery_path, 'time_to_empty')
+                if os.path.exists(time_file):
+                    with open(time_file, 'r') as f:
+                        time_value = f.read().strip()
+                    if time_value and time_value.isdigit() and int(time_value) > 0:
+                        seconds = int(time_value) * 60  # Convert minutes to seconds
+                        time_str = self.format_time(seconds)
+                else:
+                    # Try alternative naming
+                    time_file = os.path.join(self.battery_path, 'time_to_empty_now')
+                    if os.path.exists(time_file):
+                        with open(time_file, 'r') as f:
+                            time_value = f.read().strip()
+                        if time_value and time_value.isdigit() and int(time_value) > 0:
+                            seconds = int(time_value)
+                            time_str = self.format_time(seconds)
+            
+            elif status.lower() == "charging":
+                time_file = os.path.join(self.battery_path, 'time_to_full')
+                if os.path.exists(time_file):
+                    with open(time_file, 'r') as f:
+                        time_value = f.read().strip()
+                    if time_value and time_value.isdigit() and int(time_value) > 0:
+                        seconds = int(time_value) * 60  # Convert minutes to seconds
+                        time_str = self.format_time(seconds)
+                else:
+                    # Try alternative naming
+                    time_file = os.path.join(self.battery_path, 'time_to_full_now')
+                    if os.path.exists(time_file):
+                        with open(time_file, 'r') as f:
+                            time_value = f.read().strip()
+                        if time_value and time_value.isdigit() and int(time_value) > 0:
+                            seconds = int(time_value)
+                            time_str = self.format_time(seconds)
+            
+            # Method 2: Use upower if available (good fallback)
+            if not time_str:
+                time_str = self.get_battery_time_upower(status)
+            
+            # Method 3: Estimate based on capacity and average consumption
+            if not time_str and status.lower() == "discharging":
+                # Very rough estimate: assume 5 hours total battery life
+                estimated_minutes = int((capacity / 100.0) * 300)  # 5 hours = 300 minutes
+                if estimated_minutes > 60:
+                    time_str = f"{estimated_minutes // 60}h{estimated_minutes % 60:02d}m"
+                else:
+                    time_str = f"{estimated_minutes}m"
+            
+            elif not time_str and status.lower() == "charging":
+                # Rough estimate for charging
+                remaining_percent = 100 - capacity
+                estimated_minutes = int(remaining_percent * 1.5)  # ~1.5 minutes per percent
+                if estimated_minutes > 60:
+                    time_str = f"{estimated_minutes // 60}h{estimated_minutes % 60:02d}m"
+                else:
+                    time_str = f"{estimated_minutes}m"
+            
+            elif status.lower() == "full":
+                time_str = "Full"
+                
+        except Exception as e:
+            print(f"Battery time error: {e}")
+        
+        return time_str
+
+    def get_volume_pactl(self):
+        """Get volume using pactl (PulseAudio)"""
+        try:
+            # Get default sink
+            sink_result = subprocess.run(
+                "pactl get-default-sink 2>/dev/null",
+                shell=True, capture_output=True, text=True
+            )
+            if sink_result.returncode == 0:
+                sink = sink_result.stdout.strip()
+                # Get sink volume
+                result = subprocess.run(
+                    f"pactl get-sink-volume {sink} 2>/dev/null | grep -o '[0-9]*%' | head -1",
+                    shell=True, capture_output=True, text=True
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    volume_str = result.stdout.strip().rstrip('%')
+                    if volume_str.isdigit():
+                        # Check if muted
+                        muted_result = subprocess.run(
+                            f"pactl get-sink-mute {sink} 2>/dev/null",
+                            shell=True, capture_output=True, text=True
+                        )
+                        muted = muted_result.returncode == 0 and "yes" in muted_result.stdout.lower()
+                        return int(volume_str), muted
+        except:
+            pass
+        return None, None
+    
+    def get_volume_amixer(self):
+        """Get volume using amixer"""
+        try:
+            result = subprocess.run(
+                "amixer sget Master 2>/dev/null | grep -o '[0-9]*%' | head -1",
+                shell=True, capture_output=True, text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                volume_str = result.stdout.strip().rstrip('%')
+                if volume_str.isdigit():
+                    # Check if muted
+                    muted_result = subprocess.run(
+                        "amixer sget Master 2>/dev/null | grep -q '\\[off\\]'",
+                        shell=True
+                    )
+                    muted = muted_result.returncode == 0
+                    return int(volume_str), muted
+        except:
+            pass
+        return None, None
+    
+    def get_current_workspace(self):
+        """Get the current workspace index"""
+        try:
+            result = subprocess.run(
+                "xdotool get_desktop",
+                shell=True, capture_output=True, text=True
+            )
+            if result.returncode == 0 and result.stdout.strip().isdigit():
+                return int(result.stdout.strip())
+        except:
+            pass
+        
+        # Fallback to wmctrl
+        try:
+            result = subprocess.run(
+                "wmctrl -d | grep '*' | cut -d' ' -f1",
+                shell=True, capture_output=True, text=True
+            )
+            if result.returncode == 0 and result.stdout.strip().isdigit():
+                return int(result.stdout.strip())
+        except:
+            pass
+        
+        return 0
+    
+    def get_active_window(self):
+        """Get the ID of the currently active window"""
+        try:
+            result = subprocess.run(
+                "xdotool getwindowfocus",
+                shell=True, capture_output=True, text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except:
+            pass
+        
+        # Fallback to wmctrl
+        try:
+            result = subprocess.run(
+                "wmctrl -l | grep ' *' | cut -d' ' -f1",
+                shell=True, capture_output=True, text=True
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except:
+            pass
+        
+        return ""
+    
+    def run(self):
+        self.prev_cpu_total = 0
+        self.prev_cpu_idle = 0
+        
+        while True:
+            # CPU usage
+            try:
+                with open('/proc/stat', 'r') as f:
+                    for line in f:
+                        if line.startswith('cpu '):
+                            parts = line.split()
+                            user = int(parts[1])
+                            nice = int(parts[2])
+                            system = int(parts[3])
+                            idle = int(parts[4])
+                            total = user + nice + system + idle
+                            
+                            if self.prev_cpu_total > 0:
+                                usage = ((total - self.prev_cpu_total) - (idle - self.prev_cpu_idle)) / (total - self.prev_cpu_total) * 100
+                                self.cpu_updated.emit(usage)
+                            
+                            self.prev_cpu_total = total
+                            self.prev_cpu_idle = idle
+                            break
+            except:
+                self.cpu_updated.emit(0)
+            
+            # Memory usage
+            try:
+                with open('/proc/meminfo', 'r') as f:
+                    meminfo = {}
+                    for line in f:
+                        key, value = line.split(':', 1)
+                        meminfo[key] = value.strip().split(' ')[0]
+                
+                total = int(meminfo['MemTotal'])
+                available = int(meminfo['MemAvailable'])
+                used = total - available
+                percent = (used / total) * 100
+                self.memory_updated.emit(percent)
+            except:
+                self.memory_updated.emit(0)
+            
+            # Battery - Enhanced with time information
+            try:
+                capacity, status, time_str = self.get_battery_info()
+                self.battery_updated.emit(capacity, status, time_str)
+            except:
+                self.battery_updated.emit(0, "Unknown", "")
+            
+            # Volume - try multiple methods
+            volume, muted = None, None
+            
+            # Try pactl first (PulseAudio)
+            volume, muted = self.get_volume_pactl()
+            
+            # If pactl failed, try amixer
+            if volume is None:
+                volume, muted = self.get_volume_amixer()
+            
+            # If all failed, emit default values
+            if volume is None:
+                volume, muted = 0, False
+                print("Warning: Could not get volume - no audio tool found")
+            
+            self.volume_updated.emit(volume, muted)
+            
+            # Network
+            try:
+                ssid = subprocess.run(
+                    "iwgetid -r 2>/dev/null || echo ''",
+                    shell=True, capture_output=True, text=True
+                ).stdout.strip()
+                
+                if ssid:
+                    self.network_updated.emit(ssid, "connected")
+                else:
+                    # Check ethernet
+                    ethernet = subprocess.run(
+                        "ip route | grep default | head -1 | awk '{print $5}' 2>/dev/null || echo ''",
+                        shell=True, capture_output=True, text=True
+                    ).stdout.strip()
+                    if ethernet:
+                        self.network_updated.emit(ethernet, "connected")
+                    else:
+                        self.network_updated.emit("", "disconnected")
+            except:
+                self.network_updated.emit("", "disconnected")
+            
+            # Brightness
+            try:
+                result = subprocess.run(
+                    "brightnessctl get && brightnessctl max",
+                    shell=True, capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    current, max_val = map(int, result.stdout.splitlines())
+                    brightness = int((current / max_val) * 100)
+                    self.brightness_updated.emit(brightness)
+            except:
+                pass
+            
+            # Current workspace
+            current_workspace = self.get_current_workspace()
+            self.workspace_updated.emit(current_workspace)
+            
+            # Active window
+            active_window = self.get_active_window()
+            self.active_window_updated.emit(active_window)
+            
+            time.sleep(2)
+
+class SystemTrayWidget(QWidget):
+    """Widget to host system tray icons"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(2)
+        self.layout.setAlignment(Qt.AlignRight)
+        
+        # Set up system tray integration
+        self.tray_icons = []
+        self.setup_system_tray()
+        
+    def setup_system_tray(self):
+        """Setup system tray integration using XEmbed"""
+        try:
+            # Try to find existing system tray
+            if HAS_X11 and QX11Info.isPlatformX11():
+                # Get the system tray selection atom
+                import os
+                os.environ['XDG_CURRENT_DESKTOP'] = 'XFCE'
+                
+                # Start sni-qt or similar if available
+                subprocess.Popen(["which", "snid"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                
+        except Exception as e:
+            print(f"System tray setup error: {e}")
+    
+    def add_tray_icon(self, icon_widget):
+        """Add a tray icon widget to the tray area"""
+        self.layout.addWidget(icon_widget)
+        self.tray_icons.append(icon_widget)
+    
+    def clear_tray_icons(self):
+        """Clear all tray icons"""
+        for icon in self.tray_icons:
+            icon.deleteLater()
+        self.tray_icons.clear()
+
+@dataclass
+class PanelConfig:
+    position: str = "top"
+    height: int = 40
+    opacity: float = 0.95
+    blur_effect: bool = True
+    show_date: bool = True
+    show_battery: bool = True
+    show_volume: bool = True
+    show_network: bool = False
+    show_tray: bool = True
+    theme_variant: str = "tokyo_night"  # tokyo_night, tokyo_storm, tokyo_day
+    rounded_corners: bool = True
+    corner_radius: int = 10
+    show_xfce_launchers: bool = True
+    # New features
+    show_workspace_switcher: bool = True
+    show_brightness_control: bool = True
+    show_weather: bool = True
+    show_notifications: bool = True
+    # NEW: Network and Bluetooth controls
+    show_network_control: bool = True
+    show_bluetooth_control: bool = True
+    weather_location: str = ""  # Auto-detect if empty
+    # Custom launchers
+    launcher_customizations: List[Application] = None
+    # Built-in launcher configurations
+    terminal_command: str = "xfce4-terminal"
+    file_manager_command: str = "thunar"
+    browser_command: str = "firefox"
+    text_editor_command: str = "mousepad"
+    settings_command: str = "xfce4-settings-manager"
+    calculator_command: str = "gnome-calculator"
+    screenshot_command: str = "xfce4-screenshooter"
+    image_viewer_command: str = "ristretto"
+    music_player_command: str = "vlc"
+    music_player_args: str = ""  # Additional arguments for music player
+
+class LauncherDialog(QDialog):
+    """Dialog for adding/editing a launcher"""
+    
+    def __init__(self, parent=None, launcher=None):
+        super().__init__(parent)
+        self.launcher = launcher
+        self.setup_ui()
+        
+    def setup_ui(self):
+        self.setWindowTitle("Add Launcher" if not self.launcher else "Edit Launcher")
+        self.setFixedSize(400, 250)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background: {TokyoNight.BACKGROUND};
+                color: {TokyoNight.FOREGROUND};
+                border-radius: 8px;
+            }}
+            QLabel {{
+                color: {TokyoNight.FOREGROUND};
+            }}
+            QLineEdit {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.COMMENT};
+                padding: 5px;
+                border-radius: 3px;
+            }}
+            QPushButton {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: {TokyoNight.CYAN};
+            }}
+        """)
+        
+        layout = QFormLayout()
+        
+        self.name_edit = QLineEdit()
+        if self.launcher:
+            self.name_edit.setText(self.launcher.name)
+        layout.addRow("Name:", self.name_edit)
+        
+        self.command_edit = QLineEdit()
+        if self.launcher:
+            self.command_edit.setText(self.launcher.command)
+        layout.addRow("Command:", self.command_edit)
+        
+        self.args_edit = QLineEdit()
+        if self.launcher:
+            self.args_edit.setText(self.launcher.args)
+        self.args_edit.setPlaceholderText("Optional arguments")
+        layout.addRow("Arguments:", self.args_edit)
+        
+        self.icon_edit = QLineEdit()
+        if self.launcher:
+            self.icon_edit.setText(self.launcher.icon)
+        layout.addRow("Icon:", self.icon_edit)
+        
+        buttons_layout = QHBoxLayout()
+        
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(self.accept)
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        
+        buttons_layout.addWidget(save_btn)
+        buttons_layout.addWidget(cancel_btn)
+        
+        layout.addRow(buttons_layout)
+        
+        self.setLayout(layout)
+    
+    def get_launcher(self):
+        """Get the launcher from the dialog"""
+        return Application(
+            name=self.name_edit.text(),
+            command=self.command_edit.text(),
+            args=self.args_edit.text(),
+            icon=self.icon_edit.text() or "🚀"
+        )
+
+class SettingsDialog(QDialog):
+    def __init__(self, config: PanelConfig, parent=None):
+        super().__init__(parent)
+        self.config = config
+        self.setup_ui()
+        
+    def setup_ui(self):
+        self.setWindowTitle("Panel Settings")
+        self.setFixedSize(650, 900)
+        self.setStyleSheet(self.get_stylesheet())
+        
+        layout = QVBoxLayout()
+        
+        # Create tabs
+        tabs = QTabWidget()
+        
+        # Appearance tab
+        appearance_tab = QWidget()
+        appearance_layout = QFormLayout(appearance_tab)
+        
+        self.position_combo = QComboBox()
+        self.position_combo.addItems(["top", "bottom"])
+        self.position_combo.setCurrentText(self.config.position)
+        appearance_layout.addRow("Position:", self.position_combo)
+        
+        self.height_spin = QSpinBox()
+        self.height_spin.setRange(30, 100)
+        self.height_spin.setValue(self.config.height)
+        appearance_layout.addRow("Height:", self.height_spin)
+        
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(50, 100)
+        self.opacity_slider.setValue(int(self.config.opacity * 100))
+        appearance_layout.addRow("Opacity:", self.opacity_slider)
+        
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["tokyo_night", "tokyo_storm", "tokyo_day"])
+        self.theme_combo.setCurrentText(self.config.theme_variant)
+        appearance_layout.addRow("Theme:", self.theme_combo)
+        
+        # Rounded corners settings
+        self.rounded_corners_check = QCheckBox("Enable Rounded Corners")
+        self.rounded_corners_check.setChecked(self.config.rounded_corners)
+        appearance_layout.addRow(self.rounded_corners_check)
+        
+        self.corner_radius_spin = QSpinBox()
+        self.corner_radius_spin.setRange(0, 30)
+        self.corner_radius_spin.setValue(self.config.corner_radius)
+        appearance_layout.addRow("Corner Radius:", self.corner_radius_spin)
+        
+        # Modules tab
+        modules_tab = QWidget()
+        modules_layout = QVBoxLayout(modules_tab)
+        
+        self.show_date_check = QCheckBox("Show Date")
+        self.show_date_check.setChecked(self.config.show_date)
+        modules_layout.addWidget(self.show_date_check)
+        
+        self.show_battery_check = QCheckBox("Show Battery")
+        self.show_battery_check.setChecked(self.config.show_battery)
+        modules_layout.addWidget(self.show_battery_check)
+        
+        self.show_volume_check = QCheckBox("Show Volume")
+        self.show_volume_check.setChecked(self.config.show_volume)
+        modules_layout.addWidget(self.show_volume_check)
+        
+        self.show_network_check = QCheckBox("Show Network Status")
+        self.show_network_check.setChecked(self.config.show_network)
+        modules_layout.addWidget(self.show_network_check)
+        
+        # NEW: Network and Bluetooth controls
+        self.show_network_control_check = QCheckBox("Show Network Manager Control")
+        self.show_network_control_check.setChecked(self.config.show_network_control)
+        modules_layout.addWidget(self.show_network_control_check)
+        
+        self.show_bluetooth_control_check = QCheckBox("Show Bluetooth Manager Control")
+        self.show_bluetooth_control_check.setChecked(self.config.show_bluetooth_control)
+        modules_layout.addWidget(self.show_bluetooth_control_check)
+        
+        self.show_tray_check = QCheckBox("Show System Tray")
+        self.show_tray_check.setChecked(self.config.show_tray)
+        modules_layout.addWidget(self.show_tray_check)
+        
+        self.show_xfce_launchers_check = QCheckBox("Show XFCE Panel Launchers")
+        self.show_xfce_launchers_check.setChecked(self.config.show_xfce_launchers)
+        modules_layout.addWidget(self.show_xfce_launchers_check)
+        
+        # New features
+        self.show_workspace_switcher_check = QCheckBox("Show Workspace Switcher")
+        self.show_workspace_switcher_check.setChecked(self.config.show_workspace_switcher)
+        modules_layout.addWidget(self.show_workspace_switcher_check)
+        
+        self.show_brightness_control_check = QCheckBox("Show Brightness Control")
+        self.show_brightness_control_check.setChecked(self.config.show_brightness_control)
+        modules_layout.addWidget(self.show_brightness_control_check)
+        
+        self.show_weather_check = QCheckBox("Show Weather Widget")
+        self.show_weather_check.setChecked(self.config.show_weather)
+        modules_layout.addWidget(self.show_weather_check)
+        
+        self.show_notifications_check = QCheckBox("Show Notification Center")
+        self.show_notifications_check.setChecked(self.config.show_notifications)
+        modules_layout.addWidget(self.show_notifications_check)
+        
+        modules_layout.addStretch()
+        
+        # Weather settings tab
+        weather_tab = QWidget()
+        weather_layout = QFormLayout(weather_tab)
+        
+        self.weather_location_edit = QLineEdit()
+        self.weather_location_edit.setPlaceholderText("Leave empty for auto-detection")
+        self.weather_location_edit.setText(self.config.weather_location)
+        weather_layout.addRow("Location (city,code):", self.weather_location_edit)
+        
+        weather_info = QLabel("Weather data from wttr.in")
+        weather_info.setStyleSheet(f"color: {TokyoNight.COMMENT}; font-size: 8pt;")
+        weather_layout.addRow(weather_info)
+        
+        # Launchers tab
+        launchers_tab = QWidget()
+        launchers_layout = QVBoxLayout(launchers_tab)
+        
+        # Instructions
+        instructions = QLabel("Manage your application launchers:")
+        instructions.setStyleSheet(f"color: {TokyoNight.FOREGROUND}; margin-bottom: 10px;")
+        launchers_layout.addWidget(instructions)
+        
+        # List of launchers
+        self.launchers_list = QListWidget()
+        self.launchers_list.setStyleSheet(f"""
+            QListWidget {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.COMMENT};
+                border-radius: 4px;
+                padding: 5px;
+            }}
+            QListWidget::item {{
+                padding: 5px;
+                border-radius: 3px;
+            }}
+            QListWidget::item:selected {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+            }}
+        """)
+        launchers_layout.addWidget(self.launchers_list)
+        
+        # Buttons for launcher management
+        buttons_layout = QHBoxLayout()
+        
+        add_btn = QPushButton("Add")
+        add_btn.clicked.connect(self.add_launcher)
+        buttons_layout.addWidget(add_btn)
+        
+        edit_btn = QPushButton("Edit")
+        edit_btn.clicked.connect(self.edit_launcher)
+        buttons_layout.addWidget(edit_btn)
+        
+        remove_btn = QPushButton("Remove")
+        remove_btn.clicked.connect(self.remove_launcher)
+        buttons_layout.addWidget(remove_btn)
+        
+        buttons_layout.addStretch()
+        launchers_layout.addLayout(buttons_layout)
+        
+        # Load existing launchers
+        self.load_launchers()
+        
+        # Built-in launchers tab
+        builtin_tab = QWidget()
+        builtin_layout = QFormLayout(builtin_tab)
+        
+        builtin_title = QLabel("Configure built-in application launchers:")
+        builtin_title.setStyleSheet(f"color: {TokyoNight.FOREGROUND}; font-weight: bold; margin-bottom: 10px;")
+        builtin_layout.addRow(builtin_title)
+        
+        # Terminal
+        self.terminal_edit = QLineEdit()
+        self.terminal_edit.setText(self.config.terminal_command)
+        self.terminal_edit.setPlaceholderText("e.g., xfce4-terminal, gnome-terminal, konsole")
+        builtin_layout.addRow("Terminal:", self.terminal_edit)
+        
+        # File Manager
+        self.file_manager_edit = QLineEdit()
+        self.file_manager_edit.setText(self.config.file_manager_command)
+        self.file_manager_edit.setPlaceholderText("e.g., thunar, nautilus, dolphin")
+        builtin_layout.addRow("File Manager:", self.file_manager_edit)
+        
+        # Web Browser
+        self.browser_edit = QLineEdit()
+        self.browser_edit.setText(self.config.browser_command)
+        self.browser_edit.setPlaceholderText("e.g., firefox, chromium, google-chrome")
+        builtin_layout.addRow("Web Browser:", self.browser_edit)
+        
+        # Text Editor
+        self.text_editor_edit = QLineEdit()
+        self.text_editor_edit.setText(self.config.text_editor_command)
+        self.text_editor_edit.setPlaceholderText("e.g., mousepad, gedit, kate")
+        builtin_layout.addRow("Text Editor:", self.text_editor_edit)
+        
+        # Settings
+        self.settings_edit = QLineEdit()
+        self.settings_edit.setText(self.config.settings_command)
+        self.settings_edit.setPlaceholderText("e.g., xfce4-settings-manager, gnome-control-center")
+        builtin_layout.addRow("Settings:", self.settings_edit)
+        
+        # Calculator
+        self.calculator_edit = QLineEdit()
+        self.calculator_edit.setText(self.config.calculator_command)
+        self.calculator_edit.setPlaceholderText("e.g., gnome-calculator, kcalc")
+        builtin_layout.addRow("Calculator:", self.calculator_edit)
+        
+        # Screenshot
+        self.screenshot_edit = QLineEdit()
+        self.screenshot_edit.setText(self.config.screenshot_command)
+        self.screenshot_edit.setPlaceholderText("e.g., xfce4-screenshooter, gnome-screenshot")
+        builtin_layout.addRow("Screenshot:", self.screenshot_edit)
+        
+        # Image Viewer
+        self.image_viewer_edit = QLineEdit()
+        self.image_viewer_edit.setText(self.config.image_viewer_command)
+        self.image_viewer_edit.setPlaceholderText("e.g., ristretto, eog, gwenview")
+        builtin_layout.addRow("Image Viewer:", self.image_viewer_edit)
+        
+        # Music Player
+        self.music_player_edit = QLineEdit()
+        self.music_player_edit.setText(self.config.music_player_command)
+        self.music_player_edit.setPlaceholderText("e.g., vlc, mpv, audacious")
+        builtin_layout.addRow("Music Player:", self.music_player_edit)
+        
+        # Music Player Arguments
+        self.music_player_args_edit = QLineEdit()
+        self.music_player_args_edit.setText(self.config.music_player_args)
+        self.music_player_args_edit.setPlaceholderText("Optional arguments for music player")
+        builtin_layout.addRow("Music Player Args:", self.music_player_args_edit)
+        
+        # Add tabs
+        tabs.addTab(appearance_tab, "Appearance")
+        tabs.addTab(modules_tab, "Modules")
+        tabs.addTab(weather_tab, "Weather")
+        tabs.addTab(launchers_tab, "Custom Launchers")
+        tabs.addTab(builtin_tab, "Built-in Launchers")
+        
+        layout.addWidget(tabs)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        save_btn = QPushButton("Save")
+        save_btn.clicked.connect(self.save_settings)
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        
+        button_layout.addWidget(save_btn)
+        button_layout.addWidget(cancel_btn)
+        
+        layout.addLayout(button_layout)
+        
+        self.setLayout(layout)
+    
+    def load_launchers(self):
+        """Load existing launchers into the list"""
+        if self.config.launcher_customizations:
+            for launcher in self.config.launcher_customizations:
+                item = QListWidgetItem(f"{launcher.icon} {launcher.name}")
+                item.setData(Qt.UserRole, launcher)
+                self.launchers_list.addItem(item)
+    
+    def add_launcher(self):
+        """Add a new launcher"""
+        dialog = LauncherDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            launcher = dialog.get_launcher()
+            item = QListWidgetItem(f"{launcher.icon} {launcher.name}")
+            item.setData(Qt.UserRole, launcher)
+            self.launchers_list.addItem(item)
+    
+    def edit_launcher(self):
+        """Edit selected launcher"""
+        current_item = self.launchers_list.currentItem()
+        if current_item:
+            launcher = current_item.data(Qt.UserRole)
+            dialog = LauncherDialog(self, launcher)
+            if dialog.exec_() == QDialog.Accepted:
+                launcher = dialog.get_launcher()
+                current_item.setText(f"{launcher.icon} {launcher.name}")
+                current_item.setData(Qt.UserRole, launcher)
+    
+    def remove_launcher(self):
+        """Remove selected launcher"""
+        current_item = self.launchers_list.currentItem()
+        if current_item:
+            row = self.launchers_list.row(current_item)
+            self.launchers_list.takeItem(row)
+    
+    def get_stylesheet(self):
+        return f"""
+            QDialog {{
+                background: {TokyoNight.BACKGROUND};
+                color: {TokyoNight.FOREGROUND};
+                border-radius: 8px;
+            }}
+            QTabWidget::pane {{
+                border: 1px solid {TokyoNight.SELECTION};
+                background: {TokyoNight.BACKGROUND};
+                border-radius: 6px;
+            }}
+            QTabBar::tab {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                padding: 8px 16px;
+                margin-right: 2px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+            }}
+            QTabBar::tab:selected {{
+                background: {TokyoNight.BLUE};
+            }}
+            QCheckBox {{
+                color: {TokyoNight.FOREGROUND};
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border-radius: 3px;
+            }}
+            QCheckBox::indicator:unchecked {{
+                background: {TokyoNight.SELECTION};
+                border: 1px solid {TokyoNight.COMMENT};
+            }}
+            QCheckBox::indicator:checked {{
+                background: {TokyoNight.BLUE};
+                border: 1px solid {TokyoNight.BLUE};
+            }}
+            QComboBox, QSpinBox, QSlider, QLineEdit {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.COMMENT};
+                padding: 5px;
+                border-radius: 3px;
+            }}
+            QLineEdit {{
+                padding: 6px;
+            }}
+            QComboBox::drop-down {{
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 15px;
+                border-left-width: 1px;
+                border-left-color: {TokyoNight.COMMENT};
+                border-left-style: solid;
+                border-top-right-radius: 3px;
+                border-bottom-right-radius: 3px;
+                background-color: {TokyoNight.SELECTION};
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 5px solid {TokyoNight.FOREGROUND};
+                margin-right: 5px;
+            }}
+            QComboBox QAbstractItemView {{
+                background: {TokyoNight.BACKGROUND};
+                color: {TokyoNight.FOREGROUND};
+                selection-background-color: {TokyoNight.BLUE};
+                selection-color: {TokyoNight.BACKGROUND};
+                border: 1px solid {TokyoNight.SELECTION};
+                border-radius: 4px;
+            }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                subcontrol-origin: border;
+                width: 16px;
+                border-radius: 2px;
+            }}
+            QSpinBox::up-button {{
+                subcontrol-position: top right;
+            }}
+            QSpinBox::down-button {{
+                subcontrol-position: bottom right;
+            }}
+            QPushButton {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background: {TokyoNight.CYAN};
+            }}
+            QFormLayout {{
+                color: {TokyoNight.FOREGROUND};
+            }}
+            QLabel {{
+                color: {TokyoNight.FOREGROUND};
+            }}
+        """
+    
+    def save_settings(self):
+        self.config.position = self.position_combo.currentText()
+        self.config.height = self.height_spin.value()
+        self.config.opacity = self.opacity_slider.value() / 100.0
+        self.config.theme_variant = self.theme_combo.currentText()
+        self.config.show_date = self.show_date_check.isChecked()
+        self.config.show_battery = self.show_battery_check.isChecked()
+        self.config.show_volume = self.show_volume_check.isChecked()
+        self.config.show_network = self.show_network_check.isChecked()
+        self.config.show_tray = self.show_tray_check.isChecked()
+        self.config.show_xfce_launchers = self.show_xfce_launchers_check.isChecked()
+        self.config.rounded_corners = self.rounded_corners_check.isChecked()
+        self.config.corner_radius = self.corner_radius_spin.value()
+        
+        # New features
+        self.config.show_workspace_switcher = self.show_workspace_switcher_check.isChecked()
+        self.config.show_brightness_control = self.show_brightness_control_check.isChecked()
+        self.config.show_weather = self.show_weather_check.isChecked()
+        self.config.show_notifications = self.show_notifications_check.isChecked()
+        # NEW: Network and Bluetooth controls
+        self.config.show_network_control = self.show_network_control_check.isChecked()
+        self.config.show_bluetooth_control = self.show_bluetooth_control_check.isChecked()
+        self.config.weather_location = self.weather_location_edit.text()
+        
+        # Save built-in launcher commands
+        self.config.terminal_command = self.terminal_edit.text()
+        self.config.file_manager_command = self.file_manager_edit.text()
+        self.config.browser_command = self.browser_edit.text()
+        self.config.text_editor_command = self.text_editor_edit.text()
+        self.config.settings_command = self.settings_edit.text()
+        self.config.calculator_command = self.calculator_edit.text()
+        self.config.screenshot_command = self.screenshot_edit.text()
+        self.config.image_viewer_command = self.image_viewer_edit.text()
+        self.config.music_player_command = self.music_player_edit.text()
+        self.config.music_player_args = self.music_player_args_edit.text()
+        
+        # Save custom launchers
+        custom_launchers = []
+        for i in range(self.launchers_list.count()):
+            item = self.launchers_list.item(i)
+            launcher = item.data(Qt.UserRole)
+            custom_launchers.append(launcher)
+        
+        self.config.launcher_customizations = custom_launchers
+        
+        self.accept()
+
+class TokyoNightPanelBar(QMainWindow):
+    def __init__(self, config: PanelConfig):
+        super().__init__()
+        self.config = config
+        self.applications = []
+        self.window_buttons = {}
+        self.xfce_launchers = []
+        self.workspace_buttons = []
+        self.notification_count = 0
+        self.current_workspace = 0
+        self.active_window_id = ""
+        
+        self.setup_ui()
+        self.load_applications()
+        self.load_xfce_launchers()
+        self.setup_system_monitor()
+        self.start_timers()
+        self.setup_strut()
+        
+    def setup_ui(self):
+        """Setup the main panel UI with Tokyo Night theme"""
+        # Window configuration
+        self.setWindowTitle("Tokyo Night Panel")
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        
+        # Set opacity
+        self.setWindowOpacity(self.config.opacity)
+        
+        # Apply stylesheet
+        self.setStyleSheet(self.get_stylesheet())
+        
+        # Central widget
+        central_widget = QWidget()
+        central_widget.setObjectName("centralwidget")
+        self.setCentralWidget(central_widget)
+        
+        # Main layout
+        layout = QHBoxLayout(central_widget)
+        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setSpacing(10)
+        
+        # Left section - Applications and taskbar
+        self.left_widget = QWidget()
+        left_layout = QHBoxLayout(self.left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(8)
+        
+        # Applications menu button
+        self.apps_button = QToolButton()
+        self.apps_button.setText("󰀻")  # nf-linux-arch icon
+        self.apps_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.apps_button.setPopupMode(QToolButton.InstantPopup)
+        self.apps_button.setMenu(self.create_applications_menu())
+        self.apps_button.setFixedSize(32, 32)
+        left_layout.addWidget(self.apps_button)
+        
+        # Separator
+        sep1 = QFrame()
+        sep1.setFrameShape(QFrame.VLine)
+        sep1.setFrameShadow(QFrame.Sunken)
+        left_layout.addWidget(sep1)
+        
+        # Workspace switcher
+        if self.config.show_workspace_switcher:
+            self.setup_workspace_switcher(left_layout)
+            sep_ws = QFrame()
+            sep_ws.setFrameShape(QFrame.VLine)
+            sep_ws.setFrameShadow(QFrame.Sunken)
+            left_layout.addWidget(sep_ws)
+        
+        # XFCE Launchers area
+        self.xfce_launchers_widget = QWidget()
+        self.xfce_launchers_layout = QHBoxLayout(self.xfce_launchers_widget)
+        self.xfce_launchers_layout.setContentsMargins(0, 0, 0, 0)
+        self.xfce_launchers_layout.setSpacing(4)
+        self.xfce_launchers_widget.setVisible(self.config.show_xfce_launchers)
+        left_layout.addWidget(self.xfce_launchers_widget)
+        
+        # Separator
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.VLine)
+        sep2.setFrameShadow(QFrame.Sunken)
+        sep2.setVisible(self.config.show_xfce_launchers)
+        left_layout.addWidget(sep2)
+        
+        # Taskbar area
+        self.taskbar_widget = QWidget()
+        self.taskbar_layout = QHBoxLayout(self.taskbar_widget)
+        self.taskbar_layout.setContentsMargins(0, 0, 0, 0)
+        self.taskbar_layout.setSpacing(4)
+        left_layout.addWidget(self.taskbar_widget)
+        
+        left_layout.addStretch()
+        layout.addWidget(self.left_widget, 1)
+        
+        # Center section - Clock
+        self.center_widget = QWidget()
+        center_layout = QVBoxLayout(self.center_widget)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        center_layout.setSpacing(0)
+        
+        self.clock_label = QLabel("00:00")
+        self.clock_label.setAlignment(Qt.AlignCenter)
+        self.clock_label.setStyleSheet(f"""
+            font-weight: bold; 
+            font-size: 11pt; 
+            color: {TokyoNight.CYAN};
+            background: transparent;
+        """)
+        
+        self.date_label = QLabel("Mon Jan 1")
+        self.date_label.setAlignment(Qt.AlignCenter)
+        self.date_label.setStyleSheet(f"""
+            font-size: 8pt; 
+            color: {TokyoNight.FOREGROUND};
+            background: transparent;
+            opacity: 0.8;
+        """)
+        self.date_label.setVisible(self.config.show_date)
+        
+        center_layout.addWidget(self.clock_label)
+        center_layout.addWidget(self.date_label)
+        layout.addWidget(self.center_widget)
+        
+        # Right section - System info and tray
+        self.right_widget = QWidget()
+        right_layout = QHBoxLayout(self.right_widget)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(12)
+        
+        # Notification center
+        if self.config.show_notifications:
+            self.setup_notification_center(right_layout)
+        
+        # Weather widget
+        if self.config.show_weather:
+            self.setup_weather_widget(right_layout)
+        
+        # System monitors
+        self.cpu_label = QLabel("󰍛 0%")
+        self.mem_label = QLabel("󰘚 0%")
+        
+        # Apply styling to labels
+        for label in [self.cpu_label, self.mem_label]:
+            label.setStyleSheet(f"""
+                padding: 4px 8px;
+                background: {TokyoNight.SELECTION};
+                border-radius: 6px;
+                font-size: 9pt;
+                color: {TokyoNight.FOREGROUND};
+            """)
+        
+        right_layout.addWidget(self.cpu_label)
+        right_layout.addWidget(self.mem_label)
+        
+        # Brightness control
+        if self.config.show_brightness_control:
+            self.setup_brightness_control(right_layout)
+        
+        # Volume control widget
+        if self.config.show_volume:
+            self.volume_control = VolumeControlWidget(self)
+            right_layout.addWidget(self.volume_control)
+        
+        # NEW: Network Manager control
+        if self.config.show_network_control:
+            self.network_control = NetworkManagerWidget(self)
+            right_layout.addWidget(self.network_control)
+        
+        # NEW: Bluetooth Manager control  
+        if self.config.show_bluetooth_control:
+            self.bluetooth_control = BluetoothManagerWidget(self)
+            right_layout.addWidget(self.bluetooth_control)
+        
+        if self.config.show_battery:
+            self.battery_label = QLabel("󰁹 0%")
+            self.battery_label.setStyleSheet(f"""
+                padding: 4px 8px;
+                background: {TokyoNight.SELECTION};
+                border-radius: 6px;
+                font-size: 9pt;
+                color: {TokyoNight.FOREGROUND};
+            """)
+            right_layout.addWidget(self.battery_label)
+        
+        if self.config.show_network:
+            self.network_label = QLabel("󰖩 --")
+            self.network_label.setStyleSheet(f"""
+                padding: 4px 8px;
+                background: {TokyoNight.SELECTION};
+                border-radius: 6px;
+                font-size: 9pt;
+                color: {TokyoNight.FOREGROUND};
+            """)
+            right_layout.addWidget(self.network_label)
+        
+        # System tray area
+        if self.config.show_tray:
+            self.tray_widget = SystemTrayWidget(self)
+            self.tray_widget.setMaximumWidth(200)
+            right_layout.addWidget(self.tray_widget)
+            
+            # Separator before system menu
+            sep3 = QFrame()
+            sep3.setFrameShape(QFrame.VLine)
+            sep3.setFrameShadow(QFrame.Sunken)
+            right_layout.addWidget(sep3)
+        
+        # System menu button
+        self.sys_button = QToolButton()
+        self.sys_button.setText("󰒓")  # Settings icon
+        self.sys_button.setMenu(self.create_system_menu())
+        self.sys_button.setPopupMode(QToolButton.InstantPopup)
+        self.sys_button.setFixedSize(32, 32)
+        right_layout.addWidget(self.sys_button)
+        
+        layout.addWidget(self.right_widget)
+        
+        # Set panel geometry
+        self.update_panel_geometry()
+    
+    def setup_workspace_switcher(self, layout):
+        """Setup workspace/desktop switcher"""
+        self.workspace_widget = QWidget()
+        workspace_layout = QHBoxLayout(self.workspace_widget)
+        workspace_layout.setContentsMargins(0, 0, 0, 0)
+        workspace_layout.setSpacing(2)
+        
+        # Get current workspace count
+        try:
+            result = subprocess.run("wmctrl -d", shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                workspaces = result.stdout.splitlines()
+                current_workspace = 0
+                
+                for i, line in enumerate(workspaces):
+                    if "*" in line:
+                        current_workspace = i
+                        break
+                
+                # Create workspace buttons
+                self.workspace_buttons = []
+                for i in range(len(workspaces)):
+                    btn = QPushButton(str(i+1))
+                    btn.setFixedSize(28, 28)  # Increased size to ensure text is visible
+                    btn.setProperty("workspace_id", i)
+                    
+                    # Set initial style based on current workspace
+                    if i == current_workspace:
+                        btn.setStyleSheet(f"""
+                            QPushButton {{
+                                background: {TokyoNight.BLUE};
+                                color: {TokyoNight.BACKGROUND};
+                                border: none;
+                                border-radius: 6px;
+                                font-weight: bold;
+                                font-size: 10pt;
+                            }}
+                            QPushButton:hover {{
+                                background: {TokyoNight.CYAN};
+                            }}
+                        """)
+                    else:
+                        btn.setStyleSheet(f"""
+                            QPushButton {{
+                                background: {TokyoNight.SELECTION};
+                                color: {TokyoNight.FOREGROUND};
+                                border: none;
+                                border-radius: 6px;
+                                font-size: 10pt;
+                            }}
+                            QPushButton:hover {{
+                                background: {TokyoNight.BLUE}40;
+                            }}
+                        """)
+                    
+                    btn.clicked.connect(lambda checked, w=i: self.switch_workspace(w))
+                    workspace_layout.addWidget(btn)
+                    self.workspace_buttons.append(btn)
+                
+                # Store current workspace
+                self.current_workspace = current_workspace
+        except Exception as e:
+            print(f"Error setting up workspaces: {e}")
+        
+        layout.addWidget(self.workspace_widget)
+    
+    def switch_workspace(self, workspace_id):
+        """Switch to the specified workspace"""
+        try:
+            subprocess.run(f"wmctrl -s {workspace_id}", shell=True)
+            # Update button styles
+            for i, btn in enumerate(self.workspace_buttons):
+                if i == workspace_id:
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background: {TokyoNight.BLUE};
+                            color: {TokyoNight.BACKGROUND};
+                            border: none;
+                            border-radius: 6px;
+                            font-weight: bold;
+                            font-size: 10pt;
+                        }}
+                        QPushButton:hover {{
+                            background: {TokyoNight.CYAN};
+                        }}
+                    """)
+                else:
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background: {TokyoNight.SELECTION};
+                            color: {TokyoNight.FOREGROUND};
+                            border: none;
+                            border-radius: 6px;
+                            font-size: 10pt;
+                        }}
+                        QPushButton:hover {{
+                            background: {TokyoNight.BLUE}40;
+                        }}
+                    """)
+            
+            # Update current workspace
+            self.current_workspace = workspace_id
+        except Exception as e:
+            print(f"Error switching workspace: {e}")
+    
+    def update_workspace_display(self, workspace_id):
+        """Update workspace display when workspace changes"""
+        if hasattr(self, 'workspace_buttons') and workspace_id < len(self.workspace_buttons):
+            # Update button styles
+            for i, btn in enumerate(self.workspace_buttons):
+                if i == workspace_id:
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background: {TokyoNight.BLUE};
+                            color: {TokyoNight.BACKGROUND};
+                            border: none;
+                            border-radius: 6px;
+                            font-weight: bold;
+                            font-size: 10pt;
+                        }}
+                        QPushButton:hover {{
+                            background: {TokyoNight.CYAN};
+                        }}
+                    """)
+                else:
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background: {TokyoNight.SELECTION};
+                            color: {TokyoNight.FOREGROUND};
+                            border: none;
+                            border-radius: 6px;
+                            font-size: 10pt;
+                        }}
+                        QPushButton:hover {{
+                            background: {TokyoNight.BLUE}40;
+                        }}
+                    """)
+            
+            # Update current workspace
+            self.current_workspace = workspace_id
+    
+    def setup_brightness_control(self, layout):
+        """Setup brightness control slider"""
+        # Brightness icon
+        brightness_icon = QLabel("󰃠")
+        brightness_icon.setStyleSheet(f"color: {TokyoNight.YELLOW}; font-size: 12pt;")
+        layout.addWidget(brightness_icon)
+        
+        # Brightness slider
+        self.brightness_slider = QSlider(Qt.Horizontal)
+        self.brightness_slider.setRange(10, 100)
+        self.brightness_slider.setFixedWidth(80)
+        self.brightness_slider.valueChanged.connect(self.set_brightness)
+        layout.addWidget(self.brightness_slider)
+    
+    def set_brightness(self, value):
+        """Set screen brightness"""
+        try:
+            subprocess.run(f"brightnessctl set {value}%", shell=True,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"Failed to set brightness: {e}")
+    
+    def setup_weather_widget(self, layout):
+        """Setup weather widget"""
+        self.weather_label = QLabel("󰖐 --°C")
+        self.weather_label.setStyleSheet(f"""
+            padding: 4px 8px;
+            background: {TokyoNight.SELECTION};
+            border-radius: 6px;
+            font-size: 9pt;
+            color: {TokyoNight.FOREGROUND};
+        """)
+        layout.addWidget(self.weather_label)
+        
+        # Start weather update timer (update every 30 minutes)
+        self.weather_timer = QTimer()
+        self.weather_timer.timeout.connect(self.update_weather)
+        self.weather_timer.start(1800000)  # 30 minutes
+        
+        # Initial weather update
+        self.update_weather()
+    
+    def update_weather(self):
+        """Update weather information"""
+        # Check if weather_label exists
+        if not hasattr(self, 'weather_label'):
+            return
+            
+        try:
+            # Build location parameter
+            location = self.config.weather_location if self.config.weather_location else ""
+            if location:
+                location_url = f"{location}"
+            else:
+                location_url = ""
+            
+            # Using wttr.in for weather data
+            result = subprocess.run(
+                f"curl -s 'wttr.in/{location_url}?format=%C+%t'",
+                shell=True, capture_output=True, text=True, timeout=5
+            )
+            
+            if result.returncode == 0 and result.stdout.strip():
+                weather_data = result.stdout.strip()
+                # Format: "Condition +temp"
+                parts = weather_data.split('+')
+                if len(parts) == 2:
+                    condition = parts[0].strip()
+                    temp = parts[1].strip()
+                    
+                    # Map weather conditions to icons
+                    weather_icons = {
+                        "Clear": "󰖙", "Sunny": "󰖙", "Partly cloudy": "󰖕",
+                        "Cloudy": "󰖐", "Overcast": "󰖐", "Fog": "󰖑",
+                        "Rain": "󰖗", "Drizzle": "󰖗", "Snow": "󰖘",
+                        "Thunderstorm": "󰖓", "Mist": "󰖑", "Patchy rain": "󰖗",
+                        "Light rain": "󰖗", "Moderate rain": "󰖗", "Heavy rain": "󰖗"
+                    }
+                    
+                    icon = weather_icons.get(condition, "󰖐")
+                    self.weather_label.setText(f"{icon} {temp}")
+            else:
+                self.weather_label.setText("󰖐 --°C")
+                
+        except Exception as e:
+            print(f"Error updating weather: {e}")
+            self.weather_label.setText("󰖐 --°C")
+    
+    def setup_notification_center(self, layout):
+        """Setup notification center"""
+        self.notification_btn = QPushButton("󰂚")
+        self.notification_btn.setFixedSize(32, 32)
+        self.notification_btn.clicked.connect(self.show_notifications)
+        self.notification_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: none;
+                border-radius: 6px;
+                font-size: 12pt;
+            }}
+            QPushButton:hover {{
+                background: {TokyoNight.BLUE}40;
+            }}
+        """)
+        layout.addWidget(self.notification_btn)
+        
+        # Track notification count
+        self.update_notification_count()
+        
+        # Start notification monitoring
+        self.notification_timer = QTimer()
+        self.notification_timer.timeout.connect(self.update_notification_count)
+        self.notification_timer.start(5000)  # Check every 5 seconds
+    
+    def update_notification_count(self):
+        """Update notification count"""
+        # Check if notification_btn exists
+        if not hasattr(self, 'notification_btn'):
+            return
+            
+        try:
+            # Try different notification systems
+            count = 0
+            
+            # Try dunst
+            result = subprocess.run(
+                "dunstctl count 2>/dev/null || echo 0",
+                shell=True, capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                # Parse the output to extract the waiting count
+                output = result.stdout.strip()
+                if output.isdigit():
+                    count = int(output)
+                else:
+                    # Extract the waiting count from multi-line output
+                    match = re.search(r'Waiting:\s+(\d+)', output)
+                    if match:
+                        count = int(match.group(1))
+            else:
+                # Try mako
+                result = subprocess.run(
+                    "makoctl list 2>/dev/null | grep -c 'app-name' || echo 0",
+                    shell=True, capture_output=True, text=True
+                )
+                if result.returncode == 0:
+                    count = int(result.stdout.strip())
+            
+            if count > 0:
+                self.notification_btn.setText(f"󰂚 {count}")
+                self.notification_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {TokyoNight.BLUE};
+                        color: {TokyoNight.BACKGROUND};
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 12pt;
+                    }}
+                    QPushButton:hover {{
+                        background: {TokyoNight.CYAN};
+                    }}
+                """)
+            else:
+                self.notification_btn.setText("󰂚")
+                self.notification_btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {TokyoNight.SELECTION};
+                        color: {TokyoNight.FOREGROUND};
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 12pt;
+                    }}
+                    QPushButton:hover {{
+                        background: {TokyoNight.BLUE}40;
+                    }}
+                """)
+        except Exception as e:
+            print(f"Error updating notification count: {e}")
+    
+    def show_notifications(self):
+        """Show notification history"""
+        try:
+            # Try dunst
+            subprocess.run("dunstctl history-pop 2>/dev/null", shell=True)
+        except:
+            try:
+                # Try mako
+                subprocess.run("makoctl restore 2>/dev/null", shell=True)
+            except:
+                print("No supported notification system found")
+    
+    def get_stylesheet(self):
+        """Return Tokyo Night themed stylesheet"""
+        corner_radius = f"{self.config.corner_radius}px" if self.config.rounded_corners else "0px"
+        
+        return f"""
+            QMainWindow {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {TokyoNight.BACKGROUND}DD, 
+                    stop:1 {TokyoNight.SELECTION}DD);
+                border: 1px solid {TokyoNight.COMMENT}60;
+                border-radius: {corner_radius};
+            }}
+            QWidget#centralwidget {{
+                background: transparent;
+                border-radius: {corner_radius};
+            }}
+            QToolButton {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: none;
+                border-radius: 6px;
+                font-family: "JetBrains Mono Nerd Font";
+            }}
+            QToolButton:hover {{
+                background: {TokyoNight.BLUE}40;
+            }}
+            QToolButton:pressed {{
+                background: {TokyoNight.BLUE}60;
+            }}
+            QPushButton {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: none;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-family: "JetBrains Mono Nerd Font";
+                font-size: 9pt;
+            }}
+            QPushButton:hover {{
+                background: {TokyoNight.BLUE}40;
+            }}
+            QPushButton:pressed {{
+                background: {TokyoNight.BLUE}60;
+            }}
+            QMenu {{
+                background: {TokyoNight.BACKGROUND};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.SELECTION};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                padding: 6px 16px;
+                border-radius: 4px;
+                font-family: "JetBrains Mono Nerd Font";
+            }}
+            QMenu::item:selected {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+            }}
+            QFrame[frameShape="4"] {{
+                background: {TokyoNight.COMMENT}40;
+                max-width: 1px;
+            }}
+            QSlider::groove:horizontal {{
+                border: none;
+                height: 4px;
+                background: {TokyoNight.COMMENT};
+                border-radius: 2px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {TokyoNight.BLUE};
+                border: none;
+                width: 12px;
+                margin: -4px 0;
+                border-radius: 6px;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: {TokyoNight.CYAN};
+            }}
+        """
+    
+    def setup_strut(self):
+        """Setup window strut to reserve space for the panel"""
+        try:
+            screen = QApplication.primaryScreen()
+            screen_rect = screen.availableGeometry()
+            
+            # Get the window ID
+            window_id = int(self.winId())
+            
+            # Calculate strut values based on panel position
+            if self.config.position == 'top':
+                # Reserve space at the top
+                strut_left = 0
+                strut_right = 0
+                strut_top = self.config.height
+                strut_bottom = 0
+                
+                # Partial strut values (left, right, top, bottom, left_start_y, left_end_y, 
+                # right_start_y, right_end_y, top_start_x, top_end_x, bottom_start_x, bottom_end_x)
+                strut_partial = (
+                    0, 0, self.config.height, 0,  # left, right, top, bottom
+                    0, 0, 0, 0,  # left_start_y, left_end_y, right_start_y, right_end_y
+                    0, screen_rect.width(),  # top_start_x, top_end_x
+                    0, 0  # bottom_start_x, bottom_end_x
+                )
+            else:  # bottom
+                # Reserve space at the bottom
+                strut_left = 0
+                strut_right = 0
+                strut_top = 0
+                strut_bottom = self.config.height
+                
+                # Partial strut values
+                strut_partial = (
+                    0, 0, 0, self.config.height,  # left, right, top, bottom
+                    0, 0, 0, 0,  # left_start_y, left_end_y, right_start_y, right_end_y
+                    0, 0,  # top_start_x, top_end_x
+                    0, screen_rect.width()  # bottom_start_x, bottom_end_x
+                )
+            
+            # Use xprop to set the strut
+            subprocess.run([
+                "xprop", "-id", str(window_id),
+                "-f", "_NET_WM_STRUT", "32cccc",
+                "-set", "_NET_WM_STRUT",
+                f"{strut_left}, {strut_right}, {strut_top}, {strut_bottom}"
+            ], check=False)
+            
+            subprocess.run([
+                "xprop", "-id", str(window_id),
+                "-f", "_NET_WM_STRUT_PARTIAL", "32cccc",
+                "-set", "_NET_WM_STRUT_PARTIAL",
+                f"{strut_partial[0]}, {strut_partial[1]}, {strut_partial[2]}, {strut_partial[3]}, "
+                f"{strut_partial[4]}, {strut_partial[5]}, {strut_partial[6]}, {strut_partial[7]}, "
+                f"{strut_partial[8]}, {strut_partial[9]}, {strut_partial[10]}, {strut_partial[11]}"
+            ], check=False)
+            
+            # Set window type to dock
+            subprocess.run([
+                "xprop", "-id", str(window_id),
+                "-f", "_NET_WM_WINDOW_TYPE", "32a",
+                "-set", "_NET_WM_WINDOW_TYPE", "_NET_WM_WINDOW_TYPE_DOCK"
+            ], check=False)
+            
+            # Set state to skip taskbar and pager
+            subprocess.run([
+                "xprop", "-id", str(window_id),
+                "-f", "_NET_WM_STATE", "32a",
+                "-set", "_NET_WM_STATE", 
+                "_NET_WM_STATE_SKIP_TASKBAR,_NET_WM_STATE_SKIP_PAGER"
+            ], check=False)
+            
+            # Register as system tray - use a different approach without -append
+            if self.config.show_tray:
+                # Get current window type value first
+                result = subprocess.run(
+                    ["xprop", "-id", str(window_id), "_NET_WM_WINDOW_TYPE"],
+                    capture_output=True, text=True
+                )
+                
+                if result.returncode == 0:
+                    # Extract the current value and add dock type
+                    current_value = result.stdout.split('=')[1].strip()
+                    if "_NET_WM_WINDOW_TYPE_DOCK" not in current_value:
+                        new_value = f"{current_value}, _NET_WM_WINDOW_TYPE_DOCK"
+                        subprocess.run([
+                            "xprop", "-id", str(window_id),
+                            "-f", "_NET_WM_WINDOW_TYPE", "32a",
+                            "-set", "_NET_WM_WINDOW_TYPE", new_value
+                        ], check=False)
+                
+        except Exception as e:
+            print(f"Failed to set strut: {e}")
+    
+    def update_panel_geometry(self):
+        """Update panel position and size"""
+        screen = QApplication.primaryScreen()
+        screen_rect = screen.availableGeometry()
+        
+        if self.config.position == 'top':
+            self.setGeometry(0, 0, screen_rect.width(), self.config.height)
+        else:  # bottom
+            y_pos = screen_rect.height() - self.config.height
+            self.setGeometry(0, y_pos, screen_rect.width(), self.config.height)
+        
+        # Update strut after geometry change
+        QTimer.singleShot(100, self.setup_strut)
+    
+    def create_applications_menu(self):
+        """Create applications menu with Nerd Font icons"""
+        menu = QMenu(self)
+        menu.setStyleSheet(self.get_stylesheet())
+        
+        # Common applications with Nerd Font icons - now using configured commands
+        apps = [
+            ("󰆍 Terminal", self.config.terminal_command, "terminal"),
+            ("󰉋 File Manager", self.config.file_manager_command, "folder"),
+            ("󰈹 Web Browser", self.config.browser_command, "browser"),
+            ("󰈬 Text Editor", self.config.text_editor_command, "text"),
+            ("󰃤 Settings", self.config.settings_command, "settings"),
+            ("󰎁 Calculator", self.config.calculator_command, "calculator"),
+            ("󰊓 Screenshot", self.config.screenshot_command, "camera"),
+            ("󰻭 Image Viewer", self.config.image_viewer_command, "image"),
+            ("󰎄 Music Player", self.config.music_player_command, "music", self.config.music_player_args),
+        ]
+        
+        for name, command, icon, *args in apps:
+            action = QAction(name, self)
+            extra_args = args[0] if args else ""
+            action.triggered.connect(lambda checked, cmd=command, extra=extra_args: self.launch_application(cmd, extra))
+            menu.addAction(action)
+        
+        menu.addSeparator()
+        
+        # Power menu
+        power_menu = QMenu("󰐥 Power", self)
+        power_menu.setStyleSheet(self.get_stylesheet())
+        
+        power_actions = [
+            ("󰗽 Log Out", "xfce4-session-logout"),
+            ("󰜉 Reboot", "systemctl reboot"),
+            ("󰐥 Shutdown", "systemctl poweroff"),
+            ("󰒲 Suspend", "systemctl suspend"),
+        ]
+        
+        for name, command in power_actions:
+            action = QAction(name, self)
+            action.triggered.connect(lambda checked, cmd=command: self.execute_command(cmd))
+            power_menu.addAction(action)
+        
+        menu.addMenu(power_menu)
+        
+        return menu
+    
+    def create_system_menu(self):
+        """Create system menu"""
+        menu = QMenu(self)
+        menu.setStyleSheet(self.get_stylesheet())
+        
+        # Volume control - now launches pavucontrol
+        vol_action = QAction("󰕾 Volume Control", self)
+        vol_action.triggered.connect(self.launch_pavucontrol)
+        menu.addAction(vol_action)
+        
+        # NEW: Network Manager action
+        net_action = QAction("󰤨 Network Manager", self)
+        net_action.triggered.connect(self.launch_network_manager)
+        menu.addAction(net_action)
+        
+        # NEW: Bluetooth Manager action
+        bt_action = QAction("󰂯 Bluetooth Manager", self)
+        bt_action.triggered.connect(self.launch_bluetooth_manager)
+        menu.addAction(bt_action)
+        
+        menu.addSeparator()
+        
+        # System tools
+        tools_actions = [
+            ("󰍛 System Monitor", "gnome-system-monitor"),
+            ("󰒓 Settings", "xfce4-settings-manager"),
+        ]
+        
+        for name, command in tools_actions:
+            action = QAction(name, self)
+            action.triggered.connect(lambda checked, cmd=command: self.launch_application(cmd))
+            menu.addAction(action)
+        
+        menu.addSeparator()
+        
+        # Panel settings
+        settings_action = QAction("󰒒 Panel Settings", self)
+        settings_action.triggered.connect(self.show_settings)
+        menu.addAction(settings_action)
+        
+        return menu
+    
+    def launch_pavucontrol(self):
+        """Launch pavucontrol"""
+        try:
+            # Check if pavucontrol is already running
+            result = subprocess.run(
+                "pgrep -f pavucontrol",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if result.returncode == 0:
+                # If running, focus it
+                subprocess.run(
+                    "wmctrl -a pavucontrol",
+                    shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+            else:
+                # Launch pavucontrol
+                subprocess.Popen(
+                    ["pavucontrol"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+        except Exception as e:
+            print(f"Failed to launch pavucontrol: {e}")
+    
+    def launch_network_manager(self):
+        """Launch network manager"""
+        if hasattr(self, 'network_control'):
+            self.network_control.launch_network_manager()
+        else:
+            # Fallback if widget not available
+            try:
+                subprocess.Popen(
+                    ["nm-connection-editor"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            except:
+                subprocess.Popen(
+                    ["nm-applet"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+    
+    def launch_bluetooth_manager(self):
+        """Launch bluetooth manager"""
+        if hasattr(self, 'bluetooth_control'):
+            self.bluetooth_control.launch_bluetooth_manager()
+        else:
+            # Fallback if widget not available
+            try:
+                subprocess.Popen(
+                    ["blueman-manager"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            except:
+                print("Bluetooth manager not available")
+    
+    def load_applications(self):
+        """Load common applications"""
+        self.applications = [
+            Application("Web Browser", "firefox", "🌐"),
+            Application("Text Editor", "mousepad", "📝"),
+            Application("Calculator", "gnome-calculator", "🧮"),
+        ]
+    
+    def load_xfce_launchers(self):
+        """Load XFCE panel launchers and custom launchers"""
+        if not self.config.show_xfce_launchers:
+            return
+            
+        try:
+            # Load XFCE launchers
+            reader = XfceLauncherReader()
+            self.xfce_launchers = reader.get_xfce_launchers()
+            
+            # Add custom launchers if they exist
+            if self.config.launcher_customizations:
+                self.xfce_launchers.extend(self.config.launcher_customizations)
+                
+            self.update_xfce_launchers_display()
+        except Exception as e:
+            print(f"Error loading launchers: {e}")
+    
+    def update_xfce_launchers_display(self):
+        """Update the XFCE launchers display"""
+        # Clear existing launcher buttons
+        for i in reversed(range(self.xfce_launchers_layout.count())):
+            widget = self.xfce_launchers_layout.itemAt(i).widget()
+            if widget:
+                widget.deleteLater()
+        
+        # Add launcher buttons
+        for launcher in self.xfce_launchers:
+            btn = QToolButton()
+            btn.setText(launcher.icon)
+            btn.setToolTip(launcher.name)
+            btn.setFixedSize(32, 32)
+            btn.clicked.connect(lambda checked, cmd=launcher.command, args=launcher.args: self.launch_application(cmd, args))
+            self.xfce_launchers_layout.addWidget(btn)
+    
+    def launch_application(self, command, args=""):
+        """Launch an application with optional arguments"""
+        try:
+            # Build the command list properly
+            cmd_list = [command]
+            
+            # Add arguments if provided
+            if args:
+                cmd_list.extend(args.split())
+            
+            # Launch the application
+            subprocess.Popen(cmd_list, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print(f"Launched: {' '.join(cmd_list)}")
+        except Exception as e:
+            print(f"Failed to launch {command}: {e}")
+    
+    def execute_command(self, command):
+        """Execute a system command"""
+        try:
+            subprocess.Popen(command.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"Failed to execute {command}: {e}")
+    
+    def setup_system_monitor(self):
+        """Setup system monitoring thread"""
+        self.monitor_thread = SystemMonitorThread()
+        self.monitor_thread.cpu_updated.connect(self.update_cpu_display)
+        self.monitor_thread.memory_updated.connect(self.update_memory_display)
+        self.monitor_thread.battery_updated.connect(self.update_battery_display)
+        self.monitor_thread.volume_updated.connect(self.update_volume_display)
+        self.monitor_thread.network_updated.connect(self.update_network_display)
+        self.monitor_thread.brightness_updated.connect(self.update_brightness_display)
+        self.monitor_thread.workspace_updated.connect(self.update_workspace_display)
+        self.monitor_thread.active_window_updated.connect(self.update_active_window)
+        self.monitor_thread.start()
+    
+    def update_cpu_display(self, usage):
+        """Update CPU display with color coding"""
+        color = TokyoNight.GREEN if usage < 50 else TokyoNight.YELLOW if usage < 80 else TokyoNight.RED
+        self.cpu_label.setText(f"󰍛 <font color='{color}'>{usage:.0f}%</font>")
+    
+    def update_memory_display(self, usage):
+        """Update memory display with color coding"""
+        color = TokyoNight.GREEN if usage < 60 else TokyoNight.YELLOW if usage < 85 else TokyoNight.RED
+        self.mem_label.setText(f"󰘚 <font color='{color}'>{usage:.0f}%</font>")
+    
+    def update_battery_display(self, capacity, status, time_str):
+        """Update battery display with dynamic icons and time information"""
+        # Check if battery_label exists
+        if not hasattr(self, 'battery_label'):
+            return
+            
+        # Battery icons based on level
+        battery_icons = ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+        icon_index = min(len(battery_icons) - 1, capacity // 10)
+        icon = battery_icons[icon_index]
+        
+        if status == "Charging":
+            icon = "󰂄"  # Charging icon
+        
+        color = (TokyoNight.GREEN if capacity > 50 
+                else TokyoNight.YELLOW if capacity > 20 
+                else TokyoNight.RED)
+        
+        # Build display text with time information
+        display_text = f"{icon} <font color='{color}'>{capacity}%</font>"
+        
+        # Add time information if available
+        if time_str:
+            if status.lower() == "discharging":
+                display_text += f" <font color='{TokyoNight.COMMENT}'>({time_str})</font>"
+            elif status.lower() == "charging":
+                display_text += f" <font color='{TokyoNight.GREEN}'>({time_str})</font>"
+            elif status.lower() == "full":
+                display_text += " <font color='{TokyoNight.GREEN}'>(Full)</font>"
+        
+        self.battery_label.setText(display_text)
+    
+    def update_volume_display(self, volume, muted):
+        """Update volume display"""
+        if hasattr(self, 'volume_control'):
+            self.volume_control.update_volume_display(volume, muted)
+    
+    def update_network_display(self, ssid, status):
+        """Update network display"""
+        # Check if network_label exists
+        if not hasattr(self, 'network_label'):
+            return
+            
+        if status == "connected":
+            icon = "󰖩" if ssid else "󰈀"  # WiFi vs Ethernet
+            color = TokyoNight.GREEN
+            text = ssid[:12] if ssid else "Ethernet"
+        else:
+            icon = "󰖪"
+            color = TokyoNight.RED
+            text = "Offline"
+        
+        self.network_label.setText(f"{icon} <font color='{color}'>{text}</font>")
+    
+    def update_brightness_display(self, brightness):
+        """Update brightness slider position"""
+        if hasattr(self, 'brightness_slider'):
+            self.brightness_slider.blockSignals(True)
+            self.brightness_slider.setValue(brightness)
+            self.brightness_slider.blockSignals(False)
+    
+    def update_clock(self):
+        """Update clock display"""
+        now = datetime.now()
+        time_str = now.strftime("%I:%M %p")
+        date_str = now.strftime("%a %b %d")
+        
+        self.clock_label.setText(time_str)
+        self.date_label.setText(date_str)
+    
+    def update_windows(self):
+        """Update window list"""
+        try:
+            result = subprocess.run("wmctrl -l", shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                self.update_taskbar(result.stdout)
+        except Exception as e:
+            print(f"Window update error: {e}")
+    
+    def update_taskbar(self, wmctrl_output):
+        """Update taskbar with current windows"""
+        # Clear existing window buttons
+        for i in reversed(range(self.taskbar_layout.count())):
+            widget = self.taskbar_layout.itemAt(i).widget()
+            if widget and hasattr(widget, 'is_window_button'):
+                widget.deleteLater()
+        
+        # Add new window buttons
+        windows = []
+        for line in wmctrl_output.splitlines():
+            parts = line.split(None, 3)
+            if len(parts) >= 4:
+                window_id, desktop, host, title = parts
+                if desktop != '-1':  # Skip sticky windows
+                    windows.append({'id': window_id, 'title': title})
+        
+        # Add buttons for windows (limit to 6)
+        for window in windows[:6]:
+            btn = QPushButton(window['title'][:18])  # Truncate long titles
+            btn.setFixedHeight(28)
+            btn.is_window_button = True
+            btn.setProperty("window_id", window['id'])
+            btn.clicked.connect(lambda checked, wid=window['id']: self.focus_window(wid))
+            
+            # Check if this is the active window
+            if window['id'] == self.active_window_id:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {TokyoNight.BLUE};
+                        color: {TokyoNight.BACKGROUND};
+                        border: none;
+                        border-radius: 6px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background: {TokyoNight.CYAN};
+                    }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {TokyoNight.SELECTION};
+                        color: {TokyoNight.FOREGROUND};
+                        border: none;
+                        border-radius: 6px;
+                    }}
+                    QPushButton:hover {{
+                        background: {TokyoNight.BLUE}40;
+                    }}
+                """)
+            
+            self.taskbar_layout.addWidget(btn)
+    
+    def update_active_window(self, window_id):
+        """Update the active window indicator"""
+        self.active_window_id = window_id
+        
+        # Update taskbar to highlight active window
+        self.update_windows()
+    
+    def focus_window(self, window_id):
+        """Focus a window by ID"""
+        try:
+            subprocess.run(f"wmctrl -i -a {window_id}", shell=True)
+        except Exception as e:
+            print(f"Focus error: {e}")
+    
+    def show_settings(self):
+        """Show settings dialog"""
+        dialog = SettingsDialog(self.config, self)
+        if dialog.exec_() == QDialog.Accepted:
+            # Apply new settings
+            self.setWindowOpacity(self.config.opacity)
+            self.date_label.setVisible(self.config.show_date)
+            
+            # Handle XFCE launchers visibility
+            self.xfce_launchers_widget.setVisible(self.config.show_xfce_launchers)
+            sep2 = self.left_widget.findChild(QFrame)
+            if sep2:
+                sep2.setVisible(self.config.show_xfce_launchers)
+            
+            # Reload XFCE launchers if enabled
+            if self.config.show_xfce_launchers:
+                self.load_xfce_launchers()
+            
+            # Handle tray visibility
+            if hasattr(self, 'tray_widget'):
+                self.tray_widget.setVisible(self.config.show_tray)
+            
+            # NEW: Handle network control visibility
+            if hasattr(self, 'network_control'):
+                self.network_control.setVisible(self.config.show_network_control)
+            
+            # NEW: Handle bluetooth control visibility
+            if hasattr(self, 'bluetooth_control'):
+                self.bluetooth_control.setVisible(self.config.show_bluetooth_control)
+            
+            # Restart weather timer if location changed
+            if hasattr(self, 'weather_timer'):
+                self.weather_timer.stop()
+                self.weather_timer.start(1800000)
+                self.update_weather()
+            
+            # Update applications menu with new commands
+            self.apps_button.setMenu(self.create_applications_menu())
+            
+            self.update_panel_geometry()
+            self.setStyleSheet(self.get_stylesheet())
+    
+    def start_timers(self):
+        """Start update timers"""
+        # Clock timer
+        self.clock_timer = QTimer()
+        self.clock_timer.timeout.connect(self.update_clock)
+        self.clock_timer.start(1000)
+        self.update_clock()
+        
+        # Window timer
+        self.window_timer = QTimer()
+        self.window_timer.timeout.connect(self.update_windows)
+        self.window_timer.start(3000)
+        self.update_windows()
+    
+    def contextMenuEvent(self, event):
+        """Handle right-click context menu"""
+        menu = QMenu(self)
+        menu.setStyleSheet(self.get_stylesheet())
+        
+        refresh_action = QAction("󰑐 Refresh", self)
+        refresh_action.triggered.connect(self.update_windows)
+        menu.addAction(refresh_action)
+        
+        menu.addSeparator()
+        
+        settings_action = QAction("󰒓 Settings", self)
+        settings_action.triggered.connect(self.show_settings)
+        menu.addAction(settings_action)
+        
+        restart_action = QAction("󰜺 Restart Panel", self)
+        restart_action.triggered.connect(self.restart_panel)
+        menu.addAction(restart_action)
+        
+        quit_action = QAction("󰗼 Quit", self)
+        quit_action.triggered.connect(self.quit_application)
+        menu.addAction(quit_action)
+        
+        menu.exec_(self.mapToGlobal(event.pos()))
+    
+    def restart_panel(self):
+        """Restart the panel"""
+        QApplication.quit()
+        subprocess.Popen([sys.executable] + sys.argv)
+    
+    def quit_application(self):
+        """Quit the application"""
+        QApplication.quit()
+
+class ConfigManager:
+    """Configuration manager for saving/loading settings"""
+    
+    def __init__(self, config_file=None):
+        if config_file is None:
+            config_dir = Path.home() / ".config" / "tokyo-night-panel"
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file = config_dir / "panel.conf"
+        
+        self.config_file = Path(config_file)
+        self.settings = QSettings(str(self.config_file), QSettings.IniFormat)
+    
+    def save_config(self, config: PanelConfig):
+        """Save configuration to file"""
+        self.settings.setValue("position", config.position)
+        self.settings.setValue("height", config.height)
+        self.settings.setValue("opacity", config.opacity)
+        self.settings.setValue("blur_effect", config.blur_effect)
+        self.settings.setValue("show_date", config.show_date)
+        self.settings.setValue("show_battery", config.show_battery)
+        self.settings.setValue("show_volume", config.show_volume)
+        self.settings.setValue("show_network", config.show_network)
+        self.settings.setValue("show_tray", config.show_tray)
+        self.settings.setValue("show_xfce_launchers", config.show_xfce_launchers)
+        self.settings.setValue("theme_variant", config.theme_variant)
+        self.settings.setValue("rounded_corners", config.rounded_corners)
+        self.settings.setValue("corner_radius", config.corner_radius)
+        
+        # New features
+        self.settings.setValue("show_workspace_switcher", config.show_workspace_switcher)
+        self.settings.setValue("show_brightness_control", config.show_brightness_control)
+        self.settings.setValue("show_weather", config.show_weather)
+        self.settings.setValue("show_notifications", config.show_notifications)
+        # NEW: Network and Bluetooth controls
+        self.settings.setValue("show_network_control", config.show_network_control)
+        self.settings.setValue("show_bluetooth_control", config.show_bluetooth_control)
+        self.settings.setValue("weather_location", config.weather_location)
+        
+        # Save built-in launcher commands
+        self.settings.setValue("terminal_command", config.terminal_command)
+        self.settings.setValue("file_manager_command", config.file_manager_command)
+        self.settings.setValue("browser_command", config.browser_command)
+        self.settings.setValue("text_editor_command", config.text_editor_command)
+        self.settings.setValue("settings_command", config.settings_command)
+        self.settings.setValue("calculator_command", config.calculator_command)
+        self.settings.setValue("screenshot_command", config.screenshot_command)
+        self.settings.setValue("image_viewer_command", config.image_viewer_command)
+        self.settings.setValue("music_player_command", config.music_player_command)
+        self.settings.setValue("music_player_args", config.music_player_args)
+        
+        # Save custom launchers
+        if config.launcher_customizations:
+            launchers_data = []
+            for launcher in config.launcher_customizations:
+                launchers_data.append(asdict(launcher))
+            self.settings.setValue("launcher_customizations", launchers_data)
+        
+        self.settings.sync()
+    
+    def load_config(self) -> PanelConfig:
+        """Load configuration from file"""
+        config = PanelConfig()
+        config.position = self.settings.value("position", "top", type=str)
+        config.height = self.settings.value("height", 40, type=int)
+        config.opacity = self.settings.value("opacity", 0.95, type=float)
+        config.blur_effect = self.settings.value("blur_effect", True, type=bool)
+        config.show_date = self.settings.value("show_date", True, type=bool)
+        config.show_battery = self.settings.value("show_battery", True, type=bool)
+        config.show_volume = self.settings.value("show_volume", True, type=bool)
+        config.show_network = self.settings.value("show_network", False, type=bool)
+        config.show_tray = self.settings.value("show_tray", True, type=bool)
+        config.show_xfce_launchers = self.settings.value("show_xfce_launchers", True, type=bool)
+        config.theme_variant = self.settings.value("theme_variant", "tokyo_night", type=str)
+        config.rounded_corners = self.settings.value("rounded_corners", True, type=bool)
+        config.corner_radius = self.settings.value("corner_radius", 10, type=int)
+        
+        # New features
+        config.show_workspace_switcher = self.settings.value("show_workspace_switcher", True, type=bool)
+        config.show_brightness_control = self.settings.value("show_brightness_control", True, type=bool)
+        config.show_weather = self.settings.value("show_weather", True, type=bool)
+        config.show_notifications = self.settings.value("show_notifications", True, type=bool)
+        # NEW: Network and Bluetooth controls
+        config.show_network_control = self.settings.value("show_network_control", True, type=bool)
+        config.show_bluetooth_control = self.settings.value("show_bluetooth_control", True, type=bool)
+        config.weather_location = self.settings.value("weather_location", "", type=str)
+        
+        # Load built-in launcher commands
+        config.terminal_command = self.settings.value("terminal_command", "xfce4-terminal", type=str)
+        config.file_manager_command = self.settings.value("file_manager_command", "thunar", type=str)
+        config.browser_command = self.settings.value("browser_command", "firefox", type=str)
+        config.text_editor_command = self.settings.value("text_editor_command", "mousepad", type=str)
+        config.settings_command = self.settings.value("settings_command", "xfce4-settings-manager", type=str)
+        config.calculator_command = self.settings.value("calculator_command", "gnome-calculator", type=str)
+        config.screenshot_command = self.settings.value("screenshot_command", "xfce4-screenshooter", type=str)
+        config.image_viewer_command = self.settings.value("image_viewer_command", "ristretto", type=str)
+        config.music_player_command = self.settings.value("music_player_command", "vlc", type=str)
+        config.music_player_args = self.settings.value("music_player_args", "", type=str)
+        
+        # Load custom launchers
+        launchers_data = self.settings.value("launcher_customizations", [], type=list)
+        config.launcher_customizations = []
+        for launcher_dict in launchers_data:
+            config.launcher_customizations.append(Application(**launcher_dict))
+        
+        return config
+
+class TrayIconManager:
+    """System tray icon manager"""
+    
+    def __init__(self, panel):
+        self.panel = panel
+        self.tray_icon = QSystemTrayIcon(self.create_icon(), panel)
+        self.setup_tray_menu()
+    
+    def create_icon(self):
+        """Create tray icon with Tokyo Night colors"""
+        pixmap = QPixmap(32, 32)
+        pixmap.fill(QColor(TokyoNight.BACKGROUND))
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Draw Tokyo Night styled icon
+        gradient = QLinearGradient(0, 0, 32, 32)
+        gradient.setColorAt(0, QColor(TokyoNight.BLUE))
+        gradient.setColorAt(1, QColor(TokyoNight.PURPLE))
+        
+        painter.setBrush(gradient)
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(4, 4, 24, 24, 6, 6)
+        
+        painter.end()
+        return QIcon(pixmap)
+    
+    def setup_tray_menu(self):
+        """Setup tray icon context menu"""
+        menu = QMenu()
+        menu.setStyleSheet(self.panel.get_stylesheet())
+        
+        show_action = QAction("󰀾 Show Panel", self.panel)
+        show_action.triggered.connect(self.panel.show)
+        menu.addAction(show_action)
+        
+        hide_action = QAction("󰖯 Hide Panel", self.panel)
+        hide_action.triggered.connect(self.panel.hide)
+        menu.addAction(hide_action)
+        
+        menu.addSeparator()
+        
+        settings_action = QAction("󰒓 Settings", self.panel)
+        settings_action.triggered.connect(self.panel.show_settings)
+        menu.addAction(settings_action)
+        
+        menu.addSeparator()
+        
+        restart_action = QAction("󰜺 Restart", self.panel)
+        restart_action.triggered.connect(self.panel.restart_panel)
+        menu.addAction(restart_action)
+        
+        quit_action = QAction("󰗼 Quit", self.panel)
+        quit_action.triggered.connect(self.panel.quit_application)
+        menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(menu)
+        self.tray_icon.activated.connect(self.tray_icon_activated)
+    
+    def tray_icon_activated(self, reason):
+        """Handle tray icon activation"""
+        if reason == QSystemTrayIcon.DoubleClick:
+            if self.panel.isVisible():
+                self.panel.hide()
+            else:
+                self.panel.show()
+    
+    def show(self):
+        """Show tray icon"""
+        self.tray_icon.show()
+    
+    def show_message(self, title, message, timeout=3000):
+        """Show tray notification"""
+        self.tray_icon.showMessage(title, message, QSystemTrayIcon.Information, timeout)
+
+def main():
+    """Main application entry point"""
+    # Set up high DPI scaling
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    
+    app = QApplication(sys.argv)
+    app.setApplicationName("Tokyo Night Panel")
+    app.setApplicationVersion("1.0.0")
+    
+    # Set up system tray with better error handling
+    tray_available = QSystemTrayIcon.isSystemTrayAvailable()
+    if not tray_available:
+        print("System tray is not available, panel will run without tray icon")
+        # Don't set quit on last window closed, so panel stays open
+        app.setQuitOnLastWindowClosed(False)
+    else:
+        app.setQuitOnLastWindowClosed(False)
+    
+    # Load configuration
+    config_manager = ConfigManager()
+    config = config_manager.load_config()
+    
+    # Create and show panel
+    panel = TokyoNightPanelBar(config)
+    panel.show()
+    
+    # Setup system tray only if available
+    if tray_available:
+        try:
+            tray_manager = TrayIconManager(panel)
+            tray_manager.show()
+            tray_manager.show_message("Tokyo Night Panel", "Panel started successfully")
+        except Exception as e:
+            print(f"Failed to create system tray icon: {e}")
+    
+    # Save config on exit
+    def save_on_exit():
+        config_manager.save_config(panel.config)
+    
+    app.aboutToQuit.connect(save_on_exit)
+    
+    # Handle SIGTERM for graceful shutdown
+    def handle_signal(signum, frame):
+        save_on_exit()
+        QApplication.quit()
+    
+    signal.signal(signal.SIGTERM, handle_signal)
+    signal.signal(signal.SIGINT, handle_signal)
+    
+    return app.exec_()
+
+if __name__ == "__main__":
+    sys.exit(main())
