@@ -34,10 +34,9 @@ file_permissions=(
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
   ["/etc/skel/Desktop/autoi.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
-  ["/usr/local/bin/fm7"]="0:0:755"
+  ["/usr/local/bin/fm8"]="0:0:755"
   ["/usr/local/bin/term"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
-  ["/etc/skel/.config/autostart/cortile.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/hyper.desktop"]="0:0:755"
-  ["/usr/local/bin/hyper2"]="0:0:755"
+  ["/usr/local/bin/hyper4"]="0:0:755"
 )

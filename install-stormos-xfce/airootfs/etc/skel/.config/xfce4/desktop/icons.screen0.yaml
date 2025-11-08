@@ -4,49 +4,6 @@
 configs:
 - level: 0
   monitors:
-  - id: "4550db14c24f235dbb09f1e861f2c9645e77dcd4"
-    display_name: "Apple Computer Inc 0x9CC5 (LVDS-1)"
-    geometry:
-      x: 0
-      y: 0
-      width: 1280
-      height: 800
-  icons:
-    "/home/ricki/Desktop/stormos-build-files":
-      row: 2
-      col: 1
-    "/home/ricki/Desktop/StormOS_Download_Manager.desktop":
-      row: 2
-      col: 0
-    "/home/ricki/Desktop/stormos-kernel-manager.desktop":
-      row: 3
-      col: 0
-    "/home/ricki/Desktop/StormOS_mirrors.desktop":
-      row: 4
-      col: 0
-    "/home/ricki/Desktop/system-tool.desktop":
-      row: 0
-      col: 1
-    "/home/ricki/Desktop/StormOS_Recorder.desktop":
-      row: 6
-      col: 0
-    "/home/ricki/Desktop/StormOS_Python_Manager.desktop":
-      row: 5
-      col: 0
-    "/home/ricki/Desktop/StomOS Package Manager.desktop":
-      row: 1
-      col: 0
-    "/home/ricki/Desktop/Guvcview.desktop":
-      row: 0
-      col: 0
-    "/home/ricki/Desktop/StormOS-ISO":
-      row: 1
-      col: 1
-    "/home/ricki/Desktop/StormOS-Pescado-XFCE-2024.12.26-x86_64.iso":
-      row: 0
-      col: 4
-- level: 0
-  monitors:
   - id: "bd4586e4497d69c4858f7e8bf6d6f8c31b59d3a3"
     display_name: "Najing CEC Panda FPD Technology CO. ltd 0x004D (eDP-1)"
     geometry:
@@ -89,8 +46,8 @@ configs:
       row: 8
       col: 0
     "/home/bennji/Desktop/SWGReturnsPRE-CU":
-      row: 6
-      col: 1
+      row: 7
+      col: 0
     "/home/ben/Desktop/StormOS_Nvidia_Launcher.desktop":
       row: 6
       col: 0
@@ -104,8 +61,8 @@ configs:
       row: 6
       col: 0
     "/home/bennji/Desktop/LFS2.png":
-      row: 8
-      col: 0
+      row: 1
+      col: 1
     "/home/bennji/Desktop/stormos_browser.desktop":
       row: 6
       col: 0
@@ -119,7 +76,7 @@ configs:
       row: 6
       col: 0
     "/home/bennji/Desktop/My Stuff":
-      row: 3
+      row: 1
       col: 0
     "/home/liveuser/Desktop/StormOS_Nvidia_Launcher.desktop":
       row: 5
@@ -134,19 +91,19 @@ configs:
       row: 5
       col: 0
     "/home/bennji/Desktop/BFS-Linux-install":
-      row: 5
-      col: 1
+      row: 0
+      col: 0
     "/home/bennji/Desktop/StormOS Downloader.desktop":
       row: 4
       col: 0
     "/home/bennji/Desktop/SWGReturns Launcher.desktop":
-      row: 2
+      row: 5
       col: 1
     "/home/bennji/Desktop/calamares":
       row: 0
       col: 0
     "/home/bennji/Desktop/Gamez":
-      row: 1
+      row: 8
       col: 0
     "/home/liveuser/Desktop/StormOS_mirrors.desktop":
       row: 2
@@ -164,7 +121,7 @@ configs:
       row: 7
       col: 0
     "/home/bennji/Desktop/SWG New Beginnings Launcher.desktop":
-      row: 1
+      row: 4
       col: 1
     "/home/ben/Desktop/calamares.desktop":
       row: 0
@@ -176,17 +133,17 @@ configs:
       row: 0
       col: 0
     "/home/bennji/Desktop/StormFS-Linux":
-      row: 4
-      col: 1
+      row: 2
+      col: 0
     "/home/bennji/Desktop/stormos-build-files":
-      row: 5
+      row: 4
       col: 0
     "/home/ben/Desktop/StormOS ISO Builder.desktop":
       row: 3
       col: 0
     "/home/bennji/Desktop/LFS1.png":
-      row: 7
-      col: 0
+      row: 0
+      col: 1
     "/home/bennji/Desktop/system-tool.desktop":
       row: 7
       col: 0
@@ -215,7 +172,7 @@ configs:
       row: 4
       col: 0
     "/home/bennji/Desktop/LFS3.png":
-      row: 0
+      row: 2
       col: 1
     "/home/ben/Desktop/system-tool.desktop":
       row: 0
@@ -238,27 +195,70 @@ configs:
     "/home/liveuser/Desktop/stormos_browser.desktop":
       row: 0
       col: 0
-    "/home/bennji/Desktop/monitor.desktop":
-      row: 0
-      col: 1
+    "/home/bennji/Desktop/StormOS-ISO":
+      row: 5
+      col: 0
     "/home/liveuser/Desktop/calamares.desktop":
       row: 1
-      col: 0
-    "/home/bennji/Desktop/StormOS-ISO":
-      row: 4
-      col: 0
-    "/home/test/Desktop/system-tool.desktop":
-      row: 3
       col: 0
     "/home/liveuser/Desktop/abif.desktop":
       row: 2
       col: 0
+    "/home/test/Desktop/system-tool.desktop":
+      row: 3
+      col: 0
+    "/home/bennji/Desktop/monitor.desktop":
+      row: 0
+      col: 1
     "/home/bennji/Desktop/lfs-backup-main.tar.gz":
       row: 3
       col: 1
     "/home/bennji/Desktop/stormos":
-      row: 2
+      row: 3
       col: 0
     "/home/test/Desktop/stormos-kernel-manager.desktop":
       row: 1
       col: 0
+- level: 0
+  monitors:
+  - id: "4550db14c24f235dbb09f1e861f2c9645e77dcd4"
+    display_name: "Apple Computer Inc 0x9CC5 (LVDS-1)"
+    geometry:
+      x: 0
+      y: 0
+      width: 1280
+      height: 800
+  icons:
+    "/home/ricki/Desktop/stormos-build-files":
+      row: 2
+      col: 1
+    "/home/ricki/Desktop/StormOS_Download_Manager.desktop":
+      row: 2
+      col: 0
+    "/home/ricki/Desktop/stormos-kernel-manager.desktop":
+      row: 3
+      col: 0
+    "/home/ricki/Desktop/StormOS_mirrors.desktop":
+      row: 4
+      col: 0
+    "/home/ricki/Desktop/system-tool.desktop":
+      row: 0
+      col: 1
+    "/home/ricki/Desktop/StormOS_Recorder.desktop":
+      row: 6
+      col: 0
+    "/home/ricki/Desktop/StormOS_Python_Manager.desktop":
+      row: 5
+      col: 0
+    "/home/ricki/Desktop/StomOS Package Manager.desktop":
+      row: 1
+      col: 0
+    "/home/ricki/Desktop/Guvcview.desktop":
+      row: 0
+      col: 0
+    "/home/ricki/Desktop/StormOS-ISO":
+      row: 1
+      col: 1
+    "/home/ricki/Desktop/StormOS-Pescado-XFCE-2024.12.26-x86_64.iso":
+      row: 0
+      col: 4

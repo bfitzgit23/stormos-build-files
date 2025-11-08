@@ -177,14 +177,18 @@
       <property name="rows" type="uint" value="1"/>
       <property name="miniature-view" type="bool" value="false"/>
     </property>
-    <property name="plugin-1" type="string" value="launcher">
-      <property name="items" type="array">
-        <value type="string" value="17609138461.desktop"/>
+    <property name="plugin-1" type="string" value="whiskermenu">
+      <property name="hover-switch-category" type="bool" value="true"/>
+      <property name="button-icon" type="string" value="storm os"/>
+      <property name="recent" type="array">
+        <value type="string" value="xfce4-terminal.desktop"/>
+        <value type="string" value="xfce-keyboard-settings.desktop"/>
+        <value type="string" value="xfce4-mime-settings.desktop"/>
       </property>
     </property>
     <property name="plugin-16" type="string" value="launcher">
       <property name="items" type="array">
-        <value type="string" value="17610977881.desktop"/>
+        <value type="string" value="17623789851.desktop"/>
       </property>
     </property>
   </property>
