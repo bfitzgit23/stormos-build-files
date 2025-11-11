@@ -1,3 +1,5 @@
+autoconf
+automake
 alsa-utils
 amd-ucode
 arch-install-scripts
@@ -23,6 +25,7 @@ dmidecode
 dmraid
 dnsmasq
 dosfstools
+debugedit
 e2fsprogs
 edk2-shell
 efibootmgr
@@ -42,7 +45,6 @@ grub
 hdparm
 hyperv
 intel-ucode
-irssi
 iw
 iwd
 jfsutils
@@ -130,10 +132,8 @@ xdg-utils
 xfsprogs
 xl2tpd
 zsh
-
 os-prober
 ntfs-3g
-#auto-cpufreq
 thermald
 pipewire
 pipewire-pulse
@@ -191,12 +191,15 @@ polkit
 polkit-gnome
 accountsservice
 xdg-user-dirs-gtk
+xdotool
 fastfetch
 ttf-ubuntu-font-family
 preload
 mintstick-git
 ffmpegthumbnailer
 system-config-printer
-cortile
-ttf-jetbrains-mono-nerd
 pavucontrol
+zram-generator
+ttf-jetbrains-mono-nerd
+localsend
+brightnessctl

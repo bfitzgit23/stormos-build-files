@@ -99,6 +99,1100 @@ class Window:
     title: str
     class_name: str
 
+
+import subprocess
+import os
+import signal
+import threading
+import time
+import re
+
+class NonBlockingProcess:
+    """
+    Helper class for non-blocking subprocess execution with timeouts
+    and comprehensive error handling to prevent freezing.
+    """
+    
+    @staticmethod
+    def run_command(cmd, timeout=2, shell=False, capture_output=True):
+        """
+        Run command with timeout protection and non-blocking behavior
+        
+        Args:
+            cmd: Command to run (list for shell=False, string for shell=True)
+            timeout: Maximum time to wait for command completion
+            shell: Whether to use shell execution
+            capture_output: Whether to capture stdout/stderr
+            
+        Returns:
+            tuple: (success, stdout, stderr)
+        """
+        stdout_data = ""
+        stderr_data = ""
+        
+        try:
+            # Format command properly
+            if shell and isinstance(cmd, list):
+                cmd = " ".join(cmd)
+            elif not shell and isinstance(cmd, str):
+                cmd = cmd.split()
+                
+            # Prepare subprocess arguments
+            kwargs = {
+                'shell': shell,
+                'start_new_session': True  # Important for proper signal handling
+            }
+            
+            if capture_output:
+                kwargs.update({
+                    'stdout': subprocess.PIPE,
+                    'stderr': subprocess.PIPE,
+                    'text': True
+                })
+            else:
+                kwargs.update({
+                    'stdout': subprocess.DEVNULL,
+                    'stderr': subprocess.DEVNULL
+                })
+            
+            process = subprocess.Popen(cmd, **kwargs)
+            
+            try:
+                if capture_output:
+                    stdout, stderr = process.communicate(timeout=timeout)
+                    stdout_data = stdout.strip() if stdout else ""
+                    stderr_data = stderr.strip() if stderr else ""
+                else:
+                    process.wait(timeout=timeout)
+                
+                success = (process.returncode == 0)
+                return success, stdout_data, stderr_data
+                
+            except subprocess.TimeoutExpired:
+                # Kill the entire process group to ensure cleanup
+                print(f"⏰ Command timeout after {timeout}s: {cmd}")
+                NonBlockingProcess._kill_process_tree(process)
+                return False, "", "Timeout"
+                
+        except FileNotFoundError as e:
+            print(f"📁 Command not found: {cmd} - {e}")
+            return False, "", "Command not found"
+        except Exception as e:
+            print(f"❌ Command execution error: {cmd} - {e}")
+            return False, "", str(e)
+    
+    @staticmethod
+    def _kill_process_tree(process):
+        """Kill process and all its children"""
+        try:
+            # Try to kill the entire process group
+            pgid = os.getpgid(process.pid)
+            os.killpg(pgid, signal.SIGTERM)
+            
+            # Wait a bit for graceful termination
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                # Force kill if still running
+                os.killpg(pgid, signal.SIGKILL)
+                process.wait()
+        except ProcessLookupError:
+            # Process already dead
+            pass
+        except Exception as e:
+            print(f"⚠️  Process tree kill warning: {e}")
+            # Fallback: just kill the main process
+            try:
+                process.kill()
+                process.wait()
+            except:
+                pass
+    
+    @staticmethod
+    def run_background(cmd, shell=True, description=""):
+        """
+        Run command in background without waiting for completion
+        
+        Args:
+            cmd: Command to run
+            shell: Whether to use shell execution
+            description: Description for logging
+            
+        Returns:
+            bool: True if process started successfully
+        """
+        try:
+            process = subprocess.Popen(
+                cmd,
+                shell=shell,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            if description:
+                print(f"🚀 Started background process: {description}")
+            return True
+        except Exception as e:
+            print(f"❌ Background command failed: {description} - {e}")
+            return False
+    
+    @staticmethod
+    def run_with_callback(cmd, callback, timeout=2, shell=False, description=""):
+        """
+        Run command and call callback with result in a separate thread
+        
+        Args:
+            cmd: Command to run
+            callback: Function to call with (success, stdout, stderr)
+            timeout: Command timeout
+            shell: Whether to use shell execution
+            description: Description for logging
+        """
+        def run_in_thread():
+            if description:
+                print(f"🧵 Starting threaded command: {description}")
+            
+            success, stdout, stderr = NonBlockingProcess.run_command(cmd, timeout, shell)
+            
+            if description:
+                status = "✅" if success else "❌"
+                print(f"{status} Threaded command completed: {description}")
+            
+            try:
+                callback(success, stdout, stderr)
+            except Exception as e:
+                print(f"⚠️  Callback error for {description}: {e}")
+        
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
+        return thread
+    
+    @staticmethod
+    def run_series(commands, timeout_per_command=2, shell=False):
+        """
+        Run a series of commands with individual timeouts
+        
+        Args:
+            commands: List of commands to run
+            timeout_per_command: Timeout for each command
+            shell: Whether to use shell execution
+            
+        Returns:
+            list: List of (success, stdout, stderr) tuples
+        """
+        results = []
+        for i, cmd in enumerate(commands):
+            print(f"🔧 Running command {i+1}/{len(commands)}: {cmd}")
+            result = NonBlockingProcess.run_command(cmd, timeout_per_command, shell)
+            results.append(result)
+            
+            # Small delay between commands
+            time.sleep(0.1)
+        
+        return results
+    
+    @staticmethod
+    def check_command_available(cmd, check_cmd=None):
+        """
+        Check if a command is available in the system
+        
+        Args:
+            cmd: Command to check
+            check_cmd: Alternative command to check availability
+            
+        Returns:
+            bool: True if command is available
+        """
+        test_cmd = check_cmd or ["which", cmd] if isinstance(cmd, str) else cmd
+        
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            test_cmd, timeout=1, shell=isinstance(test_cmd, str)
+        )
+        
+        available = success and stdout.strip() != ""
+        status = "✅" if available else "❌"
+        print(f"{status} Command availability: {cmd} - {'Available' if available else 'Not available'}")
+        
+        return available
+    
+    @staticmethod
+    def get_command_output(cmd, timeout=2, shell=False, default=""):
+        """
+        Get command output with safe defaults
+        
+        Args:
+            cmd: Command to run
+            timeout: Command timeout
+            shell: Whether to use shell execution
+            default: Default value if command fails
+            
+        Returns:
+            str: Command output or default value
+        """
+        success, stdout, stderr = NonBlockingProcess.run_command(cmd, timeout, shell)
+        return stdout if success and stdout else default
+
+
+
+
+
+
+
+import subprocess
+import os
+import time
+import re
+from PyQt5.QtCore import QThread, pyqtSignal
+
+class SystemMonitorThread(QThread):
+    """
+    System monitoring thread with non-blocking operations and comprehensive
+    error handling to prevent freezing the main GUI.
+    """
+    
+    # Signals for UI updates
+    cpu_updated = pyqtSignal(float)
+    memory_updated = pyqtSignal(float)
+    battery_updated = pyqtSignal(int, str, str)  # capacity, status, time
+    volume_updated = pyqtSignal(int, bool)
+    network_updated = pyqtSignal(str, str)  # ssid, status
+    brightness_updated = pyqtSignal(int)
+    workspace_updated = pyqtSignal(int)
+    active_window_updated = pyqtSignal(str)
+    monitor_status = pyqtSignal(str)  # Status messages
+    
+    def __init__(self):
+        super().__init__()
+        self.battery_path = self.find_battery_path()
+        self.error_count = 0
+        self.max_errors = 10
+        self._stop_flag = False
+        self.iteration_count = 0
+        self.last_successful_update = time.time()
+        
+        # Command availability cache
+        self._command_cache = {}
+        
+        print("🔍 System Monitor Thread initialized")
+
+    def find_battery_path(self):
+        """Find the correct battery path using non-blocking methods"""
+        battery_base = "/sys/class/power_supply"
+        try:
+            if os.path.exists(battery_base):
+                devices = os.listdir(battery_base)
+                for device in devices:
+                    if device.startswith(('BAT', 'bat')):
+                        capacity_file = os.path.join(battery_base, device, 'capacity')
+                        if os.path.exists(capacity_file):
+                            print(f"🔋 Found battery: {device}")
+                            return os.path.join(battery_base, device)
+        except Exception as e:
+            print(f"⚠️  Battery path discovery error: {e}")
+        
+        print("⚠️  Using default battery path")
+        return os.path.join(battery_base, 'BAT0')
+
+    def stop(self):
+        """Stop the monitoring thread gracefully"""
+        print("🛑 Stopping system monitor thread...")
+        self._stop_flag = True
+        self.wait(3000)  # Wait up to 3 seconds for clean shutdown
+
+    def run(self):
+        """Main monitoring loop with comprehensive error handling"""
+        self.prev_cpu_total = 0
+        self.prev_cpu_idle = 0
+        
+        print("🚀 System monitor thread started")
+        self.monitor_status.emit("started")
+        
+        while not self._stop_flag:
+            self.iteration_count += 1
+            
+            try:
+                if self.iteration_count % 10 == 0:
+                    print(f"🔍 Monitor iteration {self.iteration_count}, errors: {self.error_count}")
+                
+                # Update all system metrics
+                self.update_cpu_usage()
+                self.update_memory_usage()
+                self.update_battery_info()
+                self.update_volume_info()
+                self.update_network_info()
+                
+                # Update less frequently to reduce load
+                if self.iteration_count % 2 == 0:
+                    self.update_brightness_info()
+                    self.update_workspace_info()
+                    self.update_active_window()
+                
+                # Reset error count on successful iteration
+                self.error_count = 0
+                self.last_successful_update = time.time()
+                
+                # Adaptive sleep based on system load
+                sleep_time = self.calculate_sleep_time()
+                
+                # Sleep with frequent stop checks
+                for i in range(sleep_time * 10):
+                    if self._stop_flag:
+                        print("✅ System monitor thread stopped gracefully")
+                        return
+                    time.sleep(0.1)
+                    
+            except Exception as e:
+                self.error_count += 1
+                error_msg = f"Monitor error #{self.error_count}: {e}"
+                print(f"🚨 {error_msg}")
+                self.monitor_status.emit(f"error:{error_msg}")
+                
+                if self.error_count >= self.max_errors:
+                    crash_msg = "Too many errors, stopping monitor thread"
+                    print(f"❌ {crash_msg}")
+                    self.monitor_status.emit(f"crashed:{crash_msg}")
+                    break
+                
+                # Longer delay on error with exponential backoff
+                error_delay = min(30, 5 * (2 ** (self.error_count - 1)))
+                print(f"⏳ Waiting {error_delay}s after error...")
+                
+                for i in range(error_delay * 10):
+                    if self._stop_flag:
+                        return
+                    time.sleep(0.1)
+        
+        print("🔍 System monitor thread ended")
+        self.monitor_status.emit("stopped")
+
+    def calculate_sleep_time(self):
+        """Calculate adaptive sleep time based on system state"""
+        base_sleep = 3  # seconds
+        
+        # Increase sleep time if many errors
+        if self.error_count > 0:
+            return min(10, base_sleep + self.error_count)
+        
+        # Check system load
+        try:
+            with open('/proc/loadavg', 'r') as f:
+                load = float(f.read().split()[0])
+                if load > 2.0:
+                    return base_sleep + 2  # Longer sleep under high load
+        except:
+            pass
+        
+        return base_sleep
+
+    def update_cpu_usage(self):
+        """Update CPU usage using non-blocking file read"""
+        try:
+            with open('/proc/stat', 'r') as f:
+                for line in f:
+                    if line.startswith('cpu '):
+                        parts = line.split()
+                        user = int(parts[1])
+                        nice = int(parts[2])
+                        system = int(parts[3])
+                        idle = int(parts[4])
+                        total = user + nice + system + idle
+                        
+                        if self.prev_cpu_total > 0:
+                            usage = ((total - self.prev_cpu_total) - (idle - self.prev_cpu_idle)) / (total - self.prev_cpu_total) * 100
+                            self.cpu_updated.emit(min(100, max(0, usage)))
+                        
+                        self.prev_cpu_total = total
+                        self.prev_cpu_idle = idle
+                        break
+        except Exception as e:
+            print(f"⚠️  CPU update error: {e}")
+            self.cpu_updated.emit(0)
+
+    def update_memory_usage(self):
+        """Update memory usage using non-blocking file read"""
+        try:
+            with open('/proc/meminfo', 'r') as f:
+                meminfo = {}
+                for line in f:
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        meminfo[key.strip()] = value.strip().split(' ')[0]
+                
+                total = int(meminfo.get('MemTotal', 0))
+                available = int(meminfo.get('MemAvailable', 0))
+                
+                if total > 0 and available > 0:
+                    used = total - available
+                    percent = (used / total) * 100
+                    self.memory_updated.emit(min(100, max(0, percent)))
+                else:
+                    self.memory_updated.emit(0)
+                    
+        except Exception as e:
+            print(f"⚠️  Memory update error: {e}")
+            self.memory_updated.emit(0)
+
+    def update_battery_info(self):
+        """Update battery information using non-blocking methods"""
+        try:
+            capacity, status, time_str = self.get_battery_info()
+            self.battery_updated.emit(capacity, status, time_str)
+        except Exception as e:
+            print(f"⚠️  Battery update error: {e}")
+            self.battery_updated.emit(0, "Unknown", "")
+
+    def update_volume_info(self):
+        """Update volume information using non-blocking commands"""
+        try:
+            volume, muted = self.get_volume_info()
+            self.volume_updated.emit(volume, muted)
+        except Exception as e:
+            print(f"⚠️  Volume update error: {e}")
+            self.volume_updated.emit(50, False)
+
+    def update_network_info(self):
+        """Update network information using non-blocking commands"""
+        try:
+            ssid, status = self.get_network_info()
+            self.network_updated.emit(ssid, status)
+        except Exception as e:
+            print(f"⚠️  Network update error: {e}")
+            self.network_updated.emit("", "disconnected")
+
+    def update_brightness_info(self):
+        """Update brightness information using non-blocking commands"""
+        try:
+            brightness = self.get_brightness_info()
+            self.brightness_updated.emit(brightness)
+        except Exception as e:
+            print(f"⚠️  Brightness update error: {e}")
+
+    def update_workspace_info(self):
+        """Update workspace information using non-blocking commands"""
+        try:
+            workspace = self.get_current_workspace()
+            self.workspace_updated.emit(workspace)
+        except Exception as e:
+            print(f"⚠️  Workspace update error: {e}")
+            self.workspace_updated.emit(0)
+
+    def update_active_window(self):
+        """Update active window using non-blocking commands"""
+        try:
+            active_window = self.get_active_window()
+            self.active_window_updated.emit(active_window)
+        except Exception as e:
+            print(f"⚠️  Active window update error: {e}")
+            self.active_window_updated.emit("")
+
+    def get_battery_info(self):
+        """Get battery information using non-blocking file reads"""
+        capacity = 0
+        status = "Unknown"
+        time_str = ""
+        
+        try:
+            # Capacity
+            capacity_file = os.path.join(self.battery_path, 'capacity')
+            if os.path.exists(capacity_file):
+                with open(capacity_file, 'r') as f:
+                    capacity = int(f.read().strip())
+            
+            # Status
+            status_file = os.path.join(self.battery_path, 'status')
+            if os.path.exists(status_file):
+                with open(status_file, 'r') as f:
+                    status = f.read().strip()
+            
+            # Time estimation (simplified)
+            if status.lower() == "discharging" and capacity < 100:
+                # Simple estimation: 5 hours at 100%, proportional to capacity
+                estimated_minutes = int((capacity / 100.0) * 300)  # 5 hours = 300 minutes
+                if estimated_minutes > 60:
+                    time_str = f"{estimated_minutes//60}h{estimated_minutes%60:02d}m"
+                else:
+                    time_str = f"{estimated_minutes}m"
+            elif status.lower() == "charging" and capacity < 100:
+                remaining = 100 - capacity
+                estimated_minutes = int(remaining * 1.5)  # ~1.5 minutes per percent
+                if estimated_minutes > 60:
+                    time_str = f"{estimated_minutes//60}h{estimated_minutes%60:02d}m"
+                else:
+                    time_str = f"{estimated_minutes}m"
+            elif status.lower() == "full":
+                time_str = "Full"
+                
+        except Exception as e:
+            print(f"🔋 Battery info error: {e}")
+        
+        return capacity, status, time_str
+
+    def get_volume_info(self):
+        """Get volume information using non-blocking commands"""
+        # Try PipeWire/PulseAudio first
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "pactl get-sink-volume @DEFAULT_SINK@", 
+            timeout=1, shell=True
+        )
+        
+        if success:
+            try:
+                volume_match = re.search(r'(\d+)%', stdout)
+                if volume_match:
+                    volume = int(volume_match.group(1))
+                    # Check mute status
+                    success_mute, stdout_mute, stderr_mute = NonBlockingProcess.run_command(
+                        "pactl get-sink-mute @DEFAULT_SINK@",
+                        timeout=1, shell=True
+                    )
+                    muted = success_mute and "yes" in stdout_mute.lower()
+                    return volume, muted
+            except Exception as e:
+                print(f"⚠️  PulseAudio volume error: {e}")
+        
+        # Fallback to ALSA
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "amixer sget Master 2>/dev/null | grep -o '[0-9]*%' | head -1",
+            timeout=1, shell=True
+        )
+        
+        if success and stdout:
+            try:
+                volume = int(stdout.rstrip('%'))
+                # Check mute status
+                success_mute, stdout_mute, stderr_mute = NonBlockingProcess.run_command(
+                    "amixer sget Master 2>/dev/null | grep -q '\\[off\\]' && echo muted",
+                    timeout=1, shell=True
+                )
+                muted = success_mute and "muted" in stdout_mute
+                return volume, muted
+            except Exception as e:
+                print(f"⚠️  ALSA volume error: {e}")
+        
+        return 50, False  # Default fallback
+
+    def get_network_info(self):
+        """Get network information using non-blocking commands"""
+        # Try WiFi first
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "iwgetid -r 2>/dev/null", timeout=1, shell=True
+        )
+        
+        if success and stdout:
+            return stdout, "connected"
+        
+        # Try Ethernet
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "ip route show default 2>/dev/null | head -1 | awk '{print $5}'", 
+            timeout=1, shell=True
+        )
+        
+        if success and stdout:
+            return stdout, "connected"
+        
+        return "", "disconnected"
+
+    def get_brightness_info(self):
+        """Get brightness information using non-blocking commands"""
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "brightnessctl get 2>/dev/null", timeout=1, shell=True
+        )
+        
+        if success and stdout.strip().isdigit():
+            current = int(stdout.strip())
+            
+            success_max, stdout_max, stderr_max = NonBlockingProcess.run_command(
+                "brightnessctl max 2>/dev/null", timeout=1, shell=True
+            )
+            
+            if success_max and stdout_max.strip().isdigit():
+                max_val = int(stdout_max.strip())
+                if max_val > 0:
+                    return int((current / max_val) * 100)
+        
+        return 75  # Default fallback
+
+    def get_current_workspace(self):
+        """Get current workspace using non-blocking commands"""
+        # Try wmctrl first
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "wmctrl -d 2>/dev/null | grep '*' | awk '{print $1}'", 
+            timeout=1, shell=True
+        )
+        
+        if success and stdout.strip().isdigit():
+            return int(stdout.strip())
+        
+        # Fallback to xdotool
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "xdotool get_desktop 2>/dev/null", timeout=1, shell=True
+        )
+        
+        if success and stdout.strip().isdigit():
+            return int(stdout.strip())
+        
+        return 0
+
+    def get_active_window(self):
+        """Get active window using non-blocking commands"""
+        success, stdout, stderr = NonBlockingProcess.run_command(
+            "xdotool getactivewindow 2>/dev/null", timeout=1, shell=True
+        )
+        
+        if success and stdout.strip():
+            return stdout.strip()
+        
+        return ""
+
+
+
+
+
+    def stop(self):
+        """Stop the monitoring thread gracefully"""
+        print("🛑 Stopping system monitor thread...")
+        self._stop_flag = True
+        if not self.wait(3000):  # Wait up to 3 seconds
+            print("⚠️  Monitor thread didn't stop gracefully, terminating...")
+            self.terminate()
+            self.wait(2000)
+        print("✅ Monitor thread stopped")
+
+    def run(self):
+        """Main monitoring loop with better resource management"""
+        self.prev_cpu_total = 0
+        self.prev_cpu_idle = 0
+        self.error_count = 0
+        self.max_errors = 5
+        
+        print("🚀 System monitor thread started")
+        
+        while not self._stop_flag:
+            try:
+                # CPU usage
+                with open('/proc/stat', 'r') as f:
+                    for line in f:
+                        if line.startswith('cpu '):
+                            parts = line.split()
+                            user = int(parts[1])
+                            nice = int(parts[2])
+                            system = int(parts[3])
+                            idle = int(parts[4])
+                            total = user + nice + system + idle
+                            
+                            if self.prev_cpu_total > 0:
+                                usage = ((total - self.prev_cpu_total) - (idle - self.prev_cpu_idle)) / (total - self.prev_cpu_total) * 100
+                                self.cpu_updated.emit(min(100, max(0, usage)))
+                            
+                            self.prev_cpu_total = total
+                            self.prev_cpu_idle = idle
+                            break
+
+                # Memory usage
+                with open('/proc/meminfo', 'r') as f:
+                    meminfo = {}
+                    for line in f:
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            meminfo[key.strip()] = value.strip().split(' ')[0]
+                    
+                    total = int(meminfo.get('MemTotal', 0))
+                    available = int(meminfo.get('MemAvailable', 0))
+                    
+                    if total > 0 and available > 0:
+                        used = total - available
+                        percent = (used / total) * 100
+                        self.memory_updated.emit(min(100, max(0, percent)))
+                    else:
+                        self.memory_updated.emit(0)
+
+                # Reset error count on success
+                self.error_count = 0
+                
+                # Sleep with stop flag checking
+                for _ in range(20):  # Break sleep into smaller chunks
+                    if self._stop_flag:
+                        break
+                    time.sleep(0.1)
+                    
+            except Exception as e:
+                self.error_count += 1
+                print(f"🚨 Monitor error #{self.error_count}: {e}")
+                
+                if self.error_count >= self.max_errors:
+                    print("💥 Too many monitor errors, stopping thread")
+                    break
+                    
+                # Longer sleep on error
+                for _ in range(50):  # 5 seconds
+                    if self._stop_flag:
+                        break
+                    time.sleep(0.1)
+        
+        print("✅ System monitor thread ended cleanly")
+
+
+
+
+
+
+
+
+
+
+
+
+        
+import time
+import traceback
+from PyQt5.QtCore import QTimer
+
+class PanelCrashHandler:
+    """
+    Handles panel crashes and automatic recovery with exponential backoff
+    and comprehensive cleanup to prevent system instability.
+    """
+    
+    def __init__(self, max_crashes=3, crash_timeout=60):
+        self.crash_count = 0
+        self.max_crashes = max_crashes
+        self.crash_timeout = crash_timeout  # seconds
+        self.last_crash_time = 0
+        self.start_time = time.time()
+        self.cleanup_commands = [
+            "pkill -f 'wmctrl'",
+            "pkill -f 'xdotool'", 
+            "pkill -f 'brightnessctl'",
+            "pkill -f 'pactl'",
+            "pkill -f 'amixer'"
+        ]
+        
+        print("🛡️  Crash Handler initialized")
+    
+    def should_restart(self):
+        """
+        Check if we should attempt restart based on crash history
+        
+        Returns:
+            bool: True if restart should be attempted
+        """
+        current_time = time.time()
+        
+        # Reset crash count if enough time has passed since last crash
+        if current_time - self.last_crash_time > self.crash_timeout:
+            if self.crash_count > 0:
+                print(f"🔄 Crash count reset (timeout: {self.crash_timeout}s)")
+            self.crash_count = 0
+        
+        # Check if we haven't exceeded max crashes
+        can_restart = self.crash_count < self.max_crashes
+        
+        if not can_restart:
+            uptime = current_time - self.start_time
+            print(f"💥 Max crashes reached: {self.crash_count}/{self.max_crashes}")
+            print(f"⏰ Uptime: {uptime:.1f}s")
+        
+        return can_restart
+    
+    def record_crash(self, error=None):
+        """
+        Record a crash occurrence with error details
+        
+        Args:
+            error: Exception object or error message
+        """
+        self.crash_count += 1
+        self.last_crash_time = time.time()
+        
+        error_msg = str(error) if error else "Unknown error"
+        print(f"🚨 Crash #{self.crash_count} recorded: {error_msg}")
+        
+        if self.crash_count >= self.max_crashes:
+            print(f"💥 CRITICAL: Maximum crashes reached ({self.max_crashes})")
+            print("💡 Suggestions:")
+            print("  - Check system logs for errors")
+            print("  - Verify required packages are installed")
+            print("  - Restart the panel manually")
+            print("  - Check for conflicting applications")
+    
+    def get_restart_delay(self):
+        """
+        Get restart delay based on crash count (exponential backoff)
+        
+        Returns:
+            int: Delay in seconds
+        """
+        base_delay = 5  # seconds
+        max_delay = 60  # maximum delay
+        
+        if self.crash_count == 0:
+            return base_delay
+        
+        delay = base_delay * (2 ** (self.crash_count - 1))
+        return min(delay, max_delay)
+    
+    def cleanup_before_restart(self):
+        """
+        Cleanup resources before restart to prevent process accumulation
+        """
+        print("🧹 Cleaning up before restart...")
+        
+        cleanup_success = 0
+        cleanup_failed = 0
+        
+        for cmd in self.cleanup_commands:
+            try:
+                # Use NonBlockingProcess for cleanup
+                success, stdout, stderr = NonBlockingProcess.run_command(
+                    cmd, timeout=2, shell=True, capture_output=False
+                )
+                if success:
+                    cleanup_success += 1
+                else:
+                    cleanup_failed += 1
+            except Exception as e:
+                cleanup_failed += 1
+                print(f"⚠️  Cleanup command failed: {cmd} - {e}")
+        
+        # Additional cleanup: wait a moment for processes to terminate
+        time.sleep(1)
+        
+        print(f"✅ Cleanup completed: {cleanup_success} successful, {cleanup_failed} failed")
+        
+        return cleanup_success > 0
+    
+    def get_status_report(self):
+        """
+        Get a status report of the crash handler state
+        
+        Returns:
+            dict: Status information
+        """
+        current_time = time.time()
+        time_since_last_crash = current_time - self.last_crash_time if self.last_crash_time > 0 else 0
+        uptime = current_time - self.start_time
+        
+        return {
+            'crash_count': self.crash_count,
+            'max_crashes': self.max_crashes,
+            'time_since_last_crash': time_since_last_crash,
+            'uptime': uptime,
+            'can_restart': self.should_restart(),
+            'next_restart_delay': self.get_restart_delay() if self.should_restart() else 0
+        }
+    
+    def reset(self):
+        """Reset crash counter and state"""
+        old_count = self.crash_count
+        self.crash_count = 0
+        self.last_crash_time = 0
+        print(f"🔄 Crash handler reset (previous crashes: {old_count})")
+    
+    def is_healthy(self):
+        """
+        Check if the system is in a healthy state
+        
+        Returns:
+            bool: True if system appears healthy
+        """
+        status = self.get_status_report()
+        
+        # Consider healthy if no crashes or only recent single crash
+        if status['crash_count'] == 0:
+            return True
+        elif status['crash_count'] == 1 and status['time_since_last_crash'] > 30:
+            return True
+        else:
+            return False
+
+class PanelHealthMonitor:
+    """
+    Monitors panel health and can trigger preventive measures
+    before complete crashes occur.
+    """
+    
+    def __init__(self, crash_handler):
+        self.crash_handler = crash_handler
+        self.health_check_interval = 30  # seconds
+        self.last_health_check = 0
+        self.consecutive_failures = 0
+        self.max_consecutive_failures = 3
+        
+        print("❤️  Health Monitor initialized")
+    
+    def check_health(self, panel_instance=None):
+        """
+        Perform health check on the panel
+        
+        Args:
+            panel_instance: Optional panel instance for deeper checks
+            
+        Returns:
+            dict: Health status information
+        """
+        current_time = time.time()
+        self.last_health_check = current_time
+        
+        health_status = {
+            'timestamp': current_time,
+            'overall_health': 'healthy',
+            'checks': {},
+            'recommendations': []
+        }
+        
+        # Check crash handler status
+        crash_status = self.crash_handler.get_status_report()
+        health_status['checks']['crash_handler'] = crash_status
+        
+        if crash_status['crash_count'] > 0:
+            health_status['overall_health'] = 'degraded'
+            health_status['recommendations'].append(
+                f"Panel has crashed {crash_status['crash_count']} times recently"
+            )
+        
+        # Check if we can still restart
+        if not crash_status['can_restart']:
+            health_status['overall_health'] = 'critical'
+            health_status['recommendations'].append(
+                "Maximum crash limit reached - manual intervention required"
+            )
+        
+        # Check system resource usage (if panel instance provided)
+        if panel_instance:
+            resource_health = self.check_system_resources(panel_instance)
+            health_status['checks']['system_resources'] = resource_health
+            
+            if resource_health.get('high_load', False):
+                health_status['overall_health'] = 'degraded'
+                health_status['recommendations'].append(
+                    "High system load detected - reducing update frequency"
+                )
+        
+        # Update consecutive failures counter
+        if health_status['overall_health'] == 'healthy':
+            self.consecutive_failures = 0
+        else:
+            self.consecutive_failures += 1
+        
+        health_status['consecutive_failures'] = self.consecutive_failures
+        
+        # Log health status
+        status_emoji = '✅' if health_status['overall_health'] == 'healthy' else '⚠️' if health_status['overall_health'] == 'degraded' else '💥'
+        print(f"{status_emoji} Health check: {health_status['overall_health']}")
+        
+        return health_status
+    
+    def check_system_resources(self, panel_instance):
+        """
+        Check system resource usage
+        
+        Args:
+            panel_instance: Panel instance to check
+            
+        Returns:
+            dict: Resource health information
+        """
+        resource_info = {
+            'high_load': False,
+            'timers_active': True,
+            'threads_running': True
+        }
+        
+        try:
+            # Check system load
+            with open('/proc/loadavg', 'r') as f:
+                load = float(f.read().split()[0])
+                resource_info['load_average'] = load
+                resource_info['high_load'] = load > 3.0
+            
+            # Check if essential timers are running
+            essential_timers = ['clock_timer', 'window_timer']
+            active_timers = 0
+            
+            for timer_name in essential_timers:
+                if hasattr(panel_instance, timer_name):
+                    timer = getattr(panel_instance, timer_name)
+                    if timer and timer.isActive():
+                        active_timers += 1
+            
+            resource_info['timers_active'] = active_timers >= len(essential_timers) // 2
+            
+            # Check if monitor thread is running
+            if hasattr(panel_instance, 'monitor_thread'):
+                resource_info['threads_running'] = panel_instance.monitor_thread.isRunning()
+            
+        except Exception as e:
+            print(f"⚠️  Resource check error: {e}")
+            resource_info['check_error'] = str(e)
+        
+        return resource_info
+    
+    def should_trigger_preventive_restart(self):
+        """
+        Check if preventive restart should be triggered
+        
+        Returns:
+            bool: True if preventive restart is recommended
+        """
+        return self.consecutive_failures >= self.max_consecutive_failures
+    
+    def get_preventive_measures(self, health_status):
+        """
+        Get recommended preventive measures based on health status
+        
+        Args:
+            health_status: Current health status
+            
+        Returns:
+            list: List of recommended actions
+        """
+        measures = []
+        
+        if health_status['overall_health'] == 'degraded':
+            measures.extend([
+                "Reduce UI update frequency",
+                "Increase monitoring intervals", 
+                "Clear temporary caches",
+                "Restart non-essential components"
+            ])
+        
+        elif health_status['overall_health'] == 'critical':
+            measures.extend([
+                "Perform graceful restart",
+                "Reset crash counter if stable",
+                "Log detailed system state",
+                "Notify user of issues"
+            ])
+        
+        return measures
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class IntegratedTiler(QObject):
     """Integrated window tiler - no external dependency"""
     def __init__(self):
@@ -854,7 +1948,14 @@ class TilingControlWidget(QWidget):
 
 
 
-
+    def cleanup(self):
+        """Clean up tiling control resources"""
+        print("🧹 Cleaning up tiling control...")
+        if hasattr(self, 'monitor_timer'):
+            self.monitor_timer.stop()
+        if hasattr(self, 'tiler'):
+            # Stop any tiler background processes
+            pass
 
 
 
@@ -1182,30 +2283,38 @@ class WirelessNetworkDialog(QDialog):
             }}
         """)
         layout = QVBoxLayout()
+        
         # Title
         title = QLabel("Wireless Networks")
         title.setStyleSheet(f"font-size: 14pt; font-weight: bold; color: {TokyoNight.CYAN};")
         layout.addWidget(title)
+        
         # Network list
         self.network_list = QListWidget()
         self.network_list.itemDoubleClicked.connect(self.connect_to_network)
         layout.addWidget(self.network_list)
+        
         # Buttons
         button_layout = QHBoxLayout()
         self.refresh_btn = QPushButton("󰑐 Refresh")
         self.refresh_btn.clicked.connect(self.scan_networks)
         button_layout.addWidget(self.refresh_btn)
+        
         self.connect_btn = QPushButton("󰖩 Connect")
         self.connect_btn.clicked.connect(self.connect_to_selected)
         button_layout.addWidget(self.connect_btn)
+        
         self.disconnect_btn = QPushButton("󰖪 Disconnect")
         self.disconnect_btn.clicked.connect(self.disconnect_current)
         button_layout.addWidget(self.disconnect_btn)
+        
         button_layout.addStretch()
         self.close_btn = QPushButton("Close")
         self.close_btn.clicked.connect(self.close)
         button_layout.addWidget(self.close_btn)
+        
         layout.addLayout(button_layout)
+        
         # Connection details section
         self.details_group = QGroupBox("Connection Details")
         details_layout = QFormLayout()
@@ -1219,6 +2328,7 @@ class WirelessNetworkDialog(QDialog):
         details_layout.addRow("Status:", self.status_label)
         self.details_group.setLayout(details_layout)
         layout.addWidget(self.details_group)
+        
         # Password input for secured networks
         self.password_group = QGroupBox("Network Password")
         password_layout = QVBoxLayout()
@@ -1226,14 +2336,17 @@ class WirelessNetworkDialog(QDialog):
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setPlaceholderText("Enter network password")
         password_layout.addWidget(self.password_input)
+        
         self.show_password_check = QCheckBox("Show password")
         self.show_password_check.stateChanged.connect(self.toggle_password_visibility)
         password_layout.addWidget(self.show_password_check)
+        
         self.password_group.setLayout(password_layout)
         self.password_group.setVisible(False)
         layout.addWidget(self.password_group)
 
         self.setLayout(layout)
+        
         # Update connection details when selection changes
         self.network_list.itemSelectionChanged.connect(self.update_connection_details)
 
@@ -1270,6 +2383,7 @@ class WirelessNetworkDialog(QDialog):
                             'security': security,
                             'connected': False
                         })
+                
                 # Check which network is currently connected
                 try:
                     current_result = subprocess.run(
@@ -1283,8 +2397,10 @@ class WirelessNetworkDialog(QDialog):
                                 network['connected'] = True
                 except:
                     pass
+                
                 # Sort networks by signal strength (descending) and connection status
                 networks.sort(key=lambda x: (not x['connected'], -int(x['signal'])))
+                
                 # Add networks to the list
                 for network in networks:
                     icon = "󰖩" if network['connected'] else "󰖪"
@@ -1327,6 +2443,7 @@ class WirelessNetworkDialog(QDialog):
                         current_network['security'] = "WPA/WPA2" if encrypted else "Open"
                 if current_network:
                     networks.append(current_network)
+                
                 # Add networks to the list
                 for network in networks:
                     security_icon = "🔒" if network.get('security') != "Open" else "🔓"
@@ -1353,6 +2470,7 @@ class WirelessNetworkDialog(QDialog):
         self.security_label.setText(network.get('security', '--'))
         status = "Connected" if network.get('connected', False) else "Available"
         self.status_label.setText(status)
+        
         # Show password input for secured networks
         is_secured = network.get('security') and network.get('security') != "Open"
         self.password_group.setVisible(is_secured and not network.get('connected', False))
@@ -1364,8 +2482,11 @@ class WirelessNetworkDialog(QDialog):
             return
         self.connect_to_network(current_item)
 
+
+
+
     def connect_to_network(self, item):
-        """Connect to a wireless network"""
+        """Connect to a wireless network - WITH PROPER SSID HANDLING"""
         network = item.data(Qt.UserRole)
         if not network:
             return
@@ -1377,82 +2498,273 @@ class WirelessNetworkDialog(QDialog):
             # Check if already connected
             if network.get('connected', False):
                 return
+            
             # Check if network requires password
             is_secured = network.get('security') and network.get('security') != "Open"
+            
+            # FIRST: Try to find existing saved connection in NetworkManager
+            connection_name = self.get_existing_connection_name(ssid)
+            
+            # If we found an existing connection, USE IT
+            if connection_name:
+                print(f"Using existing saved connection: {connection_name}")
+                self.status_label.setText("Connecting to saved network...")
+                
+                result = subprocess.run(
+                    f"nmcli connection up '{connection_name}'",
+                    shell=True, capture_output=True, text=True, timeout=30
+                )
+                
+                if result.returncode == 0:
+                    print(f"Successfully connected using saved connection: {connection_name}")
+                    self.status_label.setText("Connected")
+                    QTimer.singleShot(2000, self.scan_networks)
+                    return
+                else:
+                    print(f"Saved connection failed: {result.stderr}")
+                    # If saved connection fails, delete it so we can create a fresh one
+                    subprocess.run(f"nmcli connection delete '{connection_name}'", 
+                                 shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self.status_label.setText("Saved connection outdated, recreating...")
+            
+            # SECOND: Handle password input for secured networks
             if is_secured:
                 password = self.password_input.text()
                 if not password:
                     self.password_group.setVisible(True)
                     self.password_input.setFocus()
+                    self.status_label.setText("Enter password for network")
                     return
-                # Try to connect with password using nmcli
-                # Method 1: Direct connection
+                
+                print(f"Creating new connection for: {ssid}")
+                self.status_label.setText("Creating connection...")
+                
+                # CLEAN the SSID for use in connection names
+                safe_ssid = self.clean_ssid_for_nm(ssid)
+                safe_name = f"hotspot_{safe_ssid}"
+                
+                print(f"Using safe SSID: '{safe_ssid}', safe name: '{safe_name}'")
+                
+                # METHOD 1: Use nmcli with proper quoting for SSID with spaces
+                # This method handles SSIDs with spaces and special characters properly
                 result = subprocess.run(
                     f"nmcli dev wifi connect '{ssid}' password '{password}'",
-                    shell=True, capture_output=True, text=True
+                    shell=True, capture_output=True, text=True, timeout=30
                 )
-                if result.returncode != 0:
-                    # Method 2: Create connection first, then connect
-                    connection_name = ssid.replace(' ', '_')
-                    create_result = subprocess.run(
-                        f"nmcli connection add type wifi con-name '{connection_name}' ifname wlan0 ssid '{ssid}' wifi-sec.key-mgmt wpa-psk wifi-sec.psk '{password}'",
-                        shell=True, capture_output=True, text=True
-                    )
-                    if create_result.returncode == 0:
-                        # Now connect to the created connection
-                        result = subprocess.run(
-                            f"nmcli connection up '{connection_name}'",
-                            shell=True, capture_output=True, text=True
-                        )
-                    else:
-                        # Method 3: Try with different interface
-                        create_result = subprocess.run(
-                            f"nmcli connection add type wifi con-name '{connection_name}' ssid '{ssid}' wifi-sec.key-mgmt wpa-psk wifi-sec.psk '{password}'",
-                            shell=True, capture_output=True, text=True
-                        )
-                        if create_result.returncode == 0:
-                            result = subprocess.run(
-                                f"nmcli connection up '{connection_name}'",
-                                shell=True, capture_output=True, text=True
-                            )
-                if result.returncode != 0:
-                    print(f"Failed to connect: {result.stderr}")
-                    # Show error message
-                    error_msg = result.stderr.strip() if result.stderr else "Connection failed"
-                    self.status_label.setText(f"Error: {error_msg}")
-                    # Show a more user-friendly error dialog
-                    QMessageBox.warning(
-                        self, "Connection Failed",
-                        f"Failed to connect to {ssid}.\nError: {error_msg}\nPlease check your password and try again."
-                    )
+                
+                if result.returncode == 0:
+                    print("✓ Connected via direct method")
+                    self.status_label.setText("Connected")
+                    
+                    # Now create a permanent profile for future use
+                    QTimer.singleShot(1000, lambda: self.create_permanent_profile(ssid, password))
+                    QTimer.singleShot(2000, self.scan_networks)
                     return
+                else:
+                    print(f"Direct method failed: {result.stderr}")
+                    
+                    # METHOD 2: Create connection using file-based approach (more reliable)
+                    success = self.create_connection_file(ssid, password, safe_name)
+                    
+                    if success:
+                        print("✓ Connected via file-based method")
+                        self.status_label.setText("Connected & Saved")
+                        QTimer.singleShot(2000, self.scan_networks)
+                        return
+                    else:
+                        error_msg = result.stderr.strip() if result.stderr else "All connection methods failed"
+                        self.status_label.setText(f"Error: {error_msg}")
+                        QMessageBox.warning(
+                            self, "Connection Failed", 
+                            f"Failed to connect to '{ssid}'.\nSSID may contain special characters."
+                        )
+                        return
             else:
-                # Connect to open network
+                # Open network
                 result = subprocess.run(
                     f"nmcli dev wifi connect '{ssid}'",
-                    shell=True, capture_output=True, text=True
+                    shell=True, capture_output=True, text=True, timeout=30
                 )
-                if result.returncode != 0:
-                    print(f"Failed to connect: {result.stderr}")
-                    self.status_label.setText(f"Error: {result.stderr.strip()}")
-                    # Show a more user-friendly error dialog
-                    QMessageBox.warning(
-                        self, "Connection Failed",
-                        f"Failed to connect to {ssid}.\nError: {result.stderr.strip()}"
-                    )
-                    return
-            # Update status
-            self.status_label.setText("Connecting...")
-            # Refresh network list after a short delay
-            QTimer.singleShot(3000, self.scan_networks)
+                
+                if result.returncode == 0:
+                    self.status_label.setText("Connected")
+                    QTimer.singleShot(2000, self.scan_networks)
+                else:
+                    error_msg = result.stderr.strip() if result.stderr else "Connection failed"
+                    self.status_label.setText(f"Error: {error_msg}")
+                    QMessageBox.warning(self, "Connection Failed", f"Failed to connect to {ssid}")
+            
+        except subprocess.TimeoutExpired:
+            self.status_label.setText("Error: Timeout")
+            QMessageBox.warning(self, "Connection Timeout", "Connection took too long.")
         except Exception as e:
             print(f"Error connecting to network: {e}")
             self.status_label.setText(f"Error: {str(e)}")
-            # Show a more user-friendly error dialog
-            QMessageBox.warning(
-                self, "Connection Error",
-                f"An error occurred while connecting to {ssid}.\nError: {str(e)}"
+            QMessageBox.warning(self, "Connection Error", f"Error: {str(e)}")
+
+    def clean_ssid_for_nm(self, ssid):
+        """Clean SSID for use in NetworkManager connection names"""
+        # Remove or replace problematic characters
+        cleaned = re.sub(r'[^a-zA-Z0-9_-]', '_', ssid)
+        # Limit length and ensure it starts with letter/number
+        if cleaned and not cleaned[0].isalnum():
+            cleaned = 'wifi_' + cleaned
+        return cleaned[:30]  # Reasonable length limit
+
+    def create_permanent_profile(self, ssid, password):
+        """Create a permanent connection profile after successful connection"""
+        try:
+            safe_ssid = self.clean_ssid_for_nm(ssid)
+            safe_name = f"hotspot_{safe_ssid}"
+            
+            # Get the temporary connection that was just created
+            result = subprocess.run(
+                "nmcli -t -f NAME,UUID connection show --active | grep wifi | tail -1",
+                shell=True, capture_output=True, text=True, timeout=10
             )
+            
+            if result.returncode == 0 and result.stdout.strip():
+                temp_conn = result.stdout.split(':')[0]
+                print(f"Found temporary connection: {temp_conn}")
+                
+                # Clone the temporary connection to a permanent one
+                clone_cmd = f"nmcli connection clone '{temp_conn}' '{safe_name}'"
+                clone_result = subprocess.run(clone_cmd, shell=True, capture_output=True, text=True, timeout=10)
+                
+                if clone_result.returncode == 0:
+                    print(f"✓ Created permanent profile: {safe_name}")
+                else:
+                    print(f"Clone failed: {clone_result.stderr}")
+                    
+        except Exception as e:
+            print(f"Error creating permanent profile: {e}")
+
+    def create_connection_file(self, ssid, password, connection_name):
+        """Create connection using direct file creation (most reliable method)"""
+        try:
+            # Create the connection directory if it doesn't exist
+            conn_dir = os.path.expanduser("~/.config/NetworkManager/system-connections/")
+            os.makedirs(conn_dir, mode=0o700, exist_ok=True)
+            
+            # Create the connection file
+            conn_file = os.path.join(conn_dir, f"{connection_name}.nmconnection")
+            
+            connection_content = f"""[connection]
+    id={connection_name}
+    uuid={str(uuid.uuid4())}
+    type=wifi
+    interface-name=*
+
+    [wifi]
+    mode=infrastructure
+    ssid={ssid}
+
+    [wifi-security]
+    key-mgmt=wpa-psk
+    psk={password}
+
+    [ipv4]
+    method=auto
+
+    [ipv6]
+    method=auto
+    """
+            # Write the connection file with secure permissions
+            with open(conn_file, 'w') as f:
+                f.write(connection_content)
+            
+            # Set secure permissions (NetworkManager requires this)
+            os.chmod(conn_file, 0o600)
+            
+            print(f"✓ Created connection file: {conn_file}")
+            
+            # Reload NetworkManager to recognize the new connection
+            subprocess.run("nmcli connection reload", shell=True, timeout=10)
+            
+            # Wait a moment for NetworkManager to recognize the connection
+            time.sleep(2)
+            
+            # Try to connect using the new profile
+            result = subprocess.run(
+                f"nmcli connection up '{connection_name}'",
+                shell=True, capture_output=True, text=True, timeout=30
+            )
+            
+            return result.returncode == 0
+            
+        except Exception as e:
+            print(f"Error creating connection file: {e}")
+            return False
+
+    def get_existing_connection_name(self, ssid):
+        """Get the exact connection name for an SSID from NetworkManager"""
+        try:
+            # Clean the SSID for searching
+            safe_ssid = self.clean_ssid_for_nm(ssid)
+            hotspot_name = f"hotspot_{safe_ssid}"
+            
+            # Method 1: Check if our hotspot connection exists
+            check_result = subprocess.run(
+                f"nmcli -t -g name connection show | grep '{hotspot_name}'",
+                shell=True, capture_output=True, text=True, timeout=5
+            )
+            
+            if check_result.returncode == 0 and hotspot_name in check_result.stdout:
+                print(f"Found hotspot connection: {hotspot_name}")
+                return hotspot_name
+            
+            # Method 2: Look for connections with matching SSID
+            result = subprocess.run(
+                "nmcli -t -f NAME,UUID,TYPE connection show",
+                shell=True, capture_output=True, text=True, timeout=10
+            )
+            
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        conn_name = parts[0]
+                        
+                        # Skip non-wifi connections
+                        if len(parts) >= 3 and 'wifi' not in parts[2].lower():
+                            continue
+                        
+                        # Get the SSID for this connection
+                        check_ssid = subprocess.run(
+                            f"nmcli -t -g 802-11-wireless.ssid connection show '{conn_name}'",
+                            shell=True, capture_output=True, text=True, timeout=5
+                        )
+                        
+                        if check_ssid.returncode == 0:
+                            connection_ssid = check_ssid.stdout.strip()
+                            if connection_ssid == ssid:
+                                print(f"Found exact SSID match: '{conn_name}'")
+                                return conn_name
+            
+            print(f"No existing connection found for SSID: {ssid}")
+            return None
+            
+        except Exception as e:
+            print(f"Error checking existing connections: {e}")
+            return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def disconnect_current(self):
         """Disconnect from current network"""
@@ -2309,26 +3621,27 @@ class SystemMonitorThread(QThread):
         return 0  # Fallback
 
     def get_active_window(self):
-        """Get the ID of the currently active window"""
+        """Get the ID of the currently active window more reliably"""
         try:
+            # Method 1: xdotool (most reliable for active window)
             result = subprocess.run(
                 "xdotool getwindowfocus",
-                shell=True, capture_output=True, text=True
+                shell=True, capture_output=True, text=True, timeout=1
             )
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
-        except:
-            pass
-        # Fallback to wmctrl
-        try:
+                
+            # Method 2: wmctrl fallback
             result = subprocess.run(
                 "wmctrl -l | grep ' *' | cut -d' ' -f1",
-                shell=True, capture_output=True, text=True
+                shell=True, capture_output=True, text=True, timeout=1
             )
             if result.returncode == 0 and result.stdout.strip():
-                return result.stdout.strip()
-        except:
-            pass
+                return result.stdout.strip().split('\n')[0]  # Take first window
+                
+        except Exception as e:
+            print(f"Error getting active window: {e}")
+        
         return ""
 
     def run(self):
@@ -3591,6 +4904,9 @@ class TokyoNightPanelBar(QMainWindow):
         self.current_workspace = 0
         self.active_window_id = ""
         
+        # Initialize garbage collection counter
+        self._gc_counter = 0
+        
         # Auto-hide properties
         self.auto_hide_timer = QTimer()
         self.auto_hide_timer.setSingleShot(True)
@@ -3598,7 +4914,7 @@ class TokyoNightPanelBar(QMainWindow):
         self.is_hidden = False
         self.edge_detection_timer = QTimer()
         self.edge_detection_timer.timeout.connect(self.check_mouse_position)
-        self.edge_detection_timer.start(100)  # Check every 100ms
+        self.edge_detection_timer.start(100)
         
         self.setup_ui()
         self.load_applications()
@@ -3606,13 +4922,22 @@ class TokyoNightPanelBar(QMainWindow):
         self.setup_system_monitor()
         self.start_timers()
         self.setup_strut()
-        # Enable context menu for the entire panel
+        
+        # Enable context menu
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_panel_context_menu)
         
         # Set up mouse tracking for auto-hide
         self.setMouseTracking(True)
         QApplication.instance().installEventFilter(self)
+        
+        # Start health monitoring
+        self.start_health_monitor()
+        
+        # Start memory management
+        self.memory_check_timer = QTimer()
+        self.memory_check_timer.timeout.connect(self.force_garbage_collection)
+        self.memory_check_timer.start(60000)  # Every minute
         
         # Start auto-hide if enabled
         if self.config.auto_hide:
@@ -3721,7 +5046,6 @@ class TokyoNightPanelBar(QMainWindow):
         taskbar_container_layout.addWidget(self.taskbar_scroll)
         # Add taskbar container to left layout WITH STRETCH FACTOR
         left_layout.addWidget(self.taskbar_container, 1)  # This makes it expand
-
         # Center section - fixed width
         self.center_widget = QWidget()
         center_layout = QVBoxLayout(self.center_widget)
@@ -3729,17 +5053,24 @@ class TokyoNightPanelBar(QMainWindow):
         center_layout.setSpacing(0)
         self.clock_label = QLabel("00:00")
         self.clock_label.setAlignment(Qt.AlignCenter)
+        self.clock_label.setStyleSheet(f"""
+            font-size: {self.config.clock_font_size}pt;
+            color: {self.config.clock_color};
+            background: transparent;
+            font-weight: {self.config.clock_font_weight};
+            text-shadow: 0px 0px 5px {self.config.clock_color}40;
+        """)
+        # --- FIXED: Connect ONLY to left-click ---
+        self.clock_label.mousePressEvent = self.show_calendar
+        # --- END FIX ---
         
         self.date_label = QLabel("Mon Jan 1")
         self.date_label.setAlignment(Qt.AlignCenter)
         self.date_label.setVisible(self.config.show_date)
-        
         # Apply initial styles
         self.update_clock_styles()
-        
         center_layout.addWidget(self.clock_label)
         center_layout.addWidget(self.date_label)
-
         # Right section - fixed width
         self.right_widget = QWidget()
         right_layout = QHBoxLayout(self.right_widget)
@@ -3767,13 +5098,27 @@ class TokyoNightPanelBar(QMainWindow):
             """)
         right_layout.addWidget(self.cpu_label)
         right_layout.addWidget(self.mem_label)
+        
+        # Brightness and Volume container (NEW - for collapsible controls)
+        self.controls_container = QWidget()
+        self.controls_layout = QHBoxLayout(self.controls_container)
+        self.controls_layout.setContentsMargins(0, 0, 0, 0)
+        self.controls_layout.setSpacing(8)
+        
         # Brightness control
         if self.config.show_brightness_control:
-            self.setup_brightness_control(right_layout)
+            self.setup_brightness_control(self.controls_layout)
         # Volume control widget
         if self.config.show_volume:
             self.volume_control = VolumeControlWidget(self)
-            right_layout.addWidget(self.volume_control)
+            self.controls_layout.addWidget(self.volume_control)
+        
+        # Add controls container to right layout
+        right_layout.addWidget(self.controls_container)
+        
+        # Collapsible toggle for controls (NEW) - ADD THIS BEFORE OTHER CONTROLS
+        self.setup_collapsible_toggle_icons(right_layout)
+        
         # Network Manager control
         if self.config.show_network_control:
             self.network_control = NetworkManagerWidget(self)
@@ -3820,7 +5165,6 @@ class TokyoNightPanelBar(QMainWindow):
             sep3.setFrameShape(QFrame.VLine)
             sep3.setFrameShadow(QFrame.Sunken)
             right_layout.addWidget(sep3)
-        
         # System menu button
         self.system_button = QToolButton()
         self.system_button.setText("󰀽")
@@ -3829,14 +5173,391 @@ class TokyoNightPanelBar(QMainWindow):
         self.system_button.setMenu(self.create_system_menu())
         self.system_button.setFixedSize(32, 32)
         right_layout.addWidget(self.system_button)
-        
         # Add all sections to main layout WITH PROPER STRETCH FACTORS
         layout.addWidget(self.left_widget, 1)  # Left section expands
         layout.addWidget(self.center_widget, 0)  # Center section fixed width
         layout.addWidget(self.right_widget, 0)  # Right section fixed width
-        
         # Set initial geometry
         self.update_panel_geometry()
+
+
+
+
+
+    def setup_collapsible_toggle_icons(self, layout):
+        """
+        Setup toggle icons with arrow indicators
+        """
+        try:
+            # Collapse button with left arrow (hiding controls)
+            self.collapsible_toggle_btn = QPushButton("⮜")  # Left arrow
+            self.collapsible_toggle_btn.setFixedSize(28, 28)
+            self.collapsible_toggle_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {TokyoNight.SELECTION};
+                    border: 1px solid {TokyoNight.NEBULA};
+                    color: {TokyoNight.FOREGROUND};
+                    font-size: 14px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background: {TokyoNight.BLUE}60;
+                    color: {TokyoNight.CYAN};
+                }}
+            """)
+            self.collapsible_toggle_btn.setToolTip("Hide controls")
+            self.collapsible_toggle_btn.clicked.connect(self.toggle_controls)
+            
+            # Restore button with right arrow (showing controls)
+            self.restore_controls_btn = QPushButton("⮞")  # Right arrow
+            self.restore_controls_btn.setFixedSize(28, 28)
+            self.restore_controls_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {TokyoNight.GREEN};
+                    border: 1px solid {TokyoNight.BRIGHT_GREEN};
+                    color: {TokyoNight.BACKGROUND};
+                    font-size: 14px;
+                    border-radius: 4px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background: {TokyoNight.BRIGHT_GREEN};
+                }}
+            """)
+            self.restore_controls_btn.setToolTip("Show controls")
+            self.restore_controls_btn.clicked.connect(self.show_controls)
+            self.restore_controls_btn.setVisible(False)
+            
+            layout.addWidget(self.collapsible_toggle_btn)
+            layout.addWidget(self.restore_controls_btn)
+            self.controls_collapsed = False
+            
+        except Exception as e:
+            print(f"Error setting up collapsible toggle: {e}")
+
+
+
+        
+    def toggle_controls(self):
+        """Toggle brightness and volume controls visibility"""
+        try:
+            if self.controls_collapsed:
+                # Show controls
+                self.show_controls()
+            else:
+                # Hide controls
+                self.hide_controls()
+                
+            self.controls_collapsed = not self.controls_collapsed
+            print(f"Controls {'hidden' if self.controls_collapsed else 'shown'}")
+            
+        except Exception as e:
+            print(f"Error toggling controls: {e}")
+
+    def hide_controls(self):
+        """Hide brightness and volume controls and show restore button"""
+        try:
+            # Hide controls container
+            self.controls_container.setVisible(False)
+            
+            # Hide the collapse button
+            self.collapsible_toggle_btn.setVisible(False)
+            
+            # Show the restore button with green background
+            self.restore_controls_btn.setVisible(True)
+            self.restore_controls_btn.setText("🔊")
+            self.restore_controls_btn.setToolTip("Show brightness and volume controls - CLICK ME!")
+            
+            print("🔇 Controls hidden - GREEN restore button should be visible")
+            
+        except Exception as e:
+            print(f"Error hiding controls: {e}")
+
+    def show_controls(self):
+        """Show brightness and volume controls and hide restore button"""
+        try:
+            # Show controls container
+            self.controls_container.setVisible(True)
+            
+            # Show the collapse button
+            self.collapsible_toggle_btn.setVisible(True)
+            self.collapsible_toggle_btn.setText("🔇")
+            self.collapsible_toggle_btn.setToolTip("Hide brightness and volume controls")
+            
+            # Hide the restore button
+            self.restore_controls_btn.setVisible(False)
+            
+            print("🔊 Controls shown - Collapse button visible")
+            
+        except Exception as e:
+            print(f"Error showing controls: {e}")
+
+
+
+
+    def cleanup(self):
+        """Clean up all resources before exit"""
+        print("🧹 Cleaning up panel resources...")
+        
+        # Stop all timers
+        timers = [
+            'clock_timer', 'window_timer', 'volume_timer', 
+            'weather_timer', 'notification_timer', 'auto_hide_timer',
+            'edge_detection_timer', 'health_timer', 'memory_check_timer',
+            'monitor_timer', 'animation'
+        ]
+        
+        for timer_name in timers:
+            if hasattr(self, timer_name):
+                timer = getattr(self, timer_name)
+                if timer and hasattr(timer, 'stop'):
+                    timer.stop()
+                    print(f"⏹️  Stopped {timer_name}")
+        
+        # Stop monitor thread
+        if hasattr(self, 'monitor_thread'):
+            print("🛑 Stopping monitor thread...")
+            self.monitor_thread.stop()
+            if not self.monitor_thread.wait(3000):  # Wait up to 3 seconds
+                print("⚠️  Monitor thread didn't stop gracefully, terminating...")
+                self.monitor_thread.terminate()
+                self.monitor_thread.wait(2000)
+        
+        # Clean up taskbar
+        self.cleanup_taskbar()
+        
+        # Clean up tiling control
+        if hasattr(self, 'tiling_control'):
+            self.tiling_control.cleanup()
+        
+        # Clean up launchers
+        self.cleanup_launchers()
+        
+        print("✅ Panel cleanup completed")
+
+    def cleanup_taskbar(self):
+        """Clean up taskbar widgets"""
+        if hasattr(self, 'taskbar_layout'):
+            print("🧹 Cleaning up taskbar...")
+            for i in reversed(range(self.taskbar_layout.count())):
+                widget = self.taskbar_layout.itemAt(i).widget()
+                if widget and hasattr(widget, 'is_window_button'):
+                    widget.deleteLater()
+            print(f"✅ Taskbar cleaned up, remaining widgets: {self.taskbar_layout.count()}")
+
+    def cleanup_launchers(self):
+        """Clean up launcher widgets"""
+        if hasattr(self, 'xfce_launchers_layout'):
+            print("🧹 Cleaning up launchers...")
+            for i in reversed(range(self.xfce_launchers_layout.count())):
+                widget = self.xfce_launchers_layout.itemAt(i).widget()
+                if widget:
+                    widget.deleteLater()
+            print(f"✅ Launchers cleaned up, remaining widgets: {self.xfce_launchers_layout.count()}")
+
+    def start_health_monitor(self):
+        """Monitor panel health and restart if needed"""
+        self.health_timer = QTimer()
+        self.health_timer.timeout.connect(self.check_health)
+        self.health_timer.start(30000)  # Check every 30 seconds
+        print("❤️  Health monitor started")
+
+    def check_health(self):
+        """Check panel health and restart if memory usage too high"""
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_mb = process.memory_info().rss / 1024 / 1024
+            
+            # Count active timers
+            active_timers = 0
+            timer_names = ['clock_timer', 'window_timer', 'volume_timer', 'weather_timer', 
+                          'notification_timer', 'monitor_timer']
+            for timer_name in timer_names:
+                if hasattr(self, timer_name):
+                    timer = getattr(self, timer_name)
+                    if timer and hasattr(timer, 'isActive') and timer.isActive():
+                        active_timers += 1
+            
+            print(f"🧠 Panel health: {memory_mb:.1f}MB memory, {active_timers} active timers")
+            
+            # Restart if memory usage too high
+            if memory_mb > 300:  # 300MB threshold
+                print(f"🔄 High memory usage ({memory_mb:.1f}MB), restarting panel...")
+                self.restart_panel()
+                
+        except Exception as e:
+            print(f"⚠️  Health check error: {e}")
+
+    def force_garbage_collection(self):
+        """Force garbage collection to prevent memory leaks"""
+        import gc
+        collected = gc.collect()
+        print(f"🗑️  Garbage collection: {collected} objects collected")
+
+    def restart_panel(self):
+        """Restart the panel gracefully"""
+        print("🔄 Restarting panel...")
+        self.cleanup()
+        QTimer.singleShot(1000, lambda: subprocess.Popen([sys.executable] + sys.argv))
+        QApplication.quit()
+
+    def update_taskbar_memory_safe(self, wmctrl_output):
+        """Memory-safe taskbar update"""
+        # Track existing windows
+        existing_windows = {}
+        for i in range(self.taskbar_layout.count()):
+            widget = self.taskbar_layout.itemAt(i).widget()
+            if widget and hasattr(widget, 'is_window_button'):
+                window_id = widget.property("window_id")
+                if window_id:
+                    existing_windows[window_id] = widget
+        
+        # Process current windows
+        current_windows = []
+        for line in wmctrl_output.splitlines():
+            parts = line.split(None, 3)
+            if len(parts) >= 4:
+                window_id, desktop, host, title = parts
+                if desktop != '-1':  # Skip sticky windows
+                    current_windows.append({'id': window_id, 'title': title})
+        
+        current_window_ids = {w['id'] for w in current_windows}
+        
+        # Remove windows that no longer exist
+        for window_id, button in existing_windows.items():
+            if window_id not in current_window_ids:
+                button.deleteLater()
+                print(f"🗑️  Removed window button: {window_id}")
+        
+        # Add new windows (limit to 8 for memory safety)
+        for window in current_windows[:8]:
+            if window['id'] not in existing_windows:
+                self.add_window_button(window)
+        
+        # Force garbage collection occasionally
+        if hasattr(self, '_gc_counter'):
+            self._gc_counter += 1
+            if self._gc_counter >= 10:  # Every 10 updates
+                self.force_garbage_collection()
+                self._gc_counter = 0
+        else:
+            self._gc_counter = 0
+
+    def add_window_button(self, window):
+        """Add a single window button safely"""
+        btn = QPushButton(window['title'][:18])
+        btn.setFixedHeight(28)
+        btn.is_window_button = True
+        btn.setProperty("window_id", window['id'])
+        
+        btn.clicked.connect(lambda checked, wid=window['id']: self.focus_window(wid))
+        
+        # Style based on active window
+        active_window = self.get_active_window()
+        if window['id'] == active_window:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {TokyoNight.BLUE}, 
+                        stop:1 {TokyoNight.PURPLE});
+                    color: {TokyoNight.BACKGROUND};
+                    border: none;
+                    border-radius: 6px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {TokyoNight.CYAN}, 
+                        stop:1 {TokyoNight.BLUE});
+                }}
+            """)
+        else:
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {TokyoNight.SELECTION}, 
+                        stop:1 {TokyoNight.NIGHT_BOTTOM});
+                    color: {TokyoNight.FOREGROUND};
+                    border: none;
+                    border-radius: 6px;
+                }}
+                QPushButton:hover {{
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 {TokyoNight.BLUE}40, 
+                        stop:1 {TokyoNight.PURPLE}40);
+                }}
+            """)
+        
+        btn.setContextMenuPolicy(Qt.CustomContextMenu)
+        btn.customContextMenuRequested.connect(self.show_window_menu)
+        self.taskbar_layout.addWidget(btn)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    def refresh_taskbar(self):
+        """Force refresh the taskbar display"""
+        self.update_windows()
+
+
+
+    def get_active_window(self):
+        """Get the ID of the currently active window"""
+        try:
+            # Method 1: xdotool (most reliable for active window)
+            result = subprocess.run(
+                ["xdotool", "getactivewindow"],
+                capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+                
+            # Method 2: wmctrl fallback
+            result = subprocess.run(
+                "wmctrl -l | grep ' -1 ' | head -1 | cut -d' ' -f1",
+                shell=True, capture_output=True, text=True, timeout=1
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+                
+        except Exception as e:
+            print(f"Error getting active window: {e}")
+        
+        return ""
+
+
+
+
+
+
+
+
 
 
 
@@ -3891,8 +5612,63 @@ class TokyoNightPanelBar(QMainWindow):
 
 
 
-
-
+    def show_calendar(self, event):
+        """Show a calendar dialog when the clock is left-clicked."""
+        from PyQt5.QtWidgets import QDialog, QCalendarWidget, QVBoxLayout, QLabel
+        from PyQt5.QtCore import Qt, QDate
+        
+        # ONLY show calendar if left mouse button was pressed
+        if event.button() != Qt.LeftButton:
+            return  # Ignore right-clicks, middle-clicks, etc.
+            
+        # Create a dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Calendar")
+        dialog.setFixedSize(300, 250)
+        dialog.setStyleSheet(f"""
+            QDialog {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {TokyoNight.NIGHT_TOP}, 
+                    stop:0.7 {TokyoNight.NIGHT_BOTTOM},
+                    stop:1 {TokyoNight.NIGHT_HIGHLIGHT});
+                color: {TokyoNight.FOREGROUND};
+                border-radius: 8px;
+                border: 1px solid {TokyoNight.NEBULA};
+            }}
+            QCalendarWidget {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.NEBULA};
+                border-radius: 4px;
+            }}
+            QCalendarWidget QAbstractItemView:enabled {{
+                selection-background-color: {TokyoNight.BLUE};
+                selection-color: {TokyoNight.BACKGROUND};
+            }}
+            QCalendarWidget QToolButton {{
+                background: {TokyoNight.SELECTION};
+                color: {TokyoNight.FOREGROUND};
+                border: none;
+                border-radius: 4px;
+            }}
+            QCalendarWidget QToolButton:hover {{
+                background: {TokyoNight.BLUE}40;
+            }}
+        """)
+        
+        # Create a vertical layout
+        layout = QVBoxLayout(dialog)
+        
+        # Create a calendar widget
+        calendar = QCalendarWidget()
+        # Optional: Set the current date as the selected date
+        current_date = QDate.currentDate()
+        calendar.setSelectedDate(current_date)
+        calendar.setGridVisible(True)
+        layout.addWidget(calendar)
+        
+        # Show the dialog
+        dialog.exec_()
 
 
 
@@ -4806,12 +6582,41 @@ class TokyoNightPanelBar(QMainWindow):
             print(f"Window update error: {e}")
 
     def update_taskbar(self, wmctrl_output):
-        """Update taskbar with current windows"""
+        """Update taskbar with current windows - check active window directly for highlighting."""
+        # Get the *currently* active window ID right now using xdotool
+        active_window_id = None
+        try:
+            result = subprocess.run(
+                ["xdotool", "getactivewindow"],
+                capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0:
+                active_window_id = result.stdout.strip()
+        except Exception as e:
+            print(f"Error getting active window with xdotool: {e}")
+            # Fallback: try wmctrl
+            try:
+                result = subprocess.run(
+                    ["wmctrl", "-l"],
+                    capture_output=True, text=True, timeout=2
+                )
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    for line in lines:
+                        if ' -1 ' in line: # Look for the line containing -1 which indicates active
+                            active_window_id = line.split()[0]
+                            break
+            except Exception as e2:
+                print(f"Error getting active window with wmctrl: {e2}")
+
+        print(f"DEBUG: Active window ID (for taskbar update): {active_window_id}") # Debug line
+
         # Clear existing window buttons
         for i in reversed(range(self.taskbar_layout.count())):
             widget = self.taskbar_layout.itemAt(i).widget()
             if widget and hasattr(widget, 'is_window_button'):
                 widget.deleteLater()
+
         # Add new window buttons
         windows = []
         for line in wmctrl_output.splitlines():
@@ -4827,9 +6632,13 @@ class TokyoNightPanelBar(QMainWindow):
             btn.setFixedHeight(28)
             btn.is_window_button = True
             btn.setProperty("window_id", window['id'])
+            
+            # UPDATED: Connect to focus_window which now handles minimize/focus toggle
             btn.clicked.connect(lambda checked, wid=window['id']: self.focus_window(wid))
-            # Check if this is the active window
-            if window['id'] == self.active_window_id:
+            
+            # Check if this button's window ID matches the *currently* active window ID
+            if window['id'] == active_window_id:
+                # Apply the highlighted style for the active window
                 btn.setStyleSheet(f"""
                     QPushButton {{
                         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -4869,6 +6678,41 @@ class TokyoNightPanelBar(QMainWindow):
 
         # Update the taskbar widget size to ensure proper scrolling
         self.taskbar_widget.adjustSize()
+        
+    def _toggle_blink_style(self):
+        """Toggle the blink state for the active window button."""
+        if not hasattr(self, '_blink_state'):
+            self._blink_state = False
+        self._blink_state = not self._blink_state
+        # Force a refresh of the taskbar to apply the new style
+        self.update_windows()
+
+
+
+    def start_timers(self):
+        """Start all timers for updating UI elements with memory safety"""
+        # Clock timer
+        self.clock_timer = QTimer()
+        self.clock_timer.timeout.connect(self.update_clock)
+        self.clock_timer.start(1000)
+        
+        # Window list timer - use memory-safe version
+        self.window_timer = QTimer()
+        self.window_timer.timeout.connect(self.update_windows_memory_safe)
+        self.window_timer.start(1000)  # Reduced from 500ms to 1000ms
+        
+        # Initial updates
+        self.update_clock()
+        self.update_windows_memory_safe()
+
+    def update_windows_memory_safe(self):
+        """Memory-safe window update"""
+        try:
+            result = subprocess.run("wmctrl -l", shell=True, capture_output=True, text=True, timeout=2)
+            if result.returncode == 0:
+                self.update_taskbar_memory_safe(result.stdout)
+        except Exception as e:
+            print(f"Window update error: {e}")
 
     def show_window_menu(self, position):
         """Show context menu for window button"""
@@ -4908,7 +6752,7 @@ class TokyoNightPanelBar(QMainWindow):
             ("󰖯 Minimize", self.minimize_window),
             ("󰖪 Close", self.close_window),
             ("󰒓 Move", self.move_window),
-            ("󰒍 Always on Top", self.set_always_on_top),
+            ("󰍺 Always on Top", self.set_always_on_top),
             ("󰂸 Unstick", self.unstick_window),
             ("󰘚 Always Below", self.set_always_below),
             ("󰂸 Pin to Workspace", self.pin_to_workspace),
@@ -4922,16 +6766,47 @@ class TokyoNightPanelBar(QMainWindow):
         menu.exec_(position)
 
     def focus_window(self, window_id):
-        """Focus a window by ID"""
+        """Focus a window by ID, or minimize if already focused"""
         try:
-            subprocess.run(f"wmctrl -i -a {window_id}", shell=True)
+            # Get currently active window
+            active_window = self.get_active_window()
+            
+            print(f"DEBUG: Active window: {active_window}, Clicked window: {window_id}")
+            
+            if active_window == window_id:
+                # Window is already focused - minimize it
+                print(f"🪟 Minimizing focused window {window_id}")
+                self.minimize_window(window_id)
+            else:
+                # Window is not focused - focus it
+                print(f"🎯 Focusing window {window_id}")
+                subprocess.run(f"wmctrl -i -a {window_id}", shell=True)
+                
+                # Also ensure it's not minimized
+                subprocess.run(f"wmctrl -i -r {window_id} -b remove,hidden", shell=True)
         except Exception as e:
-            print(f"Focus error: {e}")
+            print(f"Focus/minimize error: {e}")
 
     def minimize_window(self, window_id):
-        """Minimize a window by ID"""
+        """Minimize a window by ID using multiple methods"""
         try:
-            subprocess.run(f"wmctrl -i -r {window_id} -b add,hidden", shell=True)
+            # Method 1: wmctrl hidden state (primary)
+            result1 = subprocess.run(
+                f"wmctrl -i -r {window_id} -b add,hidden",
+                shell=True, capture_output=True, text=True
+            )
+            
+            # Method 2: xdotool windowminimize (fallback)
+            result2 = subprocess.run(
+                f"xdotool windowminimize {window_id}",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if result1.returncode == 0 or result2.returncode == 0:
+                print(f"✅ Window {window_id} minimized")
+            else:
+                print(f"⚠️  Could not minimize window {window_id}")
+                
         except Exception as e:
             print(f"Minimize error: {e}")
 
@@ -5388,14 +7263,21 @@ class TokyoNightPanelBar(QMainWindow):
 
     def get_stylesheet(self):
         """Return enhanced dark night themed stylesheet"""
+        # Do not call TokyoNight.change_theme(self.config.theme_variant) here
+        # as it does not exist as a class method on TokyoNight.
+        # The theme should ideally be set correctly by ConfigManager.load_config
+        # or PanelConfig.__post_init__ before this method is called.
+        # Use getattr with fallbacks to prevent AttributeError if the theme
+        # is somehow not initialized correctly at this point.
+
         corner_radius = f"{self.config.corner_radius}px" if self.config.rounded_corners else "0px"
         return f"""
             QMainWindow {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.NIGHT_TOP}CC, 
-                    stop:0.7 {TokyoNight.NIGHT_BOTTOM}CC,
-                    stop:1 {TokyoNight.NIGHT_HIGHLIGHT}CC);
-                border: 1px solid {TokyoNight.NEBULA}60;
+                    stop:0 {getattr(TokyoNight, 'NIGHT_TOP', '#1a1b26')}CC, 
+                    stop:0.7 {getattr(TokyoNight, 'NIGHT_BOTTOM', '#13141e')}CC,
+                    stop:1 {getattr(TokyoNight, 'NIGHT_HIGHLIGHT', '#1f2335')}CC);
+                border: 1px solid {getattr(TokyoNight, 'NEBULA', '#3a415e')}60;
                 border-radius: {corner_radius};
             }}
             QWidget#centralwidget {{
@@ -5404,30 +7286,30 @@ class TokyoNightPanelBar(QMainWindow):
             }}
             QToolButton {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.SELECTION}, 
-                    stop:1 {TokyoNight.NIGHT_BOTTOM});
-                color: {TokyoNight.FOREGROUND};
+                    stop:0 {getattr(TokyoNight, 'SELECTION', '#292e42')}, 
+                    stop:1 {getattr(TokyoNight, 'NIGHT_BOTTOM', '#13141e')});
+                color: {getattr(TokyoNight, 'FOREGROUND', '#c0caf5')};
                 border: none;
                 border-radius: 6px;
                 font-family: "JetBrains Mono Nerd Font";
             }}
             QToolButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.BLUE}40, 
-                    stop:1 {TokyoNight.PURPLE}40);
+                    stop:0 {getattr(TokyoNight, 'BLUE', '#5a7fc7')}40, 
+                    stop:1 {getattr(TokyoNight, 'PURPLE', '#9b7fc7')}40);
             }}
             QToolButton:pressed {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.BLUE}60, 
-                    stop:1 {TokyoNight.PURPLE}60);
+                    stop:0 {getattr(TokyoNight, 'BLUE', '#5a7fc7')}60, 
+                    stop:1 {getattr(TokyoNight, 'PURPLE', '#9b7fc7')}60);
             }}
             QMenu {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.NIGHT_TOP}, 
-                    stop:0.7 {TokyoNight.NIGHT_BOTTOM},
-                    stop:1 {TokyoNight.NIGHT_HIGHLIGHT});
-                color: {TokyoNight.FOREGROUND};
-                border: 1px solid {TokyoNight.NEBULA};
+                    stop:0 {getattr(TokyoNight, 'NIGHT_TOP', '#1a1b26')}, 
+                    stop:0.7 {getattr(TokyoNight, 'NIGHT_BOTTOM', '#13141e')},
+                    stop:1 {getattr(TokyoNight, 'NIGHT_HIGHLIGHT', '#1f2335')});
+                color: {getattr(TokyoNight, 'FOREGROUND', '#c0caf5')};
+                border: 1px solid {getattr(TokyoNight, 'NEBULA', '#3a415e')};
                 border-radius: 6px;
                 padding: 4px;
             }}
@@ -5437,23 +7319,23 @@ class TokyoNightPanelBar(QMainWindow):
                 font-family: "JetBrains Mono Nerd Font";
             }}
             QMenu::item:selected {{
-                background: {TokyoNight.BLUE};
-                color: {TokyoNight.BACKGROUND};
+                background: {getattr(TokyoNight, 'BLUE', '#5a7fc7')};
+                color: {getattr(TokyoNight, 'BACKGROUND', '#0d0f1a')};
             }}
             QFrame[frameShape="4"] {{
-                background: {TokyoNight.NEBULA}40;
+                background: {getattr(TokyoNight, 'NEBULA', '#3a415e')}40;
                 max-width: 1px;
             }}
             QSlider::groove:horizontal {{
                 border: none;
                 height: 4px;
-                background: {TokyoNight.NEBULA};
+                background: {getattr(TokyoNight, 'NEBULA', '#3a415e')};
                 border-radius: 2px;
             }}
             QSlider::handle:horizontal {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.BLUE}, 
-                    stop:1 {TokyoNight.PURPLE});
+                    stop:0 {getattr(TokyoNight, 'BLUE', '#5a7fc7')}, 
+                    stop:1 {getattr(TokyoNight, 'PURPLE', '#9b7fc7')});
                 border: none;
                 width: 12px;
                 margin: -4px 0;
@@ -5461,14 +7343,14 @@ class TokyoNightPanelBar(QMainWindow):
             }}
             QSlider::handle:horizontal:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.CYAN}, 
-                    stop:1 {TokyoNight.BLUE});
+                    stop:0 {getattr(TokyoNight, 'CYAN', '#5abfcf')}, 
+                    stop:1 {getattr(TokyoNight, 'BLUE', '#5a7fc7')});
             }}
             QPushButton {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.BLUE}, 
-                    stop:1 {TokyoNight.PURPLE});
-                color: {TokyoNight.BACKGROUND};
+                    stop:0 {getattr(TokyoNight, 'BLUE', '#5a7fc7')}, 
+                    stop:1 {getattr(TokyoNight, 'PURPLE', '#9b7fc7')});
+                color: {getattr(TokyoNight, 'BACKGROUND', '#0d0f1a')};
                 border: none;
                 padding: 6px 12px;
                 border-radius: 4px;
@@ -5476,14 +7358,14 @@ class TokyoNightPanelBar(QMainWindow):
             }}
             QPushButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.CYAN}, 
-                    stop:1 {TokyoNight.BLUE});
+                    stop:0 {getattr(TokyoNight, 'CYAN', '#5abfcf')}, 
+                    stop:1 {getattr(TokyoNight, 'BLUE', '#5a7fc7')});
             }}
             QFormLayout {{
-                color: {TokyoNight.FOREGROUND};
+                color: {getattr(TokyoNight, 'FOREGROUND', '#c0caf5')};
             }}
             QLabel {{
-                color: {TokyoNight.FOREGROUND};
+                color: {getattr(TokyoNight, 'FOREGROUND', '#c0caf5')};
             }}
         """
 
@@ -5511,33 +7393,26 @@ class TokyoNightPanelBar(QMainWindow):
                 color: {TokyoNight.BACKGROUND};
             }}
         """)
-        
         # Clock quick settings submenu
         clock_menu = QMenu("󰥔 Clock Settings", self)
         clock_menu.setStyleSheet(menu.styleSheet())
-        
         # Font size quick adjustments
         font_size_menu = QMenu("Font Size", self)
         font_size_menu.setStyleSheet(menu.styleSheet())
-        
         clock_sizes = [("Small (10pt)", 10), ("Medium (12pt)", 12), ("Large (14pt)", 14), ("X-Large (16pt)", 16)]
         for name, size in clock_sizes:
             action = QAction(name, self)
             action.triggered.connect(lambda checked, s=size: self.set_clock_font_size(s))
             font_size_menu.addAction(action)
-        
         date_sizes = [("Small (7pt)", 7), ("Medium (9pt)", 9), ("Large (11pt)", 11)]
         for name, size in date_sizes:
             action = QAction(f"Date {name}", self)
             action.triggered.connect(lambda checked, s=size: self.set_date_font_size(s))
             font_size_menu.addAction(action)
-        
         clock_menu.addMenu(font_size_menu)
-        
         # Color quick picks
         color_menu = QMenu("Colors", self)
         color_menu.setStyleSheet(menu.styleSheet())
-        
         color_presets = [
             ("Moon Glow", TokyoNight.MOON_GLOW),
             ("Cyan", TokyoNight.CYAN),
@@ -5546,28 +7421,22 @@ class TokyoNightPanelBar(QMainWindow):
             ("Pink", TokyoNight.PINK),
             ("White", TokyoNight.BRIGHT_WHITE)
         ]
-        
         for name, color in color_presets:
             action = QAction(name, self)
             action.triggered.connect(lambda checked, c=color: self.set_clock_color(c))
             color_menu.addAction(action)
-        
         clock_menu.addMenu(color_menu)
-        
         # Toggle seconds
         seconds_action = QAction("Show Seconds", self)
         seconds_action.setCheckable(True)
         seconds_action.setChecked(self.config.show_seconds)
         seconds_action.triggered.connect(self.toggle_seconds)
         clock_menu.addAction(seconds_action)
-        
         menu.addMenu(clock_menu)
         menu.addSeparator()
-        
         # Custom Launchers submenu
         launchers_menu = QMenu("󰀻 Custom Launchers", self)
         launchers_menu.setStyleSheet(menu.styleSheet())
-        
         # Add current custom launchers as quick actions
         if hasattr(self, 'custom_apps') and self.custom_apps:
             for name, command, icon in self.custom_apps:
@@ -5575,39 +7444,31 @@ class TokyoNightPanelBar(QMainWindow):
                 action.triggered.connect(lambda checked, cmd=command: self.launch_application(cmd))
                 launchers_menu.addAction(action)
             launchers_menu.addSeparator()
-        
         # Management actions
         add_action = QAction("󰐕 Add Launcher", self)
         add_action.triggered.connect(self.add_custom_launcher)
         launchers_menu.addAction(add_action)
-        
         edit_action = QAction("󰏫 Edit Launchers", self)
         edit_action.triggered.connect(self.edit_custom_launchers)
         launchers_menu.addAction(edit_action)
-        
         menu.addMenu(launchers_menu)
         menu.addSeparator()
-        
         # Tiling submenu
         tiling_menu = QMenu("⊞ Window Tiling", self)
         tiling_menu.setStyleSheet(menu.styleSheet())
-        
         # Toggle tiling
         toggle_action = QAction("⊞ Toggle Tiling", self)
         toggle_action.triggered.connect(self.toggle_tiling)
         tiling_menu.addAction(toggle_action)
-        
         # Force apply layout
         force_apply_action = QAction("🔄 Force Apply Layout", self)
         force_apply_action.triggered.connect(self.force_apply_tiling)
         tiling_menu.addAction(force_apply_action)
-        
         if hasattr(self, 'tiling_control') and self.tiling_control.tiler.is_active:
             # Layout options
             tiling_menu.addSeparator()
             layout_menu = QMenu("📐 Layout", self)
             layout_menu.setStyleSheet(menu.styleSheet())
-            
             layouts = ["tall", "wide", "grid", "monocle", "floating"]
             for layout in layouts:
                 action = QAction(layout.capitalize(), self)
@@ -5615,52 +7476,45 @@ class TokyoNightPanelBar(QMainWindow):
                 action.setChecked(self.tiling_control.tiler.layouts[self.tiling_control.tiler.current_layout] == layout)
                 action.triggered.connect(lambda checked, l=layout: self.set_tiling_layout(l))
                 layout_menu.addAction(action)
-            
             tiling_menu.addMenu(layout_menu)
-            
             # Cycle layout
             cycle_action = QAction("🔄 Cycle Layout", self)
             cycle_action.triggered.connect(self.cycle_tiling_layout)
             tiling_menu.addAction(cycle_action)
-            
             # Set master
             master_action = QAction("🎯 Set Master", self)
             master_action.triggered.connect(self.set_tiling_master)
             tiling_menu.addAction(master_action)
-            
             tiling_menu.addSeparator()
-            
             # Auto-tile toggle
             auto_tile_action = QAction("🤖 Auto-tile", self)
             auto_tile_action.setCheckable(True)
             auto_tile_action.setChecked(self.tiling_control.tiler.auto_tile)
             auto_tile_action.triggered.connect(self.toggle_auto_tile)
             tiling_menu.addAction(auto_tile_action)
-            
             # Refresh layout
             refresh_action = QAction("🔄 Refresh Layout", self)
             refresh_action.triggered.connect(self.refresh_layout)
             tiling_menu.addAction(refresh_action)
-            
             # Correct alignment
             align_action = QAction("🔧 Correct Alignment", self)
             align_action.triggered.connect(self.correct_alignment)
             tiling_menu.addAction(align_action)
-            
             # Restart tiler
             restart_action = QAction("🔄 Restart Tiler", self)
             restart_action.triggered.connect(self.restart_tiler)
             tiling_menu.addAction(restart_action)
-        
         menu.addMenu(tiling_menu)
         menu.addSeparator()
-        
+        # NEW: Add Refresh Taskbar action
+        refresh_taskbar_action = QAction("󰑐 Refresh Taskbar", self)
+        refresh_taskbar_action.triggered.connect(self.refresh_taskbar)
+        menu.addAction(refresh_taskbar_action)
         # Panel settings
         settings_action = QAction("󰒓 Panel Settings", self)
         settings_action.triggered.connect(self.show_settings)
         menu.addAction(settings_action)
         menu.addSeparator()
-        
         # Position submenu
         position_menu = QMenu("󰖯 Position", self)
         position_menu.setStyleSheet(menu.styleSheet())
@@ -5676,17 +7530,14 @@ class TokyoNightPanelBar(QMainWindow):
         position_menu.addAction(bottom_action)
         menu.addMenu(position_menu)
         menu.addSeparator()
-        
         # Panel height
         height_action = QAction("󰖊 Height", self)
         height_action.triggered.connect(self.show_height_dialog)
         menu.addAction(height_action)
-        
         # Opacity
         opacity_action = QAction("󰗊 Opacity", self)
         opacity_action.triggered.connect(self.show_opacity_dialog)
         menu.addAction(opacity_action)
-        
         # Auto-hide toggle
         auto_hide_action = QAction("󰖯 Auto-Hide", self)
         auto_hide_action.setCheckable(True)
@@ -5694,17 +7545,14 @@ class TokyoNightPanelBar(QMainWindow):
         auto_hide_action.triggered.connect(self.toggle_auto_hide)
         menu.addAction(auto_hide_action)
         menu.addSeparator()
-        
         # Reload/Restart panel
         reload_action = QAction("󰜺 Reload Panel", self)
         reload_action.triggered.connect(self.reload_panel)
         menu.addAction(reload_action)
-        
         # Quit panel
         quit_action = QAction("󰗼 Quit Panel", self)
         quit_action.triggered.connect(self.quit_application)
         menu.addAction(quit_action)
-        
         menu.exec_(self.mapToGlobal(position))
 
     def set_clock_font_size(self, size):
@@ -6323,39 +8171,56 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Tokyo Night Panel")
     app.setApplicationVersion("1.0.0")
-    # Set up system tray with better error handling
+    
+    # Set up system tray
     tray_available = QSystemTrayIcon.isSystemTrayAvailable()
     if not tray_available:
         print("System tray is not available, panel will run without tray icon")
-        # Don't set quit on last window closed, so panel stays open
-        app.setQuitOnLastWindowClosed(False)
-    else:
-        app.setQuitOnLastWindowClosed(False)
+    app.setQuitOnLastWindowClosed(False)
+    
     # Load configuration
     config_manager = ConfigManager()
     config = config_manager.load_config()
-    # Create and show panel
-    panel = TokyoNightPanelBar(config)
-    panel.show()
-    # Setup system tray only if available
-    if tray_available:
-        try:
-            tray_manager = TrayIconManager(panel)
-            tray_manager.show()
-            tray_manager.show_message("Tokyo Night Panel", "Panel started successfully")
-        except Exception as e:
-            print(f"Failed to create system tray icon: {e}")
-    # Save config on exit
-    def save_on_exit():
-        config_manager.save_config(panel.config)
-    app.aboutToQuit.connect(save_on_exit)
-    # Handle SIGTERM for graceful shutdown
-    def handle_signal(signum, frame):
-        save_on_exit()
-        QApplication.quit()
-    signal.signal(signal.SIGTERM, handle_signal)
-    signal.signal(signal.SIGINT, handle_signal)
-    return app.exec_()
+    
+    # Create and show panel with error handling
+    try:
+        panel = TokyoNightPanelBar(config)
+        panel.show()
+        
+        # Setup system tray only if available
+        if tray_available:
+            try:
+                tray_manager = TrayIconManager(panel)
+                tray_manager.show()
+                tray_manager.show_message("Tokyo Night Panel", "Panel started with memory protection")
+            except Exception as e:
+                print(f"Failed to create system tray icon: {e}")
+        
+        # Ensure cleanup on exit
+        def cleanup_and_quit():
+            print("🛑 Application quitting, cleaning up...")
+            panel.cleanup()
+            app.quit()
+        
+        app.aboutToQuit.connect(cleanup_and_quit)
+        
+        # Handle signals for graceful shutdown
+        def handle_signal(signum, frame):
+            print(f"🛑 Received signal {signum}, shutting down...")
+            cleanup_and_quit()
+        
+        signal.signal(signal.SIGTERM, handle_signal)
+        signal.signal(signal.SIGINT, handle_signal)
+        
+        print("🚀 Tokyo Night Panel started with memory protection")
+        return app.exec_()
+        
+    except Exception as e:
+        print(f"❌ Panel initialization failed: {e}")
+        # Attempt restart after a delay
+        print("🔄 Attempting to restart panel...")
+        QTimer.singleShot(3000, lambda: subprocess.Popen([sys.executable] + sys.argv))
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())
