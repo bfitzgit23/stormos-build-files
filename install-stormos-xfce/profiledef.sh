@@ -36,8 +36,8 @@ file_permissions=(
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
   ["/usr/local/bin/fm8"]="0:0:755"
-  ["/usr/local/bin/term4"]="0:0:755"
-  ["/usr/local/bin/launch4"]="0:0:755"
-  ["/usr/local/bin/hyper5"]="0:0:755"
+  ["/usr/local/bin/term"]="0:0:755"
+  ["/usr/local/bin/launcher"]="0:0:755"
+  ["/usr/local/bin/hyper2"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
 )
