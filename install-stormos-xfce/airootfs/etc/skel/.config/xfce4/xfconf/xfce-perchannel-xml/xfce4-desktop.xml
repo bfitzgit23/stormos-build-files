@@ -83,6 +83,11 @@
           <property name="last-image" type="string" value="/usr/share/backgrounds/xfce-x.svg"/>
         </property>
       </property>
+      <property name="monitoreDP-2" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value="/usr/share/backgrounds/Vida-4.png"/>
+        </property>
+      </property>
     </property>
     <property name="single-workspace-mode" type="bool" value="false"/>
   </property>

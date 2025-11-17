@@ -79,6 +79,12 @@ configs:
     "/home/ben/Desktop/StormOS_mirrors.desktop":
       row: 5
       col: 0
+    "/home/bennji/Desktop/NB TC":
+      row: 6
+      col: 1
+    "/home/bennji/Desktop/Infinity_TC":
+      row: 1
+      col: 2
     "/home/test/Desktop/stormos-build-files":
       row: 6
       col: 0
@@ -193,12 +199,15 @@ configs:
     "/home/ben/Desktop/abif.desktop":
       row: 1
       col: 0
-    "/home/bennji/Desktop/RustDesk.desktop":
-      row: 8
-      col: 0
     "/home/liveuser/Desktop/StormOS_Download_Manager.desktop":
       row: 6
       col: 0
+    "/home/bennji/Desktop/RustDesk.desktop":
+      row: 8
+      col: 0
+    "/home/bennji/Desktop/Infinity":
+      row: 0
+      col: 2
     "/home/liveuser/Desktop/StormOS_Recorder.desktop":
       row: 3
       col: 0
@@ -211,6 +220,9 @@ configs:
     "/home/test/Desktop/StormOS_Python_Manager.desktop":
       row: 0
       col: 0
+    "/home/bennji/Desktop/Infinity Login.desktop":
+      row: 8
+      col: 1
     "/home/ben/Desktop/stormos-kernel-manager.desktop":
       row: 4
       col: 0
@@ -229,29 +241,32 @@ configs:
     "/home/liveuser/Desktop/StomOS Package Manager.desktop":
       row: 0
       col: 1
-    "/home/bennji/Desktop/Message From Seeker.mp4":
-      row: 3
-      col: 0
     "/home/ben/Desktop/StormOS_Download_Manager.desktop":
       row: 2
+      col: 0
+    "/home/bennji/Desktop/Message From Seeker.mp4":
+      row: 3
       col: 0
     "/home/liveuser/Desktop/stormos_browser.desktop":
       row: 0
       col: 0
-    "/home/bennji/Desktop/monitor.desktop":
-      row: 0
-      col: 1
+    "/home/liveuser/Desktop/abif.desktop":
+      row: 2
+      col: 0
     "/home/liveuser/Desktop/calamares.desktop":
       row: 1
       col: 0
-    "/home/bennji/Desktop/StormOS-ISO":
-      row: 5
-      col: 0
+    "/home/bennji/Desktop/Infinity Login.lnk":
+      row: 7
+      col: 1
+    "/home/bennji/Desktop/monitor.desktop":
+      row: 0
+      col: 1
     "/home/test/Desktop/system-tool.desktop":
       row: 3
       col: 0
-    "/home/liveuser/Desktop/abif.desktop":
-      row: 2
+    "/home/bennji/Desktop/StormOS-ISO":
+      row: 5
       col: 0
     "/home/bennji/Desktop/lfs-backup-main.tar.gz":
       row: 3

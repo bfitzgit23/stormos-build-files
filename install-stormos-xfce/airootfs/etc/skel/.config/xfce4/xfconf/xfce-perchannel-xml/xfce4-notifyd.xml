@@ -22,6 +22,7 @@
       <value type="string" value="org.gnome.Boxes"/>
       <value type="string" value="org.manjaro.pamac.manager"/>
       <value type="string" value="org.manjaro.pamac.tray"/>
+      <value type="string" value="org.qbittorrent.qBittorrent"/>
       <value type="string" value="org.xfce.Thunar"/>
       <value type="string" value="thorium-browser"/>
       <value type="string" value="vesktop"/>
