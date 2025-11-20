@@ -228,3 +228,12 @@ linux-firmware-nvidia
 linux-firmware-other
 linux-firmware-radeon
 linux-firmware-realtek
+xorg-server
+xf86-video-amdgpu
+xf86-video-ati
+xf86-video-intel
+lib32-vulkan-radeon
+lib32-vulkan-intel
+vulkan-radeon
+lib32-mesa
+vulkan-intel
