@@ -205,7 +205,6 @@ localsend
 brightnessctl
 kirigami
 mkinitcpio
-mkinitcpio-fw
 mkinitcpio-utils
 mkinitcpio-archiso
 mkinitcpio-openswap
