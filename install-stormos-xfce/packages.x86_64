@@ -212,8 +212,6 @@ mkinitcpio-openswap
 mkinitcpio-nfs-utils
 fwupd
 mesa
-amd-drv
-intel-drv
 autorandr
 mesa-utils
 lib32-mesa
