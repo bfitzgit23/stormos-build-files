@@ -151,24 +151,6 @@ class SettingsManager:
     def __init__(self):
         self.settings = DEFAULT_SETTINGS.copy()
         self.load_settings()
-        self._listeners = []
-
-    def add_listener(self, callback):
-        """Add a callback to be called when settings change"""
-        self._listeners.append(callback)
-
-    def remove_listener(self, callback):
-        """Remove a settings change callback"""
-        if callback in self._listeners:
-            self._listeners.remove(callback)
-
-    def notify_listeners(self):
-        """Notify all listeners of settings changes"""
-        for callback in self._listeners:
-            try:
-                callback()
-            except Exception as e:
-                print(f"Error in settings listener: {e}")
 
     def load_settings(self):
         """Loads settings from the config file, updating defaults if necessary."""
@@ -197,13 +179,8 @@ class SettingsManager:
         return self.settings.get(key, default)
 
     def set(self, key, value):
-        """Sets a setting value and notifies listeners."""
-        old_value = self.settings.get(key)
-        if old_value != value:
-            self.settings[key] = value
-            self.notify_listeners()
-            return True
-        return False
+        """Sets a setting value."""
+        self.settings[key] = value
 
 # --- CSS Provider ---
 class CSSProvider:
@@ -387,11 +364,6 @@ class CSSProvider:
         label {
             color: #c0caf5;
         }
-        .error-label {
-            color: #f7768e;
-            font-size: 12px;
-            margin-top: 4px;
-        }
         """
         provider = Gtk.CssProvider()
         provider.load_from_data(css.encode())
@@ -400,52 +372,6 @@ class CSSProvider:
             provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
-
-# --- Font Utilities ---
-class FontUtils:
-    @staticmethod
-    def validate_font(font_family, font_size):
-        """Validate if a font family and size are available and valid."""
-        try:
-            # Test if font can be created
-            font_desc = Pango.FontDescription()
-            font_desc.set_family(font_family)
-            font_desc.set_size(font_size * Pango.SCALE)
-            
-            # Create a temporary label to test font rendering
-            label = Gtk.Label()
-            context = label.get_pango_context()
-            font_map = context.get_font_map()
-            font = font_map.load_font(context, font_desc)
-            
-            return font is not None
-        except Exception as e:
-            print(f"Font validation failed for {font_family}: {e}")
-            return False
-
-    @staticmethod
-    def get_safe_font_family(font_family):
-        """Get a safe font family, falling back to known good fonts."""
-        safe_fonts = [
-            'JetBrains Mono Nerd Font',
-            'Fira Code',
-            'Monospace',
-            'DejaVu Sans Mono',
-            'Ubuntu Mono',
-            'Courier New'
-        ]
-        
-        # Test the requested font first
-        if font_family and FontUtils.validate_font(font_family, 12):
-            return font_family
-        
-        # Fall back to safe fonts
-        for safe_font in safe_fonts:
-            if FontUtils.validate_font(safe_font, 12):
-                return safe_font
-        
-        # Last resort
-        return 'Monospace'
 
 # --- Main Terminal Widget ---
 class Terminal(Gtk.Box):
@@ -560,78 +486,58 @@ class Terminal(Gtk.Box):
 
     def apply_settings(self):
         """Applies all current settings to the terminal widget."""
-        try:
-            self.apply_font()
-            self.apply_theme()
-            
-            cursor_shape = self.settings.get('cursor_shape')
-            if cursor_shape == 'block':
-                self.terminal.set_cursor_shape(Vte.CursorShape.BLOCK)
-            elif cursor_shape == 'ibeam':
-                self.terminal.set_cursor_shape(Vte.CursorShape.IBEAM)
-            elif cursor_shape == 'underline':
-                self.terminal.set_cursor_shape(Vte.CursorShape.UNDERLINE)
-                
-            self.terminal.set_cursor_blink_mode(
-                Vte.CursorBlinkMode.ON if self.settings.get('cursor_blink') else Vte.CursorBlinkMode.OFF
-            )
-            self.terminal.set_scrollback_lines(self.settings.get('scrollback_lines'))
-            self.terminal.set_bold_is_bright(self.settings.get('bold_is_bright', True))
-            self.terminal.set_allow_hyperlink(self.settings.get('enable_hyperlink', True))
-        except Exception as e:
-            print(f"Error applying settings: {e}")
+        self.apply_font()
+        self.apply_theme()
+        cursor_shape = self.settings.get('cursor_shape')
+        if cursor_shape == 'block':
+            self.terminal.set_cursor_shape(Vte.CursorShape.BLOCK)
+        elif cursor_shape == 'ibeam':
+            self.terminal.set_cursor_shape(Vte.CursorShape.IBEAM)
+        elif cursor_shape == 'underline':
+            self.terminal.set_cursor_shape(Vte.CursorShape.UNDERLINE)
+        self.terminal.set_cursor_blink_mode(
+            Vte.CursorBlinkMode.ON if self.settings.get('cursor_blink') else Vte.CursorBlinkMode.OFF
+        )
+        self.terminal.set_scrollback_lines(self.settings.get('scrollback_lines'))
+        self.terminal.set_bold_is_bright(self.settings.get('bold_is_bright', True))
+        self.terminal.set_allow_hyperlink(self.settings.get('enable_hyperlink', True))
 
     def apply_font(self):
-        """Applies the configured font family and size with validation."""
+        """Applies the configured font family and size."""
         font_family = self.settings.get('font_family')
         font_size = self.font_size
-        
         if not font_family or font_family.strip() in ['', 'none', 'None', 'null']:
             font_family = 'JetBrains Mono Nerd Font'
-            
         font_family = font_family.split(',')[0].strip()
-        
-        # Validate and get safe font
-        safe_font_family = FontUtils.get_safe_font_family(font_family)
-        
         try:
             font_desc = Pango.FontDescription()
-            font_desc.set_family(safe_font_family)
+            font_desc.set_family(font_family)
             font_desc.set_size(font_size * Pango.SCALE)
             self.terminal.set_font_full(font_desc, False)
-            
-            # If we had to use a fallback, log it
-            if safe_font_family != font_family:
-                print(f"Font '{font_family}' not available, using '{safe_font_family}' instead")
-                
         except Exception as e:
-            print(f"Failed to apply font '{safe_font_family}': {e}")
-            # Ultimate fallback
+            print(f"Failed to apply font: {e}")
             try:
                 fallback = Pango.FontDescription()
-                fallback.set_family("Monospace")
+                fallback.set_family("JetBrains Mono Nerd Font")
                 fallback.set_size(font_size * Pango.SCALE)
                 self.terminal.set_font(fallback)
             except Exception as e2:
-                print(f"Failed to apply ultimate fallback font: {e2}")
+                print(f"Failed to apply fallback font: {e2}")
 
     def apply_theme(self):
         """Applies the configured color theme."""
-        try:
-            theme_name = self.settings.get('theme')
-            theme = THEMES.get(theme_name, THEMES['Tokyo Night'])
-            bg = Gdk.RGBA()
-            bg.parse(theme['bg'])
-            fg = Gdk.RGBA()
-            fg.parse(theme['fg'])
-            palette = []
-            for color in theme['palette']:
-                rgba = Gdk.RGBA()
-                rgba.parse(color)
-                palette.append(rgba)
-            self.terminal.set_colors(fg, bg, palette)
-        except Exception as e:
-            print(f"Error applying theme: {e}")
+        theme_name = self.settings.get('theme')
+        theme = THEMES.get(theme_name, THEMES['Tokyo Night'])
+        bg = Gdk.RGBA()
+        bg.parse(theme['bg'])
+        fg = Gdk.RGBA()
+        fg.parse(theme['fg'])
+        palette = []
+        for color in theme['palette']:
+            rgba = Gdk.RGBA()
+            rgba.parse(color)
+            palette.append(rgba)
+        self.terminal.set_colors(fg, bg, palette)
 
     def increase_font_size(self):
         """Increases the font size of this terminal instance."""
@@ -889,7 +795,7 @@ class Terminal(Gtk.Box):
 # --- Main Application Window ---
 class TerminalWindow(Gtk.ApplicationWindow):
     def __init__(self, application, working_dir=None):
-        super().__init__(application=application, title="Eco Terminal")
+        super().__init__(application=application, title="StormOS Terminal")
         self.settings = SettingsManager()
         self.set_default_size(
             self.settings.get('window_width'),
@@ -897,9 +803,6 @@ class TerminalWindow(Gtk.ApplicationWindow):
         )
         self.set_border_width(0)
         self.set_icon_name("utilities-terminal")
-
-        # Connect to settings changes
-        self.settings.add_listener(self.on_settings_changed)
 
         # Connect window events
         self.connect("realize", self._on_window_realize)
@@ -918,7 +821,7 @@ class TerminalWindow(Gtk.ApplicationWindow):
         if self.settings.get('show_header_bar'):
             self.header_bar = Gtk.HeaderBar()
             self.header_bar.set_show_close_button(True)
-            self.header_bar.set_title("Eco Terminal")
+            self.header_bar.set_title("StormOS Terminal")
             self.set_titlebar(self.header_bar)
 
             # Header bar buttons
@@ -947,23 +850,6 @@ class TerminalWindow(Gtk.ApplicationWindow):
         # List to keep track of terminal instances
         self.terminals = []
         self.add_terminal(self.root_container, working_dir)
-
-    def on_settings_changed(self):
-        """Handle real-time settings changes."""
-        # Update window opacity
-        if self.get_window():
-            self.get_window().set_opacity(self.settings.get('opacity'))
-        
-        # Update all terminals
-        for terminal in self.terminals:
-            terminal.apply_settings()
-        
-        # Update header bar visibility
-        if hasattr(self, 'header_bar'):
-            if self.settings.get('show_header_bar'):
-                self.set_titlebar(self.header_bar)
-            else:
-                self.set_titlebar(None)
 
     def add_terminal(self, container, working_dir=None):
         """Adds a new terminal instance to the specified container."""
@@ -1084,11 +970,10 @@ class TerminalWindow(Gtk.ApplicationWindow):
         dialog = SettingsDialog(self, self.settings)
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-            # Settings are already applied in real-time, just save
-            self.settings.save_settings()
-        elif response == Gtk.ResponseType.APPLY:
-            # Apply button was clicked - settings already applied in real-time
-            self.settings.save_settings()
+            # Apply settings to all open terminals
+            for terminal in self.terminals:
+                terminal.apply_settings()
+            self.update_all_themes()
         dialog.destroy()
 
     def _on_menu_clicked(self, button):
@@ -1117,10 +1002,10 @@ class TerminalWindow(Gtk.ApplicationWindow):
     def show_about(self):
         """Displays the about dialog."""
         dialog = Gtk.AboutDialog()
-        dialog.set_program_name("Eco Terminal")
+        dialog.set_program_name("StormOS Terminal")
         dialog.set_version("2.0.0")
         dialog.set_comments("A modern terminal emulator with Tokyo Night theme")
-        dialog.set_authors(["Eco Team"])
+        dialog.set_authors(["StormOS Team"])
         dialog.set_license("GPL-3.0")
         dialog.set_logo_icon_name("utilities-terminal")
         dialog.run()
@@ -1222,7 +1107,7 @@ class TerminalWindow(Gtk.ApplicationWindow):
 class SettingsDialog(Gtk.Dialog):
     def __init__(self, parent, settings_manager):
         super().__init__(
-            title="Eco Terminal Settings",
+            title="StormOS Terminal Settings",
             transient_for=parent,
             flags=0
         )
@@ -1232,11 +1117,6 @@ class SettingsDialog(Gtk.Dialog):
         self.set_border_width(8)
         self.set_resizable(True)
         self.set_size_request(400, 400)
-
-        # Error label for font validation
-        self.font_error_label = Gtk.Label()
-        self.font_error_label.get_style_context().add_class("error-label")
-        self.font_error_label.set_visible(False)
 
         # Create the main content area
         content_area = self.get_content_area()
@@ -1271,7 +1151,6 @@ class SettingsDialog(Gtk.Dialog):
         shell_box.pack_start(shell_label, False, False, 0)
         self.shell_entry = Gtk.Entry()
         self.shell_entry.set_text(self.settings.get('shell'))
-        self.shell_entry.connect("changed", self._on_shell_changed)
         shell_box.pack_start(self.shell_entry, True, True, 0)
         tab.pack_start(shell_box, False, False, 0)
 
@@ -1284,14 +1163,12 @@ class SettingsDialog(Gtk.Dialog):
         self.scrollback_spin.set_range(100, 100000)
         self.scrollback_spin.set_increments(100, 1000)
         self.scrollback_spin.set_value(self.settings.get('scrollback_lines'))
-        self.scrollback_spin.connect("value-changed", self._on_scrollback_changed)
         scrollback_box.pack_start(self.scrollback_spin, False, False, 0)
         tab.pack_start(scrollback_box, False, False, 0)
 
         # Copy on select
         self.copy_check = Gtk.CheckButton(label="Copy on selection")
         self.copy_check.set_active(self.settings.get('copy_on_select'))
-        self.copy_check.connect("toggled", self._on_copy_on_select_changed)
         tab.pack_start(self.copy_check, False, False, 0)
 
     def _add_appearance_tab(self, notebook):
@@ -1307,15 +1184,11 @@ class SettingsDialog(Gtk.Dialog):
         font_box.pack_start(font_label, False, False, 0)
         self.font_entry = Gtk.Entry()
         self.font_entry.set_text(self.settings.get('font_family'))
-        self.font_entry.connect("changed", self._on_font_changed)
         font_box.pack_start(self.font_entry, True, True, 0)
         self.font_button = Gtk.Button(label="Choose...")
         self.font_button.connect("clicked", self._on_font_clicked)
         font_box.pack_start(self.font_button, False, False, 0)
         tab.pack_start(font_box, False, False, 0)
-        
-        # Add font error label
-        tab.pack_start(self.font_error_label, False, False, 0)
 
         # Font size
         size_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -1325,7 +1198,6 @@ class SettingsDialog(Gtk.Dialog):
         self.font_size_spin = Gtk.SpinButton()
         self.font_size_spin.set_range(6, 30)
         self.font_size_spin.set_value(self.settings.get('font_size'))
-        self.font_size_spin.connect("value-changed", self._on_font_size_changed)
         size_box.pack_start(self.font_size_spin, False, False, 0)
         tab.pack_start(size_box, False, False, 0)
 
@@ -1338,7 +1210,6 @@ class SettingsDialog(Gtk.Dialog):
         for theme_name in THEMES.keys():
             self.theme_combo.append_text(theme_name)
         self.theme_combo.set_active(list(THEMES.keys()).index(self.settings.get('theme')))
-        self.theme_combo.connect("changed", self._on_theme_changed)
         theme_box.pack_start(self.theme_combo, False, False, 0)
         tab.pack_start(theme_box, False, False, 0)
 
@@ -1350,7 +1221,6 @@ class SettingsDialog(Gtk.Dialog):
         self.opacity_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0.5, 1.0, 0.05)
         self.opacity_scale.set_value(self.settings.get('opacity'))
         self.opacity_scale.set_digits(2)
-        self.opacity_scale.connect("value-changed", self._on_opacity_changed)
         opacity_box.pack_start(self.opacity_scale, False, False, 0)
         tab.pack_start(opacity_box, False, False, 0)
 
@@ -1369,31 +1239,21 @@ class SettingsDialog(Gtk.Dialog):
         self.cursor_combo.append_text("Underline")
         cursor_shape_map = {'block': 0, 'ibeam': 1, 'underline': 2}
         self.cursor_combo.set_active(cursor_shape_map.get(self.settings.get('cursor_shape'), 0))
-        self.cursor_combo.connect("changed", self._on_cursor_shape_changed)
         cursor_shape_box.pack_start(self.cursor_combo, False, False, 0)
         cursor_box.pack_start(cursor_shape_box, False, False, 0)
 
         self.blink_check = Gtk.CheckButton(label="Blinking cursor")
         self.blink_check.set_active(self.settings.get('cursor_blink'))
-        self.blink_check.connect("toggled", self._on_cursor_blink_changed)
         cursor_box.pack_start(self.blink_check, False, False, 0)
 
         # Additional settings
         self.bold_check = Gtk.CheckButton(label="Show bold text in bright colors")
         self.bold_check.set_active(self.settings.get('bold_is_bright', True))
-        self.bold_check.connect("toggled", self._on_bold_bright_changed)
         tab.pack_start(self.bold_check, False, False, 0)
 
         self.hyperlink_check = Gtk.CheckButton(label="Enable hyperlink support")
         self.hyperlink_check.set_active(self.settings.get('enable_hyperlink', True))
-        self.hyperlink_check.connect("toggled", self._on_hyperlink_changed)
         tab.pack_start(self.hyperlink_check, False, False, 0)
-
-        # Header bar visibility
-        self.headerbar_check = Gtk.CheckButton(label="Show header bar")
-        self.headerbar_check.set_active(self.settings.get('show_header_bar', True))
-        self.headerbar_check.connect("toggled", self._on_headerbar_changed)
-        tab.pack_start(self.headerbar_check, False, False, 0)
 
     def _add_shortcuts_tab(self, notebook):
         """Adds the 'Shortcuts' tab to the settings notebook."""
@@ -1444,74 +1304,30 @@ class SettingsDialog(Gtk.Dialog):
         if response == Gtk.ResponseType.OK:
             font = dialog.get_font()
             self.font_entry.set_text(font)
-            self._on_font_changed(self.font_entry)
         dialog.destroy()
-
-    def _validate_and_apply_font(self, font_family, font_size):
-        """Validate font and apply if valid, show error if not."""
-        if FontUtils.validate_font(font_family, font_size):
-            self.settings.set('font_family', font_family)
-            self.settings.set('font_size', font_size)
-            self.font_error_label.set_visible(False)
-            return True
-        else:
-            self.font_error_label.set_text(f"Font '{font_family}' not available, using fallback")
-            self.font_error_label.set_visible(True)
-            # Still apply but let the terminal handle fallback
-            self.settings.set('font_family', font_family)
-            self.settings.set('font_size', font_size)
-            return False
-
-    # Real-time setting change handlers
-    def _on_font_changed(self, entry):
-        font_family = entry.get_text()
-        font_size = self.font_size_spin.get_value_as_int()
-        self._validate_and_apply_font(font_family, font_size)
-
-    def _on_font_size_changed(self, spinbutton):
-        font_family = self.font_entry.get_text()
-        font_size = spinbutton.get_value_as_int()
-        self._validate_and_apply_font(font_family, font_size)
-
-    def _on_theme_changed(self, combo):
-        theme_index = combo.get_active()
-        theme_names = list(THEMES.keys())
-        if 0 <= theme_index < len(theme_names):
-            self.settings.set('theme', theme_names[theme_index])
-
-    def _on_opacity_changed(self, scale):
-        self.settings.set('opacity', scale.get_value())
-
-    def _on_shell_changed(self, entry):
-        self.settings.set('shell', entry.get_text())
-
-    def _on_scrollback_changed(self, spinbutton):
-        self.settings.set('scrollback_lines', spinbutton.get_value_as_int())
-
-    def _on_copy_on_select_changed(self, checkbutton):
-        self.settings.set('copy_on_select', checkbutton.get_active())
-
-    def _on_cursor_shape_changed(self, combo):
-        cursor_shape_map = {0: 'block', 1: 'ibeam', 2: 'underline'}
-        self.settings.set('cursor_shape', cursor_shape_map.get(combo.get_active(), 'block'))
-
-    def _on_cursor_blink_changed(self, checkbutton):
-        self.settings.set('cursor_blink', checkbutton.get_active())
-
-    def _on_bold_bright_changed(self, checkbutton):
-        self.settings.set('bold_is_bright', checkbutton.get_active())
-
-    def _on_hyperlink_changed(self, checkbutton):
-        self.settings.set('enable_hyperlink', checkbutton.get_active())
-
-    def _on_headerbar_changed(self, checkbutton):
-        self.settings.set('show_header_bar', checkbutton.get_active())
 
     def run(self):
         """Runs the dialog and handles saving settings."""
         response = super().run()
         if response in [Gtk.ResponseType.APPLY, Gtk.ResponseType.OK]:
-            # Settings are already applied in real-time, just save
+            # Save settings from the dialog
+            self.settings.set('shell', self.shell_entry.get_text())
+            self.settings.set('scrollback_lines', self.scrollback_spin.get_value_as_int())
+            self.settings.set('copy_on_select', self.copy_check.get_active())
+            self.settings.set('font_family', self.font_entry.get_text())
+            self.settings.set('font_size', self.font_size_spin.get_value_as_int())
+            # Get theme from combo
+            theme_index = self.theme_combo.get_active()
+            theme_names = list(THEMES.keys())
+            if 0 <= theme_index < len(theme_names):
+                self.settings.set('theme', theme_names[theme_index])
+            self.settings.set('opacity', self.opacity_scale.get_value())
+            # Get cursor shape from combo
+            cursor_shape_map = {0: 'block', 1: 'ibeam', 2: 'underline'}
+            self.settings.set('cursor_shape', cursor_shape_map.get(self.cursor_combo.get_active(), 'block'))
+            self.settings.set('cursor_blink', self.blink_check.get_active())
+            self.settings.set('bold_is_bright', self.bold_check.get_active())
+            self.settings.set('enable_hyperlink', self.hyperlink_check.get_active())
             self.settings.save_settings()
         return response
 
