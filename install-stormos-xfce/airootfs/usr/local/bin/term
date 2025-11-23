@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# stormos_terminal.py - Modern Terminal Emulator with Tokyo Night Theme
+# eco_terminal.py - Modern Terminal Emulator with Tokyo Night Theme
 import gi
 import os
 import json
@@ -14,7 +14,7 @@ gi.require_version('Vte', '2.91')
 from gi.repository import Gtk, Gdk, Vte, GLib, Pango, Gio
 
 # --- Configuration ---
-CONFIG_DIR = os.path.expanduser("~/.config/stormos_terminal")
+CONFIG_DIR = os.path.expanduser("~/.config/eco_terminal")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 
 # Default settings loaded if no config file exists
@@ -192,7 +192,7 @@ class CSSProvider:
             background: #1a1b26;
             border-radius: 12px;
         }
-        /* TOKYO NIGHT HEADER BAR */
+        /* HEADER BAR */
         headerbar {
             background: rgba(26, 27, 38, 0.98);
             border: none;
@@ -795,7 +795,7 @@ class Terminal(Gtk.Box):
 # --- Main Application Window ---
 class TerminalWindow(Gtk.ApplicationWindow):
     def __init__(self, application, working_dir=None):
-        super().__init__(application=application, title="StormOS Terminal")
+        super().__init__(application=application, title="Eco Terminal")
         self.settings = SettingsManager()
         self.set_default_size(
             self.settings.get('window_width'),
@@ -821,7 +821,7 @@ class TerminalWindow(Gtk.ApplicationWindow):
         if self.settings.get('show_header_bar'):
             self.header_bar = Gtk.HeaderBar()
             self.header_bar.set_show_close_button(True)
-            self.header_bar.set_title("StormOS Terminal")
+            self.header_bar.set_title("Eco Terminal")
             self.set_titlebar(self.header_bar)
 
             # Header bar buttons
@@ -1002,10 +1002,10 @@ class TerminalWindow(Gtk.ApplicationWindow):
     def show_about(self):
         """Displays the about dialog."""
         dialog = Gtk.AboutDialog()
-        dialog.set_program_name("StormOS Terminal")
+        dialog.set_program_name("Eco Terminal")
         dialog.set_version("2.0.0")
         dialog.set_comments("A modern terminal emulator with Tokyo Night theme")
-        dialog.set_authors(["StormOS Team"])
+        dialog.set_authors(["Eco Team"])
         dialog.set_license("GPL-3.0")
         dialog.set_logo_icon_name("utilities-terminal")
         dialog.run()
@@ -1107,7 +1107,7 @@ class TerminalWindow(Gtk.ApplicationWindow):
 class SettingsDialog(Gtk.Dialog):
     def __init__(self, parent, settings_manager):
         super().__init__(
-            title="StormOS Terminal Settings",
+            title="Eco Terminal Settings",
             transient_for=parent,
             flags=0
         )
@@ -1334,7 +1334,7 @@ class SettingsDialog(Gtk.Dialog):
 # --- Application Class ---
 class TerminalApplication(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id='com.stormos.terminal',
+        super().__init__(application_id='com.eco.terminal',
                         flags=Gio.ApplicationFlags.FLAGS_NONE)
         self.signal_handler = SignalHandler()
 
