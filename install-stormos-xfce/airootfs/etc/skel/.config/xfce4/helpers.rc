@@ -1,5 +1,4 @@
-FileManager=thunar
+FileManager=custom-FileManager
 MailReader=custom-MailReader
 TerminalEmulator=custom-TerminalEmulator
-TerminalEmulatorDismissed=true
 
