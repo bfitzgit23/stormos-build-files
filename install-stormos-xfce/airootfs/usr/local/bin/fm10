@@ -2227,10 +2227,18 @@ class FileBrowserTab(QWidget):
             selected_count = len(self.tree_view.selectedIndexes()) // 4  # Divide by number of columns
             path = self.list_model.filePath(index)
             if os.path.isdir(path):
+                # Folder context menu
                 menu.addAction(self.main_window.create_action('Open', 'document-open', 'Return', self.open_selected))
                 menu.addAction(self.main_window.create_action('Open in New Tab', 'tab-new', 'Ctrl+Return', lambda: self.main_window.open_in_new_tab(path)))
-                menu.addAction(self.main_window.create_action('Open in New Window', 'window-new', None, lambda: self.main_window.new_window(path)))
+                menu.addAction(self.main_window.create_action('Open in New Window', 'window-new', None, lambda: self.main_window.open_in_new_window(path)))
+                
+                # ADD THESE NEW OPTIONS FOR FOLDERS
+                menu.addSeparator()
+                menu.addAction(self.main_window.create_action('Open in Terminal', 'utilities-terminal', 'F4', lambda: self.main_window.open_folder_in_terminal(path)))
+                menu.addAction(self.main_window.create_action('Open as Root', 'system-software-install', None, lambda: self.main_window.open_folder_as_root(path)))
+                
             else:
+                # File context menu
                 menu.addAction(self.main_window.create_action('Open', 'document-open', 'Return', self.open_selected))
                 menu.addAction(self.main_window.create_action('Open With...', 'system-run', None, self.open_with))
                 # Add executable toggle option for files
@@ -2238,6 +2246,7 @@ class FileBrowserTab(QWidget):
                     menu.addAction(self.main_window.create_action('Remove Executable Permission', 'application-x-executable', None, self.main_window.toggle_executable))
                 else:
                     menu.addAction(self.main_window.create_action('Make Executable', 'application-x-executable', None, self.main_window.toggle_executable))
+            
             menu.addSeparator()
             menu.addAction(self.main_window.create_action('Cut', 'edit-cut', 'Ctrl+X', self.main_window.cut_selected))
             menu.addAction(self.main_window.create_action('Copy', 'edit-copy', 'Ctrl+C', self.main_window.copy_selected))
@@ -2251,14 +2260,18 @@ class FileBrowserTab(QWidget):
             menu.addSeparator()
             menu.addAction(self.main_window.create_action('Properties', 'document-properties', 'Alt+Return', self.main_window.show_properties))
         else:
+            # Empty space context menu
             if self.main_window.clipboard_paths:
                 menu.addAction(self.main_window.create_action('Paste', 'edit-paste', 'Ctrl+V', self.main_window.paste_files))
                 menu.addSeparator()
             menu.addAction(self.main_window.create_action('Create Folder', 'folder-new', 'Ctrl+Shift+N', self.main_window.new_folder))
             menu.addAction(self.main_window.create_action('Create Document', 'document-new', None, self.main_window.new_file))
             menu.addSeparator()
-            menu.addAction(self.main_window.create_action('Open in Terminal', 'utilities-terminal', None, self.main_window.open_in_terminal))
+            
+            # ADD THESE OPTIONS FOR EMPTY SPACE TOO (current directory)
+            menu.addAction(self.main_window.create_action('Open in Terminal', 'utilities-terminal', 'F4', self.main_window.open_in_terminal))
             menu.addAction(self.main_window.create_action('Open as Root', 'system-software-install', None, self.main_window.open_as_root))
+            
             menu.addSeparator()
             menu.addAction(self.main_window.create_action('Properties', 'document-properties', 'Alt+Return', self.main_window.show_properties))
         menu.exec_(self.tree_view.viewport().mapToGlobal(position))
@@ -2295,6 +2308,12 @@ class FileBrowserTab(QWidget):
                         subprocess.run([app, path])
                     except Exception as e:
                         QMessageBox.warning(self, "Error", f"Could not open file with {app}: {str(e)}")
+
+
+
+
+
+                        
 
 # =============================================================================
 # MAIN FILE MANAGER WINDOW
@@ -2523,6 +2542,281 @@ class EcoFileManager(QMainWindow):
         go_menu.addAction(self.create_action('Network', 'network-workgroup', None, lambda: self.navigate_to_path('/net')))
         go_menu.addSeparator()
         go_menu.addAction(self.create_action('Recent', 'document-open-recent', None, self.show_recent))
+
+
+
+
+
+
+    def open_folder_in_terminal(self, folder_path):
+        """Open specific folder in terminal"""
+        if not folder_path or not os.path.exists(folder_path) or not os.path.isdir(folder_path):
+            QMessageBox.warning(self, "Error", f"Invalid folder: {folder_path}")
+            return
+            
+        try:
+            if sys.platform.startswith('linux'):
+                terminal_commands = []
+                
+                # Build list of terminal commands to try, in order of preference
+                if self.is_root_mode:
+                    # Root mode - prefer terminals that work well with root
+                    terminal_commands = [
+                        'term5',           # Your preferred terminal
+                        'gnome-terminal',  # GNOME terminal
+                        'konsole',         # KDE terminal  
+                        'xfce4-terminal',  # XFCE terminal
+                        'lxterminal',      # LXDE terminal
+                        'mate-terminal',   # MATE terminal
+                        'tilix',           # Tilix terminal
+                        'terminator',      # Terminator
+                        'xterm',           # Basic X terminal (usually always available)
+                        'uxterm'           # Unicode X terminal
+                    ]
+                else:
+                    # Normal user mode
+                    terminal_commands = [
+                        'term5',           # Your preferred terminal
+                        'gnome-terminal',
+                        'konsole',
+                        'xfce4-terminal', 
+                        'lxterminal',
+                        'mate-terminal',
+                        'tilix',
+                        'terminator',
+                        'xterm',
+                        'uxterm'
+                    ]
+                
+                # Try each terminal command until one works
+                terminal_found = False
+                for term in terminal_commands:
+                    if shutil.which(term):
+                        try:
+                            if term == 'gnome-terminal':
+                                subprocess.Popen(['gnome-terminal', '--working-directory', folder_path])
+                            elif term == 'konsole':
+                                subprocess.Popen(['konsole', '--workdir', folder_path])
+                            elif term == 'xfce4-terminal':
+                                subprocess.Popen(['xfce4-terminal', '--working-directory', folder_path])
+                            elif term == 'tilix':
+                                subprocess.Popen(['tilix', '--working-directory', folder_path])
+                            elif term == 'terminator':
+                                subprocess.Popen(['terminator', '--working-directory', folder_path])
+                            else:
+                                # For terminals that don't have specific working directory flags
+                                # or for generic terminals like xterm
+                                subprocess.Popen([term], cwd=folder_path)
+                            
+                            terminal_found = True
+                            print(f"Opened terminal: {term} in {folder_path}")
+                            break
+                            
+                        except Exception as term_error:
+                            print(f"Failed to open {term}: {term_error}")
+                            continue
+                
+                if not terminal_found:
+                    # Last resort: try x-terminal-emulator (system default)
+                    try:
+                        subprocess.Popen(['x-terminal-emulator'], cwd=folder_path)
+                        print("Opened system default terminal (x-terminal-emulator)")
+                    except:
+                        # Final fallback
+                        QMessageBox.warning(
+                            self, 
+                            "Terminal Not Found", 
+                            "No terminal emulator found.\n\n"
+                            "Please install one of:\n"
+                            "- gnome-terminal (GNOME)\n" 
+                            "- konsole (KDE)\n"
+                            "- xfce4-terminal (XFCE)\n"
+                            "- xterm (basic)\n\n"
+                            "Or set your preferred terminal in system settings."
+                        )
+                    
+            elif sys.platform == 'darwin':  # macOS
+                try:
+                    # Try using AppleScript to open Terminal at specific path
+                    applescript = f'''
+                    tell application "Terminal"
+                        activate
+                        do script "cd '{folder_path}'"
+                    end tell
+                    '''
+                    subprocess.run(['osascript', '-e', applescript])
+                except:
+                    # Fallback method for macOS
+                    try:
+                        subprocess.run(['open', '-a', 'Terminal', folder_path])
+                    except Exception as mac_error:
+                        QMessageBox.warning(self, "Error", f"Could not open Terminal on macOS: {str(mac_error)}")
+                        
+            elif sys.platform == 'win32':  # Windows
+                try:
+                    # Use PowerShell for better directory handling
+                    powershell_cmd = f'Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd {folder_path}"'
+                    subprocess.run(['powershell', '-Command', powershell_cmd])
+                except:
+                    # Fallback to cmd
+                    try:
+                        # Convert path to Windows format and use cmd
+                        win_path = folder_path.replace('/', '\\')
+                        subprocess.run(['cmd', '/c', 'start', 'cmd', '/k', f'cd /d "{win_path}"'])
+                    except Exception as win_error:
+                        QMessageBox.warning(self, "Error", f"Could not open terminal on Windows: {str(win_error)}")
+                
+            else:
+                QMessageBox.information(self, "Not Supported", 
+                                      f"Terminal opening not implemented for {sys.platform}")
+                
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Could not open terminal: {str(e)}")
+
+    def open_folder_as_root(self, folder_path):
+        """Open specific folder as root using this file manager"""
+        try:
+            if sys.platform.startswith('linux'):
+                # Validate path exists
+                if not os.path.exists(folder_path):
+                    QMessageBox.warning(self, "Invalid Path", f"The path '{folder_path}' does not exist.")
+                    return
+                
+                # Get the path to the current script/executable
+                if getattr(sys, 'frozen', False):
+                    # If the application is frozen (packaged)
+                    application_path = sys.executable
+                else:
+                    # If running as a script, use the current Python interpreter and script
+                    application_path = sys.executable
+                    script_path = os.path.abspath(__file__)
+                
+                # Ask for confirmation
+                reply = QMessageBox.question(
+                    self,
+                    "Open as Root",
+                    f"Open '{folder_path}' as root?\n\n"
+                    f"This will launch a new file manager window with administrator privileges.\n"
+                    f"You will need to enter your password.",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                
+                if reply == QMessageBox.Yes:
+                    try:
+                        if getattr(sys, 'frozen', False):
+                            # Packaged application
+                            cmd = ['pkexec', application_path, folder_path]
+                        else:
+                            # Running as script
+                            cmd = ['pkexec', application_path, script_path, folder_path]
+                        
+                        print(f"Attempting to run: {' '.join(cmd)}")
+                        
+                        # Launch as root
+                        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        
+                        # Check if process started successfully
+                        time.sleep(1)  # Give it a moment to start
+                        return_code = process.poll()
+                        
+                        if return_code is not None and return_code != 0:
+                            # Process failed, try alternative methods
+                            stdout, stderr = process.communicate()
+                            print(f"pkexec failed with return code {return_code}")
+                            print(f"stderr: {stderr.decode()}")
+                            self.open_folder_as_root_fallback(folder_path)
+                        else:
+                            QMessageBox.information(
+                                self,
+                                "Opening as Root",
+                                f"File manager is opening '{folder_path}' as root.\n\n"
+                                f"Enter your password when prompted."
+                            )
+                            
+                    except FileNotFoundError:
+                        print("pkexec not found, trying fallback methods")
+                        self.open_folder_as_root_fallback(folder_path)
+                    except Exception as e:
+                        QMessageBox.critical(self, "Error", f"Failed to open as root: {str(e)}")
+                        print(f"Error details: {e}")
+                        
+            else:
+                QMessageBox.information(self, "Not Supported", "Open as Root is only supported on Linux.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not open as root: {str(e)}")
+
+    def open_folder_as_root_fallback(self, folder_path):
+        """Fallback method if pkexec is not available for specific folder"""
+        # Try different privilege escalation methods
+        methods = [
+            ('gksu', ['gksu']),
+            ('kdesu', ['kdesu']),
+            ('sudo', ['sudo', '-H']),
+        ]
+        
+        for method_name, base_cmd in methods:
+            if shutil.which(base_cmd[0]):
+                reply = QMessageBox.question(
+                    self,
+                    f"Use {method_name} instead?",
+                    f"pkexec not found. Use {method_name} instead?\n\n"
+                    f"This will launch the file manager with root privileges using {method_name}.",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                
+                if reply == QMessageBox.Yes:
+                    try:
+                        if getattr(sys, 'frozen', False):
+                            application_path = sys.executable
+                            cmd = base_cmd + [application_path, folder_path]
+                        else:
+                            application_path = sys.executable
+                            script_path = os.path.abspath(__file__)
+                            if base_cmd[0] in ['gksu', 'kdesu']:
+                                # gksu/kdesu might need the command as a single string
+                                cmd = base_cmd + [f"{application_path} {script_path} {folder_path}"]
+                            else:
+                                cmd = base_cmd + [application_path, script_path, folder_path]
+                        
+                        print(f"Trying {method_name} with command: {' '.join(cmd)}")
+                        subprocess.Popen(cmd)
+                        
+                        QMessageBox.information(
+                            self,
+                            "Opening as Root",
+                            f"File manager is opening as root using {method_name}.\n"
+                            f"Enter your password when prompted."
+                        )
+                        return
+                        
+                    except Exception as e:
+                        print(f"{method_name} failed: {e}")
+                        continue
+        
+        # If no method worked
+        QMessageBox.critical(
+            self,
+            "Error",
+            "No privilege escalation tool found.\n\n"
+            "Please install one of:\n"
+            "- policykit-1 (for pkexec)\n"
+            "- gksu\n"
+            "- kdesu\n\n"
+            "On Ubuntu/Debian:\n"
+            "sudo apt install policykit-1-gnome\n"
+            "or\n"
+            "sudo apt install gksu"
+        )
+
+
+
+
+
+
+
+
 
     def create_action(self, text, icon_name, shortcut, slot=None):
         action = QAction(text, self)
