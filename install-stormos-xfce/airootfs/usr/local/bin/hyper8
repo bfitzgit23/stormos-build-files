@@ -41,6 +41,1134 @@ except ImportError:
         print("Warning: QX11Info not available. Some X11-specific features may be disabled.")
 
 # Enhanced Dark Night Color Palette
+
+
+class EnhancedNetworkWidget(QWidget):
+    """Enhanced network widget with better visual indicators and signal strength monitoring"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.current_ssid = ""
+        self.signal_strength = 0
+        self.connection_type = ""  # "wifi", "ethernet", "disconnected"
+        self.setup_ui()
+        self.start_monitoring()
+
+    def setup_ui(self):
+        """Setup the enhanced network UI"""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(5)
+
+        # Network icon with signal strength visualization
+        self.network_icon = QLabel("󰖩")
+        self.network_icon.setFixedSize(32, 32)
+        self.network_icon.setAlignment(Qt.AlignCenter)
+        self.network_icon.setStyleSheet(f"""
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {TokyoNight.SELECTION}, 
+                stop:1 {TokyoNight.NIGHT_BOTTOM});
+            border-radius: 6px;
+            font-size: 12pt;
+        """)
+        self.update_network_icon()
+        layout.addWidget(self.network_icon)
+
+        # Network info label
+        self.network_label = QLabel("Connecting...")
+        self.network_label.setStyleSheet(f"""
+            padding: 4px 8px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {TokyoNight.SELECTION}, 
+                stop:1 {TokyoNight.NIGHT_BOTTOM});
+            border-radius: 6px;
+            font-size: 9pt;
+            color: {TokyoNight.FOREGROUND};
+        """)
+        layout.addWidget(self.network_label)
+
+        # Signal strength indicator (visual bars)
+        self.signal_bars = QWidget()
+        self.signal_bars.setFixedSize(20, 16)
+        self.signal_bars_layout = QHBoxLayout(self.signal_bars)
+        self.signal_bars_layout.setContentsMargins(2, 2, 2, 2)
+        self.signal_bars_layout.setSpacing(1)
+        
+        # Create signal strength bars
+        self.bars = []
+        for i in range(4):
+            bar = QLabel()
+            bar.setFixedWidth(3)
+            bar.setStyleSheet(f"background: {TokyoNight.COMMENT}; border-radius: 1px;")
+            self.signal_bars_layout.addWidget(bar)
+            self.bars.append(bar)
+        
+        layout.addWidget(self.signal_bars)
+        self.update_signal_bars()
+
+    def update_network_icon(self):
+        """Update network icon based on connection type and strength"""
+        if self.connection_type == "wifi":
+            # WiFi icons based on signal strength
+            if self.signal_strength >= 75:
+                icon = "󰤨"  # Excellent
+            elif self.signal_strength >= 50:
+                icon = "󰤥"  # Good
+            elif self.signal_strength >= 25:
+                icon = "󰤢"  # Fair
+            else:
+                icon = "󰤟"  # Poor
+        elif self.connection_type == "ethernet":
+            icon = "󰈀"  # Ethernet icon
+        else:
+            icon = "󰖪"  # Disconnected
+        
+        color = TokyoNight.GREEN if self.connection_type in ["wifi", "ethernet"] else TokyoNight.RED
+        self.network_icon.setText(f"<font color='{color}'>{icon}</font>")
+
+    def update_signal_bars(self):
+        """Update visual signal strength bars"""
+        if self.connection_type != "wifi":
+            # Hide bars for non-WiFi connections
+            for bar in self.bars:
+                bar.setStyleSheet(f"background: {TokyoNight.COMMENT}40; border-radius: 1px;")
+            return
+
+        # Calculate how many bars to light up
+        active_bars = max(1, min(4, (self.signal_strength + 25) // 25))
+        
+        for i, bar in enumerate(self.bars):
+            if i < active_bars:
+                # Color based on signal strength
+                if self.signal_strength >= 75:
+                    color = TokyoNight.GREEN
+                elif self.signal_strength >= 50:
+                    color = TokyoNight.YELLOW
+                elif self.signal_strength >= 25:
+                    color = TokyoNight.ORANGE
+                else:
+                    color = TokyoNight.RED
+                bar.setStyleSheet(f"background: {color}; border-radius: 1px;")
+            else:
+                bar.setStyleSheet(f"background: {TokyoNight.COMMENT}40; border-radius: 1px;")
+
+    def update_network_info(self):
+        """Update network information display"""
+        if self.connection_type == "wifi":
+            display_text = f"{self.current_ssid[:15]}"
+            if self.signal_strength > 0:
+                display_text += f" ({self.signal_strength}%)"
+            tooltip = f"WiFi: {self.current_ssid}\nSignal: {self.signal_strength}%\nType: {self.connection_type}"
+        elif self.connection_type == "ethernet":
+            display_text = "Ethernet"
+            tooltip = "Wired Ethernet Connection\nType: Ethernet"
+        else:
+            display_text = "Offline"
+            tooltip = "No network connection\nType: Disconnected"
+        
+        # Set color based on connection status
+        if self.connection_type == "wifi":
+            if self.signal_strength >= 75:
+                color = TokyoNight.GREEN
+            elif self.signal_strength >= 50:
+                color = TokyoNight.YELLOW
+            elif self.signal_strength >= 25:
+                color = TokyoNight.ORANGE
+            else:
+                color = TokyoNight.RED
+        elif self.connection_type == "ethernet":
+            color = TokyoNight.GREEN
+        else:
+            color = TokyoNight.RED
+        
+        self.network_label.setText(f"<font color='{color}'>{display_text}</font>")
+        self.network_label.setToolTip(tooltip)
+        self.setToolTip(tooltip)
+
+    def get_network_info(self):
+        """Get comprehensive network information"""
+        try:
+            # Try to get WiFi info first
+            wifi_result = subprocess.run(
+                "iwgetid --raw 2>/dev/null", 
+                shell=True, capture_output=True, text=True, timeout=2
+            )
+            
+            if wifi_result.returncode == 0 and wifi_result.stdout.strip():
+                ssid = wifi_result.stdout.strip()
+                self.connection_type = "wifi"
+                self.current_ssid = ssid
+                
+                # Get WiFi signal strength using multiple methods
+                signal_strength = 0
+                
+                # Method 1: iwconfig
+                signal_result = subprocess.run(
+                    "iwconfig 2>/dev/null | grep 'Signal level' | awk '{print $4}' | cut -d'=' -f2 | head -1",
+                    shell=True, capture_output=True, text=True, timeout=2
+                )
+                
+                if signal_result.returncode == 0 and signal_result.stdout.strip():
+                    try:
+                        dbm = int(signal_result.stdout.strip())
+                        # Rough conversion: -30dBm = 100%, -90dBm = 0%
+                        signal_strength = max(0, min(100, int((dbm + 90) * 100 / 60)))
+                    except:
+                        signal_strength = 0
+                
+                # Method 2: iw (alternative)
+                if signal_strength == 0:
+                    iw_result = subprocess.run(
+                        "iw dev 2>/dev/null | grep 'signal:' | awk '{print $2}' | head -1",
+                        shell=True, capture_output=True, text=True, timeout=2
+                    )
+                    if iw_result.returncode == 0 and iw_result.stdout.strip():
+                        try:
+                            dbm = int(iw_result.stdout.strip())
+                            signal_strength = max(0, min(100, int((dbm + 90) * 100 / 60)))
+                        except:
+                            signal_strength = 0
+                
+                # Method 3: nmcli (fallback)
+                if signal_strength == 0:
+                    nmcli_result = subprocess.run(
+                        "nmcli -t -f active,ssid,signal dev wifi | grep '^yes' | cut -d':' -f3 | head -1",
+                        shell=True, capture_output=True, text=True, timeout=2
+                    )
+                    if nmcli_result.returncode == 0 and nmcli_result.stdout.strip():
+                        try:
+                            signal_strength = int(nmcli_result.stdout.strip())
+                        except:
+                            signal_strength = 0
+                
+                self.signal_strength = signal_strength
+                return
+            
+            # Check for Ethernet connection
+            ethernet_result = subprocess.run(
+                "ip route show default 2>/dev/null | head -1 | awk '{print $5}'",
+                shell=True, capture_output=True, text=True, timeout=2
+            )
+            
+            if ethernet_result.returncode == 0 and ethernet_result.stdout.strip():
+                interface = ethernet_result.stdout.strip()
+                # Check if it's a physical Ethernet interface (not virtual)
+                phys_result = subprocess.run(
+                    f"cat /sys/class/net/{interface}/operstate 2>/dev/null",
+                    shell=True, capture_output=True, text=True, timeout=1
+                )
+                if phys_result.returncode == 0 and 'up' in phys_result.stdout.lower():
+                    self.connection_type = "ethernet"
+                    self.current_ssid = ""
+                    self.signal_strength = 0
+                    return
+            
+            # No connection
+            self.connection_type = "disconnected"
+            self.current_ssid = ""
+            self.signal_strength = 0
+            
+        except Exception as e:
+            print(f"Network info error: {e}")
+            self.connection_type = "disconnected"
+            self.current_ssid = ""
+            self.signal_strength = 0
+
+    def start_monitoring(self):
+        """Start network monitoring"""
+        self.monitor_timer = QTimer()
+        self.monitor_timer.timeout.connect(self.refresh_network_info)
+        self.monitor_timer.start(3000)  # Update every 3 seconds
+        self.refresh_network_info()  # Initial update
+
+    def refresh_network_info(self):
+        """Refresh network information and update display"""
+        old_connection = self.connection_type
+        old_strength = self.signal_strength
+        old_ssid = self.current_ssid
+        
+        self.get_network_info()
+        
+        # Only update UI if something changed
+        if (old_connection != self.connection_type or 
+            old_strength != self.signal_strength or
+            old_ssid != self.current_ssid):
+            self.update_network_icon()
+            self.update_signal_bars()
+            self.update_network_info()
+
+    def mousePressEvent(self, event):
+        """Handle clicks to show network dialog"""
+        if event.button() == Qt.LeftButton:
+            self.show_network_dialog()
+
+    def show_network_dialog(self):
+        """Show enhanced network dialog"""
+        try:
+            # Import here to avoid circular dependency
+            from PyQt5.QtWidgets import QDialog
+            dialog = EnhancedWirelessNetworkDialog(self)
+            dialog.exec_()
+        except Exception as e:
+            print(f"Failed to launch network dialog: {e}")
+
+
+
+
+
+
+
+# --- SIMPLE TILER IMPLEMENTATION ---
+import math
+
+class AdvancedTiler:
+    """Advanced tiling implementation that behaves like cortile with proper window management"""
+    
+    def __init__(self):
+        self._is_active = False
+        self._auto_tile = True  # Default to auto-tile
+        self._current_layout = "tall"
+        self._gap_size = 10
+        self._outer_gap = 5
+        self._smart_gaps = True
+        
+        # Advanced cortile-like properties
+        self._master_ratio = 0.6
+        self._max_master_windows = 1
+        self._min_slave_windows = 1
+        self._follow_focus = True
+        self._border_width = 1
+        
+        # Window tracking
+        self._windows = []  # List of window IDs in stacking order
+        self._master_windows = []  # Windows in master area
+        self._slave_windows = []  # Windows in slave area
+        self._focused_window = None
+        
+        # Position storage for restoration
+        self._original_positions = {}
+        self._position_file = Path.home() / ".config" / "tokyo-night-panel" / "window_positions.json"
+        self._position_file.parent.mkdir(parents=True, exist_ok=True)
+        self._load_window_positions()
+        
+        # Layout definitions
+        self.layouts = {
+            "tall": "Tall (Master-Stack)",
+            "wide": "Wide (Master-Stack)", 
+            "grid": "Grid",
+            "monocle": "Monocle",
+            "floating": "Floating",
+            "spiral": "Spiral",
+            "dwindle": "Dwindle",
+            "even": "Even Grid",
+            "center": "Center Master"
+        }
+        
+        print("INFO: Advanced cortile-like tiler initialized")
+
+    def _load_window_positions(self):
+        """Load saved window positions from file"""
+        try:
+            if self._position_file.exists():
+                with open(self._position_file, 'r') as f:
+                    self._original_positions = json.load(f)
+                print(f"📁 Loaded {len(self._original_positions)} saved window positions")
+        except Exception as e:
+            print(f"Error loading window positions: {e}")
+            self._original_positions = {}
+
+    def _save_window_positions(self):
+        """Save window positions to file"""
+        try:
+            with open(self._position_file, 'w') as f:
+                json.dump(self._original_positions, f, indent=2)
+        except Exception as e:
+            print(f"Error saving window positions: {e}")
+
+    def _save_current_window_positions(self):
+        """Save current positions of all windows before tiling"""
+        try:
+            result = subprocess.run("wmctrl -l -G", shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    parts = line.split(None, 7)
+                    if len(parts) >= 8:
+                        window_id = parts[0]
+                        if window_id not in self._original_positions:
+                            x, y, width, height = int(parts[2]), int(parts[3]), int(parts[4]), int(parts[5])
+                            self._original_positions[window_id] = {
+                                'x': x, 'y': y, 'width': width, 'height': height,
+                                'saved_at': time.time()
+                            }
+                self._save_window_positions()
+        except Exception as e:
+            print(f"Error saving current window positions: {e}")
+
+    def _restore_window_positions(self):
+        """Restore windows to their original positions"""
+        if not self._original_positions:
+            return
+
+        restored_count = 0
+        try:
+            result = subprocess.run("wmctrl -l", shell=True, capture_output=True, text=True)
+            current_windows = set()
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    parts = line.split(None, 3)
+                    if len(parts) >= 4:
+                        current_windows.add(parts[0])
+
+            for window_id, position_data in self._original_positions.items():
+                if window_id in current_windows:
+                    x, y, width, height = position_data['x'], position_data['y'], position_data['width'], position_data['height']
+                    cmd = f"wmctrl -i -r {window_id} -e 0,{x},{y},{width},{height}"
+                    subprocess.run(cmd, shell=True)
+                    restored_count += 1
+
+            print(f"✅ Restored {restored_count} windows to original positions")
+            self._original_positions.clear()
+            self._save_window_positions()
+            
+        except Exception as e:
+            print(f"Error restoring window positions: {e}")
+
+    def _update_window_list(self):
+        """Update the internal window list and master/slave assignments"""
+        try:
+            result = subprocess.run("wmctrl -l", shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                new_windows = []
+                for line in result.stdout.splitlines():
+                    parts = line.split(None, 3)
+                    if len(parts) >= 4 and parts[1] != '-1':  # Skip sticky windows
+                        new_windows.append(parts[0])
+                
+                # Update window list, preserving order where possible
+                existing_windows_set = set(self._windows)
+                new_windows_set = set(new_windows)
+                
+                # Add new windows to the end
+                for window in new_windows:
+                    if window not in existing_windows_set:
+                        self._windows.append(window)
+                
+                # Remove closed windows
+                self._windows = [w for w in self._windows if w in new_windows_set]
+                
+                # Update master/slave assignments
+                self._update_master_slave_assignments()
+                
+        except Exception as e:
+            print(f"Error updating window list: {e}")
+
+    def _update_master_slave_assignments(self):
+        """Update master and slave window assignments"""
+        if not self._windows:
+            self._master_windows = []
+            self._slave_windows = []
+            return
+            
+        # Ensure we have at least one master window
+        if not self._master_windows or self._master_windows[0] not in self._windows:
+            if self._windows:
+                self._master_windows = [self._windows[0]]
+            else:
+                self._master_windows = []
+        
+        # All other windows are slaves
+        self._slave_windows = [w for w in self._windows if w not in self._master_windows]
+        
+        # Limit master windows
+        if len(self._master_windows) > self._max_master_windows:
+            excess_windows = self._master_windows[self._max_master_windows:]
+            self._slave_windows.extend(excess_windows)
+            self._master_windows = self._master_windows[:self._max_master_windows]
+
+    def _get_screen_geometry(self):
+        """Get current screen geometry"""
+        try:
+            result = subprocess.run("xdotool getdisplaygeometry", shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                width, height = map(int, result.stdout.split())
+                return width, height
+        except Exception as e:
+            print(f"Error getting screen geometry: {e}")
+        return 1920, 1080  # Fallback
+
+    def _calculate_smart_gaps(self, window_count):
+        """Calculate smart gaps based on window count"""
+        if not self._smart_gaps or window_count <= 1:
+            return self._gap_size, self._outer_gap
+        
+        gap_reduction = max(0, (window_count - 2) * 2)
+        smart_gap = max(2, self._gap_size - gap_reduction)
+        smart_outer = max(2, self._outer_gap - (gap_reduction // 2))
+        
+        return smart_gap, smart_outer
+
+    def _get_usable_area(self, width, height, outer_gap):
+        """Calculate usable area after accounting for gaps"""
+        usable_width = width - (2 * outer_gap)
+        usable_height = height - (2 * outer_gap)
+        return usable_width, usable_height, outer_gap, outer_gap
+
+    import math # Add this import if not already present
+
+
+    # Inside the AdvancedTiler class definition:
+    def _tile_tall_master_stack(self, width, height):
+        """Tall layout with master and stack areas (cortile style) - Improved Alignment"""
+        smart_gap, outer_gap = self._calculate_smart_gaps(len(self._windows))
+        usable_width, usable_height, start_x, start_y = self._get_usable_area(width, height, outer_gap)
+
+        if not self._windows:
+            return
+
+        # Calculate master area (left)
+        if self._master_windows:
+            master_width = int(usable_width * self._master_ratio)
+            # Calculate available height for masters considering gaps between them
+            total_master_gaps = (len(self._master_windows) - 1) * smart_gap if len(self._master_windows) > 1 else 0
+            total_available_height_for_masters = usable_height - total_master_gaps
+            # Calculate base height and distribute rounding error
+            base_master_height = total_available_height_for_masters // len(self._master_windows)
+            remaining_height_error = total_available_height_for_masters % len(self._master_windows)
+
+            current_y = start_y
+            for i, win_id in enumerate(self._master_windows):
+                # Distribute the rounding error: first 'remaining_height_error' windows get +1 pixel
+                current_height = base_master_height + (1 if i < remaining_height_error else 0)
+                subprocess.run(f"wmctrl -i -r {win_id} -e 0,{start_x},{current_y},{master_width},{current_height}", shell=True)
+                current_y += current_height + smart_gap # Update Y for the next window
+                # Note: The last master window will end at current_y - smart_gap,
+                # which should align correctly with the start of the slave area if calculated properly below.
+
+        # Calculate slave area (right)
+        if self._slave_windows:
+            # The slave area starts after the master area plus the gap between master and slave
+            slave_x = start_x + master_width + smart_gap # Use calculated master_width
+            slave_width = usable_width - master_width - smart_gap # Calculate remaining width
+            # Calculate available height for slaves considering gaps between them
+            total_slave_gaps = (len(self._slave_windows) - 1) * smart_gap if len(self._slave_windows) > 1 else 0
+            total_available_height_for_slaves = usable_height - total_slave_gaps
+            # Calculate base height and distribute rounding error
+            base_slave_height = total_available_height_for_slaves // len(self._slave_windows)
+            remaining_slave_height_error = total_available_height_for_slaves % len(self._slave_windows)
+
+            current_y = start_y # Slaves start at the same Y as masters
+            for i, win_id in enumerate(self._slave_windows):
+                # Distribute the rounding error: first 'remaining_slave_height_error' windows get +1 pixel
+                current_height = base_slave_height + (1 if i < remaining_slave_height_error else 0)
+                subprocess.run(f"wmctrl -i -r {win_id} -e 0,{slave_x},{current_y},{slave_width},{current_height}", shell=True)
+                current_y += current_height + smart_gap # Update Y for the next window
+                # Note: The last slave window will end at current_y - smart_gap.
+                # The total height used by masters/slaves should ideally match usable_height.
+
+    def _tile_wide_master_stack(self, width, height):
+        """Wide layout with master and stack areas"""
+        smart_gap, outer_gap = self._calculate_smart_gaps(len(self._windows))
+        usable_width, usable_height, start_x, start_y = self._get_usable_area(width, height, outer_gap)
+        
+        if not self._windows:
+            return
+
+        # Master area (top)
+        if self._master_windows:
+            master_height = int(usable_height * self._master_ratio)
+            master_width = usable_width // len(self._master_windows)
+            
+            for i, win_id in enumerate(self._master_windows):
+                x_pos = start_x + (i * master_width)
+                if i > 0:
+                    x_pos += smart_gap * i
+                subprocess.run(f"wmctrl -i -r {win_id} -e 0,{x_pos},{start_y},{master_width},{master_height}", shell=True)
+
+        # Slave area (bottom)
+        if self._slave_windows:
+            slave_y = start_y + int(usable_height * self._master_ratio) + smart_gap
+            slave_height = usable_height - int(usable_height * self._master_ratio) - smart_gap
+            slave_width = usable_width // len(self._slave_windows) if self._slave_windows else 0
+            
+            for i, win_id in enumerate(self._slave_windows):
+                x_pos = start_x + (i * slave_width)
+                if i > 0:
+                    x_pos += smart_gap * i
+                subprocess.run(f"wmctrl -i -r {win_id} -e 0,{x_pos},{slave_y},{slave_width},{slave_height}", shell=True)
+
+    def _tile_grid(self, width, height):
+        """Grid layout"""
+        smart_gap, outer_gap = self._calculate_smart_gaps(len(self._windows))
+        usable_width, usable_height, start_x, start_y = self._get_usable_area(width, height, outer_gap)
+        
+        cols = int(math.ceil(math.sqrt(len(self._windows))))
+        rows = int(math.ceil(len(self._windows) / cols))
+        
+        cell_width = (usable_width - (smart_gap * (cols - 1))) // cols
+        cell_height = (usable_height - (smart_gap * (rows - 1))) // rows
+        
+        for i, win_id in enumerate(self._windows):
+            col = i % cols
+            row = i // cols
+            x = start_x + (col * (cell_width + smart_gap))
+            y = start_y + (row * (cell_height + smart_gap))
+            subprocess.run(f"wmctrl -i -r {win_id} -e 0,{x},{y},{cell_width},{cell_height}", shell=True)
+
+    def _tile_even_grid(self, width, height):
+        """Even grid layout (equal spacing)"""
+        smart_gap, outer_gap = self._calculate_smart_gaps(len(self._windows))
+        usable_width, usable_height, start_x, start_y = self._get_usable_area(width, height, outer_gap)
+        
+        if not self._windows:
+            return
+            
+        # Calculate optimal grid that fits all windows evenly
+        best_fit = None
+        best_waste = float('inf')
+        
+        for cols in range(1, len(self._windows) + 1):
+            rows = math.ceil(len(self._windows) / cols)
+            cell_width = (usable_width - (smart_gap * (cols - 1))) // cols
+            cell_height = (usable_height - (smart_gap * (rows - 1))) // rows
+            
+            # Calculate wasted space
+            used_width = cols * cell_width + (cols - 1) * smart_gap
+            used_height = rows * cell_height + (rows - 1) * smart_gap
+            waste = (usable_width - used_width) ** 2 + (usable_height - used_height) ** 2
+            
+            if waste < best_waste:
+                best_waste = waste
+                best_fit = (cols, rows, cell_width, cell_height)
+        
+        if best_fit:
+            cols, rows, cell_width, cell_height = best_fit
+            for i, win_id in enumerate(self._windows):
+                col = i % cols
+                row = i // cols
+                x = start_x + (col * (cell_width + smart_gap))
+                y = start_y + (row * (cell_height + smart_gap))
+                subprocess.run(f"wmctrl -i -r {win_id} -e 0,{x},{y},{cell_width},{cell_height}", shell=True)
+
+    def _tile_center_master(self, width, height):
+        """Center master layout (master in center, slaves around)"""
+        smart_gap, outer_gap = self._calculate_smart_gaps(len(self._windows))
+        usable_width, usable_height, start_x, start_y = self._get_usable_area(width, height, outer_gap)
+        
+        if not self._windows:
+            return
+            
+        if self._master_windows:
+            # Center master window(s)
+            master_count = len(self._master_windows)
+            if master_count == 1:
+                # Single master in center
+                master_width = usable_width // 2
+                master_height = usable_height // 2
+                master_x = start_x + (usable_width - master_width) // 2
+                master_y = start_y + (usable_height - master_height) // 2
+                subprocess.run(f"wmctrl -i -r {self._master_windows[0]} -e 0,{master_x},{master_y},{master_width},{master_height}", shell=True)
+            else:
+                # Multiple masters in center row
+                master_width = usable_width // master_count
+                master_height = usable_height // 2
+                master_y = start_y + (usable_height - master_height) // 2
+                
+                for i, win_id in enumerate(self._master_windows):
+                    master_x = start_x + (i * master_width)
+                    if i > 0:
+                        master_x += smart_gap * i
+                    subprocess.run(f"wmctrl -i -r {win_id} -e 0,{master_x},{master_y},{master_width},{master_height}", shell=True)
+        
+        # Tile slaves around the center
+        if self._slave_windows:
+            slave_positions = []
+            slave_count = len(self._slave_windows)
+            
+            if slave_count >= 1:
+                # Top
+                slave_positions.append(("top", 0))
+            if slave_count >= 2:
+                # Right
+                slave_positions.append(("right", 1))
+            if slave_count >= 3:
+                # Bottom
+                slave_positions.append(("bottom", 2))
+            if slave_count >= 4:
+                # Left
+                slave_positions.append(("left", 3))
+            
+            for i, (position, slave_index) in enumerate(slave_positions):
+                if slave_index < len(self._slave_windows):
+                    win_id = self._slave_windows[slave_index]
+                    
+                    if position == "top":
+                        slave_width = usable_width // 2
+                        slave_height = usable_height // 4
+                        slave_x = start_x + (usable_width - slave_width) // 2
+                        slave_y = start_y
+                    elif position == "right":
+                        slave_width = usable_width // 4
+                        slave_height = usable_height // 2
+                        slave_x = start_x + usable_width - slave_width
+                        slave_y = start_y + (usable_height - slave_height) // 2
+                    elif position == "bottom":
+                        slave_width = usable_width // 2
+                        slave_height = usable_height // 4
+                        slave_x = start_x + (usable_width - slave_width) // 2
+                        slave_y = start_y + usable_height - slave_height
+                    else:  # left
+                        slave_width = usable_width // 4
+                        slave_height = usable_height // 2
+                        slave_x = start_x
+                        slave_y = start_y + (usable_height - slave_height) // 2
+                    
+                    subprocess.run(f"wmctrl -i -r {win_id} -e 0,{slave_x},{slave_y},{slave_width},{slave_height}", shell=True)
+
+    def _tile_monocle(self, width, height):
+        """Monocle layout (fullscreen)"""
+        smart_gap, outer_gap = self._calculate_smart_gaps(len(self._windows))
+        usable_width, usable_height, start_x, start_y = self._get_usable_area(width, height, outer_gap)
+        
+        for win_id in self._windows:
+            subprocess.run(f"wmctrl -i -r {win_id} -e 0,{start_x},{start_y},{usable_width},{usable_height}", shell=True)
+
+    def _apply_layout(self):
+        """Apply the current layout to all windows"""
+        if not self._is_active or self._current_layout == "floating":
+            return
+            
+        width, height = self._get_screen_geometry()
+        
+        if self._current_layout == "tall":
+            self._tile_tall_master_stack(width, height)
+        elif self._current_layout == "wide":
+            self._tile_wide_master_stack(width, height)
+        elif self._current_layout == "grid":
+            self._tile_grid(width, height)
+        elif self._current_layout == "even":
+            self._tile_even_grid(width, height)
+        elif self._current_layout == "center":
+            self._tile_center_master(width, height)
+        elif self._current_layout == "monocle":
+            self._tile_monocle(width, height)
+        elif self._current_layout == "spiral":
+            self._tile_spiral(width, height)
+        elif self._current_layout == "dwindle":
+            self._tile_dwindle(width, height)
+
+    # Window management methods (cortile-like)
+    def add_window(self, window_id):
+        """Add a window to the tiling manager"""
+        if window_id not in self._windows:
+            self._windows.append(window_id)
+            self._update_master_slave_assignments()
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def remove_window(self, window_id):
+        """Remove a window from the tiling manager"""
+        if window_id in self._windows:
+            self._windows.remove(window_id)
+            if window_id in self._master_windows:
+                self._master_windows.remove(window_id)
+            if window_id in self._slave_windows:
+                self._slave_windows.remove(window_id)
+            self._update_master_slave_assignments()
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def focus_window(self, window_id):
+        """Focus a window and bring it to front"""
+        if window_id in self._windows:
+            subprocess.run(f"wmctrl -i -a {window_id}", shell=True)
+            self._focused_window = window_id
+            
+            # Follow focus behavior
+            if self._follow_focus and window_id in self._slave_windows:
+                self.promote_to_master(window_id)
+
+    def promote_to_master(self, window_id):
+        """Promote a window to master area"""
+        if window_id in self._slave_windows:
+            self._slave_windows.remove(window_id)
+            self._master_windows.insert(0, window_id)
+            
+            # Ensure we don't exceed max master windows
+            if len(self._master_windows) > self._max_master_windows:
+                demoted = self._master_windows.pop()
+                self._slave_windows.insert(0, demoted)
+            
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def demote_to_slave(self, window_id):
+        """Demote a window to slave area"""
+        if window_id in self._master_windows:
+            self._master_windows.remove(window_id)
+            self._slave_windows.insert(0, window_id)
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def swap_with_master(self):
+        """Swap focused window with master"""
+        if self._focused_window and self._focused_window in self._slave_windows and self._master_windows:
+            # Swap focused slave with first master
+            slave_index = self._slave_windows.index(self._focused_window)
+            master_window = self._master_windows[0]
+            
+            self._slave_windows[slave_index] = master_window
+            self._master_windows[0] = self._focused_window
+            
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def rotate_master(self):
+        """Rotate windows in master area"""
+        if len(self._master_windows) > 1:
+            self._master_windows = self._master_windows[1:] + [self._master_windows[0]]
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def rotate_stack(self):
+        """Rotate windows in slave area"""
+        if len(self._slave_windows) > 1:
+            self._slave_windows = self._slave_windows[1:] + [self._slave_windows[0]]
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def increase_master_count(self):
+        """Increase number of windows in master area"""
+        if self._slave_windows and self._max_master_windows < len(self._windows):
+            self._max_master_windows += 1
+            new_master = self._slave_windows.pop(0)
+            self._master_windows.append(new_master)
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def decrease_master_count(self):
+        """Decrease number of windows in master area"""
+        if self._master_windows and self._max_master_windows > 1:
+            self._max_master_windows -= 1
+            demoted = self._master_windows.pop()
+            self._slave_windows.insert(0, demoted)
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def increase_master_size(self):
+        """Increase master area size"""
+        self._master_ratio = min(0.8, self._master_ratio + 0.05)
+        if self._is_active and self._auto_tile:
+            self._apply_layout()
+
+    def decrease_master_size(self):
+        """Decrease master area size"""
+        self._master_ratio = max(0.2, self._master_ratio - 0.05)
+        if self._is_active and self._auto_tile:
+            self._apply_layout()
+
+    # Public interface
+    def toggle_tiling(self):
+        """Toggle tiling on/off"""
+        was_active = self._is_active
+        self._is_active = not self._is_active
+        
+        if self._is_active:
+            # Turning ON - save positions and tile
+            print("💾 Saving window positions before tiling...")
+            self._save_current_window_positions()
+            self._update_window_list()
+            print("Tiling activated")
+            self._apply_layout()
+        else:
+            # Turning OFF - restore positions
+            print("Tiling deactivated - restoring window positions...")
+            self._restore_window_positions()
+
+    def set_layout(self, layout_name):
+        """Set specific layout"""
+        if layout_name in self.layouts:
+            self._current_layout = layout_name
+            print(f"Layout set to: {layout_name}")
+            if self._is_active and self._auto_tile:
+                self._apply_layout()
+
+    def apply_layout(self):
+        """Apply the current layout"""
+        self._update_window_list()
+        self._apply_layout()
+
+    def restore_all_windows(self):
+        """Force restore all windows to their original positions"""
+        print("🔄 Force restoring all windows to original positions...")
+        self._restore_window_positions()
+
+    def save_current_layout(self):
+        """Save current window positions as the 'restore' state"""
+        print("💾 Saving current window positions as restore state...")
+        self._save_current_window_positions()
+
+    def clear_saved_positions(self):
+        """Clear all saved window positions"""
+        print("🗑️  Clearing all saved window positions...")
+        self._original_positions.clear()
+        self._save_window_positions()
+
+    # Property accessors
+    @property
+    def is_active(self):
+        return self._is_active
+    
+    @property 
+    def auto_tile(self):
+        return self._auto_tile
+    
+    def toggle_auto_tile(self):
+        self._auto_tile = not self._auto_tile
+        print(f"Auto-tile {'enabled' if self._auto_tile else 'disabled'}")
+    
+    @property
+    def current_layout(self):
+        return self._current_layout
+    
+    @property
+    def master_ratio(self):
+        return self._master_ratio
+    
+    @property
+    def max_master_windows(self):
+        return self._max_master_windows
+    
+    @property
+    def gap_size(self):
+        return self._gap_size
+    
+    @property
+    def outer_gap(self):
+        return self._outer_gap
+    
+    @property
+    def smart_gaps(self):
+        return self._smart_gaps
+    
+    @property
+    def follow_focus(self):
+        return self._follow_focus
+    
+    def set_gap_size(self, size):
+        self._gap_size = max(0, min(50, size))
+        if self._is_active and self._auto_tile:
+            self._apply_layout()
+    
+    def set_outer_gap(self, size):
+        self._outer_gap = max(0, min(20, size))
+        if self._is_active and self._auto_tile:
+            self._apply_layout()
+    
+    def toggle_smart_gaps(self):
+        self._smart_gaps = not self._smart_gaps
+        if self._is_active and self._auto_tile:
+            self._apply_layout()
+    
+    def toggle_follow_focus(self):
+        self._follow_focus = not self._follow_focus
+        print(f"Follow focus {'enabled' if self._follow_focus else 'disabled'}")
+
+    def cleanup(self):
+        """Cleanup resources"""
+        pass
+
+    # Spiral and Dwindle layouts (kept for compatibility)
+    def _tile_spiral(self, width, height):
+        """Spiral layout fallback to grid"""
+        self._tile_grid(width, height)
+
+    def _tile_dwindle(self, width, height):
+        """Dwindle layout fallback to grid"""
+        self._tile_grid(width, height)
+
+class CortileAdapter(QObject):
+    """Advanced cortile-like adapter with proper window management"""
+    
+    def __init__(self):
+        super().__init__()
+        self.cortile_instance = AdvancedTiler()
+        
+        self.layouts = self.cortile_instance.layouts
+        self.current_layout = self.cortile_instance.current_layout
+
+        # Expose all properties
+        self.gap_size = self.cortile_instance.gap_size
+        self.outer_gap = self.cortile_instance.outer_gap
+        self.smart_gaps = self.cortile_instance.smart_gaps
+        self.master_ratio = self.cortile_instance.master_ratio
+        self.max_master_windows = self.cortile_instance.max_master_windows
+        self.follow_focus = self.cortile_instance.follow_focus
+
+    # Core tiling methods
+    def toggle_tiling(self):
+        self.cortile_instance.toggle_tiling()
+        self.current_layout = self.cortile_instance.current_layout
+
+    def set_layout(self, layout_name):
+        self.cortile_instance.set_layout(layout_name)
+        self.current_layout = layout_name
+
+    def apply_layout(self):
+        self.cortile_instance.apply_layout()
+
+    # Restoration methods
+    def restore_all_windows(self):
+        self.cortile_instance.restore_all_windows()
+
+    def save_current_layout(self):
+        self.cortile_instance.save_current_layout()
+
+    def clear_saved_positions(self):
+        self.cortile_instance.clear_saved_positions()
+
+    # Gap control
+    def set_gap_size(self, size):
+        self.cortile_instance.set_gap_size(size)
+        self.gap_size = self.cortile_instance.gap_size
+
+    def set_outer_gap(self, size):
+        self.cortile_instance.set_outer_gap(size)
+        self.outer_gap = self.cortile_instance.outer_gap
+
+    def toggle_smart_gaps(self):
+        self.cortile_instance.toggle_smart_gaps()
+        self.smart_gaps = self.cortile_instance.smart_gaps
+
+    # Master area control
+    def set_master_ratio(self, ratio):
+        self.cortile_instance._master_ratio = max(0.2, min(0.8, ratio))
+        self.master_ratio = self.cortile_instance._master_ratio
+        if self.cortile_instance.is_active and self.cortile_instance.auto_tile:
+            self.cortile_instance._apply_layout()
+
+    def set_max_master_windows(self, count):
+        self.cortile_instance._max_master_windows = max(1, min(5, count))
+        self.max_master_windows = self.cortile_instance._max_master_windows
+        self.cortile_instance._update_master_slave_assignments()
+        if self.cortile_instance.is_active and self.cortile_instance.auto_tile:
+            self.cortile_instance._apply_layout()
+
+    def toggle_follow_focus(self):
+        self.cortile_instance.toggle_follow_focus()
+        self.follow_focus = self.cortile_instance.follow_focus
+
+    # Advanced window management (cortile-like)
+    def promote_to_master(self):
+        """Promote focused window to master"""
+        if self.cortile_instance._focused_window:
+            self.cortile_instance.promote_to_master(self.cortile_instance._focused_window)
+
+    def demote_to_slave(self):
+        """Demote focused window to slave"""
+        if self.cortile_instance._focused_window:
+            self.cortile_instance.demote_to_slave(self.cortile_instance._focused_window)
+
+    def swap_with_master(self):
+        """Swap focused window with master"""
+        self.cortile_instance.swap_with_master()
+
+    def rotate_master(self):
+        """Rotate master windows"""
+        self.cortile_instance.rotate_master()
+
+    def rotate_stack(self):
+        """Rotate slave windows"""
+        self.cortile_instance.rotate_stack()
+
+    def increase_master_count(self):
+        """Increase master window count"""
+        self.cortile_instance.increase_master_count()
+        self.max_master_windows = self.cortile_instance.max_master_windows
+
+    def decrease_master_count(self):
+        """Decrease master window count"""
+        self.cortile_instance.decrease_master_count()
+        self.max_master_windows = self.cortile_instance.max_master_windows
+
+    def increase_master_size(self):
+        """Increase master area size"""
+        self.cortile_instance.increase_master_size()
+        self.master_ratio = self.cortile_instance.master_ratio
+
+    def decrease_master_size(self):
+        """Decrease master area size"""
+        self.cortile_instance.decrease_master_size()
+        self.master_ratio = self.cortile_instance.master_ratio
+
+    def focus_next_window(self):
+        """Focus next window in stacking order"""
+        try:
+            if self.cortile_instance._windows:
+                current_index = 0
+                if self.cortile_instance._focused_window and self.cortile_instance._focused_window in self.cortile_instance._windows:
+                    current_index = self.cortile_instance._windows.index(self.cortile_instance._focused_window)
+                
+                next_index = (current_index + 1) % len(self.cortile_instance._windows)
+                next_window = self.cortile_instance._windows[next_index]
+                self.cortile_instance.focus_window(next_window)
+        except Exception as e:
+            print(f"Focus next window error: {e}")
+
+    def focus_previous_window(self):
+        """Focus previous window in stacking order"""
+        try:
+            if self.cortile_instance._windows:
+                current_index = 0
+                if self.cortile_instance._focused_window and self.cortile_instance._focused_window in self.cortile_instance._windows:
+                    current_index = self.cortile_instance._windows.index(self.cortile_instance._focused_window)
+                
+                prev_index = (current_index - 1) % len(self.cortile_instance._windows)
+                prev_window = self.cortile_instance._windows[prev_index]
+                self.cortile_instance.focus_window(prev_window)
+        except Exception as e:
+            print(f"Focus previous window error: {e}")
+
+    @property
+    def is_active(self):
+        """Check if tiling is currently active."""
+        return self.cortile_instance.is_active
+
+    @property
+    def auto_tile(self):
+        """Check if auto-tiling is enabled."""
+        return self.cortile_instance.auto_tile
+
+    def toggle_auto_tile(self):
+        """Toggle auto-tiling."""
+        self.cortile_instance.toggle_auto_tile()
+
+    def cleanup(self):
+        """Cleanup resources."""
+        self.cortile_instance.cleanup()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class TokyoNight:
     # Base colors - deeper, more night-like
     BACKGROUND = "#0d0f1a"  # Deeper dark blue-black
@@ -400,70 +1528,103 @@ class SystemMonitorThread(QThread):
         self.wait(3000)  # Wait up to 3 seconds for clean shutdown
 
     def run(self):
-        """Main monitoring loop with comprehensive error handling"""
-        self.prev_cpu_total = 0
-        self.prev_cpu_idle = 0
+        """Main monitoring loop with non-blocking operations and comprehensive
+        error handling to prevent freezing.
+        """
         
-        print("🚀 System monitor thread started")
-        self.monitor_status.emit("started")
-        
-        while not self._stop_flag:
-            self.iteration_count += 1
+        # Signals for UI updates
+        cpu_updated = pyqtSignal(float)
+        memory_updated = pyqtSignal(float)
+        battery_updated = pyqtSignal(int, str, str)  # capacity, status, time
+        volume_updated = pyqtSignal(int, bool)
+        network_updated = pyqtSignal(str, str)  # ssid, status
+        brightness_updated = pyqtSignal(int)
+        workspace_updated = pyqtSignal(int)
+        active_window_updated = pyqtSignal(str)
+        # FIXED: Remove monitor_status signal or ensure it emits proper types
+
+        def __init__(self):
+            super().__init__()
+            self.battery_path = self.find_battery_path()
+            self.error_count = 0
+            self.max_errors = 10
+            self._stop_flag = False
+            self.iteration_count = 0
+            self.last_successful_update = time.time()
             
-            try:
-                if self.iteration_count % 10 == 0:
-                    print(f"🔍 Monitor iteration {self.iteration_count}, errors: {self.error_count}")
+            # Command availability cache
+            self._command_cache = {}
+            
+            print("🔍 System Monitor Thread initialized")
+
+        def run(self):
+            """Main monitoring loop with comprehensive error handling"""
+            self.prev_cpu_total = 0
+            self.prev_cpu_idle = 0
+            
+            print("🚀 System monitor thread started")
+            # FIXED: Remove the problematic signal emission
+            # self.monitor_status.emit("started")  # This was causing the error
+            
+            while not self._stop_flag:
+                self.iteration_count += 1
                 
-                # Update all system metrics
-                self.update_cpu_usage()
-                self.update_memory_usage()
-                self.update_battery_info()
-                self.update_volume_info()
-                self.update_network_info()
-                
-                # Update less frequently to reduce load
-                if self.iteration_count % 2 == 0:
-                    self.update_brightness_info()
-                    self.update_workspace_info()
-                    self.update_active_window()
-                
-                # Reset error count on successful iteration
-                self.error_count = 0
-                self.last_successful_update = time.time()
-                
-                # Adaptive sleep based on system load
-                sleep_time = self.calculate_sleep_time()
-                
-                # Sleep with frequent stop checks
-                for i in range(sleep_time * 10):
-                    if self._stop_flag:
-                        print("✅ System monitor thread stopped gracefully")
-                        return
-                    time.sleep(0.1)
+                try:
+                    if self.iteration_count % 10 == 0:
+                        print(f"🔍 Monitor iteration {self.iteration_count}, errors: {self.error_count}")
                     
-            except Exception as e:
-                self.error_count += 1
-                error_msg = f"Monitor error #{self.error_count}: {e}"
-                print(f"🚨 {error_msg}")
-                self.monitor_status.emit(f"error:{error_msg}")
-                
-                if self.error_count >= self.max_errors:
-                    crash_msg = "Too many errors, stopping monitor thread"
-                    print(f"❌ {crash_msg}")
-                    self.monitor_status.emit(f"crashed:{crash_msg}")
-                    break
-                
-                # Longer delay on error with exponential backoff
-                error_delay = min(30, 5 * (2 ** (self.error_count - 1)))
-                print(f"⏳ Waiting {error_delay}s after error...")
-                
-                for i in range(error_delay * 10):
-                    if self._stop_flag:
-                        return
-                    time.sleep(0.1)
-        
-        print("🔍 System monitor thread ended")
-        self.monitor_status.emit("stopped")
+                    # Update all system metrics
+                    self.update_cpu_usage()
+                    self.update_memory_usage()
+                    self.update_battery_info()
+                    self.update_volume_info()
+                    self.update_network_info()
+                    
+                    # Update less frequently to reduce load
+                    if self.iteration_count % 2 == 0:
+                        self.update_brightness_info()
+                        self.update_workspace_info()
+                        self.update_active_window()
+                    
+                    # Reset error count on successful iteration
+                    self.error_count = 0
+                    self.last_successful_update = time.time()
+                    
+                    # Adaptive sleep based on system load
+                    sleep_time = self.calculate_sleep_time()
+                    
+                    # Sleep with frequent stop checks
+                    for i in range(sleep_time * 10):
+                        if self._stop_flag:
+                            print("✅ System monitor thread stopped gracefully")
+                            return
+                        time.sleep(0.1)
+                        
+                except Exception as e:
+                    self.error_count += 1
+                    error_msg = f"Monitor error #{self.error_count}: {e}"
+                    print(f"🚨 {error_msg}")
+                    # FIXED: Remove problematic signal
+                    # self.monitor_status.emit(f"error:{error_msg}")
+                    
+                    if self.error_count >= self.max_errors:
+                        crash_msg = "Too many errors, stopping monitor thread"
+                        print(f"❌ {crash_msg}")
+                        # self.monitor_status.emit(f"crashed:{crash_msg}")
+                        break
+                    
+                    # Longer delay on error with exponential backoff
+                    error_delay = min(30, 5 * (2 ** (self.error_count - 1)))
+                    print(f"⏳ Waiting {error_delay}s after error...")
+                    
+                    for i in range(error_delay * 10):
+                        if self._stop_flag:
+                            return
+                        time.sleep(0.1)
+            
+            print("🔍 System monitor thread ended")
+            # FIXED: Remove problematic signal
+            # self.monitor_status.emit("stopped")
 
     def calculate_sleep_time(self):
         """Calculate adaptive sleep time based on system state"""
@@ -1193,692 +2354,20 @@ class PanelHealthMonitor:
 
 
 
-class IntegratedTiler(QObject):
-    """Integrated window tiler - no external dependency"""
-    def __init__(self):
-        super().__init__()
-        self.current_layout = 0
-        self.layouts = ["tall", "wide", "grid", "monocle", "floating"]
-        self.master_window = None
-        self.gap = 15
-        self.inner_gap = 8
-        self.is_active = False
-        self.auto_tile = True
-        self.window_history = []
-        self.managed_windows = set()
-        self.ignore_classes = ["dock", "panel", "desktop", "notification", "toolbar", "xfce4-panel"]
 
-
-
-    def setup_window_hooks(self):
-        """Setup window event monitoring for automatic tiling"""
-        try:
-            # Use wmctrl to monitor window events
-            subprocess.Popen([
-                "bash", "-c", 
-                "while true; do wmctrl -l; sleep 1; done"
-            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
-            print(f"Window hook setup failed: {e}")
-
-
-        
-    def run_cmd(self, cmd: List[str]) -> str:
-        """Run shell command and return output"""
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return result.stdout.strip()
-        except:
-            return ""
-
-
-    def get_windows(self) -> List[Window]:
-        """Alternative method using xprop to get windows."""
-        windows = []
-        try:
-            # Get current desktop
-            current_desktop_result = subprocess.run(
-                ["xdotool", "get_desktop"], 
-                capture_output=True, text=True, timeout=2
-            )
-            current_desktop = current_desktop_result.stdout.strip() if current_desktop_result.returncode == 0 else "0"
-            print(f"DEBUG: Current desktop: {current_desktop}")
-
-            # Get window IDs using xdotool - search for all visible windows on current desktop
-            window_ids_result = subprocess.run(
-                ["xdotool", "search", "--onlyvisible", "--desktop", current_desktop, "."],
-                capture_output=True, text=True, timeout=5
-            )
-            
-            if window_ids_result.returncode != 0:
-                print("DEBUG: xdotool search failed")
-                return windows
-
-            window_ids = window_ids_result.stdout.strip().split()
-            print(f"DEBUG: Found {len(window_ids)} window IDs: {window_ids}")
-            
-            if not window_ids:
-                print("DEBUG: No window IDs found")
-                return windows
-
-            for win_id in window_ids:
-                if not win_id:
-                    continue
-                    
-                try:
-                    print(f"DEBUG: Processing window ID: {win_id}")
-                    
-                    # Get window geometry using xwininfo
-                    geometry_result = subprocess.run(
-                        ["xwininfo", "-id", win_id],
-                        capture_output=True, text=True, timeout=2
-                    )
-                    
-                    if geometry_result.returncode != 0:
-                        print(f"DEBUG: xwininfo failed for window {win_id}")
-                        continue
-                    
-                    # Parse geometry from xwininfo output
-                    geometry_output = geometry_result.stdout
-                    width = 0
-                    height = 0
-                    x = 0
-                    y = 0
-                    
-                    for line in geometry_output.splitlines():
-                        if "Width:" in line:
-                            width = int(line.split(":")[1].strip())
-                        elif "Height:" in line:
-                            height = int(line.split(":")[1].strip())
-                        elif "Absolute upper-left X:" in line:
-                            x = int(line.split(":")[1].strip())
-                        elif "Absolute upper-left Y:" in line:
-                            y = int(line.split(":")[1].strip())
-                    
-                    print(f"DEBUG: Window {win_id} geometry: {x},{y} {width}x{height}")
-                    
-                    # Skip if geometry is invalid
-                    if width <= 0 or height <= 0:
-                        print(f"DEBUG: Skipping window {win_id} - invalid geometry")
-                        continue
-                    
-                    # Get window title
-                    title_result = subprocess.run(
-                        ["xdotool", "getwindowname", win_id],
-                        capture_output=True, text=True, timeout=2
-                    )
-                    title = title_result.stdout.strip() if title_result.returncode == 0 else ""
-                    print(f"DEBUG: Window {win_id} title: '{title}'")
-                    
-                    # Skip if no title
-                    if not title.strip():
-                        print(f"DEBUG: Skipping window {win_id} - no title")
-                        continue
-                    
-                    # Get window class using xprop
-                    class_result = subprocess.run(
-                        ["xprop", "-id", win_id, "WM_CLASS"],
-                        capture_output=True, text=True, timeout=2
-                    )
-                    class_name = ""
-                    if class_result.returncode == 0:
-                        # WM_CLASS can return multiple values, we take the first one
-                        class_match = re.search(r'WM_CLASS\(\w+\) = "([^"]*)"', class_result.stdout)
-                        if class_match:
-                            class_name = class_match.group(1)
-                        else:
-                            # Alternative pattern matching
-                            class_match = re.search(r'= "([^"]*)"', class_result.stdout)
-                            if class_match:
-                                class_name = class_match.group(1)
-                    
-                    print(f"DEBUG: Window {win_id} class: '{class_name}'")
-                    
-                    # Skip system windows
-                    if any(ignore in class_name.lower() for ignore in self.ignore_classes):
-                        print(f"DEBUG: Skipping window {win_id} - system window class '{class_name}'")
-                        continue
-                    
-                    # Skip windows that are too small (like tray icons)
-                    if width < 50 or height < 50:
-                        print(f"DEBUG: Skipping window {win_id} - too small ({width}x{height})")
-                        continue
-                    
-                    # Skip windows with obviously system-like titles
-                    skip_titles = ["desktop", "panel", "dock", "tray"]
-                    if any(skip in title.lower() for skip in skip_titles):
-                        print(f"DEBUG: Skipping window {win_id} - system title")
-                        continue
-                    
-                    # Get PID if possible
-                    pid_result = subprocess.run(
-                        ["xdotool", "getwindowpid", win_id],
-                        capture_output=True, text=True, timeout=2
-                    )
-                    pid = int(pid_result.stdout.strip()) if pid_result.returncode == 0 else 0
-                    
-                    # All checks passed - add window
-                    window = Window(win_id, int(current_desktop), pid, x, y, width, height, title, class_name)
-                    windows.append(window)
-                    print(f"✅ ADDED WINDOW: '{title}' ({class_name}) {width}x{height}")
-                    
-                except Exception as e:
-                    print(f"DEBUG: Error processing window {win_id}: {e}")
-                    continue
-                    
-        except Exception as e:
-            print(f"ERROR in get_windows: {e}")
-        
-        print(f"DEBUG: get_windows returning {len(windows)} windows")
-        return windows
-
-    def force_apply_current_layout(self) -> bool:
-        """
-        Apply the current layout without checking if tiling is active or auto-tile is enabled.
-        This method is intended to be called externally to force a layout application.
-        
-        Returns:
-            bool: True if layout was applied successfully, False otherwise.
-        """
-        print("🪟 Force applying layout regardless of active/auto-tile status")
-        windows = self.get_windows()
-        
-        try:
-            screen = self.get_screen_geometry()
-        except Exception as e:
-            print(f"ERROR: Failed to get screen geometry: {e}")
-            return False
-            
-        if not windows:
-            print("No windows found to tile.")
-            return True  # Consider this a success since there's nothing to tile
-
-        layout_name = self.layouts[self.current_layout]
-        print(f"Applying {layout_name.upper()} layout to {len(windows)} windows.")
-
-        # Unmaximize all windows first
-        for window in windows:
-            try:
-                self.unmaximize_window(window.id)
-            except Exception as e:
-                print(f"ERROR: Failed to unmaximize window {window.id}: {e}")
-
-        # Apply the specific layout logic
-        try:
-            if layout_name == "tall":
-                self.tile_tall(windows, screen)
-            elif layout_name == "wide":
-                self.tile_wide(windows, screen)
-            elif layout_name == "grid":
-                self.tile_grid(windows, screen)
-            elif layout_name == "monocle":
-                self.tile_monocle(windows, screen)
-            elif layout_name == "floating":
-                self.tile_floating(windows, screen)
-        except Exception as e:
-            print(f"ERROR: Failed to apply {layout_name} layout: {e}")
-            return False
-
-        # Focus the master window if one is set
-        if self.master_window:
-            try:
-                self.focus_window(self.master_window)
-            except Exception as e:
-                print(f"ERROR: Failed to focus master window {self.master_window}: {e}")
-        
-        return True
-
-    def get_active_window(self) -> Optional[str]:
-        """Get currently focused window"""
-        return self.run_cmd(["xdotool", "getactivewindow"])
-
-    def get_screen_geometry(self) -> Tuple[int, int, int, int]:
-        """Get accurate screen geometry with multiple fallback methods"""
-        try:
-            # Method 1: Use xrandr for accurate screen info
-            result = subprocess.run(
-                ["xrandr", "--query"],
-                capture_output=True, text=True, timeout=2
-            )
-            if result.returncode == 0:
-                for line in result.stdout.splitlines():
-                    if " connected " in line and "primary" in line:
-                        # Example: "eDP-1 connected primary 1920x1080+0+0"
-                        import re
-                        match = re.search(r'(\d+)x(\d+)\+(\d+)\+(\d+)', line)
-                        if match:
-                            w, h, x, y = map(int, match.groups())
-                            return (x, y, w, h)
-            
-            # Method 2: Use xdotool with current screen
-            result = subprocess.run(
-                ["xdotool", "getdisplaygeometry"],
-                capture_output=True, text=True, timeout=2
-            )
-            if result.returncode == 0:
-                w, h = map(int, result.stdout.split())
-                return (0, 0, w, h)
-                
-            # Method 3: Use root window properties
-            result = subprocess.run(
-                ["xwininfo", "-root"],
-                capture_output=True, text=True, timeout=2
-            )
-            if result.returncode == 0:
-                width, height = 0, 0
-                for line in result.stdout.splitlines():
-                    if "Width:" in line:
-                        width = int(line.split(":")[1].strip())
-                    elif "Height:" in line:
-                        height = int(line.split(":")[1].strip())
-                if width > 0 and height > 0:
-                    return (0, 0, width, height)
-                    
-        except Exception as e:
-            print(f"Screen geometry error: {e}")
-        
-        # Final fallback
-        return (0, 0, 1920, 1080)
-
-    def unmaximize_window(self, win_id: str):
-        """Properly unmaximize a window"""
-        self.run_cmd(["wmctrl", "-ir", win_id, "-b", "remove,maximized_vert,maximized_horz"])
-        time.sleep(0.01)
-
-    def focus_window(self, win_id: str):
-        """Focus a window"""
-        self.run_cmd(["wmctrl", "-ia", win_id])
-
-    def set_window_geometry(self, win_id: str, x: int, y: int, w: int, h: int):
-        """Set window geometry with proper gap handling and validation"""
-        try:
-            # Ensure minimum size
-            w = max(100, w)
-            h = max(100, h)
-            
-            # Get screen geometry to validate bounds
-            screen_x, screen_y, screen_w, screen_h = self.get_screen_geometry()
-            
-            # Ensure window stays within screen bounds
-            x = max(screen_x, x)
-            y = max(screen_y, y)
-            w = min(w, screen_w - x)
-            h = min(h, screen_h - y)
-            
-            # First unmaximize
-            self.unmaximize_window(win_id)
-            
-            # Use multiple methods to set geometry for better compatibility
-            methods = [
-                # Method 1: wmctrl (primary)
-                ["wmctrl", "-ir", win_id, "-e", f"0,{x},{y},{w},{h}"],
-                # Method 2: xdotool (fallback)
-                ["xdotool", "windowmove", win_id, str(x), str(y)],
-                ["xdotool", "windowsize", win_id, str(w), str(h)]
-            ]
-            
-            for method in methods:
-                try:
-                    result = subprocess.run(method, capture_output=True, text=True, timeout=1)
-                    if result.returncode == 0:
-                        break
-                except:
-                    continue
-                    
-            # Small delay to let window manager process the change
-            time.sleep(0.05)
-            
-        except Exception as e:
-            print(f"Error setting geometry for {win_id}: {e}")
-
-    def tile_tall(self, windows: List[Window], screen: Tuple[int, int, int, int]):
-        """Improved tall layout with better gap handling"""
-        if not windows:
-            return
-            
-        screen_x, screen_y, screen_w, screen_h = screen
-        gap = self.gap
-        inner_gap = self.inner_gap
-        
-        print(f"📐 Tiling {len(windows)} windows in tall layout")
-        print(f"📏 Screen: {screen_w}x{screen_h}, Gaps: {gap}/{inner_gap}")
-        
-        # Convert to IDs for master tracking
-        win_ids = [w.id for w in windows]
-        
-        # Set master if needed
-        if not self.master_window or self.master_window not in win_ids:
-            self.master_window = win_ids[0]
-        
-        # Calculate usable area (subtract outer gaps from all sides)
-        usable_width = screen_w - (gap * 2)
-        usable_height = screen_h - (gap * 2)
-        
-        # Master gets 60% width, stack gets the rest minus inner gap
-        master_width = int(usable_width * 0.6)
-        stack_width = usable_width - master_width - inner_gap
-        
-        print(f"📐 Master: {master_width}px, Stack: {stack_width}px")
-        
-        # Position master window
-        if self.master_window in win_ids:
-            master_x = screen_x + gap
-            master_y = screen_y + gap
-            master_height = usable_height
-            
-            print(f"🎯 Positioning master: {master_x},{master_y} {master_width}x{master_height}")
-            self.set_window_geometry(self.master_window, master_x, master_y, master_width, master_height)
-        
-        # Position stack windows
-        stack_windows = [w for w in windows if w.id != self.master_window]
-        if stack_windows:
-            stack_count = len(stack_windows)
-            total_inner_gaps = inner_gap * (stack_count - 1)
-            available_stack_height = usable_height - total_inner_gaps
-            base_stack_height = available_stack_height // stack_count
-            
-            for i, window in enumerate(stack_windows):
-                stack_x = screen_x + gap + master_width + inner_gap
-                stack_y = screen_y + gap + (i * (base_stack_height + inner_gap))
-                
-                # Calculate height for this stack window
-                if i == stack_count - 1:
-                    # Last window gets remaining height
-                    used_height = i * (base_stack_height + inner_gap)
-                    stack_height = usable_height - used_height
-                else:
-                    stack_height = base_stack_height
-                
-                print(f"📐 Positioning stack {i+1}: {stack_x},{stack_y} {stack_width}x{stack_height}")
-                self.set_window_geometry(window.id, stack_x, stack_y, stack_width, stack_height)
-
-    def tile_wide(self, windows: List[Window], screen: Tuple[int, int, int, int]):
-        """Wide layout - master on top, stack on bottom"""
-        if not windows:
-            return
-            
-        screen_x, screen_y, screen_w, screen_h = screen
-        gap = self.gap
-        inner_gap = self.inner_gap
-        
-        win_ids = [w.id for w in windows]
-        
-        if not self.master_window or self.master_window not in win_ids:
-            self.master_window = win_ids[0]
-        
-        # Calculate areas with gaps
-        usable_width = screen_w - (gap * 2)
-        usable_height = screen_h - (gap * 2)
-        
-        master_height = int(usable_height * 0.6)
-        stack_height = usable_height - master_height - inner_gap
-        
-        # Position master window
-        if self.master_window in win_ids:
-            master_x = screen_x + gap
-            master_y = screen_y + gap
-            self.set_window_geometry(self.master_window, master_x, master_y, usable_width, master_height)
-        
-        # Position stack windows
-        stack_windows = [w for w in windows if w.id != self.master_window]
-        if stack_windows:
-            stack_width = (usable_width - (inner_gap * (len(stack_windows) - 1))) // len(stack_windows)
-            
-            for i, window in enumerate(stack_windows):
-                stack_x = screen_x + gap + (i * (stack_width + inner_gap))
-                stack_y = screen_y + gap + master_height + inner_gap
-                
-                # Last window gets remaining width
-                if i == len(stack_windows) - 1:
-                    remaining_width = usable_width - (stack_x - (screen_x + gap))
-                    self.set_window_geometry(window.id, stack_x, stack_y, remaining_width, stack_height)
-                else:
-                    self.set_window_geometry(window.id, stack_x, stack_y, stack_width, stack_height)
-
-
-
-
-    def refresh_window_positions(self):
-        """Force refresh all window positions to correct any misalignment"""
-        windows = self.get_windows()
-        screen = self.get_screen_geometry()
-        
-        if not windows:
-            return
-            
-        layout_name = self.layouts[self.current_layout]
-        print(f"🔄 Refreshing {len(windows)} windows in {layout_name} layout")
-        
-        # Re-apply the current layout
-        if layout_name == "tall":
-            self.tile_tall(windows, screen)
-        elif layout_name == "wide":
-            self.tile_wide(windows, screen)
-        elif layout_name == "grid":
-            self.tile_grid(windows, screen)
-        elif layout_name == "monocle":
-            self.tile_monocle(windows, screen)
-
-    def correct_window_alignment(self, win_id: str):
-        """Correct alignment for a specific window"""
-        try:
-            # Get current window geometry
-            result = subprocess.run(
-                ["xwininfo", "-id", win_id],
-                capture_output=True, text=True, timeout=2
-            )
-            
-            if result.returncode == 0:
-                current_x, current_y, current_w, current_h = 0, 0, 0, 0
-                for line in result.stdout.splitlines():
-                    if "Absolute upper-left X:" in line:
-                        current_x = int(line.split(":")[1].strip())
-                    elif "Absolute upper-left Y:" in line:
-                        current_y = int(line.split(":")[1].strip())
-                    elif "Width:" in line:
-                        current_w = int(line.split(":")[1].strip())
-                    elif "Height:" in line:
-                        current_h = int(line.split(":")[1].strip())
-                
-                print(f"🔧 Correcting alignment for window {win_id}")
-                print(f"📐 Current: {current_x},{current_y} {current_w}x{current_h}")
-                
-                # Re-apply the same geometry to force correction
-                self.set_window_geometry(win_id, current_x, current_y, current_w, current_h)
-                
-        except Exception as e:
-            print(f"Alignment correction failed: {e}")
-
-
-
-
-
-
-
-
-
-
-
-    def tile_grid(self, windows: List[Window], screen: Tuple[int, int, int, int]):
-        """Improved grid layout with better spacing"""
-        if not windows:
-            return
-            
-        screen_x, screen_y, screen_w, screen_h = screen
-        gap = self.gap
-        inner_gap = self.inner_gap
-        
-        n = len(windows)
-        print(f"📐 Tiling {n} windows in grid layout")
-        
-        # Calculate optimal grid dimensions
-        if n <= 1:
-            cols = 1
-            rows = 1
-        elif n <= 2:
-            cols = 2
-            rows = 1
-        elif n <= 4:
-            cols = 2
-            rows = 2
-        elif n <= 6:
-            cols = 3
-            rows = 2
-        elif n <= 9:
-            cols = 3
-            rows = 3
-        else:
-            cols = int(n ** 0.5)
-            rows = (n + cols - 1) // cols
-        
-        print(f"📐 Grid: {cols}x{rows}")
-        
-        # Calculate usable area
-        usable_width = screen_w - (gap * 2)
-        usable_height = screen_h - (gap * 2)
-        
-        # Calculate cell size with gaps
-        total_horizontal_gaps = inner_gap * (cols - 1)
-        total_vertical_gaps = inner_gap * (rows - 1)
-        
-        cell_width = (usable_width - total_horizontal_gaps) // cols
-        cell_height = (usable_height - total_vertical_gaps) // rows
-        
-        print(f"📐 Cell size: {cell_width}x{cell_height}")
-        
-        for i, window in enumerate(windows):
-            row = i // cols
-            col = i % cols
-            
-            x = screen_x + gap + (col * (cell_width + inner_gap))
-            y = screen_y + gap + (row * (cell_height + inner_gap))
-            
-            # Handle last column/row to use remaining space
-            actual_width = cell_width
-            actual_height = cell_height
-            
-            if col == cols - 1:
-                remaining_width = usable_width - (x - (screen_x + gap))
-                actual_width = max(100, remaining_width)
-            if row == rows - 1:
-                remaining_height = usable_height - (y - (screen_y + gap))
-                actual_height = max(100, remaining_height)
-            
-            print(f"📐 Grid cell {i+1} ({row},{col}): {x},{y} {actual_width}x{actual_height}")
-            self.set_window_geometry(window.id, x, y, actual_width, actual_height)
-
-    def tile_monocle(self, windows: List[Window], screen: Tuple[int, int, int, int]):
-        """Monocle layout - only master visible, others minimized"""
-        if not windows:
-            return
-            
-        screen_x, screen_y, screen_w, screen_h = screen
-        gap = self.gap
-        win_ids = [w.id for w in windows]
-        
-        if not self.master_window or self.master_window not in win_ids:
-            self.master_window = win_ids[0]
-        
-        # Show and position master window
-        if self.master_window in win_ids:
-            self.run_cmd(["wmctrl", "-ir", self.master_window, "-b", "remove,hidden"])
-            self.set_window_geometry(
-                self.master_window,
-                screen_x + gap,
-                screen_y + gap,
-                screen_w - (gap * 2),
-                screen_h - (gap * 2)
-            )
-        
-        # Hide other windows
-        for window in windows:
-            if window.id != self.master_window:
-                self.run_cmd(["wmctrl", "-ir", window.id, "-b", "add,hidden"])
-
-    def tile_floating(self, windows: List[Window], screen: Tuple[int, int, int, int]):
-        """Floating layout - restore windows to their previous positions"""
-        # For floating layout, we don't tile - windows stay where they are
-        # Just ensure they're not maximized
-        for window in windows:
-            self.unmaximize_window(window.id)
-
-    def apply_layout(self):
-        """Apply current layout to all windows"""
-        if not self.is_active:
-            return
-            
-        windows = self.get_windows()
-        screen = self.get_screen_geometry()
-        
-        if not windows:
-            return
-            
-        layout_name = self.layouts[self.current_layout]
-        print(f"🪟 Auto-tiling {len(windows)} windows | 📐 {layout_name.upper()} layout")
-        
-        # Unmaximize all windows first
-        for window in windows:
-            self.unmaximize_window(window.id)
-        
-        if layout_name == "tall":
-            self.tile_tall(windows, screen)
-        elif layout_name == "wide":
-            self.tile_wide(windows, screen)
-        elif layout_name == "grid":
-            self.tile_grid(windows, screen)
-        elif layout_name == "monocle":
-            self.tile_monocle(windows, screen)
-        elif layout_name == "floating":
-            self.tile_floating(windows, screen)
-        
-        # Focus master
-        if self.master_window:
-            self.focus_window(self.master_window)
-
-    def cycle_layout(self):
-        """Cycle to next layout"""
-        self.current_layout = (self.current_layout + 1) % len(self.layouts)
-        layout_name = self.layouts[self.current_layout]
-        print(f"🔄 Switching to {layout_name.upper()} layout")
-        self.apply_layout()
-
-    def set_master(self):
-        """Set currently focused window as master"""
-        active_win = self.get_active_window()
-        windows = self.get_windows()
-        win_ids = [w.id for w in windows]
-        
-        if active_win and active_win in win_ids:
-            self.master_window = active_win
-            print(f"🎯 Master set: {active_win}")
-            self.apply_layout()
-
-    def toggle_auto_tile(self):
-        """Toggle auto-tiling on/off"""
-        self.auto_tile = not self.auto_tile
-        status = "ON" if self.auto_tile else "OFF"
-        print(f"🤖 Auto-tiling {status}")
-        if self.auto_tile:
-            self.apply_layout()
-
-    def set_layout(self, layout_name):
-        """Set specific layout"""
-        if layout_name in self.layouts:
-            self.current_layout = self.layouts.index(layout_name)
-            print(f"📐 Setting layout to {layout_name.upper()}")
-            self.apply_layout()
 
 class TilingControlWidget(QWidget):
-    """Widget for integrated STILE window tiling control"""
+    """Enhanced widget for integrated STILE window tiling control with position restoration"""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.tiler = IntegratedTiler()
+        # Replace with enhanced CortileAdapter with restoration
+        self.tiler = CortileAdapter()
         self.setup_ui()
         # Update display immediately
         self.update_display()
 
     def setup_ui(self):
-        """Setup the tiling control UI"""
+        """Setup the enhanced tiling control UI with gap controls"""
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(5)
@@ -1921,73 +2410,56 @@ class TilingControlWidget(QWidget):
         """)
         layout.addWidget(self.layout_label)
         
+        # Gap indicator (new)
+        self.gap_label = QLabel(f"G:{self.tiler.gap_size}")
+        self.gap_label.setStyleSheet(f"""
+            padding: 4px 6px;
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {TokyoNight.SELECTION}, 
+                stop:1 {TokyoNight.NIGHT_BOTTOM});
+            border-radius: 6px;
+            font-size: 8pt;
+            color: {TokyoNight.FOREGROUND};
+        """)
+        self.gap_label.setToolTip("Inner gap size")
+        layout.addWidget(self.gap_label)
+        
         # Start monitoring timer
         self.monitor_timer = QTimer()
         self.monitor_timer.timeout.connect(self.monitor_windows)
         self.monitor_timer.start(1000)  # Check every second
 
-
-
-
-
     def refresh_layout(self):
         """Refresh the current layout to fix alignment issues"""
         print("🔄 Refreshing layout to fix alignment")
-        self.tiler.refresh_window_positions()
+        self.tiler.apply_layout()
         self.update_display()
 
     def correct_alignment(self):
         """Correct alignment for all windows"""
         print("🔧 Correcting window alignment")
-        windows = self.tiler.get_windows()
-        for window in windows:
-            self.tiler.correct_window_alignment(window.id)
+        self.tiler.apply_layout()
         self.update_display()
-
-
-
-
 
     def cleanup(self):
         """Clean up tiling control resources"""
         print("🧹 Cleaning up tiling control...")
         if hasattr(self, 'monitor_timer'):
             self.monitor_timer.stop()
-        if hasattr(self, 'tiler'):
-            # Stop any tiler background processes
-            pass
-
-
-
-
+        # Cleanup the tiler adapter
+        self.tiler.cleanup()
 
     def force_apply_layout(self):
         """Force apply the current layout regardless of tiler's active/auto-tile status."""
         print("🔄 Force applying tiling layout (from TilingControlWidget)")
-        # Call the tiler's specific force method
-        self.tiler.force_apply_current_layout()
-        # Update the display in the control widget
+        self.tiler.apply_layout()
         self.update_display()
-
 
     def monitor_windows(self):
         """Monitor windows and apply tiling if needed"""
         if self.tiler.is_active and self.tiler.auto_tile:
-            # Get current windows
-            current_windows = self.tiler.get_windows()
-            current_ids = {w.id for w in current_windows}
-            
-            # Check if window state changed
-            if (not hasattr(self, 'last_window_ids') or 
-                self.last_window_ids != current_ids):
-                
-                # Apply layout if windows changed
-                if current_windows:
-                    self.tiler.apply_layout()
-                
-                # Update tracking
-                self.last_window_ids = current_ids
-        
+            pass
+
         self.update_display()
 
     def update_display(self):
@@ -1999,31 +2471,36 @@ class TilingControlWidget(QWidget):
             else:
                 color = TokyoNight.YELLOW
                 status_text = "PAUSED"
+            
+            layout_name = self.tiler.current_layout.upper()
             self.tiling_button.setText(f"<font color='{color}'>⊞</font>")
-            layout_name = self.tiler.layouts[self.tiler.current_layout].upper()
             self.layout_label.setText(f"<font color='{color}'>{layout_name}</font>")
             self.layout_label.setVisible(True)
-            self.tiling_button.setToolTip(f"⊞ Tiling {status_text}\nLayout: {layout_name}\nLeft click: Toggle\nRight click: Options")
+            self.gap_label.setVisible(True)
+            self.gap_label.setText(f"<font color='{color}'>G:{self.tiler.gap_size}</font>")
+            self.tiling_button.setToolTip(f"⊞ Tiling {status_text}\nLayout: {layout_name}\nGap: {self.tiler.gap_size}px\nLeft click: Toggle\nRight click: Options")
         else:
             self.tiling_button.setText(f"<font color='{TokyoNight.RED}'>⊞</font>")
             self.layout_label.setVisible(False)
+            self.gap_label.setVisible(False)
             self.tiling_button.setToolTip("⊞ Tiling OFF\nLeft click: Enable tiling\nRight click: Options")
 
     def toggle_tiling(self):
         """Toggle tiling on/off"""
-        if self.tiler.is_active:
-            self.tiler.is_active = False
-            print("🛑 Tiling disabled")
-        else:
-            self.tiler.is_active = True
-            self.tiler.auto_tile = True
-            print("🚀 Tiling enabled")
-            self.tiler.apply_layout()
+        self.tiler.toggle_tiling()
         self.update_display()
 
     def cycle_layout(self):
         """Cycle to next layout"""
-        self.tiler.cycle_layout()
+        layouts = ["tall", "wide", "grid", "spiral", "dwindle", "monocle", "floating"]
+        current_layout_name = self.tiler.current_layout
+        try:
+            current_index = layouts.index(current_layout_name.lower())
+            next_index = (current_index + 1) % len(layouts)
+            next_layout = layouts[next_index]
+        except ValueError:
+            next_layout = layouts[0]
+        self.tiler.set_layout(next_layout)
         self.update_display()
 
     def set_layout(self, layout_name):
@@ -2033,7 +2510,7 @@ class TilingControlWidget(QWidget):
 
     def set_master(self):
         """Set currently focused window as master"""
-        self.tiler.set_master()
+        self.tiler.swap_with_master()
         self.update_display()
 
     def apply_layout(self):
@@ -2041,8 +2518,73 @@ class TilingControlWidget(QWidget):
         self.tiler.apply_layout()
         self.update_display()
 
+    # NEW RESTORATION METHODS
+    def restore_all_windows(self):
+        """Force restore all windows to their original positions"""
+        print("🔄 Restoring all windows to original positions...")
+        self.tiler.restore_all_windows()
+        # Also deactivate tiling when restoring
+        if self.tiler.is_active:
+            self.tiler.toggle_tiling()
+        self.update_display()
+
+    def save_current_positions(self):
+        """Save current window positions as restore state"""
+        print("💾 Saving current window positions...")
+        self.tiler.save_current_layout()
+
+    def clear_saved_positions(self):
+        """Clear all saved window positions"""
+        print("🗑️ Clearing saved window positions...")
+        self.tiler.clear_saved_positions()
+
+    # Gap control methods
+    def set_gap_size(self, size):
+        """Set gap size between windows"""
+        self.tiler.set_gap_size(size)
+        self.gap_label.setText(f"G:{self.tiler.gap_size}")
+        self.update_display()
+
+    def set_outer_gap(self, size):
+        """Set gap from screen edges"""
+        self.tiler.set_outer_gap(size)
+        self.update_display()
+
+    def toggle_smart_gaps(self):
+        """Toggle smart gap adjustment"""
+        self.tiler.toggle_smart_gaps()
+        self.update_display()
+
+    def set_master_ratio(self, ratio):
+        """Set master area ratio"""
+        self.tiler.set_master_ratio(ratio)
+        self.update_display()
+
+    def set_max_master_windows(self, count):
+        """Set maximum number of windows in master area"""
+        self.tiler.set_max_master_windows(count)
+        self.update_display()
+
+    # Window control methods
+    def focus_next_window(self):
+        """Focus next window"""
+        self.tiler.focus_next_window()
+
+    def focus_previous_window(self):
+        """Focus previous window"""
+        self.tiler.focus_previous_window()
+
+    def swap_with_master(self):
+        """Swap current window with master"""
+        self.tiler.swap_with_master()
+
+    def toggle_auto_tile(self):
+        """Toggle auto-tiling"""
+        self.tiler.toggle_auto_tile()
+        self.update_display()
+
     def show_tiling_menu(self, position):
-        """Show context menu for tiling options"""
+        """Enhanced context menu for tiling options with restoration"""
         menu = QMenu(self)
         menu.setStyleSheet(f"""
             QMenu {{
@@ -2064,20 +2606,40 @@ class TilingControlWidget(QWidget):
                 color: {TokyoNight.BACKGROUND};
             }}
         """)
-        
+
         # Status info
         status_text = "ON" if self.tiler.is_active else "OFF"
         status_color = TokyoNight.GREEN if self.tiler.is_active else TokyoNight.RED
         status_action = QAction(f"Status: {status_text}", self)
-        status_action.setEnabled(False)  # Make it non-clickable
+        status_action.setEnabled(False)
         menu.addAction(status_action)
+
         menu.addSeparator()
-        
+
         # Toggle tiling
         toggle_action = QAction("⊞ Toggle Tiling", self)
         toggle_action.triggered.connect(self.toggle_tiling)
         menu.addAction(toggle_action)
+
+        # NEW: Restoration options (always available)
+        menu.addSeparator()
+        restore_menu = QMenu("💾 Window Restoration", self)
+        restore_menu.setStyleSheet(menu.styleSheet())
         
+        save_positions_action = QAction("📸 Save Current Positions", self)
+        save_positions_action.triggered.connect(self.save_current_positions)
+        restore_menu.addAction(save_positions_action)
+        
+        restore_action = QAction("🔄 Restore All Windows", self)
+        restore_action.triggered.connect(self.restore_all_windows)
+        restore_menu.addAction(restore_action)
+        
+        clear_positions_action = QAction("🗑️ Clear Saved Positions", self)
+        clear_positions_action.triggered.connect(self.clear_saved_positions)
+        restore_menu.addAction(clear_positions_action)
+        
+        menu.addMenu(restore_menu)
+
         if self.tiler.is_active:
             # Auto-tile toggle
             auto_action = QAction("🤖 Auto-tile", self)
@@ -2085,38 +2647,99 @@ class TilingControlWidget(QWidget):
             auto_action.setChecked(self.tiler.auto_tile)
             auto_action.triggered.connect(self.toggle_auto_tile)
             menu.addAction(auto_action)
+
+            # Gap control submenu
+            gap_menu = QMenu("📐 Gap Control", self)
+            gap_menu.setStyleSheet(menu.styleSheet())
             
+            # Inner gap control
+            inner_gap_menu = QMenu(f"🔲 Inner: {self.tiler.gap_size}px", self)
+            inner_gap_menu.setStyleSheet(menu.styleSheet())
+            for gap_size in [0, 5, 10, 15, 20]:
+                action = QAction(f"{gap_size}px", self)
+                action.triggered.connect(lambda checked, g=gap_size: self.set_gap_size(g))
+                inner_gap_menu.addAction(action)
+            gap_menu.addMenu(inner_gap_menu)
+            
+            # Outer gap control
+            outer_gap_menu = QMenu(f"📱 Outer: {self.tiler.outer_gap}px", self)
+            outer_gap_menu.setStyleSheet(menu.styleSheet())
+            for gap_size in [0, 5, 10, 15]:
+                action = QAction(f"{gap_size}px", self)
+                action.triggered.connect(lambda checked, g=gap_size: self.set_outer_gap(g))
+                outer_gap_menu.addAction(action)
+            gap_menu.addMenu(outer_gap_menu)
+            
+            # Smart gaps toggle
+            smart_gaps_action = QAction("🧠 Smart Gaps", self)
+            smart_gaps_action.setCheckable(True)
+            smart_gaps_action.setChecked(self.tiler.smart_gaps)
+            smart_gaps_action.triggered.connect(self.toggle_smart_gaps)
+            gap_menu.addAction(smart_gaps_action)
+            
+            menu.addMenu(gap_menu)
+
             # Layout options
             menu.addSeparator()
             layout_menu = QMenu("📐 Layout", self)
             layout_menu.setStyleSheet(menu.styleSheet())
-            
-            layouts = ["tall", "wide", "grid", "monocle", "floating"]
+            layouts = ["tall", "wide", "grid", "monocle", "spiral", "dwindle", "floating"]
             for layout in layouts:
                 action = QAction(layout.capitalize(), self)
                 action.setCheckable(True)
-                action.setChecked(self.tiler.layouts[self.tiler.current_layout] == layout)
+                action.setChecked(self.tiler.current_layout == layout)
                 action.triggered.connect(lambda checked, l=layout: self.set_layout(l))
                 layout_menu.addAction(action)
-            
             menu.addMenu(layout_menu)
-            
+
             # Cycle layout
             cycle_action = QAction("🔄 Cycle Layout", self)
             cycle_action.triggered.connect(self.cycle_layout)
             menu.addAction(cycle_action)
-            
-            # Set master
-            master_action = QAction("🎯 Set Master", self)
-            master_action.triggered.connect(self.set_master)
-            menu.addAction(master_action)
-        
-        menu.exec_(self.tiling_button.mapToGlobal(position))
 
-    def toggle_auto_tile(self):
-        """Toggle auto-tiling"""
-        self.tiler.toggle_auto_tile()
-        self.update_display()
+            # Window control submenu
+            window_menu = QMenu("🪟 Window Control", self)
+            window_menu.setStyleSheet(menu.styleSheet())
+            
+            focus_next_action = QAction("⏭️ Focus Next", self)
+            focus_next_action.triggered.connect(self.focus_next_window)
+            window_menu.addAction(focus_next_action)
+            
+            focus_prev_action = QAction("⏮️ Focus Previous", self)
+            focus_prev_action.triggered.connect(self.focus_previous_window)
+            window_menu.addAction(focus_prev_action)
+            
+            swap_master_action = QAction("🔄 Swap with Master", self)
+            swap_master_action.triggered.connect(self.swap_with_master)
+            window_menu.addAction(swap_master_action)
+            
+            menu.addMenu(window_menu)
+
+            # Master area control submenu
+            master_menu = QMenu("🎯 Master Area", self)
+            master_menu.setStyleSheet(menu.styleSheet())
+            
+            # Master ratio
+            ratio_menu = QMenu(f"📐 Ratio: {int(self.tiler.master_ratio * 100)}%", self)
+            ratio_menu.setStyleSheet(menu.styleSheet())
+            for ratio in [30, 40, 50, 60, 70, 80]:
+                action = QAction(f"{ratio}%", self)
+                action.triggered.connect(lambda checked, r=ratio/100: self.set_master_ratio(r))
+                ratio_menu.addAction(action)
+            master_menu.addMenu(ratio_menu)
+            
+            # Max master windows
+            max_master_menu = QMenu(f"🔢 Max Windows: {self.tiler.max_master_windows}", self)
+            max_master_menu.setStyleSheet(menu.styleSheet())
+            for count in [1, 2, 3]:
+                action = QAction(f"{count} window{'s' if count > 1 else ''}", self)
+                action.triggered.connect(lambda checked, c=count: self.set_max_master_windows(c))
+                max_master_menu.addAction(action)
+            master_menu.addMenu(max_master_menu)
+            
+            menu.addMenu(master_menu)
+
+        menu.exec_(self.tiling_button.mapToGlobal(position))
 
 class GlobalKeyHandler(QObject):
     """Global key handler for volume keys"""
@@ -2335,6 +2958,9 @@ class WirelessNetworkDialog(QDialog):
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setPlaceholderText("Enter network password")
+
+
+
         password_layout.addWidget(self.password_input)
         
         self.show_password_check = QCheckBox("Show password")
@@ -2458,35 +3084,78 @@ class WirelessNetworkDialog(QDialog):
 
     def update_connection_details(self):
         """Update connection details when selection changes"""
+        try:
+            current_item = self.network_list.currentItem()
+            if not current_item:
+                self.password_group.setVisible(False)
+                return
+            
+            network = current_item.data(Qt.UserRole)
+            if not network:
+                self.password_group.setVisible(False)
+                return
+
+            self.ssid_label.setText(network.get('ssid', '--'))
+            self.signal_label.setText(f"{network.get('signal', '--')}%")
+            self.security_label.setText(network.get('security', '--'))
+            
+            # Handle connection status
+            connected_value = network.get('connected', False)
+            if isinstance(connected_value, str):
+                connected = connected_value.lower() in ['true', 'yes', '1', 'connected', 'on']
+            else:
+                connected = bool(connected_value)
+            
+            status = "Connected" if connected else "Available"
+            self.status_label.setText(status)
+            
+            # Handle security status
+            security_value = network.get('security', '')
+            is_secured = bool(security_value and security_value != "Open" and security_value != "open")
+            
+            # Determine if password group should be visible
+            should_show = bool(is_secured and not connected)
+            self.password_group.setVisible(should_show)
+            
+        except Exception as e:
+            print(f"Error in update_connection_details: {e}")
+            # On error, hide the password group
+            self.password_group.setVisible(False)
+
+    def connect_to_selected(self):
+        """Connect to the selected network with troubleshooting option"""
         current_item = self.network_list.currentItem()
         if not current_item:
+            QMessageBox.information(self, "No Selection", "Please select a network to connect to.")
             return
+        
         network = current_item.data(Qt.UserRole)
         if not network:
             return
-
-        self.ssid_label.setText(network.get('ssid', '--'))
-        self.signal_label.setText(f"{network.get('signal', '--')}%")
-        self.security_label.setText(network.get('security', '--'))
-        status = "Connected" if network.get('connected', False) else "Available"
-        self.status_label.setText(status)
         
-        # Show password input for secured networks
-        is_secured = network.get('security') and network.get('security') != "Open"
-        self.password_group.setVisible(is_secured and not network.get('connected', False))
-
-    def connect_to_selected(self):
-        """Connect to the selected network"""
-        current_item = self.network_list.currentItem()
-        if not current_item:
-            return
-        self.connect_to_network(current_item)
+        # Show troubleshooting option for difficult connections
+        if network.get('security') and not network.get('connected'):
+            reply = QMessageBox.question(
+                self, "Connection Options",
+                f"Connect to '{network.get('ssid')}'?\n\nIf connection fails, you can:\n• Check troubleshooting guide\n• Try manual connection\n• Use system network manager",
+                QMessageBox.Yes | QMessageBox.Help | QMessageBox.Cancel,
+                QMessageBox.Yes
+            )
+            
+            if reply == QMessageBox.Yes:
+                self.connect_to_network(current_item)
+            elif reply == QMessageBox.Help:
+                self.show_connection_troubleshooting()
+                # Ask again after showing help
+                self.connect_to_network(current_item)
+        else:
+            self.connect_to_network(current_item)
 
 
 
 
     def connect_to_network(self, item):
-        """Connect to a wireless network - WITH PROPER SSID HANDLING"""
+        """Connect to a wireless network with proper SSID handling for special characters"""
         network = item.data(Qt.UserRole)
         if not network:
             return
@@ -2539,32 +3208,18 @@ class WirelessNetworkDialog(QDialog):
                 print(f"Creating new connection for: {ssid}")
                 self.status_label.setText("Creating connection...")
                 
-                # CLEAN the SSID for use in connection names
-                safe_ssid = self.clean_ssid_for_nm(ssid)
-                safe_name = f"hotspot_{safe_ssid}"
+                # METHOD 1: Use nmcli with proper escaping for SSID with special characters
+                # This handles SSIDs with spaces, quotes, and special characters
+                success = self.connect_with_nmcli_direct(ssid, password)
                 
-                print(f"Using safe SSID: '{safe_ssid}', safe name: '{safe_name}'")
-                
-                # METHOD 1: Use nmcli with proper quoting for SSID with spaces
-                # This method handles SSIDs with spaces and special characters properly
-                result = subprocess.run(
-                    f"nmcli dev wifi connect '{ssid}' password '{password}'",
-                    shell=True, capture_output=True, text=True, timeout=30
-                )
-                
-                if result.returncode == 0:
-                    print("✓ Connected via direct method")
+                if success:
+                    print("✓ Connected via direct nmcli method")
                     self.status_label.setText("Connected")
-                    
-                    # Now create a permanent profile for future use
-                    QTimer.singleShot(1000, lambda: self.create_permanent_profile(ssid, password))
                     QTimer.singleShot(2000, self.scan_networks)
                     return
                 else:
-                    print(f"Direct method failed: {result.stderr}")
-                    
-                    # METHOD 2: Create connection using file-based approach (more reliable)
-                    success = self.create_connection_file(ssid, password, safe_name)
+                    # METHOD 2: Create connection using file-based approach (most reliable)
+                    success = self.create_connection_file_advanced(ssid, password)
                     
                     if success:
                         print("✓ Connected via file-based method")
@@ -2572,27 +3227,31 @@ class WirelessNetworkDialog(QDialog):
                         QTimer.singleShot(2000, self.scan_networks)
                         return
                     else:
-                        error_msg = result.stderr.strip() if result.stderr else "All connection methods failed"
-                        self.status_label.setText(f"Error: {error_msg}")
-                        QMessageBox.warning(
-                            self, "Connection Failed", 
-                            f"Failed to connect to '{ssid}'.\nSSID may contain special characters."
-                        )
-                        return
+                        # METHOD 3: Try alternative connection method
+                        success = self.connect_with_wpa_supplicant(ssid, password)
+                        
+                        if success:
+                            print("✓ Connected via wpa_supplicant method")
+                            self.status_label.setText("Connected")
+                            QTimer.singleShot(2000, self.scan_networks)
+                            return
+                        else:
+                            self.status_label.setText("All connection methods failed")
+                            QMessageBox.warning(
+                                self, "Connection Failed", 
+                                f"Failed to connect to '{ssid}'.\n\nPossible issues:\n• Wrong password\n• Network not in range\n• Driver issues\n• Special characters in SSID\n\nTry connecting manually via NetworkManager."
+                            )
+                            return
             else:
-                # Open network
-                result = subprocess.run(
-                    f"nmcli dev wifi connect '{ssid}'",
-                    shell=True, capture_output=True, text=True, timeout=30
-                )
+                # Open network - use direct connection method
+                success = self.connect_open_network(ssid)
                 
-                if result.returncode == 0:
+                if success:
                     self.status_label.setText("Connected")
                     QTimer.singleShot(2000, self.scan_networks)
                 else:
-                    error_msg = result.stderr.strip() if result.stderr else "Connection failed"
-                    self.status_label.setText(f"Error: {error_msg}")
-                    QMessageBox.warning(self, "Connection Failed", f"Failed to connect to {ssid}")
+                    self.status_label.setText("Failed to connect to open network")
+                    QMessageBox.warning(self, "Connection Failed", f"Failed to connect to open network {ssid}")
             
         except subprocess.TimeoutExpired:
             self.status_label.setText("Error: Timeout")
@@ -2601,6 +3260,348 @@ class WirelessNetworkDialog(QDialog):
             print(f"Error connecting to network: {e}")
             self.status_label.setText(f"Error: {str(e)}")
             QMessageBox.warning(self, "Connection Error", f"Error: {str(e)}")
+
+    def connect_with_nmcli_direct(self, ssid, password):
+        """Connect using nmcli with proper SSID handling"""
+        try:
+            # Escape single quotes in SSID for shell command
+            escaped_ssid = ssid.replace("'", "'\\''")
+            
+            # Method 1: Direct connection with proper quoting
+            cmd = f"nmcli dev wifi connect '{escaped_ssid}' password '{password}'"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                return True
+            
+            # Method 2: Alternative approach - create temporary connection
+            temp_name = f"temp_{int(time.time())}"
+            cmd = f"nmcli connection add type wifi con-name '{temp_name}' ssid '{escaped_ssid}' wifi-sec.psk '{password}'"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                # Try to connect
+                connect_result = subprocess.run(
+                    f"nmcli connection up '{temp_name}'", 
+                    shell=True, capture_output=True, text=True, timeout=20
+                )
+                
+                if connect_result.returncode == 0:
+                    return True
+                else:
+                    # Clean up temporary connection
+                    subprocess.run(f"nmcli connection delete '{temp_name}'", 
+                                 shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            return False
+            
+        except Exception as e:
+            print(f"nmcli direct connection error: {e}")
+            return False
+
+    def create_connection_file_advanced(self, ssid, password):
+        """Create connection file with advanced error handling"""
+        try:
+            import uuid
+            import base64
+            
+            # Create a safe connection name
+            safe_name = self.create_safe_connection_name(ssid)
+            conn_dir = os.path.expanduser("~/.config/NetworkManager/system-connections/")
+            os.makedirs(conn_dir, mode=0o700, exist_ok=True)
+            
+            conn_file = os.path.join(conn_dir, f"{safe_name}.nmconnection")
+            
+            # Generate UUID for connection
+            connection_uuid = str(uuid.uuid4())
+            
+            # Create the connection file content with proper encoding
+            connection_content = f"""[connection]
+    id={safe_name}
+    uuid={connection_uuid}
+    type=wifi
+    interface-name=*
+
+    [wifi]
+    mode=infrastructure
+    ssid={self.encode_ssid(ssid)}
+
+    [wifi-security]
+    key-mgmt=wpa-psk
+    psk={password}
+
+    [ipv4]
+    method=auto
+
+    [ipv6]
+    method=auto
+    """
+            # Write the connection file
+            with open(conn_file, 'w') as f:
+                f.write(connection_content)
+            
+            # Set secure permissions (NetworkManager requires this)
+            os.chmod(conn_file, 0o600)
+            
+            print(f"✓ Created connection file: {conn_file}")
+            
+            # Reload NetworkManager to recognize the new connection
+            subprocess.run("nmcli connection reload", shell=True, timeout=10)
+            
+            # Wait for NetworkManager to recognize the connection
+            time.sleep(3)
+            
+            # Try to connect using the new profile
+            result = subprocess.run(
+                f"nmcli connection up '{safe_name}'",
+                shell=True, capture_output=True, text=True, timeout=30
+            )
+            
+            if result.returncode == 0:
+                return True
+            else:
+                # If connection fails, delete the file and try another method
+                try:
+                    os.remove(conn_file)
+                except:
+                    pass
+                return False
+                
+        except Exception as e:
+            print(f"File-based connection error: {e}")
+            return False
+
+    def connect_with_wpa_supplicant(self, ssid, password):
+        """Alternative method using wpa_supplicant (fallback)"""
+        try:
+            # Create wpa_supplicant configuration
+            wpa_conf = f"""
+    network={{
+        ssid="{ssid}"
+        psk="{password}"
+    }}
+    """
+            # Write temporary configuration
+            temp_conf = "/tmp/wpa_supplicant_temp.conf"
+            with open(temp_conf, 'w') as f:
+                f.write(wpa_conf)
+            
+            # Get WiFi interface
+            interface_result = subprocess.run(
+                "iwconfig 2>/dev/null | grep 'IEEE 802.11' | awk '{print $1}' | head -1",
+                shell=True, capture_output=True, text=True
+            )
+            
+            if interface_result.returncode == 0 and interface_result.stdout.strip():
+                interface = interface_result.stdout.strip()
+                
+                # Stop any existing wpa_supplicant
+                subprocess.run("sudo pkill wpa_supplicant", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                time.sleep(2)
+                
+                # Start wpa_supplicant with new configuration
+                cmd = f"sudo wpa_supplicant -B -i {interface} -c {temp_conf}"
+                result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0:
+                    time.sleep(3)
+                    # Try to get DHCP address
+                    dhcp_result = subprocess.run(f"sudo dhclient {interface}", shell=True, timeout=15)
+                    return dhcp_result.returncode == 0
+            
+            return False
+            
+        except Exception as e:
+            print(f"wpa_supplicant connection error: {e}")
+            return False
+
+    def connect_open_network(self, ssid):
+        """Connect to open (unsecured) network"""
+        try:
+            escaped_ssid = ssid.replace("'", "'\\''")
+            
+            # Method 1: Direct connection
+            cmd = f"nmcli dev wifi connect '{escaped_ssid}'"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                return True
+            
+            # Method 2: Create connection profile
+            safe_name = self.create_safe_connection_name(ssid)
+            cmd = f"nmcli connection add type wifi con-name '{safe_name}' ssid '{escaped_ssid}'"
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                connect_result = subprocess.run(
+                    f"nmcli connection up '{safe_name}'",
+                    shell=True, capture_output=True, text=True, timeout=20
+                )
+                return connect_result.returncode == 0
+            
+            return False
+            
+        except Exception as e:
+            print(f"Open network connection error: {e}")
+            return False
+
+    def encode_ssid(self, ssid):
+        """Encode SSID for connection files - handles special characters"""
+        try:
+            # For connection files, we need to encode non-ASCII characters
+            if all(ord(c) < 128 for c in ssid):
+                return ssid
+            else:
+                # Encode as hex for non-ASCII characters
+                encoded = ""
+                for char in ssid:
+                    if ord(char) < 128:
+                        encoded += char
+                    else:
+                        encoded += f"\\x{ord(char):02x}"
+                return encoded
+        except:
+            return ssid
+
+    def create_safe_connection_name(self, ssid):
+        """Create a safe connection name from SSID"""
+        import re
+        # Remove or replace problematic characters
+        safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', ssid)
+        # Limit length and ensure it starts with letter/number
+        if safe_name and not safe_name[0].isalnum():
+            safe_name = 'wifi_' + safe_name
+        # Ensure reasonable length
+        safe_name = safe_name[:30]
+        
+        # Add timestamp to make it unique
+        import time
+        timestamp = str(int(time.time()))[-4:]
+        return f"{safe_name}_{timestamp}"
+
+    def get_existing_connection_name(self, ssid):
+        """Get existing connection name with better SSID matching"""
+        try:
+            # Get all WiFi connections
+            result = subprocess.run(
+                "nmcli -t -f NAME,UUID,TYPE connection show",
+                shell=True, capture_output=True, text=True, timeout=10
+            )
+            
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    parts = line.split(':')
+                    if len(parts) >= 2:
+                        conn_name = parts[0]
+                        
+                        # Skip non-wifi connections
+                        if len(parts) >= 3 and 'wifi' not in parts[2].lower():
+                            continue
+                        
+                        # Get the SSID for this connection with better error handling
+                        ssid_result = subprocess.run(
+                            f"nmcli -t -g 802-11-wireless.ssid connection show '{conn_name}' 2>/dev/null",
+                            shell=True, capture_output=True, text=True, timeout=5
+                        )
+                        
+                        if ssid_result.returncode == 0:
+                            connection_ssid = ssid_result.stdout.strip()
+                            # Compare SSIDs (handle special characters)
+                            if connection_ssid == ssid:
+                                print(f"Found exact SSID match: '{conn_name}' -> '{connection_ssid}'")
+                                return conn_name
+                        
+                        # Also check by connection name pattern
+                        if ssid.replace(' ', '_').lower() in conn_name.lower():
+                            print(f"Found connection by name pattern: '{conn_name}'")
+                            return conn_name
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error checking existing connections: {e}")
+            return None
+
+
+
+
+    def show_connection_troubleshooting(self):
+        """Show troubleshooting dialog for connection issues"""
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Connection Troubleshooting")
+        msg.setIcon(QMessageBox.Information)
+        msg.setText("""
+    <h3>WiFi Connection Troubleshooting</h3>
+
+    <strong>Common Issues & Solutions:</strong>
+
+    <strong>1. Special Characters in SSID:</strong>
+    • Try connecting manually via NetworkManager applet
+    • Use nmcli command: <code>nmcli dev wifi connect "SSID" password "password"</code>
+
+    <strong>2. Wrong Password:</strong>
+    • Double-check the password
+    • Try forgetting the network and reconnecting
+
+    <strong>3. Driver Issues:</strong>
+    • Check if WiFi adapter is detected: <code>iwconfig</code>
+    • Restart NetworkManager: <code>sudo systemctl restart NetworkManager</code>
+
+    <strong>4. Signal Strength:</strong>
+    • Move closer to the router
+    • Check for interference from other devices
+
+    <strong>5. NetworkManager Issues:</strong>
+    • Reset NetworkManager: <code>sudo systemctl restart NetworkManager</code>
+    • Check logs: <code>journalctl -u NetworkManager</code>
+
+    <strong>Manual Connection Command:</strong>
+    <code>nmcli dev wifi connect "Your SSID" password "YourPassword"</code>
+    """)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
+
+    def manual_connection_dialog(self, ssid):
+        """Show dialog for manual connection command"""
+        command = f'nmcli dev wifi connect "{ssid}" password "YOUR_PASSWORD"'
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Manual Connection")
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(f"""
+    <h3>Manual Connection for '{ssid}'</h3>
+
+    If automatic connection fails, you can try manually:
+
+    <strong>Terminal Command:</strong>
+    <code>{command}</code>
+
+    <strong>Steps:</strong>
+    1. Open terminal
+    2. Replace YOUR_PASSWORD with actual password
+    3. Run the command
+    4. Check connection with: <code>nmcli connection show --active</code>
+
+    <strong>Alternative GUI Method:</strong>
+    • Click the network icon in system tray
+    • Select your network
+    • Enter password when prompted
+    """)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def clean_ssid_for_nm(self, ssid):
         """Clean SSID for use in NetworkManager connection names"""
@@ -2819,6 +3820,260 @@ class WirelessNetworkDialog(QDialog):
                 self, "Disconnection Error",
                 f"An error occurred while disconnecting from WiFi.\nError: {str(e)}"
             )
+
+
+
+
+class EnhancedWirelessNetworkDialog(WirelessNetworkDialog):
+    """Enhanced wireless network dialog with real-time signal monitoring"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Enhanced Wireless Networks")
+        self.signal_monitor_timer = QTimer()
+        self.signal_monitor_timer.timeout.connect(self.update_signal_strengths)
+        self.signal_monitor_timer.start(5000)  # Update every 5 seconds
+        # Initial signal strength update
+        QTimer.singleShot(1000, self.update_signal_strengths)
+
+    def update_signal_strengths(self):
+        """Update signal strengths for all networks in real-time"""
+        try:
+            # Get current signal strengths using nmcli
+            result = subprocess.run(
+                "nmcli -t -f SSID,SIGNAL,SECURITY dev wifi list",
+                shell=True, capture_output=True, text=True, timeout=5
+            )
+            
+            if result.returncode == 0:
+                signal_data = {}
+                for line in result.stdout.splitlines():
+                    parts = line.split(':')
+                    if len(parts) >= 3:
+                        ssid = parts[0]
+                        signal = parts[1] if parts[1].isdigit() else "0"
+                        security = parts[2] if len(parts) > 2 else ""
+                        signal_data[ssid] = {
+                            'signal': int(signal),
+                            'security': security
+                        }
+                
+                # Update list items with signal strength
+                for i in range(self.network_list.count()):
+                    item = self.network_list.item(i)
+                    if item:
+                        network = item.data(Qt.UserRole)
+                        if network and 'ssid' in network:
+                            ssid = network['ssid']
+                            current_data = signal_data.get(ssid, {})
+                            current_signal = current_data.get('signal', network.get('signal', 0))
+                            
+                            # Update network data
+                            network['signal'] = current_signal
+                            if 'security' in current_data:
+                                network['security'] = current_data['security']
+                            item.setData(Qt.UserRole, network)
+                            
+                            # Update display text with signal bars
+                            signal_bars = self.get_signal_bars(current_signal)
+                            status_icon = "󰖩" if network.get('connected') else "󰖪"
+                            security_icon = "🔒" if network.get('security') and network.get('security') != "Open" else "🔓"
+                            
+                            # Truncate long SSIDs
+                            display_ssid = ssid[:20] + "..." if len(ssid) > 23 else ssid
+                            item_text = f"{status_icon} {display_ssid} {security_icon} {signal_bars} {current_signal}%"
+                            item.setText(item_text)
+                            
+                            # Color code based on signal strength and connection status
+                            if network.get('connected'):
+                                item.setForeground(QColor(TokyoNight.GREEN))
+                            else:
+                                if current_signal >= 75:
+                                    color = TokyoNight.GREEN
+                                elif current_signal >= 50:
+                                    color = TokyoNight.YELLOW
+                                elif current_signal >= 25:
+                                    color = TokyoNight.ORANGE
+                                else:
+                                    color = TokyoNight.RED
+                                item.setForeground(QColor(color))
+                
+                # Update details if current selection exists
+                self.update_connection_details()
+                
+        except Exception as e:
+            print(f"Signal strength update error: {e}")
+
+    def get_signal_bars(self, strength):
+        """Get visual signal bars for display"""
+        bars = "▁▂▃▄▅▆▇"
+        bar_count = max(1, min(len(bars), (strength * len(bars)) // 100))
+        
+        if strength >= 75:
+            color = TokyoNight.GREEN
+        elif strength >= 50:
+            color = TokyoNight.YELLOW
+        elif strength >= 25:
+            color = TokyoNight.ORANGE
+        else:
+            color = TokyoNight.RED
+            
+        return f"<font color='{color}'>{bars[:bar_count]}</font>"
+
+    def scan_networks(self):
+        """Enhanced network scan with better signal information"""
+        self.network_list.clear()
+        try:
+            # Get wireless networks with detailed information
+            result = subprocess.run(
+                "nmcli -t -f SSID,SIGNAL,SECURITY,BSSID dev wifi list",
+                shell=True, capture_output=True, text=True, timeout=10
+            )
+            
+            if result.returncode == 0:
+                networks = []
+                for line in result.stdout.splitlines():
+                    parts = line.split(':')
+                    if len(parts) >= 3:
+                        ssid = parts[0]
+                        signal = parts[1] if parts[1].isdigit() else "0"
+                        security = parts[2] if len(parts) > 2 else ""
+                        bssid = parts[3] if len(parts) > 3 else ""
+                        
+                        # Skip empty SSIDs
+                        if not ssid:
+                            continue
+                            
+                        networks.append({
+                            'ssid': ssid,
+                            'signal': int(signal),
+                            'security': security,
+                            'bssid': bssid,
+                            'connected': False
+                        })
+                
+                # Check which network is currently connected
+                try:
+                    current_result = subprocess.run(
+                        "nmcli -t -f NAME,DEVICE connection show --active | grep -E '(wlan|wifi)'",
+                        shell=True, capture_output=True, text=True, timeout=3
+                    )
+                    if current_result.returncode == 0:
+                        for line in current_result.stdout.splitlines():
+                            if ':' in line:
+                                conn_name = line.split(':')[0]
+                                # Get SSID for this connection
+                                ssid_result = subprocess.run(
+                                    f"nmcli -t -g 802-11-wireless.ssid connection show '{conn_name}'",
+                                    shell=True, capture_output=True, text=True, timeout=2
+                                )
+                                if ssid_result.returncode == 0:
+                                    current_ssid = ssid_result.stdout.strip()
+                                    for network in networks:
+                                        if network['ssid'] == current_ssid:
+                                            network['connected'] = True
+                except:
+                    pass
+                
+                # Sort networks by signal strength (descending) and connection status
+                networks.sort(key=lambda x: (not x['connected'], -x['signal']))
+                
+                # Add networks to the list
+                for network in networks:
+                    signal_bars = self.get_signal_bars(network['signal'])
+                    status_icon = "󰖩" if network['connected'] else "󰖪"
+                    security_icon = "🔒" if network['security'] and network['security'] != "Open" else "🔓"
+                    
+                    # Truncate long SSIDs
+                    display_ssid = network['ssid'][:20] + "..." if len(network['ssid']) > 23 else network['ssid']
+                    item_text = f"{status_icon} {display_ssid} {security_icon} {signal_bars} {network['signal']}%"
+                    
+                    item = QListWidgetItem(item_text)
+                    item.setData(Qt.UserRole, network)
+                    
+                    if network['connected']:
+                        item.setForeground(QColor(TokyoNight.GREEN))
+                    else:
+                        if network['signal'] >= 75:
+                            color = TokyoNight.GREEN
+                        elif network['signal'] >= 50:
+                            color = TokyoNight.YELLOW
+                        elif network['signal'] >= 25:
+                            color = TokyoNight.ORANGE
+                        else:
+                            color = TokyoNight.RED
+                        item.setForeground(QColor(color))
+                    
+                    self.network_list.addItem(item)
+            else:
+                # Fallback to simpler scan
+                super().scan_networks()
+        except Exception as e:
+            print(f"Enhanced network scan error: {e}")
+            # Fallback to parent method
+            super().scan_networks()
+        
+        # Start signal monitoring after scan
+        self.update_signal_strengths()
+
+    def update_connection_details(self):
+        """Update connection details with enhanced information"""
+        try:
+            current_item = self.network_list.currentItem()
+            if not current_item:
+                self.password_group.setVisible(False)
+                return
+            
+            network = current_item.data(Qt.UserRole)
+            if not network:
+                self.password_group.setVisible(False)
+                return
+
+            self.ssid_label.setText(network.get('ssid', '--'))
+            self.signal_label.setText(f"{network.get('signal', '--')}%")
+            self.security_label.setText(network.get('security', '--'))
+            
+            # Enhanced signal quality description
+            signal_strength = network.get('signal', 0)
+            if signal_strength >= 75:
+                quality = "Excellent"
+                color = TokyoNight.GREEN
+            elif signal_strength >= 50:
+                quality = "Good"
+                color = TokyoNight.YELLOW
+            elif signal_strength >= 25:
+                quality = "Fair"
+                color = TokyoNight.ORANGE
+            else:
+                quality = "Poor"
+                color = TokyoNight.RED
+            
+            self.signal_label.setText(f"<font color='{color}'>{signal_strength}% ({quality})</font>")
+            
+            # Handle connection status
+            connected = network.get('connected', False)
+            status = "Connected" if connected else "Available"
+            status_color = TokyoNight.GREEN if connected else TokyoNight.FOREGROUND
+            self.status_label.setText(f"<font color='{status_color}'>{status}</font>")
+            
+            # Handle security status
+            security_value = network.get('security', '')
+            is_secured = bool(security_value and security_value != "Open" and security_value != "open")
+            
+            # Determine if password group should be visible
+            should_show = bool(is_secured and not connected)
+            self.password_group.setVisible(should_show)
+            
+        except Exception as e:
+            print(f"Error in enhanced connection details: {e}")
+            self.password_group.setVisible(False)
+
+
+
+
+
+
+
 
 class NetworkManagerWidget(QWidget):
     """Widget for Network Manager control with wireless network dialog"""
@@ -3805,18 +5060,20 @@ class PanelConfig:
     show_weather: bool = True
     show_notifications: bool = True
     
-    # NEW: Network and Bluetooth controls
+    # Network and Bluetooth controls
     show_network_control: bool = True
     show_bluetooth_control: bool = True
     weather_location: str = ""
     
-    # NEW: Tiling control
+    # Tiling control
     show_tiling_control: bool = True
     
-    # Custom launchers
-    launcher_customizations: List[Application] = None
-    custom_launchers: list = None  # Add this line for panel context menu launchers
-    
+    # Auto-hide settings
+    auto_hide: bool = False
+    auto_hide_delay: int = 2000
+    show_on_edge: bool = True
+    edge_size: int = 5
+
     # Built-in launcher configurations
     terminal_command: str = "xfce4-terminal"
     file_manager_command: str = "thunar"
@@ -3829,13 +5086,7 @@ class PanelConfig:
     music_player_command: str = "vlc"
     music_player_args: str = ""
     
-    # Auto-hide settings
-    auto_hide: bool = False
-    auto_hide_delay: int = 2000
-    show_on_edge: bool = True
-    edge_size: int = 5
-
-    # NEW: Clock and date customization
+    # Clock and date customization
     clock_font_size: int = 11
     date_font_size: int = 8
     clock_color: str = TokyoNight.MOON_GLOW
@@ -3843,8 +5094,12 @@ class PanelConfig:
     clock_font_weight: str = "bold"
     date_font_weight: str = "normal"
     show_seconds: bool = False
-    date_format: str = "ddd MMM d"  # Mon Jan 1
-    time_format: str = "hh:mm AP"   # 12:00 PM
+    date_format: str = "ddd MMM d"
+    time_format: str = "hh:mm AP"
+
+    # Custom launchers
+    launcher_customizations: List[Application] = None
+    custom_launchers: list = None
 
     def __post_init__(self):
         """Initialize lists after creation"""
@@ -3852,6 +5107,8 @@ class PanelConfig:
             self.launcher_customizations = []
         if self.custom_launchers is None:
             self.custom_launchers = []
+
+
 
 class LauncherDialog(QDialog):
     """Dialog for adding/editing a launcher with system icon support and workspace targeting"""
@@ -4892,7 +6149,56 @@ class SettingsDialog(QDialog):
         
         self.accept()
 
+from PyQt5.QtWidgets import QPushButton
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtGui import QMouseEvent
+
+class CustomWindowButton(QPushButton):
+    """Custom button that handles both single and double clicks properly"""
+    single_clicked = pyqtSignal(str)  # window_id
+    double_clicked = pyqtSignal(str)  # window_id
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_window_button = False
+        self._window_id = None
+        self._click_count = 0
+        self._click_timer = QTimer()
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self._on_single_click_timeout)
+        
+    def setWindowId(self, window_id):
+        self._window_id = window_id
+        
+    def windowId(self):
+        return self._window_id
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self._click_count += 1
+            if self._click_timer.isActive():
+                # Second click detected within timeout - this is a double-click
+                self._click_timer.stop()
+                self._click_count = 0  # Reset
+                self.double_clicked.emit(self._window_id)
+            else:
+                # First click - start timer to wait for potential double-click
+                self._click_timer.start(400)  # 400ms timeout (adjust as needed)
+        else:
+            # Handle other mouse buttons normally
+            super().mousePressEvent(event)
+
+    def _on_single_click_timeout(self):
+        """Called when single click timer expires (no second click within timeout)"""
+        if self._click_count > 0:
+            self._click_count = 0  # Reset
+            self.single_clicked.emit(self._window_id)
+
 class TokyoNightPanelBar(QMainWindow):
+    # Define signals at the CLASS level, before __init__
+    window_single_clicked = pyqtSignal(str)
+    window_double_clicked = pyqtSignal(str)
+    
     def __init__(self, config: PanelConfig):
         super().__init__()
         self.config = config
@@ -4916,6 +6222,7 @@ class TokyoNightPanelBar(QMainWindow):
         self.edge_detection_timer.timeout.connect(self.check_mouse_position)
         self.edge_detection_timer.start(100)
         
+        # Initialize the rest of your setup
         self.setup_ui()
         self.load_applications()
         self.load_xfce_launchers()
@@ -4942,6 +6249,432 @@ class TokyoNightPanelBar(QMainWindow):
         # Start auto-hide if enabled
         if self.config.auto_hide:
             self.auto_hide_timer.start(self.config.auto_hide_delay)
+        
+        # Connect the custom signals (now that they're properly defined as class attributes)
+        self.window_single_clicked.connect(self.handle_single_click_from_button)
+        self.window_double_clicked.connect(self.handle_double_click_from_button)
+
+    def create_window_button(self, window_title, window_id):
+        """Create a window button with proper single/double click handling"""
+        btn = CustomWindowButton(window_title[:18])
+        btn.setFixedHeight(28)
+        btn.is_window_button = True
+        btn.setWindowId(window_id)
+        
+        # Connect the custom button signals to our handlers
+        btn.single_clicked.connect(self.window_single_clicked.emit)
+        btn.double_clicked.connect(self.window_double_clicked.emit)
+        
+        return btn
+
+    def handle_single_click_from_button(self, window_id):
+        """Handle single click from button - focus the window"""
+        print(f"🎯 SINGLE CLICK - Focusing window {window_id}")
+        self.focus_window_simple(window_id)
+
+    def handle_double_click_from_button(self, window_id):
+        """Handle double click from button - minimize the window"""
+        print(f"🪟 DOUBLE-CLICK - Minimizing window {window_id}")
+        self.minimize_window(window_id)
+
+    # Keep all your existing methods (focus_window_simple, minimize_window, etc.)
+    # ... (rest of your existing methods remain unchanged)
+
+    def handle_window_click(self, window_id):
+            """Handle window button clicks with simple double-click detection"""
+            print(f"🖱️ Click detected for window: {window_id}")
+            
+            # Check if this is the second click for the same window_id within the timeout
+            if self.pending_window_id == window_id and self.click_timer.isActive():
+                # Double click detected - cancel single click timer and minimize
+                self.click_timer.stop()
+                print(f"🪟 DOUBLE-CLICK - Minimizing window {window_id}")
+                self.minimize_window(window_id)
+                self.pending_window_id = None
+            else:
+                # First click - start timer for single click
+                self.pending_window_id = window_id
+                
+                # 💡 KEY CHANGE: Increased timeout to 400ms for more reliable double-click detection.
+                self.click_timer.start(400)
+
+    def handle_single_click(self):
+            """Handle single click after double-click timeout"""
+            if self.pending_window_id:
+                print(f"🎯 SINGLE CLICK - Focusing window {self.pending_window_id}")
+                # Focus/restore the window
+                self.focus_window_simple(self.pending_window_id)
+                
+                # Reset the pending ID after the single click action is complete
+                self.pending_window_id = None
+
+    def create_window_button(self, window_title, window_id):
+        """Create a window button with click handling"""
+        btn = QPushButton(window_title[:18])
+        btn.setFixedHeight(28)
+        btn.is_window_button = True
+        btn.setProperty("window_id", window_id)
+        
+        # Connect the click event
+        btn.clicked.connect(lambda: self.handle_window_click(window_id))
+        
+        return btn
+
+    def focus_window_simple(self, window_id):
+        """Simple focus window"""
+        try:
+            print(f"Focusing window: {window_id}")
+            # First try to unminimize if it's hidden
+            subprocess.run(f"wmctrl -i -r {window_id} -b remove,hidden", shell=True)
+            # Then focus it
+            subprocess.run(f"wmctrl -i -a {window_id}", shell=True)
+        except Exception as e:
+            print(f"Focus error: {e}")
+
+    def restore_window(self, window_id):
+        """Restore a minimized window"""
+        try:
+            subprocess.run(f"wmctrl -i -r {window_id} -b remove,hidden", shell=True)
+            subprocess.run(f"wmctrl -i -a {window_id}", shell=True)
+            print(f"✅ Window {window_id} restored and focused")
+        except Exception as e:
+            print(f"Restore error: {e}")
+
+    def minimize_window(self, window_id):
+        """Minimize a window by ID"""
+        try:
+            print(f"Minimizing window: {window_id}")
+            
+            # Try multiple methods to ensure it works
+            methods = [
+                f"wmctrl -i -r {window_id} -b add,hidden",
+                f"xdotool windowminimize {window_id}",
+                f"wmctrl -i -r {window_id} -b toggle,hidden"
+            ]
+            
+            for method in methods:
+                result = subprocess.run(method, shell=True, capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(f"✅ Window {window_id} minimized using: {method}")
+                    return
+            
+            print(f"❌ Could not minimize window {window_id}")
+                
+        except Exception as e:
+            print(f"Minimize error: {e}")
+
+    def update_taskbar(self, wmctrl_output):
+        """Update taskbar with current windows"""
+        # Get the *currently* active window ID right now using xdotool
+        active_window_id = None
+        try:
+            result = subprocess.run(
+                ["xdotool", "getactivewindow"],
+                capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0:
+                active_window_id = result.stdout.strip()
+        except Exception as e:
+            print(f"Error getting active window with xdotool: {e}")
+
+        print(f"DEBUG: Active window ID: {active_window_id}")
+
+        # Clear existing window buttons
+        for i in reversed(range(self.taskbar_layout.count())):
+            widget = self.taskbar_layout.itemAt(i).widget()
+            if widget and hasattr(widget, 'is_window_button'):
+                widget.deleteLater()
+
+        # Add new window buttons
+        windows = []
+        for line in wmctrl_output.splitlines():
+            parts = line.split(None, 3)
+            if len(parts) >= 4:
+                window_id, desktop, host, title = parts
+                if desktop != '-1':  # Skip sticky windows
+                    windows.append({'id': window_id, 'title': title})
+
+        # Add buttons for windows (limit to 6)
+        for window in windows[:6]:
+            btn = self.create_window_button(window['title'], window['id'])
+            
+            # Set appropriate style based on active window
+            if window['id'] == active_window_id:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 {TokyoNight.BLUE}, 
+                            stop:1 {TokyoNight.PURPLE});
+                        color: {TokyoNight.BACKGROUND};
+                        border: none;
+                        border-radius: 6px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 {TokyoNight.CYAN}, 
+                            stop:1 {TokyoNight.BLUE});
+                    }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 {TokyoNight.SELECTION}, 
+                            stop:1 {TokyoNight.NIGHT_BOTTOM});
+                        color: {TokyoNight.FOREGROUND};
+                        border: none;
+                        border-radius: 6px;
+                    }}
+                    QPushButton:hover {{
+                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                            stop:0 {TokyoNight.BLUE}40, 
+                            stop:1 {TokyoNight.PURPLE}40);
+                    }}
+                """)
+            
+            # Add context menu support
+            btn.setContextMenuPolicy(Qt.CustomContextMenu)
+            btn.customContextMenuRequested.connect(self.show_window_menu)
+            self.taskbar_layout.addWidget(btn)
+
+        # Update the taskbar widget size to ensure proper scrolling
+        self.taskbar_widget.adjustSize()
+
+    def show_window_menu_at_position(self, position, window_id):
+        """Show window context menu at specified position"""
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {TokyoNight.NIGHT_TOP}, 
+                    stop:0.7 {TokyoNight.NIGHT_BOTTOM},
+                    stop:1 {TokyoNight.NIGHT_HIGHLIGHT});
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.NEBULA};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                padding: 6px 16px;
+                border-radius: 4px;
+                font-family: "JetBrains Mono Nerd Font";
+            }}
+            QMenu::item:selected {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+            }}
+        """)
+        
+        # Window actions
+        actions = [
+            ("󰖩 Focus", self.focus_window_simple),
+            ("󰔁 Restore", self.restore_window),
+            ("󰖰 Maximize", self.maximize_window),
+            ("󰖯 Minimize", self.minimize_window),
+            ("󰖪 Close", self.close_window),
+            ("󰒓 Move", self.move_window),
+            ("󰍺 Always on Top", self.set_always_on_top),
+            ("󰂸 Unstick", self.unstick_window),
+            ("󰘚 Always Below", self.set_always_below),
+            ("󰂸 Pin to Workspace", self.pin_to_workspace),
+            ("󰂊 Move to Workspace", self.move_to_workspace),
+            ("󰔁 Send to Workspace", self.send_to_workspace)
+        ]
+        
+        for name, callback in actions:
+            action = QAction(name, self)
+            action.triggered.connect(lambda checked, func=callback: func(window_id))
+            menu.addAction(action)
+            
+        menu.exec_(position)
+
+    def focus_window(self, window_id):
+        """Focus a window by ID (for context menu calls)"""
+        self.focus_window_simple(window_id)
+
+    def maximize_window(self, window_id):
+        """Maximize a window by ID"""
+        try:
+            subprocess.run(f"wmctrl -i -r {window_id} -b add,maximized_vert,maximized_horz", shell=True)
+        except Exception as e:
+            print(f"Maximize error: {e}")
+
+    def close_window(self, window_id):
+        """Close a window by ID"""
+        try:
+            subprocess.run(f"wmctrl -i -c {window_id}", shell=True)
+        except Exception as e:
+            print(f"Close error: {e}")
+
+    def move_window(self, window_id):
+        """Move a window by ID"""
+        try:
+            subprocess.run(f"wmctrl -i -r {window_id} -b add,move", shell=True)
+        except Exception as e:
+            print(f"Move error: {e}")
+
+    def set_always_on_top(self, window_id):
+        """Set window to always on top"""
+        try:
+            subprocess.run(f"wmctrl -i -r {window_id} -b add,above", shell=True)
+        except Exception as e:
+            print(f"Always on top error: {e}")
+
+    def unstick_window(self, window_id):
+        """Unstick a window by ID"""
+        try:
+            subprocess.run(f"wmctrl -i -r {window_id} -b remove,sticky", shell=True)
+        except Exception as e:
+            print(f"Unstick error: {e}")
+
+    def set_always_below(self, window_id):
+        """Set window to always below"""
+        try:
+            subprocess.run(f"wmctrl -i -r {window_id} -b add,below", shell=True)
+        except Exception as e:
+            print(f"Always below error: {e}")
+
+    def pin_to_workspace(self, window_id):
+        """Pin window to current workspace"""
+        try:
+            current_workspace = self.current_workspace
+            subprocess.run(f"wmctrl -i -r {window_id} -b add,sticky", shell=True)
+        except Exception as e:
+            print(f"Pin to workspace error: {e}")
+
+    def move_to_workspace(self, window_id):
+        """Move window to a specific workspace"""
+        try:
+            # Get current workspace
+            current_workspace = self.current_workspace
+            # Show dialog to select workspace
+            workspace_id, ok = QInputDialog.getInt(
+                self, "Move to Workspace",
+                f"Enter workspace number (0-{current_workspace + 10}):",
+                current_workspace,
+                0, current_workspace + 10
+            )
+            if ok:
+                subprocess.run(f"wmctrl -i -r {window_id} -t {workspace_id}", shell=True)
+        except Exception as e:
+            print(f"Move to workspace error: {e}")
+
+    def send_to_workspace(self, window_id):
+        """Send window to a specific workspace"""
+        try:
+            # Get current workspace
+            current_workspace = self.current_workspace
+            # Show dialog to select workspace
+            workspace_id, ok = QInputDialog.getInt(
+                self, "Send to Workspace",
+                f"Enter workspace number (0-{current_workspace + 10}):",
+                current_workspace,
+                0, current_workspace + 10
+            )
+            if ok:
+                subprocess.run(f"wmctrl -i -r {window_id} -t {workspace_id}", shell=True)
+        except Exception as e:
+            print(f"Send to workspace error: {e}")
+
+    def show_window_menu(self, position):
+        """Show context menu for window button"""
+        btn = self.sender()
+        window_id = btn.property('window_id')
+        if window_id:
+            self.show_window_menu_at_position(btn.mapToGlobal(position), window_id)
+
+    def update_windows(self):
+        """Update window list"""
+        try:
+            result = subprocess.run("wmctrl -l", shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                self.update_taskbar(result.stdout)
+        except Exception as e:
+            print(f"Window update error: {e}")
+
+    def quick_signal_check(self):
+        """Quick command to check detailed signal information"""
+        try:
+            print("=== Network Signal Information ===")
+            
+            # WiFi information
+            wifi_result = subprocess.run(
+                "iwgetid --raw 2>/dev/null", 
+                shell=True, capture_output=True, text=True
+            )
+            
+            if wifi_result.returncode == 0 and wifi_result.stdout.strip():
+                ssid = wifi_result.stdout.strip()
+                print(f"Connected to: {ssid}")
+                
+                # Get detailed signal information
+                signal_result = subprocess.run(
+                    "iwconfig 2>/dev/null | grep -E 'ESSID|Signal level|Link Quality'",
+                    shell=True, capture_output=True, text=True
+                )
+                if signal_result.returncode == 0:
+                    print("Signal details:")
+                    print(signal_result.stdout)
+                
+                # Get network interface statistics
+                stats_result = subprocess.run(
+                    "cat /proc/net/wireless 2>/dev/null | tail -1",
+                    shell=True, capture_output=True, text=True
+                )
+                if stats_result.returncode == 0:
+                    print(f"Interface stats: {stats_result.stdout.strip()}")
+            else:
+                # Check Ethernet
+                ethernet_result = subprocess.run(
+                    "ip route show default 2>/dev/null | head -1",
+                    shell=True, capture_output=True, text=True
+                )
+                if ethernet_result.returncode == 0:
+                    print("Wired Ethernet connection detected")
+                    print(f"Route: {ethernet_result.stdout.strip()}")
+                else:
+                    print("No network connection detected")
+                    
+        except Exception as e:
+            print(f"Signal check error: {e}")
+
+
+# In TokyoNightPanelBar class, add these methods:
+
+    def setup_enhanced_network_widget(self, layout):
+        """Setup enhanced network widget in the panel"""
+        if self.config.show_network:
+            self.enhanced_network = EnhancedNetworkWidget(self)
+            self.enhanced_network.setMaximumWidth(200)
+            layout.addWidget(self.enhanced_network)
+
+    def replace_network_display(self):
+        """Replace old network display with enhanced version"""
+        # This method should be called during UI setup to replace the old network label
+        if hasattr(self, 'network_label'):
+            # Find and remove the old network label
+            for i in reversed(range(self.right_widget.layout().count())):
+                widget = self.right_widget.layout().itemAt(i).widget()
+                if widget == self.network_label:
+                    self.right_widget.layout().removeWidget(widget)
+                    widget.deleteLater()
+                    break
+        
+        # Add enhanced network widget
+        self.setup_enhanced_network_widget(self.right_widget.layout())
+
+
+
+
+
+
+
+
+
+
+
+    # ... include all your other existing methods (setup_ui, load_applications, etc.)
 
     def setup_ui(self):
         """Setup the main panel UI with enhanced dark night theme"""
@@ -5131,6 +6864,14 @@ class TokyoNightPanelBar(QMainWindow):
         if self.config.show_tiling_control:
             self.tiling_control = TilingControlWidget(self)
             right_layout.addWidget(self.tiling_control)
+        
+        # === ENHANCED NETWORK WIDGET - REPLACES OLD NETWORK LABEL ===
+        if self.config.show_network:
+            self.enhanced_network = EnhancedNetworkWidget(self)
+            self.enhanced_network.setMaximumWidth(200)  # Reasonable width limit
+            right_layout.addWidget(self.enhanced_network)
+        
+        # Battery display (keep this as it's separate from network)
         if self.config.show_battery:
             self.battery_label = QLabel("󰁹 0%")
             self.battery_label.setStyleSheet(f"""
@@ -5143,18 +6884,7 @@ class TokyoNightPanelBar(QMainWindow):
                 color: {TokyoNight.FOREGROUND};
             """)
             right_layout.addWidget(self.battery_label)
-        if self.config.show_network:
-            self.network_label = QLabel("󰖩 --")
-            self.network_label.setStyleSheet(f"""
-                padding: 4px 8px;
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {TokyoNight.SELECTION}, 
-                    stop:1 {TokyoNight.NIGHT_BOTTOM});
-                border-radius: 6px;
-                font-size: 9pt;
-                color: {TokyoNight.FOREGROUND};
-            """)
-            right_layout.addWidget(self.network_label)
+        
         # System tray area
         if self.config.show_tray:
             self.tray_widget = SystemTrayWidget(self)
@@ -5179,6 +6909,158 @@ class TokyoNightPanelBar(QMainWindow):
         layout.addWidget(self.right_widget, 0)  # Right section fixed width
         # Set initial geometry
         self.update_panel_geometry()
+
+
+
+
+    def show_quick_settings_menu(self, position):
+        """Show quick settings context menu for the settings button"""
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {TokyoNight.NIGHT_TOP}, 
+                    stop:0.7 {TokyoNight.NIGHT_BOTTOM},
+                    stop:1 {TokyoNight.NIGHT_HIGHLIGHT});
+                color: {TokyoNight.FOREGROUND};
+                border: 1px solid {TokyoNight.NEBULA};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                padding: 6px 16px;
+                border-radius: 4px;
+                font-family: "JetBrains Mono Nerd Font";
+            }}
+            QMenu::item:selected {{
+                background: {TokyoNight.BLUE};
+                color: {TokyoNight.BACKGROUND};
+            }}
+        """)
+        
+        # Position settings
+        position_menu = QMenu("󰖯 Position", self)
+        position_menu.setStyleSheet(menu.styleSheet())
+        
+        top_action = QAction("󰖝 Top", self)
+        top_action.setCheckable(True)
+        top_action.setChecked(self.config.position == "top")
+        top_action.triggered.connect(lambda: self.set_panel_position("top"))
+        position_menu.addAction(top_action)
+        
+        bottom_action = QAction("󰖔 Bottom", self)
+        bottom_action.setCheckable(True)
+        bottom_action.setChecked(self.config.position == "bottom")
+        bottom_action.triggered.connect(lambda: self.set_panel_position("bottom"))
+        position_menu.addAction(bottom_action)
+        
+        menu.addMenu(position_menu)
+        
+        # Auto-hide toggle
+        auto_hide_action = QAction("󰖯 Auto-Hide", self)
+        auto_hide_action.setCheckable(True)
+        auto_hide_action.setChecked(self.config.auto_hide)
+        auto_hide_action.triggered.connect(self.toggle_auto_hide)
+        menu.addAction(auto_hide_action)
+        
+        menu.addSeparator()
+        
+        # Quick opacity adjustment
+        opacity_menu = QMenu("󰗊 Opacity", self)
+        opacity_menu.setStyleSheet(menu.styleSheet())
+        
+        opacity_levels = [
+            ("100%", 1.0),
+            ("90%", 0.9),
+            ("80%", 0.8),
+            ("70%", 0.7),
+            ("60%", 0.6)
+        ]
+        
+        for name, value in opacity_levels:
+            action = QAction(name, self)
+            action.triggered.connect(lambda checked, v=value: self.set_panel_opacity(v))
+            opacity_menu.addAction(action)
+        
+        menu.addMenu(opacity_menu)
+        
+        # Height adjustment
+        height_action = QAction("󰖊 Adjust Height", self)
+        height_action.triggered.connect(self.show_height_dialog)
+        menu.addAction(height_action)
+        
+        menu.addSeparator()
+        
+        # Full settings
+        full_settings_action = QAction("󰒓 Full Settings", self)
+        full_settings_action.triggered.connect(self.show_settings)
+        menu.addAction(full_settings_action)
+        
+        menu.exec_(self.settings_button.mapToGlobal(position))
+
+    def set_panel_opacity(self, opacity):
+        """Set panel opacity quickly"""
+        self.config.opacity = opacity
+        self.setWindowOpacity(opacity)
+        # Save config
+        config_manager = ConfigManager()
+        config_manager.save_config(self.config)
+
+    def set_panel_position(self, position):
+        """Set panel position quickly"""
+        if position != self.config.position:
+            self.config.position = position
+            self.update_panel_geometry()
+            # Save config
+            config_manager = ConfigManager()
+            config_manager.save_config(self.config)
+
+
+
+
+
+
+
+
+    def setup_settings_button(self, layout):
+        """Setup panel settings button"""
+        self.settings_button = QToolButton()
+        self.settings_button.setText("󰒓")  # Settings icon
+        self.settings_button.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.settings_button.setFixedSize(32, 32)
+        self.settings_button.setStyleSheet(f"""
+            QToolButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {TokyoNight.SELECTION}, 
+                    stop:1 {TokyoNight.NIGHT_BOTTOM});
+                color: {TokyoNight.FOREGROUND};
+                border: none;
+                border-radius: 6px;
+                font-size: 12pt;
+            }}
+            QToolButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {TokyoNight.BLUE}40, 
+                    stop:1 {TokyoNight.PURPLE}40);
+            }}
+            QToolButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {TokyoNight.BLUE}60, 
+                    stop:1 {TokyoNight.PURPLE}60);
+            }}
+        """)
+        self.settings_button.setCursor(Qt.PointingHandCursor)
+        self.settings_button.setToolTip("Panel Settings\nClick to open panel configuration")
+        self.settings_button.clicked.connect(self.show_settings)
+        
+        # Add context menu for quick settings
+        self.settings_button.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.settings_button.customContextMenuRequested.connect(self.show_quick_settings_menu)
+        
+        layout.addWidget(self.settings_button)
+
+
+
 
 
 
@@ -5563,51 +7445,110 @@ class TokyoNightPanelBar(QMainWindow):
 
 
 
+# Inside the TokyoNightPanelBar class definition:
+
     def toggle_tiling(self):
-        """Toggle window tiling"""
+        """Toggle window tiling using the control widget."""
         if hasattr(self, 'tiling_control'):
+            # Delegate to the control widget which uses the adapter
             self.tiling_control.toggle_tiling()
 
     def set_tiling_layout(self, layout_name):
-        """Set specific tiling layout"""
+        """Set specific tiling layout using the control widget."""
         if hasattr(self, 'tiling_control'):
+            # Delegate to the control widget which uses the adapter
             self.tiling_control.set_layout(layout_name)
 
     def cycle_tiling_layout(self):
         """Cycle to next tiling layout"""
-        if hasattr(self, 'tiling_control'):
-            self.tiling_control.cycle_layout()
+        # This needs to be implemented within the adapter or control widget
+        # For now, let's assume it cycles internally or add a method to the adapter
+        print("Cycling tiling layout is not directly implemented in the adapter example.")
+        # You might need to implement this logic in CortileAdapter if cortile supports it
+        # Example: self.tiling_control.cycle_layout() if added to TilingControlWidget
 
     def set_tiling_master(self):
         """Set currently focused window as master"""
-        if hasattr(self, 'tiling_control'):
-            self.tiling_control.set_master()
+        # This functionality might not be directly available in cortile
+        # or might require specific interaction. Placeholder.
+        print("Setting master window is not implemented in the CortileAdapter example.")
+        # Example: self.tiling_control.set_master() if added to TilingControlWidget
 
     def force_apply_tiling(self):
-        """Force apply tiling layout"""
+        """Force apply tiling layout using the control widget."""
         if hasattr(self, 'tiling_control'):
+            # Delegate to the control widget which uses the adapter
             self.tiling_control.force_apply_layout()
 
     def toggle_auto_tile(self):
-        """Toggle auto-tiling"""
+        """Toggle auto-tiling using the control widget."""
         if hasattr(self, 'tiling_control'):
-            self.tiling_control.tiler.toggle_auto_tile()
+            # Delegate to the control widget which uses the adapter
+            self.tiling_control.toggle_auto_tile()
+            # Update the display in the control widget
             self.tiling_control.update_display()
 
     def refresh_layout(self):
         """Refresh the current layout to fix alignment issues"""
-        if hasattr(self, 'tiling_control'):
-            self.tiling_control.refresh_layout()
+        # This might be a feature of cortile or a manual re-apply
+        self.force_apply_tiling()
 
     def correct_alignment(self):
         """Correct alignment for all windows"""
-        if hasattr(self, 'tiling_control'):
-            self.tiling_control.correct_alignment()
+        # This might be a feature of cortile or a manual re-apply
+        self.force_apply_tiling()
 
     def restart_tiler(self):
         """Restart the tiler"""
         if hasattr(self, 'tiling_control'):
-            self.tiling_control.restart_tiler()
+            print("🔄 Restarting window tiler")
+            # Don't try to set properties directly - use the toggle methods instead
+            if self.tiling_control.tiler.is_active:
+                self.tiling_control.tiler.toggle_tiling()  # Turn off
+                import time
+                time.sleep(0.5)
+                self.tiling_control.tiler.toggle_tiling()  # Turn back on
+            else:
+                self.tiling_control.tiler.toggle_tiling()  # Just turn on
+            
+            # Enable auto-tile
+            if not self.tiling_control.tiler.auto_tile:
+                self.tiling_control.tiler.toggle_auto_tile()
+            
+            self.tiling_control.force_apply_layout()
+
+    def cleanup(self):
+        """Clean up all resources before exit"""
+        print("🧹 Cleaning up panel resources...")
+        # Stop all timers
+        timers = [
+            'clock_timer', 'window_timer', 'volume_timer',
+            'weather_timer', 'notification_timer', 'auto_hide_timer',
+            'edge_detection_timer', 'health_timer', 'memory_check_timer',
+            'monitor_timer', 'animation'
+        ]
+        for timer_name in timers:
+            if hasattr(self, timer_name):
+                timer = getattr(self, timer_name)
+                if timer and hasattr(timer, 'stop'):
+                    timer.stop()
+                    print(f"⏹️  Stopped {timer_name}")
+        # Stop monitor thread
+        if hasattr(self, 'monitor_thread'):
+            print("🛑 Stopping monitor thread...")
+            self.monitor_thread.stop()
+            if not self.monitor_thread.wait(3000):  # Wait up to 3 seconds
+                print("⚠️  Monitor thread didn't stop gracefully, terminating...")
+                self.monitor_thread.terminate()
+                self.monitor_thread.wait(2000)
+        # Clean up taskbar
+        self.cleanup_taskbar()
+        # Clean up tiling control - ensure it calls the adapter's cleanup
+        if hasattr(self, 'tiling_control'):
+            self.tiling_control.cleanup() # This will call self.tiler.cleanup()
+        # Clean up launchers
+        self.cleanup_launchers()
+        print("✅ Panel cleanup completed")
 
 
 
@@ -6084,14 +8025,14 @@ class TokyoNightPanelBar(QMainWindow):
         elif not hasattr(self, 'custom_apps'):
             # Initialize with default launchers if none exist
             self.custom_apps = [
-                ("StormOS Launcher", "launch4", "StormOS Launcher"),
+                ("StormOS Launcher", "stormos-launcher", "󰀻"),
                 # Add more default launchers here if desired
             ]
         
         # Add custom launchers to menu
         if hasattr(self, 'custom_apps') and self.custom_apps:
             for name, command, icon in self.custom_apps:
-                action = QAction(name, self)
+                action = QAction(f"{icon} {name}", self)
                 action.triggered.connect(lambda checked, cmd=command: self.launch_application(cmd))
                 menu.addAction(action)
             

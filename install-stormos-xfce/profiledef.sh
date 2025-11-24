@@ -38,6 +38,6 @@ file_permissions=(
   ["/usr/local/bin/fm10"]="0:0:755"
   ["/usr/local/bin/term5"]="0:0:755"
   ["/usr/local/bin/launcher"]="0:0:755"
-  ["/usr/local/bin/hyper2"]="0:0:755"
+  ["/usr/local/bin/hyper8"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
 )
