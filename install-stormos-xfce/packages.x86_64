@@ -237,3 +237,5 @@ vulkan-radeon
 lib32-mesa
 vulkan-intel
 ffmpeg
+python-watchog
+python-paramiko 
