@@ -142,7 +142,7 @@ bluez
 blueman
 networkmanager
 network-manager-applet
-pamac-all
+#pamac
 xfce4
 xfce4-goodies
 firefox
@@ -158,7 +158,7 @@ unzip
 p7zip
 unrar
 engrampa
-yay-bin
+#yay-bin
 cups
 cups-pdf
 ghostscript
@@ -176,11 +176,11 @@ lightdm
 htop
 gvfs
 StormOS-conf
-stormos-grub-theme
+#stormos-grub-theme
 fzf
 gnome-disk-utility
-vivaldi
-vivaldi-ffmpeg-codecs
+
+
 xdg-user-dirs
 plymouth
 xorg
@@ -198,7 +198,7 @@ mintstick-git
 ffmpegthumbnailer
 system-config-printer
 pavucontrol
-zram-generator
+
 ttf-jetbrains-mono-nerd
 localsend
 brightnessctl
@@ -237,5 +237,9 @@ vulkan-radeon
 lib32-mesa
 vulkan-intel
 ffmpeg
-python-watchog
-python-paramiko 
+rustdesk-bin
+onlyoffice-bin
+ecoos/yay
+ecoos/browseros-bin
+flatpak
+pamac-all

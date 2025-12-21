@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS_Eco"
-iso_label="StormOS_Eco_Release"
+iso_name="StormOS_Oblivion"
+iso_label="StormOS_Oblivion_Release"
 iso_publisher="StormOS"
 iso_application="StormOS Install Media"
-iso_version="November-Point 2"
+iso_version="December-Point 2"
 install_dir="arch"
 buildmodes=('iso')
 bootmodes=('bios.syslinux'
