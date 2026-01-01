@@ -82,4 +82,20 @@ chown -R liveuser:liveuser /tmp
 
 plymouth-set-default-theme stormos
 
+# Create theme directory
+mkdir -p /usr/share/themes/grub/fonts
+
+# Copy StormOS theme
+cp -a /usr/share/grub/themes/stormos-grub-theme/theme.txt /usr/share/themes/grub/
+cp -a /usr/share/grub/themes/stormos-grub-theme/background.png /usr/share/themes/grub/
+cp -a /usr/share/grub/themes/stormos-grub-theme/fonts/* /usr/share/themes/grub/fonts/
+
+# Ensure proper permissions
+chown -R root:root /usr/share/themes/grub
+chmod -R 755 /usr/share/themes/grub
+
+# Apply theme to GRUB by default
+echo "set theme=/usr/share/themes/grub/theme.txt" > /etc/default/grub.d/stormos_theme.cfg
+
+
 ln -svf /usr/lib/libboost_python313.so.1.89.0 /usr/lib/libboost_python313.so.1.88.0
