@@ -86,7 +86,7 @@ plymouth-set-default-theme stormos
 mkdir -p /usr/share/themes/grub/fonts
 
 # Copy StormOS theme
-cp -a /usr/share/grub/themes/stormos-grub-theme /usr/share/themes/grub/
+cp -a /usr/share/grub/themes/stormos /usr/share/themes/grub/
 
 # Ensure proper permissions
 chown -R root:root /usr/share/themes/grub
