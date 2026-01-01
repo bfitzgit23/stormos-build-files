@@ -33,6 +33,6 @@ _msg "Committing to the local repository."
 git commit -m "$input"
 
 _msg "Pushing local files to Github."
-git push -u origin main
+git push -u origin main -f
 
 _msg "Git push completed...all done!"
