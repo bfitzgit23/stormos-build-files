@@ -242,8 +242,6 @@ vulkan-radeon
 lib32-mesa
 vulkan-intel
 ffmpeg
-rustdesk-bin
-onlyoffice-bin
 yay
 chromium
 flatpak
