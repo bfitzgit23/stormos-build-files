@@ -42,6 +42,8 @@ gpm
 gptfdisk
 grml-zsh-config
 grub
+grub-bios
+grub-efi-x86_64
 hdparm
 hyperv
 intel-ucode
