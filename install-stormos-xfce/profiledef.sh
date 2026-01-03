@@ -8,8 +8,8 @@ iso_application="StormOS Install Media"
 iso_version="January-Point 1"
 install_dir="arch"
 buildmodes=('iso')
-bootmodes=('bios.syslinux'
-           'uefi.systemd-boot')
+bootmodes=('bios.grub'
+           'uefi.grub')
 arch="x86_64"
 pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
