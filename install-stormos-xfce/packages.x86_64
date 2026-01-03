@@ -244,8 +244,8 @@ vulkan-intel
 ffmpeg
 rustdesk-bin
 onlyoffice-bin
-ecoos/yay
-ecoos/browseros-bin
+yay
+chromium
 flatpak
 pamac-all
 xfce4-docklike-plugin
