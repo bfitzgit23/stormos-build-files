@@ -153,7 +153,7 @@ xfce4-goodies
 firefox
 wmctrl
 neovim
-calamares-app
+#calamares-app
 calamares-config-xfce
 pyqt5
 qt5ct
@@ -244,6 +244,8 @@ vulkan-intel
 ffmpeg
 yay
 chromium
+adw-gtk-theme-git
+tela-icon-theme
 flatpak
 pamac-all
 xfce4-docklike-plugin
