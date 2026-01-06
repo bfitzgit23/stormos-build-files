@@ -86,14 +86,14 @@ plymouth-set-default-theme stormos
 mkdir -p /usr/share/themes/grub/fonts
 
 # Copy StormOS theme
-cp -a /usr/share/grub/themes/stormos /usr/share/themes/grub/
+cp -r /usr/share/grub/themes/stormos /usr/share/themes/grub/
 
 # Ensure proper permissions
 chown -R root:root /usr/share/themes/grub
 chmod -R 755 /usr/share/themes/grub
 
 # Apply theme to GRUB by default
-echo "set theme=/usr/share/themes/grub/theme.txt" > /etc/default/grub
+echo "set theme=/usr/share/themes/grub/stormos/theme.txt" > /etc/default/grub
 
 
 ln -svf /usr/lib/libboost_python313.so.1.89.0 /usr/lib/libboost_python313.so.1.88.0
