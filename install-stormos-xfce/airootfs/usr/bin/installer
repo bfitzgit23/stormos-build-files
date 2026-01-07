@@ -4,25 +4,35 @@
 StormOS / Arch XFCE Easy Installer — PyQt5 (UEFI + BIOS) — No-Freeze Edition
 FULL SINGLE-FILE CODE (Midnight Theme + Accent Colors)
 
-Includes everything from the previous version:
+Includes:
 ✅ Multi-drive disk picker + refresh
 ✅ Install mode:
-   - ERASE DISK (auto partitioning) — destructive
-   - USE EXISTING PARTITIONS — pick root (+ EFI if UEFI), optional formatting
+- ERASE DISK (auto partitioning) — destructive
+- USE EXISTING PARTITIONS — pick root (+ EFI if UEFI), optional formatting
 ✅ Smart confirmation words:
-   - ERASE mode -> type ERASE
-   - Existing partitions + any formatting -> type FORMAT
-   - Existing partitions no formatting -> type INSTALL
+- ERASE mode -> type ERASE
+- Existing partitions + any formatting -> type FORMAT
+- Existing partitions no formatting -> type INSTALL
 ✅ 14" friendly (scroll pages)
 ✅ Wi-Fi status display
 ✅ Multilib enablement (live + target)
-✅ GitHub wallpaper download + correct placement into /usr/share/backgrounds/xfce/xfce-x.svg
-✅ StormOS wallpapers pack copy if present
+✅ Packages list from local /etc/stormos/packages.txt or GitHub fallback
+✅ Install extra .pkg.tar.zst packages from GitHub (your theme) (internet required)
 ✅ LightDM greeter background + theme/icon
 ✅ XFCE wallpaper + icon theme patch into /etc/skel
 ✅ yay best-effort
-"""
 
+WALLPAPER (UPDATED PER YOUR REQUEST):
+✅ NO wallpaper download
+✅ Directly copy the LIVE/HOST wallpaper into the installed system at:
+   DEST = /usr/share/backgrounds/xfce/xfce-x.<ext>
+✅ Configure XFCE + LightDM to use that installed path
+✅ First-boot systemd user service for reliability
+
+FIX (2026-01-06):
+✅ Confirm page bug fixed: all three checkboxes are now added to the layout (INSTALL unlock works)
+✅ Confirm label now explicitly shows the required word on the confirm page
+"""
 import os
 import re
 import sys
@@ -36,7 +46,6 @@ import urllib.error
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Callable
-
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QUrl
 from PyQt5.QtGui import QFont, QDesktopServices
 from PyQt5.QtWidgets import (
@@ -52,172 +61,162 @@ from PyQt5.QtWidgets import (
 MIDNIGHT_QSS = r"""
 /* ---------- Base ---------- */
 QWidget {
-  background: #0b1020;
-  color: #e7e9ff;
-  font-family: "Sans";
-  font-size: 11pt;
+    background: #0b1020;
+    color: #e7e9ff;
+    font-family: "Sans";
+    font-size: 11pt;
 }
 QMainWindow {
-  background: #0b1020;
+    background: #0b1020;
 }
 QToolTip {
-  background: #111a2e;
-  color: #e7e9ff;
-  border: 1px solid #2a3760;
-  padding: 6px;
-  border-radius: 8px;
+    background: #111a2e;
+    color: #e7e9ff;
+    border: 1px solid #2a3760;
+    padding: 6px;
+    border-radius: 8px;
 }
-
 /* ---------- Containers ---------- */
 QScrollArea, QStackedWidget {
-  background: #0b1020;
-  border: none;
+    background: #0b1020;
+    border: none;
 }
 QGroupBox {
-  background: #0f1730;
-  border: 1px solid #2a3760;
-  border-radius: 14px;
-  margin-top: 12px;
-  padding: 12px;
+    background: #0f1730;
+    border: 1px solid #2a3760;
+    border-radius: 14px;
+    margin-top: 12px;
+    padding: 12px;
 }
 QGroupBox::title {
-  subcontrol-origin: margin;
-  left: 12px;
-  padding: 0 8px;
-  color: #b8c2ff;
-  font-weight: 700;
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 8px;
+    color: #b8c2ff;
+    font-weight: 700;
 }
-
 /* ---------- Inputs ---------- */
 QLineEdit, QComboBox, QTextEdit, QPlainTextEdit {
-  background: #101a34;
-  border: 1px solid #2a3760;
-  border-radius: 12px;
-  padding: 8px 10px;
-  selection-background-color: #2b77ff;
-  selection-color: #ffffff;
+    background: #101a34;
+    border: 1px solid #2a3760;
+    border-radius: 12px;
+    padding: 8px 10px;
+    selection-background-color: #2b77ff;
+    selection-color: #ffffff;
 }
 QLineEdit:focus, QComboBox:focus, QTextEdit:focus, QPlainTextEdit:focus {
-  border: 1px solid #6aa9ff;
+    border: 1px solid #6aa9ff;
 }
 QComboBox::drop-down {
-  border: none;
-  width: 28px;
+    border: none;
+    width: 28px;
 }
 QComboBox::down-arrow {
-  image: none;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 8px solid #b8c2ff;
-  margin-right: 10px;
+    image: none;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #b8c2ff;
+    margin-right: 10px;
 }
-
 /* ---------- Checkboxes ---------- */
 QCheckBox {
-  spacing: 10px;
+    spacing: 10px;
 }
 QCheckBox::indicator {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 1px solid #2a3760;
-  background: #101a34;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1px solid #2a3760;
+    background: #101a34;
 }
 QCheckBox::indicator:checked {
-  background: #2b77ff;
-  border: 1px solid #6aa9ff;
+    background: #2b77ff;
+    border: 1px solid #6aa9ff;
 }
-
 /* ---------- Buttons ---------- */
 QPushButton {
-  background: #17224a;
-  border: 1px solid #2a3760;
-  border-radius: 12px;
-  padding: 10px 14px;
-  font-weight: 700;
+    background: #17224a;
+    border: 1px solid #2a3760;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-weight: 700;
 }
 QPushButton:hover {
-  background: #1b2a5e;
-  border: 1px solid #3b4c83;
+    background: #1b2a5e;
+    border: 1px solid #3b4c83;
 }
 QPushButton:pressed {
-  background: #132044;
+    background: #132044;
 }
 QPushButton:disabled {
-  background: #111829;
-  border: 1px solid #1a2340;
-  color: #7f87b8;
+    background: #111829;
+    border: 1px solid #1a2340;
+    color: #7f87b8;
 }
-
 /* ---------- Progress ---------- */
 QProgressBar {
-  background: #101a34;
-  border: 1px solid #2a3760;
-  border-radius: 12px;
-  text-align: center;
-  padding: 2px;
+    background: #101a34;
+    border: 1px solid #2a3760;
+    border-radius: 12px;
+    text-align: center;
+    padding: 2px;
 }
 QProgressBar::chunk {
-  background: #2b77ff;
-  border-radius: 10px;
+    background: #2b77ff;
+    border-radius: 10px;
 }
-
 /* ---------- Scrollbars ---------- */
 QScrollBar:vertical {
-  background: transparent;
-  width: 12px;
-  margin: 2px 2px 2px 2px;
+    background: transparent;
+    width: 12px;
+    margin: 2px 2px 2px 2px;
 }
 QScrollBar::handle:vertical {
-  background: #2a3760;
-  border-radius: 6px;
-  min-height: 22px;
+    background: #2a3760;
+    border-radius: 6px;
+    min-height: 22px;
 }
 QScrollBar::handle:vertical:hover {
-  background: #3b4c83;
+    background: #3b4c83;
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-  height: 0px;
+    height: 0px;
 }
 QScrollBar:horizontal {
-  background: transparent;
-  height: 12px;
-  margin: 2px 2px 2px 2px;
+    background: transparent;
+    height: 12px;
+    margin: 2px 2px 2px 2px;
 }
 QScrollBar::handle:horizontal {
-  background: #2a3760;
-  border-radius: 6px;
-  min-width: 22px;
+    background: #2a3760;
+    border-radius: 6px;
+    min-width: 22px;
 }
 QScrollBar::handle:horizontal:hover {
-  background: #3b4c83;
+    background: #3b4c83;
 }
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-  width: 0px;
+    width: 0px;
 }
 """
 
 # ============================================================
-# GitHub sources (your links)
+# GitHub sources (your links) - USED FOR PACKAGES + ZST THEMES
 # ============================================================
 GITHUB_PACKAGES_BLOB_URL = (
     "https://github.com/bfitzgit23/stormos-build-files/blob/main/install-stormos-xfce/packages.x86_64"
 )
-
 GITHUB_ZST_BLOB_URLS = [
     "https://github.com/bfitzgit23/stormos/blob/main/x86_64/adw-gtk-theme-git-5.7.r4.gf3ba1d7-1-any.pkg.tar.zst",
 ]
 
-GITHUB_WALLPAPER_SVG_BLOB_URL = (
-    "https://github.com/bfitzgit23/stormos-build-files/blob/main/install-stormos-xfce/airootfs/usr/share/backgrounds/xfce-x.svg"
-)
-
 # ============================================================
-# Defaults (Wallpaper + paths)
+# Defaults (Wallpaper destination path MUST match your request)
 # ============================================================
+# We will install host wallpaper to:
+#   /usr/share/backgrounds/xfce/xfce-x.<ext>
+# and then configure XFCE + LightDM to use that installed path.
 DEFAULT_WALLPAPER_DIR = "/usr/share/backgrounds/xfce"
-DEFAULT_WALLPAPER_PATH = f"{DEFAULT_WALLPAPER_DIR}/xfce-x.svg"
-COMPAT_WALLPAPER_SYMLINK = "/usr/share/backgrounds/xfce-x.svg"
 
 # ============================================================
 # Installer log file (always written)
@@ -365,10 +364,6 @@ def list_disks() -> List[Tuple[str, str, str]]:
 
 
 def list_partitions_for_disk(disk: str) -> List[Tuple[str, str, str, str, str, str]]:
-    """
-    Returns: (dev, size, fstype, mountpoint, partlabel, parttype)
-    Only TYPE=part under the selected disk.
-    """
     if not cmd_ok("lsblk"):
         return []
     cp = subprocess.run(
@@ -390,12 +385,10 @@ def list_partitions_for_disk(disk: str) -> List[Tuple[str, str, str, str, str, s
         mnt = parts[5] if len(parts) >= 6 else ""
         plabel = parts[6] if len(parts) >= 7 else ""
         ptype = parts[7] if len(parts) >= 8 else ""
-
         fstype = "" if fstype == "-" else fstype
         mnt = "" if mnt == "-" else mnt
         plabel = "" if plabel == "-" else plabel
         ptype = "" if ptype == "-" else ptype
-
         if typ != "part":
             continue
         if pkname != disk_base:
@@ -506,7 +499,7 @@ def wifi_status_line() -> str:
 
 
 # ============================================================
-# GitHub download helpers
+# GitHub download helpers (USED for packages list + zst themes)
 # ============================================================
 def github_blob_to_raw(url: str) -> str:
     u = (url or "").strip()
@@ -538,7 +531,6 @@ def _download_via_tool(url: str, dest: Optional[Path], want_text: bool) -> Optio
             if cp.returncode == 0 and dest.exists() and dest.stat().st_size > 0:
                 return None
             raise RuntimeError((cp.stdout or "curl download failed").strip())
-
     if cmd_ok("wget"):
         if want_text:
             cp = subprocess.run(["wget", "-qO-", "--user-agent", ua, url],
@@ -570,7 +562,7 @@ def download_text(url: str, log: Callable[[str], None], timeout: int = 45) -> st
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = resp.read()
-        return data.decode("utf-8", errors="ignore")
+            return data.decode("utf-8", errors="ignore")
     except urllib.error.URLError as e:
         raise RuntimeError(f"Failed to download text from {raw}: {e}") from e
 
@@ -603,12 +595,9 @@ def enable_repo_in_pacman_conf(conf_path: Path, repo_name: str, log) -> bool:
     txt = read_text(conf_path)
     if not txt.strip():
         raise RuntimeError(f"pacman.conf missing/empty: {conf_path}")
-
     changed = False
-
     header_re = re.compile(rf"(?m)^\s*#?\s*\[{re.escape(repo_name)}\]\s*$")
     m = header_re.search(txt)
-
     if not m:
         txt = txt.rstrip() + f"\n[{repo_name}]\nInclude = /etc/pacman.d/mirrorlist\n"
         changed = True
@@ -619,26 +608,23 @@ def enable_repo_in_pacman_conf(conf_path: Path, repo_name: str, log) -> bool:
         if txt2 != txt:
             txt = txt2
             changed = True
-
-        block_re = re.compile(rf"(?ms)^\s*\[{re.escape(repo_name)}\]\s*$.*?(?=^\s*\[|\Z)")
-        bm = block_re.search(txt)
-        if bm:
-            block = bm.group(0)
-            block2 = re.sub(r"(?m)^\s*#\s*(Include\s*=\s*/etc/pacman\.d/mirrorlist)\s*$",
-                            r"\1",
-                            block)
-            if block2 != block:
-                txt = txt[:bm.start()] + block2 + txt[bm.end():]
+    block_re = re.compile(rf"(?ms)^\s*\[{re.escape(repo_name)}\]\s*$.*?(?=^\s*\[|\Z)")
+    bm = block_re.search(txt)
+    if bm:
+        block = bm.group(0)
+        block2 = re.sub(r"(?m)^\s*#\s*(Include\s*=\s*/etc/pacman\.d/mirrorlist)\s*$",
+                        r"\1",
+                        block)
+        if block2 != block:
+            txt = txt[:bm.start()] + block2 + txt[bm.end():]
+            changed = True
+        bm2 = block_re.search(txt)
+        if bm2:
+            block_now = bm2.group(0)
+            if not re.search(r"(?m)^\s*Include\s*=\s*/etc/pacman.d/mirrorlist\s*$", block_now):
+                block_now2 = block_now.rstrip() + "\nInclude = /etc/pacman.d/mirrorlist\n"
+                txt = txt[:bm2.start()] + block_now2 + txt[bm2.end():]
                 changed = True
-
-            bm2 = block_re.search(txt)
-            if bm2:
-                block_now = bm2.group(0)
-                if not re.search(r"(?m)^\s*Include\s*=\s*/etc/pacman\.d/mirrorlist\s*$", block_now):
-                    block_now2 = block_now.rstrip() + "\nInclude = /etc/pacman.d/mirrorlist\n"
-                    txt = txt[:bm2.start()] + block_now2 + txt[bm2.end():]
-                    changed = True
-
     if changed:
         write_file(conf_path, txt if txt.endswith("\n") else (txt + "\n"))
         log(f"Enabled repo [{repo_name}] in {conf_path}")
@@ -709,7 +695,6 @@ def migrate_usr_local_bin(target_root: Path, log) -> None:
         return
     log(f"Migration: copying {src} -> {dst}")
     copy_tree_merge(src, dst, log)
-
     try:
         count = 0
         for p in dst.iterdir():
@@ -719,7 +704,7 @@ def migrate_usr_local_bin(target_root: Path, log) -> None:
                 new_mode = mode | 0o111
                 if new_mode != mode:
                     os.chmod(str(p), new_mode)
-                count += 1
+                    count += 1
         log(f"Migration: ensured executability on {count} files in {dst}")
     except Exception as e:
         log(f"!! Migration: chmod pass failed: {e}")
@@ -751,65 +736,194 @@ def copy_stormos_wallpapers_into_backgrounds(target_root: Path, log) -> None:
 
 
 # ============================================================
-# Wallpaper + Theme + Icon defaults
+# Host wallpaper -> installed system wallpaper (YOUR DEST PATH)
 # ============================================================
-def ensure_default_wallpaper_svg(target_root: Path, log) -> str:
+def get_live_wallpaper_path_best_effort(log) -> Optional[Path]:
+    """
+    Try to detect the currently active wallpaper on the LIVE system (XFCE),
+    otherwise fall back to common wallpaper locations.
+    """
+    if cmd_ok("xfconf-query"):
+        candidates = [
+            "/backdrop/screen0/monitor0/workspace0/last-image",
+            "/backdrop/screen0/monitor0/workspace0/image-path",
+            "/backdrop/screen0/monitor0/last-image",
+            "/backdrop/screen0/monitor0/image-path",
+        ]
+        for prop in candidates:
+            try:
+                cp = subprocess.run(
+                    ["xfconf-query", "-c", "xfce4-desktop", "-p", prop],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
+                )
+                val = (cp.stdout or "").strip()
+                if val and Path(val).exists():
+                    log(f"Wallpaper detect: xfconf {prop} -> {val}")
+                    return Path(val)
+            except Exception:
+                pass
+
+    fallbacks = [
+        Path("/usr/share/backgrounds/xfce/xfce-x.svg"),
+        Path("/usr/share/backgrounds/xfce/xfce-x.png"),
+        Path("/usr/share/backgrounds/xfce/xfce-x.jpg"),
+        Path("/usr/share/backgrounds/xfce-x.svg"),
+        Path("/usr/share/backgrounds/xfce-x.png"),
+        Path("/usr/share/backgrounds/xfce-x.jpg"),
+    ]
+    for p in fallbacks:
+        if p.exists() and p.is_file() and p.stat().st_size > 0:
+            log(f"Wallpaper detect: fallback -> {p}")
+            return p
+
+    log("Wallpaper detect: could not find a live wallpaper.")
+    return None
+
+
+def ensure_wallpaper_from_host(target_root: Path, log) -> str:
+    """
+    Copies the LIVE/HOST wallpaper into the installed system at:
+      DEST = /usr/share/backgrounds/xfce/xfce-x.<ext>
+
+    Returns the installed wallpaper path string (within the installed OS).
+    """
+    src = get_live_wallpaper_path_best_effort(log)
+
+    # final fallback (source only)
+    if not src:
+        src = Path("/usr/share/backgrounds/xfce/xfce-x.svg")
+
+    ext = src.suffix.lower()
+    if ext not in [".png", ".jpg", ".jpeg", ".svg", ".webp"]:
+        ext = ".png"
+
     dest_dir = target_root / "usr" / "share" / "backgrounds" / "xfce"
-    dest = dest_dir / "xfce-x.svg"
-    compat = target_root / "usr" / "share" / "backgrounds" / "xfce-x.svg"
+    ensure_dir(dest_dir)
+    dest = dest_dir / f"xfce-x{ext}"
 
-    if dest.exists() and dest.stat().st_size > 0:
-        log(f"Wallpaper: already present: {dest} ({dest.stat().st_size} bytes)")
-    else:
-        log("Wallpaper: installing default xfce-x.svg from GitHub…")
-        ensure_dir(dest.parent)
+    if src.exists() and src.is_file() and src.stat().st_size > 0:
         try:
-            if dest.exists():
-                dest.unlink()
-        except Exception:
-            pass
-        download_file(GITHUB_WALLPAPER_SVG_BLOB_URL, dest, log, timeout=240)
-        if not dest.exists() or dest.stat().st_size == 0:
-            raise RuntimeError("Wallpaper download failed: file missing or empty after download.")
+            shutil.copy2(str(src), str(dest))  # <-- THE COPY LINE
+            log(f"Wallpaper: copied host wallpaper {src} -> {dest}")
+        except Exception as e:
+            raise RuntimeError(f"Wallpaper copy failed: {src} -> {dest}: {e}")
+    else:
+        raise RuntimeError(f"Wallpaper source missing/invalid: {src}")
 
+    # Optional compat symlink at /usr/share/backgrounds/xfce-x.<ext>
+    compat = target_root / "usr" / "share" / "backgrounds" / f"xfce-x{ext}"
     try:
         if compat.exists() or compat.is_symlink():
             compat.unlink()
-        compat.symlink_to(Path("xfce") / "xfce-x.svg")
-        log(f"Wallpaper: created symlink {compat} -> {Path('xfce')/'xfce-x.svg'}")
+        compat.symlink_to(Path("xfce") / f"xfce-x{ext}")
+        log(f"Wallpaper: created symlink {compat} -> xfce/xfce-x{ext}")
     except Exception as e:
-        log(f"!! Wallpaper: symlink create failed (not fatal): {e}")
+        log(f"!! Wallpaper: compat symlink failed (non-fatal): {e}")
 
-    return str(dest)
+    return f"/usr/share/backgrounds/xfce/xfce-x{ext}"
+
+
+# ============================================================
+# XFCE wallpaper patch + firstboot fix
+# ============================================================
+def ensure_minimal_xfce_desktop_xml(xml_path: Path, log) -> None:
+    if xml_path.exists():
+        return
+    log("XFCE wallpaper: creating minimal xfce4-desktop.xml in skel")
+    ensure_dir(xml_path.parent)
+    minimal_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitor0" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="last-image" type="string" value=""/>
+          <property name="image-path" type="string" value=""/>
+          <property name="image-show" type="bool" value="true"/>
+        </property>
+        <property name="image-path" type="string" value=""/>
+        <property name="last-image" type="string" value=""/>
+      </property>
+    </property>
+  </property>
+</channel>
+'''
+    write_file(xml_path, minimal_xml)
 
 
 def patch_xfce_wallpaper_in_skel(target_root: Path, wallpaper_path: str, log) -> None:
     xml = target_root / "etc" / "skel" / ".config" / "xfce4" / "xfconf" / "xfce-perchannel-xml" / "xfce4-desktop.xml"
-    if not xml.exists():
-        log("XFCE wallpaper: skel xfce4-desktop.xml not found; skipping patch.")
-        return
+    ensure_minimal_xfce_desktop_xml(xml, log)
     txt = read_text(xml)
     if not txt:
         log("XFCE wallpaper: unable to read xfce4-desktop.xml; skipping.")
         return
 
     new = re.sub(
-        r'(<property\s+name="last-image"\s+type="string"\s+value=")([^"]*)(")',
+        r'(<property\s+name="(last-image|image-path)"\s+type="string"\s+value=")[^"]*(")',
         rf'\1{wallpaper_path}\3',
         txt
     )
-    new = re.sub(
-        r'(<property\s+name="image-path"\s+type="string"\s+value=")([^"]*)(")',
-        rf'\1{wallpaper_path}\3',
-        new
-    )
+
+    if new == txt:
+        if '<property name="workspace0"' in new:
+            insert = f'          <property name="last-image" type="string" value="{wallpaper_path}"/>\n'
+            insert += f'          <property name="image-path" type="string" value="{wallpaper_path}"/>\n'
+            new = re.sub(r'(\s*<property name="workspace0"[^>]*>\s*\n)', r'\1' + insert, new)
+        else:
+            insert = f'    <property name="last-image" type="string" value="{wallpaper_path}"/>\n'
+            insert += f'    <property name="image-path" type="string" value="{wallpaper_path}"/>\n'
+            new = re.sub(r'(\s*</property>\s*<!--.*?-->\s*)?\s*</channel>', insert + r'\n\g<0>', new, count=1)
+
     if new != txt:
         write_file(xml, new)
-        log(f"XFCE wallpaper: patched {xml} -> {wallpaper_path}")
+        log(f"XFCE wallpaper: patched {xml} → {wallpaper_path}")
     else:
-        log("XFCE wallpaper: no matching wallpaper properties found to patch (OK).")
+        log("XFCE wallpaper: no changes made (already correct?)")
 
 
+def install_firstboot_wallpaper_fix(target_root: Path, wallpaper_path: str, log) -> None:
+    service_dir = target_root / "etc" / "skel" / ".config" / "systemd" / "user"
+    ensure_dir(service_dir)
+
+    service_file = service_dir / "stormos-wallpaper-fix.service"
+    script_file = target_root / "etc" / "skel" / ".local" / "bin" / "stormos-apply-wallpaper.sh"
+    ensure_dir(script_file.parent)
+
+    script_content = f'''#!/bin/bash
+# Apply wallpaper reliably on first boot
+if command -v xfconf-query >/dev/null 2>&1; then
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/last-image -s "{wallpaper_path}" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/workspace0/image-path -s "{wallpaper_path}" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/last-image -s "{wallpaper_path}" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -s "{wallpaper_path}" 2>/dev/null || true
+fi
+# Clean up: disable itself after running
+systemctl --user disable stormos-wallpaper-fix.service 2>/dev/null || true
+rm -f ~/.config/systemd/user/stormos-wallpaper-fix.service
+'''
+    write_file(script_file, script_content)
+    script_file.chmod(0o755)
+
+    service_content = '''[Unit]
+Description=StormOS First-Boot Wallpaper Fix
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/stormos-apply-wallpaper.sh
+RemainAfterExit=no
+
+[Install]
+WantedBy=default.target
+'''
+    write_file(service_file, service_content)
+    log("XFCE wallpaper: installed first-boot fix (systemd user service)")
+
+
+# ============================================================
+# LightDM + Theme + Icon defaults
+# ============================================================
 def configure_lightdm_greeter(target_root: Path, background_path: Optional[str], log, theme_name: Optional[str], icon_theme: Optional[str]) -> None:
     conf = target_root / "etc" / "lightdm" / "lightdm-gtk-greeter.conf"
     ensure_dir(conf.parent)
@@ -913,23 +1027,20 @@ def patch_xfce_icon_theme_in_skel(target_root: Path, icon_theme: str, log) -> No
     if not txt.strip():
         log("XFCE icons: unable to read xsettings.xml; skipping.")
         return
-
     new = re.sub(
         r'(<property\s+name="IconThemeName"\s+type="string"\s+value=")([^"]*)(")',
         rf'\1{icon_theme}\3',
         txt
     )
-
     if new == txt:
         if 'name="IconThemeName"' not in txt:
             insert = f'  <property name="IconThemeName" type="string" value="{icon_theme}"/>\n'
             new2 = re.sub(r"(</channel>\s*)\Z", insert + r"\1", txt, flags=re.S)
             if new2 != txt:
                 new = new2
-
     if new != txt:
         write_file(xml, new)
-        log(f"XFCE icons: patched {xml} -> IconThemeName={icon_theme}")
+        log(f"XFCE icons: patched {xml} → IconThemeName={icon_theme}")
     else:
         log("XFCE icons: no change needed (OK).")
 
@@ -940,11 +1051,9 @@ def patch_xfce_icon_theme_in_skel(target_root: Path, icon_theme: str, log) -> No
 BOOT_AUTO = "Auto (recommended)"
 BOOT_UEFI = "UEFI"
 BOOT_BIOS = "BIOS / Legacy"
-
 FS_EXT4 = "ext4 (recommended)"
 FS_BTRFS = "btrfs (snapshots-ready)"
 FS_XFS = "xfs (fast, stable)"
-
 MODE_ERASE = "ERASE DISK (automatic partitioning) — DESTRUCTIVE"
 MODE_EXISTING = "USE EXISTING PARTITIONS (manual selection) — NO DISK WIPE"
 
@@ -988,7 +1097,6 @@ DEFAULT_PACKAGES = [
     "xfce4-power-manager",
     "lightdm", "lightdm-gtk-greeter",
 ]
-
 XFCE_PLUGIN_PACKAGES = [
     "xfce4-goodies",
     "xfce4-whiskermenu-plugin",
@@ -1009,15 +1117,12 @@ XFCE_PLUGIN_PACKAGES = [
     "thunar-volman",
     "ffmpegthumbnailer",
 ]
-
 ICON_PACKAGES = [
     "tela-circle-icon-theme-standard",
     "tela-circle-icon-theme-black",
     "tela-circle-icon-theme-grey",
 ]
-
 AUR_PREREQS = ["base-devel", "git"]
-
 PACKAGE_BLACKLIST = {
     "archiso", "mkarchiso", "calamares", "calamares-config", "calamares-config-xfce",
     "squashfs-tools", "zram-generator", "reflector", "clonezilla", "memtest86+",
@@ -1064,22 +1169,18 @@ def build_base_packages(mode: str, want_yay: bool, fs: str) -> List[str]:
     base = list(DEFAULT_PACKAGES)
     base += XFCE_PLUGIN_PACKAGES
     base += ICON_PACKAGES
-
     if fs == "btrfs":
         base += ["btrfs-progs"]
     elif fs == "xfs":
         base += ["xfsprogs"]
-
     if want_yay:
         base += AUR_PREREQS
-
     if micro:
         base.append(micro)
     if mode == "UEFI":
         base.append("efibootmgr")
     else:
         base.append("grub")
-
     return normalize_package_set(base)
 
 
@@ -1092,12 +1193,10 @@ def choose_package_list(
     log: Callable[[str], None]
 ) -> Tuple[List[str], str]:
     base = build_base_packages(mode, want_yay, fs)
-
     if use_local_packages_txt and LIVE_PKG_LIST.exists():
         custom = normalize_package_set(read_packages_txt(LIVE_PKG_LIST))
         combined = normalize_package_set(custom + base)
         return combined, f"Local list: {LIVE_PKG_LIST}"
-
     if use_github_packages_list:
         try:
             txt = download_text(GITHUB_PACKAGES_BLOB_URL, log, timeout=45)
@@ -1106,7 +1205,6 @@ def choose_package_list(
             return combined, f"GitHub list: {GITHUB_PACKAGES_BLOB_URL}"
         except Exception as e:
             log(f"!! GitHub packages list failed, falling back to base: {e}")
-
     return base, "Default safe package set (+XFCE plugin hardening + icons)"
 
 
@@ -1124,11 +1222,9 @@ def filter_available_repo_packages(pkgs: List[str], log, chunk: int = 60) -> Tup
     if not cmd_ok("pacman"):
         log("!! pacman not found on Live ISO; cannot pre-check packages.")
         return pkgs, []
-
     available: List[str] = []
     missing: List[str] = []
     to_check = [p for p in pkgs if p]
-
     for i in range(0, len(to_check), chunk):
         batch = to_check[i:i + chunk]
         cp = subprocess.run(
@@ -1141,7 +1237,6 @@ def filter_available_repo_packages(pkgs: List[str], log, chunk: int = 60) -> Tup
         if cp.returncode == 0:
             available.extend(batch)
             continue
-
         missing_in_batch = set(re.findall(r"error:\s+package\s+'([^']+)'\s+was\s+not\s+found", out))
         for p in batch:
             if p in missing_in_batch:
@@ -1201,7 +1296,6 @@ def enforce_makepkg_no_debug(target_root: Path, log) -> str:
     if not orig.strip():
         log("AUR: /etc/makepkg.conf missing/empty; skipping debug enforcement.")
         return orig
-
     new = orig
     m = re.search(r'(?m)^\s*OPTIONS=\(([^)]*)\)\s*$', new)
     if m:
@@ -1214,7 +1308,6 @@ def enforce_makepkg_no_debug(target_root: Path, log) -> str:
         new = re.sub(r'(?m)^\s*OPTIONS=\(([^)]*)\)\s*$', repl, new)
     else:
         new = new.rstrip() + "\nOPTIONS=(!debug)\n"
-
     if new != orig:
         write_file(p, new)
         log("AUR: enforced !debug in /etc/makepkg.conf to avoid long debug-symbol source copy.")
@@ -1231,19 +1324,14 @@ def restore_makepkg_conf(target_root: Path, original: str, log) -> None:
 def install_yay_best_effort(target_root: Path, log) -> None:
     log("AUR: attempting to install yay (best-effort)…")
     arch_chroot_soft(target_root, "install -d -m 1777 /tmp", log)
-
     rc = arch_chroot_soft(target_root, "pacman -S --noconfirm --needed base-devel git sudo", log)
     if rc != 0:
         log("!! AUR: failed to install base-devel/git/sudo. Skipping yay.")
         return
-
     arch_chroot_soft(target_root, "id -u aurbuilder >/dev/null 2>&1 || useradd -m -s /bin/bash aurbuilder", log)
-
     orig = enforce_makepkg_no_debug(target_root, log)
-
     try:
         arch_chroot_soft(target_root, "rm -rf /tmp/aur-yay", log)
-
         rc = arch_chroot_soft(
             target_root,
             "sudo -u aurbuilder bash -lc 'git clone --depth 1 https://aur.archlinux.org/yay.git /tmp/aur-yay'",
@@ -1252,7 +1340,6 @@ def install_yay_best_effort(target_root: Path, log) -> None:
         if rc != 0:
             log("!! AUR: git clone yay failed. Skipping yay.")
             return
-
         build_cmd = (
             "sudo -u aurbuilder bash -lc '"
             "set -e; "
@@ -1264,16 +1351,35 @@ def install_yay_best_effort(target_root: Path, log) -> None:
         if rc != 0:
             log("!! AUR: makepkg build failed. Skipping yay.")
             return
-
         install_cmd = "bash -lc 'set -e; ls -1 /tmp/aur-yay/yay-*.pkg.tar.* | head -n1 | xargs -r pacman -U --noconfirm'"
         rc = arch_chroot_soft(target_root, install_cmd, log)
         if rc != 0:
             log("!! AUR: pacman -U yay failed. Skipping yay.")
             return
-
         log("AUR: yay installed successfully.")
     finally:
+        # Restore makepkg.conf no matter what
         restore_makepkg_conf(target_root, orig, log)
+
+        # Remove AUR temp build dirs (best-effort)
+        arch_chroot_soft(target_root, "rm -rf /tmp/aur-yay /tmp/yay-bin /tmp/yay 2>/dev/null || true", log)
+
+        # Remove Calamares desktop launcher(s) from Desktop locations (best-effort)
+        arch_chroot_soft(target_root, "rm -f /etc/skel/Desktop/calamares.desktop 2>/dev/null || true", log)
+        arch_chroot_soft(target_root, "rm -f /root/Desktop/calamares.desktop 2>/dev/null || true", log)
+        arch_chroot_soft(
+            target_root,
+            r"find /home -maxdepth 3 -type f -name calamares.desktop -path '*/Desktop/*' -delete 2>/dev/null || true",
+            log
+        )
+
+        # Remove the temporary build user so it doesn't show up at login (best-effort)
+        arch_chroot_soft(target_root, "userdel -r aurbuilder 2>/dev/null || true", log)
+        arch_chroot_soft(target_root, "groupdel aurbuilder 2>/dev/null || true", log)
+
+        log("AUR cleanup: removed yay build dirs, calamares.desktop (Desktop), and 'aurbuilder'.")
+
+
 
 
 # ============================================================
@@ -1363,7 +1469,6 @@ class PreflightThread(QThread):
     def run(self) -> None:
         def L(s: str):
             self.log.emit(s)
-
         L("Checking environment…")
         time.sleep(0.05)
         root_ok = is_root()
@@ -1396,47 +1501,37 @@ class PreflightThread(QThread):
 @dataclass
 class InstallPlan:
     install_mode: str  # MODE_ERASE or MODE_EXISTING
-
     disk: str
     boot_mode_choice: str
     fs_choice: str
-
     # For MODE_EXISTING:
     root_part: str = ""
     esp_part: str = ""
     format_root: bool = True
     format_esp: bool = False
-
     hostname: str = "stormos"
     username: str = "user"
     password: str = ""
-
     timezone: str = "UTC"
     locale: str = "en_US"
     keymap: str = "us"
-
     set_root_password: bool = False
     root_password: str = ""
     mountpoint: str = "/mnt"
-
     # personalization toggles
     do_skel: bool = True
     do_copy_stormos_wallpapers: bool = True
     do_lightdm: bool = True
     do_patch_xfce_wall: bool = True
     do_migrate_usr_local_bin: bool = True
-
     # packages toggles
     use_local_packages_txt: bool = True
     use_github_packages_list: bool = True
     install_github_zst_packages: bool = True
-
     # lightdm failsafe
     enable_autologin: bool = False
-
     # theme default
     default_theme_preferred: str = "adw-gtk-dark"
-
     # yay best-effort
     install_yay: bool = True
 
@@ -1475,7 +1570,6 @@ class InstallThread(QThread):
             raise RuntimeError("Must run as root.")
         if p.boot_mode_choice == BOOT_UEFI and not is_uefi():
             raise RuntimeError("UEFI selected but the machine is booted in BIOS mode.")
-
         base_required = [
             "wipefs", "sfdisk", "mount", "umount",
             "pacstrap", "genfstab", "arch-chroot", "blkid", "partprobe", "udevadm", "pacman"
@@ -1503,21 +1597,16 @@ class InstallThread(QThread):
         L("")
         P(2)
 
-        # Step 0: multilib in live
         L("== Step 0/14: Enabling multilib on Live ISO ==")
         ensure_multilib_enabled_live(L)
         P(4)
 
-        # Step 1: prep /mnt
         L("== Step 1/14: Preparing mountpoint ==")
         safe_umount_recursive(p.mountpoint)
         ensure_dir(Path(p.mountpoint))
         P(6)
 
-        # Decide effective filesystem used for ROOT:
         fs_selected = effective_fs(p.fs_choice)
-
-        # If using existing and NOT formatting root, detect fstype from blkid:
         if p.install_mode == MODE_EXISTING and not p.format_root:
             detected = blkid_fstype(p.root_part)
             if not detected:
@@ -1526,7 +1615,6 @@ class InstallThread(QThread):
         else:
             fs_root = fs_selected
 
-        # Sanity: required tools for formatting chosen FS
         if p.install_mode == MODE_ERASE or (p.install_mode == MODE_EXISTING and p.format_root):
             if fs_root == "btrfs" and not cmd_ok("mkfs.btrfs"):
                 raise RuntimeError("Selected btrfs, but mkfs.btrfs is missing on the Live ISO.")
@@ -1535,13 +1623,9 @@ class InstallThread(QThread):
 
         target_root = Path(p.mountpoint)
 
-        # ============================================================
-        # STORAGE: ERASE DISK MODE
-        # ============================================================
         if p.install_mode == MODE_ERASE:
             L("== Step 2/14: Partitioning disk (ERASE MODE) ==")
             subprocess.run(["wipefs", "-a", p.disk], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-
             if mode == "UEFI":
                 L("$ sgdisk --zap-all DISK")
                 rc = run_stream(["sgdisk", "--zap-all", p.disk], L, timeout=60)
@@ -1561,51 +1645,42 @@ class InstallThread(QThread):
                 rc = run_stream(["sfdisk", p.disk], L, timeout=60, input_text=sfdisk_script)
                 if rc != 0:
                     raise RuntimeError(f"sfdisk failed (rc={rc})")
-
             subprocess.run(["partprobe", p.disk], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             subprocess.run(["udevadm", "settle"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             time.sleep(1.0)
-
             if mode == "UEFI":
                 esp = partition_path(p.disk, 1)
                 rootp = partition_path(p.disk, 2)
             else:
                 esp = ""
                 rootp = partition_path(p.disk, 1)
-
             if not Path(rootp).exists():
                 subprocess.run(["udevadm", "settle"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
                 time.sleep(1.0)
-            if not Path(rootp).exists():
-                raise RuntimeError(f"Partition device not found: {rootp}")
+                if not Path(rootp).exists():
+                    raise RuntimeError(f"Partition device not found: {rootp}")
             if mode == "UEFI" and (not esp or not Path(esp).exists()):
                 subprocess.run(["udevadm", "settle"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
                 time.sleep(1.0)
-            if mode == "UEFI" and (not esp or not Path(esp).exists()):
-                raise RuntimeError(f"EFI partition device not found: {esp}")
-
+                if mode == "UEFI" and (not esp or not Path(esp).exists()):
+                    raise RuntimeError(f"EFI partition device not found: {esp}")
             P(14)
 
-            # Step 3: format
             L("== Step 3/14: Formatting filesystems ==")
             if mode == "UEFI":
                 rc = run_stream(["mkfs.fat", "-F32", "-n", "EFI", esp], L, timeout=120)
                 if rc != 0:
                     raise RuntimeError(f"mkfs.fat failed (rc={rc})")
-
             if fs_root == "ext4":
                 rc = run_stream(["mkfs.ext4", "-F", "-L", "ROOT", rootp], L, timeout=300)
             elif fs_root == "btrfs":
                 rc = run_stream(["mkfs.btrfs", "-f", "-L", "ROOT", rootp], L, timeout=300)
             else:
                 rc = run_stream(["mkfs.xfs", "-f", "-L", "ROOT", rootp], L, timeout=300)
-
             if rc != 0:
                 raise RuntimeError(f"mkfs for {fs_root} failed (rc={rc})")
-
             P(24)
 
-            # Step 4: mount
             L("== Step 4/14: Mounting target ==")
             if fs_root == "btrfs":
                 rc = run_stream(["mount", rootp, p.mountpoint], L, timeout=60)
@@ -1614,7 +1689,6 @@ class InstallThread(QThread):
                 run_stream(["btrfs", "subvolume", "create", f"{p.mountpoint}/@"], L, timeout=60)
                 run_stream(["btrfs", "subvolume", "create", f"{p.mountpoint}/@home"], L, timeout=60)
                 run_stream(["umount", p.mountpoint], L, timeout=60)
-
                 ensure_dir(Path(p.mountpoint))
                 rc = run_stream(["mount", "-o", "subvol=@,compress=zstd:1", rootp, p.mountpoint], L, timeout=60)
                 if rc != 0:
@@ -1627,27 +1701,20 @@ class InstallThread(QThread):
                 rc = run_stream(["mount", rootp, p.mountpoint], L, timeout=60)
                 if rc != 0:
                     raise RuntimeError("mount root failed")
-
             ensure_dir(Path(p.mountpoint) / "boot")
             if mode == "UEFI":
                 rc = run_stream(["mount", esp, f"{p.mountpoint}/boot"], L, timeout=60)
                 if rc != 0:
                     raise RuntimeError("mount EFI failed")
-
             P(32)
 
-        # ============================================================
-        # STORAGE: USE EXISTING PARTITIONS MODE
-        # ============================================================
         else:
             L("== Step 2/14: Using existing partitions (NO disk wipe) ==")
-
             if not p.root_part or not Path(p.root_part).exists():
                 raise RuntimeError("Root partition not selected or does not exist.")
             if mode == "UEFI":
                 if not p.esp_part or not Path(p.esp_part).exists():
                     raise RuntimeError("UEFI install requires selecting an EFI partition (FAT32).")
-
             P(10)
 
             L("== Step 3/14: Optional formatting (existing partitions) ==")
@@ -1663,7 +1730,6 @@ class InstallThread(QThread):
                     raise RuntimeError(f"mkfs for {fs_root} failed (rc={rc})")
             else:
                 L("Keeping existing ROOT filesystem (no format).")
-
             if mode == "UEFI":
                 if p.format_esp:
                     L(f"Formatting EFI {p.esp_part} as FAT32…")
@@ -1672,11 +1738,9 @@ class InstallThread(QThread):
                         raise RuntimeError(f"mkfs.fat failed (rc={rc})")
                 else:
                     L("Keeping existing EFI filesystem (no format).")
-
             P(24)
 
             L("== Step 4/14: Mounting existing partitions ==")
-
             if fs_root == "btrfs" and p.format_root:
                 rc = run_stream(["mount", p.root_part, p.mountpoint], L, timeout=60)
                 if rc != 0:
@@ -1684,7 +1748,6 @@ class InstallThread(QThread):
                 run_stream(["btrfs", "subvolume", "create", f"{p.mountpoint}/@"], L, timeout=60)
                 run_stream(["btrfs", "subvolume", "create", f"{p.mountpoint}/@home"], L, timeout=60)
                 run_stream(["umount", p.mountpoint], L, timeout=60)
-
                 ensure_dir(Path(p.mountpoint))
                 rc = run_stream(["mount", "-o", "subvol=@,compress=zstd:1", p.root_part, p.mountpoint], L, timeout=60)
                 if rc != 0:
@@ -1697,18 +1760,13 @@ class InstallThread(QThread):
                 rc = run_stream(["mount", p.root_part, p.mountpoint], L, timeout=60)
                 if rc != 0:
                     raise RuntimeError("mount root failed")
-
             ensure_dir(Path(p.mountpoint) / "boot")
             if mode == "UEFI":
                 rc = run_stream(["mount", p.esp_part, f"{p.mountpoint}/boot"], L, timeout=60)
                 if rc != 0:
                     raise RuntimeError("mount EFI failed")
-
             P(32)
 
-        # ============================================================
-        # COMMON INSTALL STEPS FROM HERE
-        # ============================================================
         L("== Step 5/14: Installing packages (pacstrap) ==")
         pkgs, src_desc = choose_package_list(
             mode=mode,
@@ -1719,9 +1777,7 @@ class InstallThread(QThread):
             log=L
         )
         L(f"Package source: {src_desc}")
-
         pacman_sync_live(L)
-
         pkgs_ok, pkgs_missing = filter_available_repo_packages(pkgs, L)
         if pkgs_missing:
             L("")
@@ -1731,27 +1787,21 @@ class InstallThread(QThread):
             if len(pkgs_missing) > 250:
                 L(f"   ... and {len(pkgs_missing) - 250} more")
             L("")
-
         pkgs = pkgs_ok
         if not pkgs:
             raise RuntimeError("After filtering, package list is empty. Check your repos/internet.")
-
         L("Packages to pacstrap:")
         L("  " + " ".join(pkgs))
-
         rc = run_stream(["pacstrap", "-K", p.mountpoint, "--needed"] + pkgs, L, timeout=None)
         if rc != 0:
             raise RuntimeError(f"pacstrap failed (rc={rc}). Check internet/mirrors.")
-
         P(58)
 
-        # Enable multilib in target
         L("== Step 5.5/14: Enabling multilib in installed system ==")
         ensure_multilib_enabled_target(target_root, L)
         arch_chroot(target_root, "pacman -Syy --noconfirm", L)
         P(62)
 
-        # ZST extras
         L("== Step 6/14: Installing StormOS extra .pkg.tar.zst packages (your theme) ==")
         if p.install_github_zst_packages and GITHUB_ZST_BLOB_URLS:
             stash = target_root / "root" / "stormos-zst"
@@ -1769,19 +1819,16 @@ class InstallThread(QThread):
             L("Skipping extra .zst packages.")
         P(70)
 
-        # fstab
         L("== Step 7/14: Generating fstab ==")
         cp = subprocess.run(["genfstab", "-U", p.mountpoint],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         if cp.returncode != 0:
             raise RuntimeError("genfstab failed:\n" + (cp.stdout or ""))
-
         fstab_path = target_root / "etc" / "fstab"
         ensure_dir(fstab_path.parent)
         fstab_path.write_text((cp.stdout or ""), encoding="utf-8", errors="ignore")
         P(74)
 
-        # personalization
         L("== Step 8/14: Personalization (defaults) ==")
         if p.do_skel:
             apply_skel_preset(target_root, L)
@@ -1791,7 +1838,8 @@ class InstallThread(QThread):
         if p.do_migrate_usr_local_bin:
             migrate_usr_local_bin(target_root, L)
 
-        ensure_default_wallpaper_svg(target_root, L)
+        # --- WALLPAPER: COPY HOST -> INSTALLED at /usr/share/backgrounds/xfce/xfce-x.<ext>
+        installed_wallpaper_path = ensure_wallpaper_from_host(target_root, L)
 
         if p.do_copy_stormos_wallpapers:
             copy_stormos_wallpapers_into_backgrounds(target_root, L)
@@ -1803,25 +1851,22 @@ class InstallThread(QThread):
         patch_xfce_icon_theme_in_skel(target_root, icon_theme=icon_theme, log=L)
 
         if p.do_patch_xfce_wall:
-            patch_xfce_wallpaper_in_skel(target_root, DEFAULT_WALLPAPER_PATH, L)
+            patch_xfce_wallpaper_in_skel(target_root, installed_wallpaper_path, L)
+            install_firstboot_wallpaper_fix(target_root, installed_wallpaper_path, L)
 
         if p.do_lightdm:
-            configure_lightdm_greeter(target_root, DEFAULT_WALLPAPER_PATH, L, theme_name=theme_name, icon_theme=icon_theme)
-
+            configure_lightdm_greeter(target_root, installed_wallpaper_path, L, theme_name=theme_name, icon_theme=icon_theme)
         P(80)
 
-        # system config
         L("== Step 9/14: System configuration ==")
         hostname = sanitize_hostname(p.hostname)
         write_file(target_root / "etc" / "hostname", hostname + "\n")
-
         hosts = (
             "127.0.0.1\tlocalhost\n"
             "::1\t\tlocalhost\n"
             f"127.0.1.1\t{hostname}.localdomain\t{hostname}\n"
         )
         write_file(target_root / "etc" / "hosts", hosts)
-
         locale_gen = target_root / "etc" / "locale.gen"
         lg = read_text(locale_gen)
         if lg:
@@ -1829,37 +1874,28 @@ class InstallThread(QThread):
             lg2 = re.sub(rf"^#\s*({re.escape(loc)}\.UTF-8)\s*$", r"\1", lg, flags=re.M)
             lg2 = re.sub(rf"^#\s*({re.escape(loc)}\s+UTF-8)\s*$", r"\1", lg2, flags=re.M)
             write_file(locale_gen, lg2)
-
         write_file(target_root / "etc" / "locale.conf", f"LANG={p.locale}.UTF-8\n")
         write_file(target_root / "etc" / "vconsole.conf", f"KEYMAP={p.keymap}\n")
-
         arch_chroot(target_root, f"ln -sf /usr/share/zoneinfo/{shlex.quote(p.timezone)} /etc/localtime", L)
         arch_chroot(target_root, "hwclock --systohc", L)
         arch_chroot(target_root, "locale-gen", L)
-
         arch_chroot(target_root, "systemctl enable NetworkManager", L)
         arch_chroot(target_root, "systemctl enable lightdm", L)
         arch_chroot(target_root, r"sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers", L)
-
         P(86)
 
-        # create user
         L("== Step 10/14: Creating user ==")
         user = sanitize_username(p.username)
         arch_chroot(target_root, f"useradd -m -G wheel -s /bin/bash {shlex.quote(user)}", L)
-
         arch_chroot_input(target_root, "chpasswd", f"{user}:{p.password}\n", L)
         if p.set_root_password and p.root_password.strip():
             arch_chroot_input(target_root, "chpasswd", f"root:{p.root_password}\n", L)
         else:
             arch_chroot(target_root, "passwd -l root || true", L)
-
         if p.enable_autologin:
             enable_lightdm_autologin(target_root, user, L)
-
         P(90)
 
-        # yay
         L("== Step 10.5/14: AUR helper (yay) (best-effort) ==")
         if p.install_yay:
             try:
@@ -1868,18 +1904,13 @@ class InstallThread(QThread):
                 L(f"!! AUR: yay install failed (continuing): {e}")
         else:
             L("Skipping yay (disabled).")
-
         P(92)
 
-        # bootloader
         L("== Step 11/14: Installing bootloader ==")
         micro = detect_microcode_pkg()
-
         if mode == "UEFI":
             root_dev_for_partuuid = partition_path(p.disk, 2) if p.install_mode == MODE_ERASE else p.root_part
-
             arch_chroot(target_root, "bootctl --path=/boot install", L)
-
             loader_conf = (
                 "default arch\n"
                 "timeout 3\n"
@@ -1887,18 +1918,15 @@ class InstallThread(QThread):
                 "editor no\n"
             )
             write_file(target_root / "boot" / "loader" / "loader.conf", loader_conf)
-
             root_partuuid = blkid_partuuid(root_dev_for_partuuid)
             if not root_partuuid:
                 raise RuntimeError("Failed to read PARTUUID for root partition.")
-
             initrd_lines = ""
             if micro == "intel-ucode":
                 initrd_lines += "initrd  /intel-ucode.img\n"
             elif micro == "amd-ucode":
                 initrd_lines += "initrd  /amd-ucode.img\n"
             initrd_lines += "initrd  /initramfs-linux.img\n"
-
             entry = (
                 "title   Arch Linux (StormOS XFCE)\n"
                 "linux   /vmlinuz-linux\n"
@@ -1906,14 +1934,11 @@ class InstallThread(QThread):
                 f"options root=PARTUUID={root_partuuid} rw quiet loglevel=3\n"
             )
             write_file(target_root / "boot" / "loader" / "entries" / "arch.conf", entry)
-
         else:
             arch_chroot(target_root, f"grub-install --target=i386-pc --recheck {shlex.quote(p.disk)}", L)
             arch_chroot(target_root, "grub-mkconfig -o /boot/grub/grub.cfg", L)
-
         P(98)
 
-        # finish
         L("== Step 12/14: Finalizing ==")
         subprocess.run(["sync"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         P(100)
@@ -1928,17 +1953,14 @@ def make_scroll_page(content_widget: QWidget) -> QWidget:
     outer = QWidget()
     v = QVBoxLayout(outer)
     v.setContentsMargins(8, 8, 8, 8)
-
     scroll = QScrollArea()
     scroll.setWidgetResizable(True)
     scroll.setFrameShape(QScrollArea.NoFrame)
-
     inner = QWidget()
     inner_l = QVBoxLayout(inner)
     inner_l.setContentsMargins(6, 6, 6, 6)
     inner_l.addWidget(content_widget)
     inner_l.addStretch(1)
-
     scroll.setWidget(inner)
     v.addWidget(scroll, 1)
     return outer
@@ -1952,13 +1974,11 @@ class Wizard(QMainWindow):
         super().__init__()
         self.setWindowTitle("StormOS / Arch XFCE Easy Installer — Midnight Edition (UEFI + BIOS)")
         self.resize(980, 740)
-
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
         self.preflight: Optional[PreflightResult] = None
         self.preflight_thread: Optional[PreflightThread] = None
         self.install_thread: Optional[InstallThread] = None
-
         self.page_welcome = self._build_welcome()
         self.page_checks = self._build_checks()
         self.page_config = self._build_config()
@@ -1966,25 +1986,21 @@ class Wizard(QMainWindow):
         self.page_confirm = self._build_confirm()
         self.page_install = self._build_install()
         self.page_done = self._build_done()
-
         for pg in [self.page_welcome, self.page_checks, self.page_config, self.page_personalize,
                    self.page_confirm, self.page_install, self.page_done]:
             self.stack.addWidget(pg)
-
         QTimer.singleShot(0, self._go_welcome)
 
     def _title(self, text: str) -> QLabel:
         lab = QLabel(text)
         lab.setFont(QFont("Sans", 16, QFont.Bold))
         lab.setWordWrap(True)
-        # subtle glow-ish accent
         lab.setStyleSheet("QLabel { color: #dbe3ff; }")
         return lab
 
     def _danger_banner(self, text: str) -> QLabel:
         lab = QLabel(text)
         lab.setWordWrap(True)
-        # midnight-danger panel (red accent)
         lab.setStyleSheet(
             "QLabel { background: #2a0c17; color: #ffd7e1; border: 2px solid #ff3b6b; "
             "border-radius: 14px; padding: 12px; font-weight: 900; }"
@@ -2007,23 +2023,20 @@ class Wizard(QMainWindow):
         content = QWidget()
         lay = QVBoxLayout(content)
         lay.addWidget(self._title("StormOS / Arch XFCE Easy Installer"))
-
         warn = QTextEdit()
         warn.setReadOnly(True)
         warn.setPlainText(
-            "⚠️ WARNING — POTENTIALLY DESTRUCTIVE INSTALLER\n\n"
+            "⚠️ WARNING — POTENTIALLY DESTRUCTIVE INSTALLER\n"
             "You can choose:\n"
             "• ERASE DISK (auto partition + format)  — DESTROYS DATA\n"
-            "• USE EXISTING PARTITIONS (pick root/EFI) — no wipe\n\n"
+            "• USE EXISTING PARTITIONS (pick root/EFI) — no wipe\n"
             "Saved installer log:\n"
             f"  {LOG_FILE}\n"
         )
         warn.setMinimumHeight(220)
         lay.addWidget(warn, 1)
-
         self.lbl_env = self._accent_banner("")
         lay.addWidget(self.lbl_env)
-
         row = QHBoxLayout()
         row.addStretch(1)
         btn_next = QPushButton("Next →")
@@ -2037,7 +2050,6 @@ class Wizard(QMainWindow):
         btn_next.clicked.connect(self._go_checks)
         row.addWidget(btn_next)
         lay.addLayout(row)
-
         return make_scroll_page(content)
 
     # ----------------------------
@@ -2047,17 +2059,14 @@ class Wizard(QMainWindow):
         content = QWidget()
         lay = QVBoxLayout(content)
         lay.addWidget(self._title("Preflight Checks (no freezing)"))
-
         self.chk_log = QPlainTextEdit()
         self.chk_log.setReadOnly(True)
         self.chk_log.setMinimumHeight(280)
         lay.addWidget(self.chk_log, 1)
-
         row = QHBoxLayout()
         self.btn_checks_back = QPushButton("← Back")
         self.btn_checks_back.setMinimumHeight(40)
         self.btn_checks_back.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_welcome))
-
         self.btn_checks_next = QPushButton("Continue →")
         self.btn_checks_next.setMinimumHeight(40)
         self.btn_checks_next.setEnabled(False)
@@ -2067,12 +2076,10 @@ class Wizard(QMainWindow):
             "QPushButton:disabled { background: #111829; border: 1px solid #1a2340; color: #7f87b8; }"
         )
         self.btn_checks_next.clicked.connect(self._go_config)
-
         row.addWidget(self.btn_checks_back)
         row.addStretch(1)
         row.addWidget(self.btn_checks_next)
         lay.addLayout(row)
-
         return make_scroll_page(content)
 
     def _append_checks(self, s: str):
@@ -2097,7 +2104,6 @@ class Wizard(QMainWindow):
         self._append_checks(f"UEFI detected: {'YES' if res.uefi_detected else 'NO'}")
         self._append_checks(f"Internet: {'OK' if res.internet_ok else 'NOT detected'}")
         self._append_checks(res.wifi_line)
-
         if res.missing_base_tools:
             self._append_checks("")
             self._append_checks("Missing REQUIRED tools on the Live ISO:")
@@ -2107,22 +2113,18 @@ class Wizard(QMainWindow):
             self._append_checks("Fix the ISO contents, then try again.")
             self.btn_checks_next.setEnabled(False)
             return
-
         if not res.root_ok:
             self._append_checks("\nRun this installer with sudo/pkexec.")
             self.btn_checks_next.setEnabled(False)
             return
-
         if not res.disks:
             self._append_checks("\nNo disks found.")
             self.btn_checks_next.setEnabled(False)
             return
-
         self._append_checks("")
         self._append_checks(f"Disks found: {len(res.disks)}")
         for dev, size, model in res.disks:
             self._append_checks(f"  - {dev} {size} {model}".strip())
-
         self.btn_checks_next.setEnabled(True)
 
     # ----------------------------
@@ -2132,20 +2134,14 @@ class Wizard(QMainWindow):
         content = QWidget()
         lay = QVBoxLayout(content)
         lay.addWidget(self._title("Install Configuration"))
-
         box = QGroupBox("Basics")
         form = QFormLayout(box)
-
         self.cmb_install_mode = QComboBox()
         self.cmb_install_mode.addItems([MODE_ERASE, MODE_EXISTING])
-
         self.cmb_boot = QComboBox()
         self.cmb_boot.addItems([BOOT_AUTO, BOOT_UEFI, BOOT_BIOS])
-
         self.cmb_fs = QComboBox()
         self.cmb_fs.addItems([FS_EXT4, FS_BTRFS, FS_XFS])
-
-        # Disk selection + refresh
         disk_row = QHBoxLayout()
         self.cmb_disk = QComboBox()
         self.btn_refresh_disks = QPushButton("Refresh")
@@ -2153,30 +2149,21 @@ class Wizard(QMainWindow):
         self.btn_refresh_disks.clicked.connect(self._refresh_disks)
         disk_row.addWidget(self.cmb_disk, 1)
         disk_row.addWidget(self.btn_refresh_disks)
-
-        # Existing partitions (shown/hidden)
         self.cmb_root_part = QComboBox()
         self.cmb_esp_part = QComboBox()
-
         self.chk_format_root = QCheckBox("Format ROOT partition")
         self.chk_format_root.setChecked(True)
-
         self.chk_format_esp = QCheckBox("Format EFI partition (FAT32)")
         self.chk_format_esp.setChecked(False)
-
-        # user info
         self.ed_hostname = QLineEdit("stormos")
         self.ed_user = QLineEdit("seeker")
         self.ed_pass = QLineEdit("")
         self.ed_pass.setEchoMode(QLineEdit.Password)
-
         self.chk_root = QCheckBox("Set root password (optional)")
         self.ed_rootpass = QLineEdit("")
         self.ed_rootpass.setEchoMode(QLineEdit.Password)
         self.ed_rootpass.setEnabled(False)
         self.chk_root.stateChanged.connect(lambda st: self.ed_rootpass.setEnabled(st == Qt.Checked))
-
-        # Locale/timezone/keymap
         self.cmb_tz = QComboBox()
         self.cmb_tz.setEditable(True)
         tz_list = list_timezones_lite()
@@ -2188,12 +2175,10 @@ class Wizard(QMainWindow):
         tz_row = QHBoxLayout()
         tz_row.addWidget(self.cmb_tz, 1)
         tz_row.addWidget(btn_tz_detect)
-
         self.cmb_locale = QComboBox()
         self.cmb_locale.setEditable(True)
         self.cmb_locale.addItems(["en_US", "en_GB", "es_ES", "fr_FR", "de_DE", "it_IT", "pt_BR", "ru_RU", "pl_PL", "nl_NL"])
         self.cmb_locale.setCurrentText("en_US")
-
         self.cmb_keymap = QComboBox()
         self.cmb_keymap.setEditable(True)
         self.cmb_keymap.addItems(common_keymaps())
@@ -2204,43 +2189,33 @@ class Wizard(QMainWindow):
         km_row = QHBoxLayout()
         km_row.addWidget(self.cmb_keymap, 1)
         km_row.addWidget(btn_km_detect)
-
         form.addRow("Install mode:", self.cmb_install_mode)
         form.addRow("Boot mode:", self.cmb_boot)
         form.addRow("Filesystem (used when formatting ROOT):", self.cmb_fs)
         form.addRow("Target disk:", disk_row)
-
         form.addRow("ROOT partition (existing):", self.cmb_root_part)
         form.addRow("EFI partition (existing, UEFI only):", self.cmb_esp_part)
         form.addRow("", self.chk_format_root)
         form.addRow("", self.chk_format_esp)
-
         form.addRow("Hostname:", self.ed_hostname)
         form.addRow("Username:", self.ed_user)
         form.addRow("User password:", self.ed_pass)
-
         row_root = QHBoxLayout()
         row_root.addWidget(self.chk_root)
         row_root.addWidget(self.ed_rootpass, 1)
         form.addRow("Root:", row_root)
-
         form.addRow("Timezone:", tz_row)
         form.addRow("Locale (no .UTF-8):", self.cmb_locale)
         form.addRow("Keymap:", km_row)
-
         lay.addWidget(box)
-
         self.lbl_config_hint = QLabel("")
         self.lbl_config_hint.setWordWrap(True)
         self.lbl_config_hint.setStyleSheet("QLabel { color: #b8c2ff; }")
         lay.addWidget(self.lbl_config_hint)
-
-        # wiring: mode changes update visibility; disk changes update partition lists
         self.cmb_install_mode.currentIndexChanged.connect(self._update_mode_visibility)
         self.cmb_disk.currentIndexChanged.connect(self._refresh_partitions_for_selected_disk)
         self.cmb_boot.currentIndexChanged.connect(self._update_mode_visibility)
         self.chk_format_root.stateChanged.connect(self._update_fs_enabled)
-
         row = QHBoxLayout()
         btn_back = QPushButton("← Back")
         btn_back.setMinimumHeight(40)
@@ -2256,7 +2231,6 @@ class Wizard(QMainWindow):
         row.addStretch(1)
         row.addWidget(btn_next)
         lay.addLayout(row)
-
         return make_scroll_page(content)
 
     def _refresh_disks(self):
@@ -2284,17 +2258,13 @@ class Wizard(QMainWindow):
     def _update_mode_visibility(self):
         is_existing = (self.cmb_install_mode.currentText() == MODE_EXISTING)
         eff_mode = effective_boot_mode(self.cmb_boot.currentText())
-
         self.cmb_root_part.setVisible(is_existing)
         self.chk_format_root.setVisible(is_existing)
         self.cmb_esp_part.setVisible(is_existing and eff_mode == "UEFI")
         self.chk_format_esp.setVisible(is_existing and eff_mode == "UEFI")
-
         if not (is_existing and eff_mode == "UEFI"):
             self.cmb_esp_part.setCurrentIndex(-1)
-
         self._update_fs_enabled()
-
         if is_existing:
             self.lbl_config_hint.setText(
                 "Existing partitions mode:\n"
@@ -2350,22 +2320,18 @@ class Wizard(QMainWindow):
                 break
         if idx_root >= 0:
             self.cmb_root_part.setCurrentIndex(idx_root)
-
         if self.cmb_esp_part.count() > 0:
             self.cmb_esp_part.setCurrentIndex(0)
-
         self._update_mode_visibility()
 
     def _go_config(self):
         if not self.preflight:
             return
         self._refresh_disks()
-
         if self.preflight.uefi_detected:
             self.lbl_config_hint.setText("Tip: This machine booted in UEFI mode. Auto will install UEFI + systemd-boot.")
         else:
             self.lbl_config_hint.setText("Tip: This machine booted in BIOS/Legacy mode. Auto will install BIOS + GRUB.")
-
         self._update_mode_visibility()
         self.stack.setCurrentWidget(self.page_config)
 
@@ -2376,51 +2342,36 @@ class Wizard(QMainWindow):
         content = QWidget()
         lay = QVBoxLayout(content)
         lay.addWidget(self._title("Personalization + Packages"))
-
         box = QGroupBox("Carry these to the installed system")
         v = QVBoxLayout(box)
-
         self.chk_skel = QCheckBox("Copy my XFCE settings + appearance preset (/etc/skel)")
         self.chk_skel.setChecked(True)
-
         self.chk_copy_storm_walls = QCheckBox("Copy StormOS wallpapers pack into /usr/share/backgrounds/StormOS (if present)")
         self.chk_copy_storm_walls.setChecked(True)
-
-        self.chk_patch_wall = QCheckBox(f"Force default wallpaper in skel to {DEFAULT_WALLPAPER_PATH}")
+        self.chk_patch_wall = QCheckBox("Copy LIVE/HOST wallpaper into installed system at /usr/share/backgrounds/xfce/xfce-x.<ext> (recommended)")
         self.chk_patch_wall.setChecked(True)
-
         self.chk_lightdm = QCheckBox("Set LightDM login background + theme + icons (best-effort)")
         self.chk_lightdm.setChecked(True)
-
         self.chk_migrate_localbin = QCheckBox("Migrate LIVE /usr/local/bin -> installed system /usr/local/bin (and ensure executable)")
         self.chk_migrate_localbin.setChecked(True)
-
         v.addWidget(self.chk_skel)
         v.addWidget(self.chk_copy_storm_walls)
         v.addWidget(self.chk_patch_wall)
         v.addWidget(self.chk_lightdm)
         v.addWidget(self.chk_migrate_localbin)
-
         lay.addWidget(box)
-
         pkgbox = QGroupBox("Programs / Packages")
         pv = QVBoxLayout(pkgbox)
-
         self.chk_pkgs_local = QCheckBox("Use local /etc/stormos/packages.txt (if present)")
         self.chk_pkgs_local.setChecked(True)
-
         self.chk_pkgs_github = QCheckBox("Use GitHub packages.x86_64 if local list is missing (recommended)")
         self.chk_pkgs_github.setChecked(True)
-
-        self.chk_zst = QCheckBox("Install adw-gtk-theme-git .pkg.tar.zst from GitHub (required)")
+        self.chk_zst = QCheckBox("Install adw-gtk-theme-git .pkg.tar.zst from GitHub (internet required)")
         self.chk_zst.setChecked(True)
-
         self.chk_yay = QCheckBox("Install yay (AUR helper) (best-effort; if it fails install still completes)")
         self.chk_yay.setChecked(True)
-
         self.chk_autologin = QCheckBox("LightDM FAILSAFE: Enable autologin (bypass password prompt) — for testing")
         self.chk_autologin.setChecked(False)
-
         pv.addWidget(self.chk_pkgs_local)
         pv.addWidget(self.chk_pkgs_github)
         pv.addWidget(self.chk_zst)
@@ -2428,14 +2379,11 @@ class Wizard(QMainWindow):
         pv.addWidget(self.chk_yay)
         pv.addSpacing(8)
         pv.addWidget(self.chk_autologin)
-
         lay.addWidget(pkgbox)
-
         self.lbl_personalize_status = QLabel("")
         self.lbl_personalize_status.setWordWrap(True)
         self.lbl_personalize_status.setStyleSheet("QLabel { color: #b8c2ff; }")
         lay.addWidget(self.lbl_personalize_status)
-
         row = QHBoxLayout()
         btn_back = QPushButton("← Back")
         btn_back.setMinimumHeight(40)
@@ -2451,7 +2399,6 @@ class Wizard(QMainWindow):
         row.addStretch(1)
         row.addWidget(btn_next)
         lay.addLayout(row)
-
         return make_scroll_page(content)
 
     def _go_personalize(self):
@@ -2459,17 +2406,16 @@ class Wizard(QMainWindow):
         status.append(f"/etc/skel: {'FOUND' if LIVE_SKEL.exists() else 'NOT FOUND'}")
         status.append(f"Live pack /usr/share/backgrounds/StormOS: {'FOUND' if Path('/usr/share/backgrounds/StormOS').exists() else 'NOT FOUND'}")
         status.append(f"/etc/stormos/packages.txt: {'FOUND' if LIVE_PKG_LIST.exists() else 'NOT FOUND'}")
-        status.append("GitHub wallpaper + GitHub theme pkg: requires internet")
+        status.append("GitHub theme pkg (zst) requires internet")
+        status.append("Host wallpaper copy does NOT require internet")
         status.append("multilib: enabled in live+target")
         status.append(wifi_status_line())
         self.lbl_personalize_status.setText("Detected: " + " | ".join(status))
-
         if not LIVE_SKEL.exists():
             self.chk_skel.setChecked(False)
             self.chk_skel.setEnabled(False)
         else:
             self.chk_skel.setEnabled(True)
-
         self.stack.setCurrentWidget(self.page_personalize)
 
     # ----------------------------
@@ -2479,46 +2425,37 @@ class Wizard(QMainWindow):
         content = QWidget()
         lay = QVBoxLayout(content)
         lay.addWidget(self._title("Confirm (LAST CHANCE)"))
-
         self.banner = self._danger_banner("DANGER: Confirm your action.")
         lay.addWidget(self.banner)
-
         self.summary = QPlainTextEdit()
         self.summary.setReadOnly(True)
         self.summary.setMinimumHeight(220)
         lay.addWidget(self.summary, 1)
-
         self.chk_confirm_1 = QCheckBox("I understand the selected action may DESTROY data.")
         self.chk_confirm_2 = QCheckBox("I backed up everything important.")
         self.chk_confirm_3 = QCheckBox("I am selecting the correct disk/partitions and accept the consequences.")
         for c in (self.chk_confirm_1, self.chk_confirm_2, self.chk_confirm_3):
             c.setStyleSheet("QCheckBox { font-weight: 900; }")
             lay.addWidget(c)
-
         lay.addSpacing(8)
         self.lbl_type = QLabel("Type the required word to unlock INSTALL:")
         self.lbl_type.setStyleSheet("QLabel { color: #ffd7e1; font-weight: 800; }")
         lay.addWidget(self.lbl_type)
-
         self.ed_type = QLineEdit("")
         self.ed_type.setPlaceholderText("ERASE / FORMAT / INSTALL")
-        # big input with red accent ring
         self.ed_type.setStyleSheet(
             "QLineEdit { font-size: 20px; padding: 12px; background: #101a34; "
             "border: 2px solid #ff3b6b; border-radius: 14px; color: #ffffff; }"
             "QLineEdit:focus { border: 2px solid #ff6b9a; }"
         )
         lay.addWidget(self.ed_type)
-
         row = QHBoxLayout()
         btn_back = QPushButton("← Back")
         btn_back.setMinimumHeight(44)
         btn_back.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_personalize))
-
         self.btn_install = QPushButton("INSTALL")
         self.btn_install.setMinimumHeight(48)
         self.btn_install.setEnabled(False)
-        # extra-danger big button
         self.btn_install.setStyleSheet(
             "QPushButton { background: #c1121f; color: white; font-weight: 900; font-size: 16px; "
             "border: 1px solid #ff3b6b; border-radius: 14px; padding: 12px 16px; }"
@@ -2527,7 +2464,6 @@ class Wizard(QMainWindow):
             "QPushButton:disabled { background: #3a1017; border: 1px solid #4a1a22; color: #b58b93; }"
         )
         self.btn_install.clicked.connect(self._start_install)
-
         row.addWidget(btn_back)
         row.addStretch(1)
         row.addWidget(self.btn_install)
@@ -2547,7 +2483,6 @@ class Wizard(QMainWindow):
         self.chk_confirm_1.stateChanged.connect(self._validate_confirm)
         self.chk_confirm_2.stateChanged.connect(self._validate_confirm)
         self.chk_confirm_3.stateChanged.connect(self._validate_confirm)
-
         return make_scroll_page(content)
 
     def _required_confirm_word(self) -> str:
@@ -2571,17 +2506,14 @@ class Wizard(QMainWindow):
         disk = self.cmb_disk.currentData()
         if not disk:
             raise RuntimeError("No disk selected.")
-
         install_mode = self.cmb_install_mode.currentText()
         boot_choice = self.cmb_boot.currentText()
         fs_choice = self.cmb_fs.currentText()
         eff_boot = effective_boot_mode(boot_choice)
-
         root_part = ""
         esp_part = ""
         format_root = True
         format_esp = False
-
         if install_mode == MODE_EXISTING:
             root_part = self.cmb_root_part.currentData() or ""
             if not root_part:
@@ -2592,20 +2524,16 @@ class Wizard(QMainWindow):
                     raise RuntimeError("Existing partitions mode (UEFI): you must select an EFI partition.")
             format_root = self.chk_format_root.isChecked()
             format_esp = self.chk_format_esp.isChecked() if eff_boot == "UEFI" else False
-
         hostname = sanitize_hostname(self.ed_hostname.text())
         user = sanitize_username(self.ed_user.text())
         pw = self.ed_pass.text()
         if len(pw) < 4:
             raise RuntimeError("Password too short (minimum 4 characters).")
-
         tz = (self.cmb_tz.currentText() or "").strip() or "UTC"
         loc = (self.cmb_locale.currentText() or "").strip() or "en_US"
         keymap = (self.cmb_keymap.currentText() or "").strip() or "us"
-
         set_root = self.chk_root.isChecked()
         rootpw = self.ed_rootpass.text() if set_root else ""
-
         return InstallPlan(
             install_mode=install_mode,
             disk=disk,
@@ -2642,14 +2570,14 @@ class Wizard(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Invalid settings", str(e))
             return
-
         mode = effective_boot_mode(p.boot_mode_choice)
         required_word = self._required_confirm_word()
+        self.lbl_type.setText(f"Type the required word to unlock INSTALL:  {required_word}")
 
         if p.install_mode == MODE_ERASE:
             self.banner.setText(
                 "DANGER: This WILL ERASE the selected disk.\n"
-                "There is NO undo.\n\n"
+                "There is NO undo.\n"
                 "To enable INSTALL:\n"
                 "• Check all confirmations\n"
                 f"• Type {required_word}"
@@ -2659,7 +2587,7 @@ class Wizard(QMainWindow):
             if required_word == "FORMAT":
                 self.banner.setText(
                     "WARNING: You selected existing partitions, but formatting is ENABLED.\n"
-                    "Formatting DESTROYS data on the selected partition(s).\n\n"
+                    "Formatting DESTROYS data on the selected partition(s).\n"
                     "To enable INSTALL:\n"
                     "• Check all confirmations\n"
                     f"• Type {required_word}"
@@ -2668,13 +2596,12 @@ class Wizard(QMainWindow):
             else:
                 self.banner.setText(
                     "You selected existing partitions with NO formatting.\n"
-                    "The installer will mount and install the OS, but will not wipe/format.\n\n"
+                    "The installer will mount and install the OS, but will not wipe/format.\n"
                     "To enable INSTALL:\n"
                     "• Check all confirmations\n"
                     f"• Type {required_word}"
                 )
                 self.btn_install.setText("INSTALL (NO FORMAT)")
-
         fs = effective_fs(p.fs_choice)
         summary = []
         summary.append("INSTALL SUMMARY\n")
@@ -2701,40 +2628,30 @@ class Wizard(QMainWindow):
         summary.append(f"Wi-Fi status: {wifi_status_line()}")
         summary.append("")
         summary.append(f"Saved installer log: {LOG_FILE}")
-
         self.summary.setPlainText("\n".join(summary))
-
         self.chk_confirm_1.setChecked(False)
         self.chk_confirm_2.setChecked(False)
         self.chk_confirm_3.setChecked(False)
         self.ed_type.setText("")
         self.btn_install.setEnabled(False)
-
         self.stack.setCurrentWidget(self.page_confirm)
 
-    # ----------------------------
-    # Install page
-    # ----------------------------
     def _build_install(self) -> QWidget:
         content = QWidget()
         lay = QVBoxLayout(content)
         lay.addWidget(self._title("Installing…"))
-
         self.prog = QProgressBar()
         self.prog.setRange(0, 100)
         lay.addWidget(self.prog)
-
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         self.log.setMinimumHeight(300)
         lay.addWidget(self.log, 1)
-
         self.btn_close = QPushButton("Close")
         self.btn_close.setMinimumHeight(40)
         self.btn_close.setEnabled(False)
         self.btn_close.clicked.connect(self.close)
         lay.addWidget(self.btn_close)
-
         return make_scroll_page(content)
 
     def _append_log(self, s: str):
@@ -2746,12 +2663,11 @@ class Wizard(QMainWindow):
         install_mode = self.cmb_install_mode.currentText()
         required = self._required_confirm_word()
         if install_mode == MODE_ERASE:
-            msg = "This will ERASE the selected disk and install StormOS.\n\nDo you want to continue?"
+            msg = "This will ERASE the selected disk and install StormOS.\nDo you want to continue?"
         elif required == "FORMAT":
-            msg = "This will FORMAT selected partition(s) and install StormOS.\n\nDo you want to continue?"
+            msg = "This will FORMAT selected partition(s) and install StormOS.\nDo you want to continue?"
         else:
-            msg = "This will install StormOS onto the selected partitions WITHOUT formatting.\n\nDo you want to continue?"
-
+            msg = "This will install StormOS onto the selected partitions WITHOUT formatting.\nDo you want to continue?"
         r = QMessageBox.warning(
             self,
             "LAST CHANCE",
@@ -2761,18 +2677,15 @@ class Wizard(QMainWindow):
         )
         if r != QMessageBox.Yes:
             return
-
         try:
             plan = self._build_plan()
         except Exception as e:
             QMessageBox.critical(self, "Invalid settings", str(e))
             return
-
         self.stack.setCurrentWidget(self.page_install)
         self.prog.setValue(0)
         self.log.clear()
         self.btn_close.setEnabled(False)
-
         self.install_thread = InstallThread(plan)
         self.install_thread.log.connect(self._append_log)
         self.install_thread.progress.connect(self.prog.setValue)
@@ -2780,24 +2693,18 @@ class Wizard(QMainWindow):
         self.install_thread.fail.connect(self._install_fail)
         self.install_thread.start()
 
-    # ----------------------------
-    # Done page
-    # ----------------------------
     def _build_done(self) -> QWidget:
         content = QWidget()
         lay = QVBoxLayout(content)
         lay.addWidget(self._title("Done"))
-
         self.done_msg = QLabel("")
         self.done_msg.setWordWrap(True)
         self.done_msg.setStyleSheet("QLabel { color: #dbe3ff; }")
         lay.addWidget(self.done_msg)
-
         row = QHBoxLayout()
         btn_exit = QPushButton("Exit")
         btn_exit.setMinimumHeight(40)
         btn_exit.clicked.connect(self.close)
-
         btn_view_log = QPushButton("View Saved Log")
         btn_view_log.setMinimumHeight(40)
         btn_view_log.setStyleSheet(
@@ -2805,7 +2712,6 @@ class Wizard(QMainWindow):
             "QPushButton:hover { background: #3a86ff; }"
         )
         btn_view_log.clicked.connect(self._view_saved_log)
-
         btn_reboot = QPushButton("Reboot Now")
         btn_reboot.setMinimumHeight(40)
         btn_reboot.setStyleSheet(
@@ -2814,23 +2720,21 @@ class Wizard(QMainWindow):
             "QPushButton:pressed { background: #16a34a; }"
         )
         btn_reboot.clicked.connect(self._reboot)
-
         row.addWidget(btn_exit)
         row.addWidget(btn_view_log)
         row.addStretch(1)
         row.addWidget(btn_reboot)
         lay.addLayout(row)
-
         return make_scroll_page(content)
 
     def _install_ok(self):
         self.btn_close.setEnabled(True)
         self.done_msg.setText(
-            "Install finished successfully.\n\n"
+            "Install finished successfully.\n"
             "Next:\n"
             "1) Reboot\n"
             "2) Remove the ISO\n"
-            "3) Boot the installed system\n\n"
+            "3) Boot the installed system\n"
             f"Saved log:\n{LOG_FILE}\n"
         )
         self.stack.setCurrentWidget(self.page_done)
@@ -2840,7 +2744,7 @@ class Wizard(QMainWindow):
         self._append_log("\n!! INSTALL FAILED\n" + err)
         self.done_msg.setText(
             "Install failed.\n"
-            "Scroll the log for the error, or click “View Saved Log”.\n\n"
+            "Scroll the log for the error, or click “View Saved Log”.\n"
             f"Saved log:\n{LOG_FILE}\n"
         )
         self.stack.setCurrentWidget(self.page_done)
@@ -2867,9 +2771,6 @@ class Wizard(QMainWindow):
         except Exception:
             pass
 
-    # ----------------------------
-    # Welcome info
-    # ----------------------------
     def _go_welcome(self):
         env = []
         env.append(f"Root: {'YES' if is_root() else 'NO'}")
