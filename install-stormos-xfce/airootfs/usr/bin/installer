@@ -1365,11 +1365,11 @@ def install_yay_best_effort(target_root: Path, log) -> None:
         arch_chroot_soft(target_root, "rm -rf /tmp/aur-yay /tmp/yay-bin /tmp/yay 2>/dev/null || true", log)
 
         # Remove Calamares desktop launcher(s) from Desktop locations (best-effort)
-        arch_chroot_soft(target_root, "rm -f /etc/skel/Desktop/calamares.desktop 2>/dev/null || true", log)
-        arch_chroot_soft(target_root, "rm -f /root/Desktop/calamares.desktop 2>/dev/null || true", log)
+        arch_chroot_soft(target_root, "rm -f /etc/skel/Desktop/installer.desktop 2>/dev/null || true", log)
+        arch_chroot_soft(target_root, "rm -f /root/Desktop/installer.desktop 2>/dev/null || true", log)
         arch_chroot_soft(
             target_root,
-            r"find /home -maxdepth 3 -type f -name calamares.desktop -path '*/Desktop/*' -delete 2>/dev/null || true",
+            r"find /home -maxdepth 3 -type f -name installer.desktop -path '*/Desktop/*' -delete 2>/dev/null || true",
             log
         )
 
@@ -1377,7 +1377,7 @@ def install_yay_best_effort(target_root: Path, log) -> None:
         arch_chroot_soft(target_root, "userdel -r aurbuilder 2>/dev/null || true", log)
         arch_chroot_soft(target_root, "groupdel aurbuilder 2>/dev/null || true", log)
 
-        log("AUR cleanup: removed yay build dirs, calamares.desktop (Desktop), and 'aurbuilder'.")
+        log("AUR cleanup: removed yay build dirs, installer.desktop (Desktop), and 'aurbuilder'.")
 
 
 
