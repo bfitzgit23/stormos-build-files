@@ -1239,9 +1239,10 @@ def list_installed_theme_dirs(target_root: Path) -> List[str]:
     return sorted([d.name for d in themes_dir.iterdir() if d.is_dir()])
 
 
-def choose_best_theme_name(target_root: Path, preferred: str = "adw-gtk-dark") -> str:
+def choose_best_theme_name(target_root: Path, preferred: str = "adw-gtk3-dark") -> str:
     themes = set(list_installed_theme_dirs(target_root))
-    for p in [preferred, "adw-gtk-dark", "adw-gtk", "Adwaita-dark", "Adwaita"]:
+    # Look for adw-gtk3-dark first (the actual installed theme)
+    for p in [preferred, "adw-gtk3-dark", "adw-gtk3", "adw-gtk-dark", "adw-gtk", "Adwaita-dark", "Adwaita"]:
         if p in themes:
             return p
     return next(iter(themes), preferred)
@@ -1418,7 +1419,7 @@ ICON_PACKAGES = [
 AUR_PREREQS = ["base-devel", "git"]
 PACKAGE_BLACKLIST = {
     "archiso", "mkarchiso", "calamares", "calamares-config", "calamares-config-xfce",
-    "squashfs-tools", "zram-generator", "reflector", "clonezilla", "memtest86+",
+    "", "zram-generator", "reflector", "clonezilla", "memtest86+",
 }
 
 
@@ -2579,6 +2580,7 @@ class InstallThread(QThread):
             use_github_packages_list=cfg.use_github_packages_list,
             log=self.log
         )
+        
         self.log(f"Package list source: {source_desc}")
         pkgs = sanitize_package_list(pkgs, self.log)
 
@@ -2587,6 +2589,12 @@ class InstallThread(QThread):
 
         write_fstab(target_root, self.log)
         ensure_multilib_enabled_target(target_root, self.log)
+
+        # Try to install ZST theme packages as a backup (best-effort)
+        try:
+            install_zst_theme_packages(target_root, self.log)
+        except Exception as e:
+            self.log(f"!! ZST theme install failed (non-fatal): {e}")
 
         apply_skel_preset(target_root, self.log)
         enable_system_oh_my_bash_in_skel(target_root, self.log)
@@ -2602,11 +2610,23 @@ class InstallThread(QThread):
         patch_xfce_wallpaper_in_skel(target_root, wp, self.log)
         install_firstboot_wallpaper_fix(target_root, wp, self.log)
 
-        theme = choose_best_theme_name(target_root, preferred="adw-gtk-dark")
+        # Ensure adw-gtk-theme is installed in target system
+        self.log("Checking for adw-gtk-theme in target system...")
+        if arch_chroot_soft(target_root, "pacman -Q adw-gtk-theme >/dev/null 2>&1", self.log) != 0:
+            self.log("adw-gtk-theme not found, installing...")
+            arch_chroot_soft(target_root, "pacman -S --noconfirm --needed adw-gtk-theme", self.log)
+        else:
+            self.log("adw-gtk-theme already installed")
+
+        # Choose adw-gtk3-dark as the default theme
+        theme_name = choose_best_theme_name(target_root, preferred="adw-gtk3-dark")
         icons = choose_best_icon_theme(target_root)
-        write_default_gtk_settings_to_skel(target_root, theme, icons, self.log)
+        self.log(f"Theme selected: {theme_name}")
+        self.log(f"Icons selected: {icons}")
+        write_default_gtk_settings_to_skel(target_root, theme_name, icons, self.log)
+        
         if dm == DM_LIGHTDM:
-            configure_lightdm_greeter(target_root, wp, self.log, theme, icons)
+            configure_lightdm_greeter(target_root, wp, self.log, theme_name, icons)
 
         self.sig_progress.emit(55)
 
@@ -2645,8 +2665,6 @@ class InstallThread(QThread):
 
         if cfg.want_yay:
             install_yay_best_effort(target_root, self.log)
-
-        install_zst_theme_packages(target_root, self.log)
 
         if cfg.use_dracut:
             enable_dracut_in_target(target_root, self.log)
