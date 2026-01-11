@@ -3,83 +3,25 @@
 
 """
 A.G.E.S (AcreetionOS, GenesisOS, EcoOS, StormOS) / Arch Easy Installer — PyQt5 (UEFI + BIOS) — No-Freeze Edition
-FULL SINGLE-FILE CODE (Midnight Theme + Accent Colors)
+FULL SINGLE-FILE CODE (Midnight Theme + Accent Colors + Intelligent GPU Detection)
 
-UI Redesign (Notebook/Bookmark Sidebar):
-✅ Left-side notebook “bookmark” step navigator (clickable steps)
-✅ Current step is highlighted; completed steps show as “done”
-✅ Steps are gated (can’t jump ahead until unlocked)
-✅ 14" friendly (scroll pages)
-✅ Bottom Back/Next navigation buttons (compact)
+Includes:
+- Notebook sidebar step navigator (14" friendly; scroll pages)
+- Disk erase mode + existing partitions mode
+- ext4 / btrfs / xfs
+- Dracut (target) optional + pacman hook
+- /etc/skel preset merge + wallpapers + icons + /usr/local/bin migration
+- XFCE plugin best-effort + panel config patch to avoid missing-plugin popups
+- Host wallpaper detect/copy + XFCE config patch + first-boot wallpaper fix service
+- Display manager selection + autologin
+- GPU driver toggle (NVIDIA smart / open / proprietary DKMS)
+- systemd-boot fallback when GRUB UEFI fails
+- Dry-run mode
+- Copy log to USB button
+- Reboot button when install succeeds
 
-Robust + intelligent defaults:
-✅ Preflight auto-runs when entering Preflight
-✅ Disk list auto-refresh + auto-selects best disk (largest non-removable) BUT:
-   - Will NEVER overwrite disk selection after user manually touches the disk dropdown
-✅ Partitions auto-refresh on disk/mode/boot changes
-✅ Auto DM choice based on selected DEs
-✅ Confirm page auto-generates summary + required confirmation word
-✅ Password minimum length: 4 chars
-
-Safety / Liability:
-✅ Strong disclaimers + explicit acknowledgements
-✅ Smart confirmation words:
-   - ERASE mode -> type ERASE
-   - Existing partitions + any formatting -> type FORMAT
-   - Existing partitions no formatting -> type INSTALL
-✅ Refuses to erase LIVE boot media (ArchISO /run/archiso/bootmnt best-effort)
-✅ Before partitioning, tries swapoff + unmount partitions on that disk (best-effort)
-
-Autologin (bypass login screen):
-✅ LightDM: /etc/lightdm/lightdm.conf.d/50-ages-autologin.conf (timeout=0)
-✅ SDDM: /etc/sddm.conf.d/50-ages-autologin.conf
-✅ GDM: /etc/gdm/custom.conf
-
-“Restore point” (best-effort):
-✅ Optional restore point for BTRFS only
-   - ONLY safe in: EXISTING partitions + NO formatting + BTRFS
-   - Creates snapshots of @ and @home if present (or top-level) before install
-   - On failure: best-effort rollback (restore @ from snapshot) if possible
-   - Always logs instructions for manual rollback if auto-rollback cannot run
-
-NEW: DRACUT SUPPORT (no pacstrap failures)
-✅ NEVER installs non-existent repo package "dracut-hook"
-✅ Optional "Use dracut initramfs" toggle
-✅ Installs dracut in target + writes /etc/dracut.conf.d/ages.conf
-✅ Adds a pacman hook /etc/pacman.d/hooks/90-dracut.hook to regenerate initramfs
-✅ Runs: dracut --force --regenerate-all (best-effort)
-
-NEW: Oh My Bash copy to /etc/skel
-✅ Copies /home/<live_user>/.oh-my-bash -> target /etc/skel/.oh-my-bash
-✅ Copies /home/<live_user>/.bashrc -> target /etc/skel/.bashrc
-✅ Ensures /etc/skel/.bashrc sources Oh My Bash
-
-NEW: Fix pacstrap interactive prompt
-✅ Replaces problematic group "xorg-drivers" with explicit packages
-✅ Removes "dracut-hook" if it ever appears in package list
-
-NEW: XFCE panel plugins "guarantee best-effort"
-✅ Installs a broader known-good plugin set if XFCE is selected
-✅ Verifies key plugin .so files exist
-✅ If missing after retries, patches panel config in skel to remove missing plugin entries (prevents popups)
-
-NEW: Ensure created user receives skel content (best-effort)
-✅ After user creation: rsync /etc/skel into /home/<user> and chown it
-
-NEW: Reboot button after successful install
-✅ Success dialog offers "Reboot now"
-✅ Install page has "Reboot" button enabled only after success
-
-NEW: Virtual Machine Detector (guest-side)
-✅ Preflight shows virtualization type (VirtualBox / VMware / Hyper-V / KVM/QEMU / etc.)
-✅ KVM/QEMU is shown as: "kvm/qemu (GNOME Boxes / virt-manager / libvirt possible)"
-
-NEW: Expanded Window Manager Support (X11 & Wayland)
-✅ Added i3-wm, Openbox, bspwm, qtile (X11)
-✅ Added Sway, Hyprland (Wayland)
-
-BONUS:
-✅ Copy log to USB button (best-effort: copies /tmp/ages_easy_installer.log to first mounted removable)
+Password rule:
+- User password (and root if separate) must be at least 4 characters.
 """
 
 import os
@@ -92,18 +34,27 @@ import socket
 import subprocess
 import urllib.request
 import urllib.error
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple, Callable, Dict
 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QLabel, QLineEdit, QPushButton, QComboBox, QStackedWidget, QMessageBox,
-    QPlainTextEdit, QProgressBar, QCheckBox, QGroupBox, QScrollArea,
-    QSizePolicy
-)
+# --- PyQt5 import with friendly error ---
+try:
+    from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+    from PyQt5.QtGui import QFont
+    from PyQt5.QtWidgets import (
+        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
+        QLabel, QLineEdit, QPushButton, QComboBox, QStackedWidget, QMessageBox,
+        QPlainTextEdit, QProgressBar, QCheckBox, QGroupBox, QScrollArea,
+        QSizePolicy
+    )
+except Exception as e:
+    print("ERROR: PyQt5 is not installed or not available.")
+    print("On Arch:   sudo pacman -S --needed python-pyqt5")
+    print("On Debian/Ubuntu: sudo apt install python3-pyqt5")
+    print("")
+    print("Details:", e)
+    sys.exit(1)
 
 # ============================================================
 # Midnight theme palette + app-wide stylesheet
@@ -205,11 +156,11 @@ QProgressBar::chunk { background: #2b77ff; border-radius: 10px; }
 QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
 QScrollBar::handle:vertical { background: #2a3760; border-radius: 6px; min-height: 22px; }
 QScrollBar::handle:vertical:hover { background: #3b4c83; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+QScrollBar:add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
 QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
 QScrollBar::handle:horizontal { background: #2a3760; border-radius: 6px; min-width: 22px; }
 QScrollBar::handle:horizontal:hover { background: #3b4c83; }
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }
+QScrollBar:add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }
 
 /* ========== Notebook Sidebar ========== */
 #SideNav {
@@ -249,7 +200,7 @@ QPushButton[class="NavStep"][locked="true"] {
 """
 
 # ============================================================
-# GitHub sources (USED for PACKAGES + ZST THEMES)
+# GitHub sources
 # ============================================================
 GITHUB_PACKAGES_BLOB_URL = (
     "https://github.com/ageslinux/ages-build-files/blob/main/install-ages-xfce/packages.x86_64"
@@ -285,10 +236,7 @@ def reset_log_file() -> None:
 # Helpers
 # ============================================================
 def is_root() -> bool:
-    try:
-        return os.geteuid() == 0
-    except Exception:
-        return False
+    return os.geteuid() == 0
 
 
 def is_uefi() -> bool:
@@ -371,15 +319,6 @@ def partition_path(disk: str, n: int) -> str:
     if re.search(r"(nvme\d+n\d+|mmcblk\d+)$", disk):
         return f"{disk}p{n}"
     return f"{disk}{n}"
-
-
-def detect_microcode_pkg() -> Optional[str]:
-    cpuinfo = read_text(Path("/proc/cpuinfo")).lower()
-    if "genuineintel" in cpuinfo:
-        return "intel-ucode"
-    if "authenticamd" in cpuinfo:
-        return "amd-ucode"
-    return None
 
 
 def parse_size_to_bytes(sz: str) -> int:
@@ -585,88 +524,81 @@ def arch_chroot_input(target_root: Path, cmd: str, input_text: str, log) -> None
 
 
 # ============================================================
-# Virtual machine detector (guest-side)
+# Smarter GPU Detection
 # ============================================================
-def detect_virtualization() -> Dict[str, str]:
-    """
-    Returns dict:
-      {"is_vm":"yes/no/unknown", "type":"kvm|qemu|oracle|vmware|microsoft|...|none|unknown", "details":"..."}
-    Best-effort: uses systemd-detect-virt, then virt-what, then DMI heuristics.
-    """
-    if cmd_ok("systemd-detect-virt"):
-        try:
-            cp = subprocess.run(["systemd-detect-virt", "--vm"],
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            out = (cp.stdout or "").strip().lower()
-            if out and out != "none":
-                typ = out
-                if typ in ("kvm", "qemu"):
-                    return {
-                        "is_vm": "yes",
-                        "type": typ,
-                        "details": f"systemd-detect-virt: {typ} (GNOME Boxes / virt-manager / libvirt possible)"
-                    }
-                friendly = {
-                    "oracle": "VirtualBox",
-                    "vmware": "VMware",
-                    "microsoft": "Hyper-V",
-                    "xen": "Xen",
-                    "bochs": "Bochs",
-                    "uml": "User-mode Linux",
-                    "parallels": "Parallels",
-                    "bhyve": "bhyve",
-                    "zvm": "z/VM",
-                    "amazon": "Amazon EC2 Nitro",
-                    "openvz": "OpenVZ",
-                    "lxc": "LXC",
-                    "systemd-nspawn": "systemd-nspawn",
-                    "podman": "Podman",
-                    "docker": "Docker",
-                }.get(typ, typ)
-                return {"is_vm": "yes", "type": typ, "details": f"systemd-detect-virt: {friendly}"}
-            if out == "none":
-                return {"is_vm": "no", "type": "none", "details": "systemd-detect-virt: none"}
-        except Exception:
-            pass
+GPU_NONE = "None (Open Source drivers only)"
+GPU_AUTO = "Auto-detect (Best Effort)"
+GPU_NVIDIA_DKMS = "NVIDIA DKMS (Proprietary - Stable/Old)"
+GPU_NVIDIA_OPEN_DKMS = "NVIDIA Open DKMS (Open Source - Newer GPUs)"
+GPU_NVIDIA_AUTO_SMART = "NVIDIA (Auto-select Proprietary vs Open)"
 
-    if cmd_ok("virt-what"):
-        try:
-            cp = subprocess.run(["virt-what"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            out = (cp.stdout or "").strip().lower()
-            if out:
-                lines = [x.strip() for x in out.splitlines() if x.strip()]
-                typ = lines[0] if lines else "unknown"
-                det = ", ".join(lines)
-                if "kvm" in lines or "qemu" in lines:
-                    det += " (GNOME Boxes / virt-manager / libvirt possible)"
-                return {"is_vm": "yes", "type": typ, "details": f"virt-what: {det}"}
-        except Exception:
-            pass
 
-    dmi_paths = [
-        Path("/sys/devices/virtual/dmi/id/product_name"),
-        Path("/sys/devices/virtual/dmi/id/sys_vendor"),
-        Path("/sys/devices/virtual/dmi/id/board_vendor"),
+@dataclass
+class GPUInfo:
+    has_nvidia: bool = False
+    model: str = ""
+    recommended_choice: str = ""      # one of GPU_NVIDIA_DKMS / GPU_NVIDIA_OPEN_DKMS
+    recommended_pkg: str = ""         # "nvidia-dkms" or "nvidia-open-dkms"
+
+
+def _clean_gpu_model_from_lspci_line(line: str) -> str:
+    # Example:
+    # "01:00.0 VGA compatible controller: NVIDIA Corporation GP107M [GeForce GTX 1050 Mobile] (rev a1)"
+    try:
+        if ":" in line:
+            line = line.split(":", 1)[1].strip()
+        line = re.sub(r"\(rev [^)]+\)", "", line).strip()
+        line = re.sub(r"\s{2,}", " ", line).strip()
+        return line
+    except Exception:
+        return line.strip()
+
+
+def detect_gpu_info() -> GPUInfo:
+    info = GPUInfo()
+    if not cmd_ok("lspci"):
+        return info
+
+    try:
+        cp = subprocess.run(["lspci", "-nn"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=5)
+        output = cp.stdout or ""
+    except Exception:
+        return info
+
+    nvidia_lines = []
+    for line in output.splitlines():
+        if ("VGA" in line or "3D" in line) and ("NVIDIA" in line):
+            nvidia_lines.append(line.strip())
+
+    if not nvidia_lines:
+        return info
+
+    info.has_nvidia = True
+    info.model = _clean_gpu_model_from_lspci_line(nvidia_lines[0])
+
+    model_lower = info.model.lower()
+
+    # "Newer" heuristic → prefer nvidia-open-dkms (best-effort)
+    new_gen_keywords = [
+        "rtx 20", "rtx 30", "rtx 40", "rtx a", "ada", "ampere", "turing",
+        "a2000", "a3000", "a4000", "a5000", "a6000", "rtx 6000",
+        "t600", "t1200", "t1000", "t550", "t500",
+        "quadro t", "quadro a",
+        "gtx 1650", "gtx 1660", "gtx 1630", "gtx 1050 ti", "gtx 1060",
+        "gt 1030"
     ]
-    dmi = " ".join([read_text(p).strip() for p in dmi_paths if p.exists()]).lower()
-    if dmi:
-        if "virtualbox" in dmi or "innotek" in dmi:
-            return {"is_vm": "yes", "type": "oracle", "details": f"DMI: {dmi} (VirtualBox)"}
-        if "vmware" in dmi:
-            return {"is_vm": "yes", "type": "vmware", "details": f"DMI: {dmi} (VMware)"}
-        if "microsoft" in dmi or "hyper-v" in dmi:
-            return {"is_vm": "yes", "type": "microsoft", "details": f"DMI: {dmi} (Hyper-V)"}
-        if "qemu" in dmi or "kvm" in dmi:
-            return {"is_vm": "yes", "type": "kvm", "details": f"DMI: {dmi} (KVM/QEMU; GNOME Boxes/virt-manager/libvirt possible)"}
-        if "xen" in dmi:
-            return {"is_vm": "yes", "type": "xen", "details": f"DMI: {dmi} (Xen)"}
+    is_new_gen = any(k in model_lower for k in new_gen_keywords)
 
-    return {"is_vm": "unknown", "type": "unknown", "details": "Unable to detect (no systemd-detect-virt / virt-what, and no clear DMI match)"}
+    if is_new_gen:
+        info.recommended_choice = GPU_NVIDIA_OPEN_DKMS
+        info.recommended_pkg = "nvidia-open-dkms"
+    else:
+        info.recommended_choice = GPU_NVIDIA_DKMS
+        info.recommended_pkg = "nvidia-dkms"
+
+    return info
 
 
-# ============================================================
-# Wi-Fi status
-# ============================================================
 def wifi_status_line() -> str:
     if not cmd_ok("nmcli"):
         return "Wi-Fi: nmcli not available"
@@ -693,6 +625,19 @@ def wifi_status_line() -> str:
         return "Wi-Fi: Not detected"
     except Exception:
         return "Wi-Fi: Unknown"
+
+
+def pacman_db_sync_smoke_test(log: Callable[[str], None]) -> str:
+    if not cmd_ok("pacman"):
+        return "Pacman DB: pacman not available"
+    try:
+        cp = subprocess.run(["pacman", "-Syy", "--noconfirm"],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=60)
+        if cp.returncode == 0:
+            return "Pacman DB: sync OK (pacman -Syy)"
+        return "Pacman DB: sync FAILED (pacman -Syy) — check mirrors/internet"
+    except Exception:
+        return "Pacman DB: sync UNKNOWN"
 
 
 # ============================================================
@@ -1453,6 +1398,7 @@ DEFAULT_BASE_PACKAGES = [
     "base", "linux", "linux-firmware",
     "networkmanager", "sudo", "vim",
     "pipewire", "pipewire-pulse",
+    "mesa",
 ]
 
 SAFE_XORG_DRIVERS = [
@@ -1532,8 +1478,41 @@ def sanitize_package_list(pkgs: List[str], log) -> List[str]:
     return deduped
 
 
-def build_required_packages(mode: str, want_yay: bool, fs: str, desktops: List[str], dm: str) -> List[str]:
-    micro = detect_microcode_pkg()
+def gpu_packages_for_choice(choice: str, gpu_info: GPUInfo, log) -> List[str]:
+    if choice in (GPU_NONE, "", None):
+        return []
+
+    if choice == GPU_AUTO:
+        if not gpu_info.has_nvidia:
+            return []
+        choice = gpu_info.recommended_choice or GPU_NVIDIA_DKMS
+
+    if choice == GPU_NVIDIA_AUTO_SMART:
+        if not gpu_info.has_nvidia:
+            log("GPU Smart: No NVIDIA card detected.")
+            return []
+        choice = gpu_info.recommended_choice or GPU_NVIDIA_DKMS
+        log(f"GPU Smart: Auto-selected {choice} for {gpu_info.model}")
+
+    if choice == GPU_NVIDIA_DKMS:
+        log("GPU: Installing NVIDIA Proprietary DKMS.")
+        return ["nvidia-dkms", "nvidia-utils", "nvidia-settings", "linux-headers"]
+    if choice == GPU_NVIDIA_OPEN_DKMS:
+        log("GPU: Installing NVIDIA Open DKMS.")
+        return ["nvidia-open-dkms", "nvidia-utils", "nvidia-settings", "linux-headers"]
+
+    return []
+
+
+def build_required_packages(mode: str, want_yay: bool, fs: str, desktops: List[str], dm: str,
+                            gpu_choice: str, gpu_info: GPUInfo, log) -> List[str]:
+    microcode_pkg = None
+    cpuinfo = read_text(Path("/proc/cpuinfo")).lower()
+    if "genuineintel" in cpuinfo:
+        microcode_pkg = "intel-ucode"
+    elif "authenticamd" in cpuinfo:
+        microcode_pkg = "amd-ucode"
+
     base = list(DEFAULT_BASE_PACKAGES)
     base += ICON_PACKAGES
     if fs == "btrfs":
@@ -1544,6 +1523,7 @@ def build_required_packages(mode: str, want_yay: bool, fs: str, desktops: List[s
         base += ["efibootmgr"]
     else:
         base += ["grub"]
+
     desktops = desktops or [DE_XFCE]
     for d in desktops:
         base += DESKTOP_PACKAGES.get(d, [])
@@ -1551,8 +1531,11 @@ def build_required_packages(mode: str, want_yay: bool, fs: str, desktops: List[s
         base += DM_PACKAGES[dm]
     if want_yay:
         base += AUR_PREREQS
-    if micro:
-        base.append(micro)
+    if microcode_pkg:
+        base.append(microcode_pkg)
+
+    base += gpu_packages_for_choice(gpu_choice, gpu_info, log)
+
     return normalize_package_set(base)
 
 
@@ -1562,11 +1545,13 @@ def choose_package_list(
     fs: str,
     desktops: List[str],
     dm: str,
+    gpu_choice: str,
+    gpu_info: GPUInfo,
     use_local_packages_txt: bool,
     use_github_packages_list: bool,
     log: Callable[[str], None]
 ) -> Tuple[List[str], str]:
-    required = build_required_packages(mode, want_yay, fs, desktops, dm)
+    required = build_required_packages(mode, want_yay, fs, desktops, dm, gpu_choice, gpu_info, log)
     if use_local_packages_txt and LIVE_PKG_LIST.exists():
         custom = normalize_package_set(read_packages_txt(LIVE_PKG_LIST))
         combined = normalize_package_set(custom + required)
@@ -1704,7 +1689,7 @@ def enable_dracut_in_target(target_root: Path, log) -> None:
 
 
 # ============================================================
-# Display Manager enable + Autologin (bypass login screen)
+# Display Manager enable + Autologin
 # ============================================================
 def enable_dm_service(target_root: Path, dm: str, log) -> None:
     svc = None
@@ -1774,7 +1759,7 @@ def enable_sddm_autologin(target_root: Path, username: str, log, session: str = 
 
 
 # ============================================================
-# Robust XFCE plugin ensure + panel config patch (prevents popups)
+# Robust XFCE plugin ensure + panel config patch
 # ============================================================
 def patch_xfce_panel_config_remove_missing_plugins(target_root: Path, missing_pkgs: List[str], log) -> None:
     want_remove = set()
@@ -2392,7 +2377,55 @@ def _gpt_has_bios_grub(disk: str) -> bool:
         return False
 
 
-def install_bootloader(target_root: Path, boot: str, disk: str, fs: str, log) -> None:
+def _install_systemd_boot_fallback(target_root: Path, root_part: str, log) -> None:
+    log("systemd-boot fallback: attempting bootctl install (UEFI)…")
+    rc = arch_chroot_soft(target_root, "mountpoint -q /boot/efi", log)
+    if rc != 0:
+        raise RuntimeError("systemd-boot fallback requires ESP mounted at /boot/efi.")
+
+    arch_chroot(target_root, "bootctl --path=/boot/efi install", log)
+
+    uuid = ""
+    try:
+        cp = subprocess.run(["blkid", "-s", "UUID", "-o", "value", root_part],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        uuid = (cp.stdout or "").strip()
+    except Exception:
+        uuid = ""
+
+    if not uuid:
+        cp2 = subprocess.run(["arch-chroot", str(target_root), "bash", "-lc",
+                              f"blkid -s UUID -o value {shlex.quote(root_part)} 2>/dev/null || true"],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        uuid = (cp2.stdout or "").strip()
+
+    if not uuid:
+        raise RuntimeError("systemd-boot fallback could not determine root UUID.")
+
+    loader_conf = target_root / "boot" / "efi" / "loader" / "loader.conf"
+    ensure_dir(loader_conf.parent)
+    write_file(loader_conf, "default ages.conf\ntimeout 3\neditor no\n")
+
+    entry = target_root / "boot" / "efi" / "loader" / "entries" / "ages.conf"
+    ensure_dir(entry.parent)
+
+    log("systemd-boot fallback: copying kernel+initramfs into ESP (best-effort)…")
+    arch_chroot_soft(target_root, "cp -f /boot/vmlinuz-linux /boot/efi/vmlinuz-linux 2>/dev/null || true", log)
+    arch_chroot_soft(target_root, "cp -f /boot/initramfs-linux.img /boot/efi/initramfs-linux.img 2>/dev/null || true", log)
+    arch_chroot_soft(target_root, "cp -f /boot/initramfs-linux-fallback.img /boot/efi/initramfs-linux-fallback.img 2>/dev/null || true", log)
+
+    entry_txt = (
+        "title   A.G.E.S Linux\n"
+        "linux   /vmlinuz-linux\n"
+        "initrd  /initramfs-linux.img\n"
+        f"options root=UUID={uuid} rw\n"
+    )
+    write_file(entry, entry_txt)
+    log(f"systemd-boot fallback: wrote loader entry {entry}")
+    log("systemd-boot fallback: ✅ installed (best-effort).")
+
+
+def install_bootloader(target_root: Path, boot: str, disk: str, root_part: str, fs: str, log) -> None:
     if boot != "UEFI":
         if _disk_is_gpt(disk) and not _gpt_has_bios_grub(disk):
             raise RuntimeError(
@@ -2452,9 +2485,17 @@ def install_bootloader(target_root: Path, boot: str, disk: str, fs: str, log) ->
         "grub-install --target=x86_64-efi --efi-directory=/boot/efi "
         "--bootloader-id=AGES --recheck --removable --no-nvram"
     )
-    arch_chroot(target_root, cmd2, log)
-    arch_chroot(target_root, "grub-mkconfig -o /boot/grub/grub.cfg", log)
-    log("Bootloader installed: GRUB (UEFI fallback: removable path, no NVRAM write)")
+    try:
+        arch_chroot(target_root, cmd2, log)
+        arch_chroot(target_root, "grub-mkconfig -o /boot/grub/grub.cfg", log)
+        log("Bootloader installed: GRUB (UEFI fallback: removable path, no NVRAM write)")
+        return
+    except Exception as e2:
+        log(f"!! grub-install removable fallback also failed: {e2}")
+        log("!! Trying systemd-boot fallback (UEFI) (best-effort)…")
+
+    _install_systemd_boot_fallback(target_root, root_part, log)
+    log("Bootloader installed: systemd-boot (UEFI fallback, best-effort)")
 
 
 def install_zst_theme_packages(target_root: Path, log) -> None:
@@ -2489,6 +2530,17 @@ def install_zst_theme_packages(target_root: Path, log) -> None:
 
 
 # ============================================================
+# Dry-run helpers
+# ============================================================
+class DryRunError(RuntimeError):
+    pass
+
+
+def dry(log, msg: str) -> None:
+    log(f"[DRY-RUN] {msg}")
+
+
+# ============================================================
 # Installer configuration
 # ============================================================
 @dataclass
@@ -2511,7 +2563,7 @@ class InstallerConfig:
     keymap: str = "us"
     locale: str = "en_US.UTF-8"
 
-    desktops: List[str] = None
+    desktops: List[str] = field(default_factory=list)
     dm: str = DM_AUTO
     autologin: bool = True
     want_yay: bool = True
@@ -2524,6 +2576,10 @@ class InstallerConfig:
     use_dracut: bool = False
     copy_oh_my_bash: bool = True
     live_user: str = "liveuser"
+
+    dry_run: bool = False
+    gpu_driver: str = GPU_NONE
+    gpu_info: GPUInfo = field(default_factory=GPUInfo)
 
 
 # ============================================================
@@ -2578,6 +2634,7 @@ class InstallThread(QThread):
         self.log(f"Desktops: {', '.join(cfg.desktops or [])} | DM: {cfg.dm} | Autologin: {cfg.autologin}")
         self.log(f"User: {cfg.username} | Hostname: {cfg.hostname} | TZ: {cfg.timezone} | Keymap: {cfg.keymap}")
         self.log(f"Dracut: {'YES' if cfg.use_dracut else 'NO'} | OhMyBash to skel: {'YES' if cfg.copy_oh_my_bash else 'NO'} (live_user={cfg.live_user})")
+        self.log(f"GPU driver: {cfg.gpu_driver} | Dry-run: {'YES' if cfg.dry_run else 'NO'}")
         self.log("")
         if not is_root():
             raise RuntimeError("Must run as root (sudo).")
@@ -2595,46 +2652,73 @@ class InstallThread(QThread):
 
         rp = RestorePoint(enabled=False)
         if cfg.restore_point_enabled and fs == "btrfs" and cfg.install_mode == MODE_EXISTING and (not cfg.format_root):
-            rp = btrfs_create_restore_point_existing_nofmt(cfg.root_part, self.log)
+            if cfg.dry_run:
+                dry(self.log, f"Would create BTRFS restore point on {cfg.root_part} (eligible).")
+            else:
+                rp = btrfs_create_restore_point_existing_nofmt(cfg.root_part, self.log)
 
         self.sig_progress.emit(5)
 
         target_root = Path("/mnt")
-        safe_umount_recursive(str(target_root))
+        if cfg.dry_run:
+            dry(self.log, "Would unmount /mnt recursively before install.")
+        else:
+            safe_umount_recursive(str(target_root))
 
         root_part = cfg.root_part
         efi_part = cfg.efi_part or ""
 
         if cfg.install_mode == MODE_ERASE:
-            root_part, efi_auto = wipe_and_partition_erase(disk, boot, fs, self.log)
-            efi_part = efi_auto or ""
-            cfg.format_root = True
-            cfg.format_efi = True
+            if cfg.dry_run:
+                dry(self.log, f"Would ERASE/partition disk {disk} (boot={boot}).")
+                root_part = partition_path(disk, 2)
+                efi_part = partition_path(disk, 1) if boot == "UEFI" else ""
+                cfg.format_root = True
+                cfg.format_efi = True
+            else:
+                root_part, efi_auto = wipe_and_partition_erase(disk, boot, fs, self.log)
+                efi_part = efi_auto or ""
+                cfg.format_root = True
+                cfg.format_efi = True
 
         if cfg.format_root:
-            if fs == "btrfs":
-                mkfs_btrfs(root_part, "ROOT", self.log)
-            elif fs == "xfs":
-                mkfs_xfs(root_part, "ROOT", self.log)
+            if cfg.dry_run:
+                dry(self.log, f"Would format root {root_part} as {fs}.")
             else:
-                mkfs_ext4(root_part, "ROOT", self.log)
+                if fs == "btrfs":
+                    mkfs_btrfs(root_part, "ROOT", self.log)
+                elif fs == "xfs":
+                    mkfs_xfs(root_part, "ROOT", self.log)
+                else:
+                    mkfs_ext4(root_part, "ROOT", self.log)
 
         if boot == "UEFI":
             if not efi_part:
                 raise RuntimeError("UEFI mode requires an EFI partition selection.")
             if cfg.format_efi:
-                mkfs_fat32(efi_part, "EFI", self.log)
+                if cfg.dry_run:
+                    dry(self.log, f"Would format EFI {efi_part} as FAT32.")
+                else:
+                    mkfs_fat32(efi_part, "EFI", self.log)
 
         self.sig_progress.emit(15)
 
-        mount_root_fs(root_part, fs, "/mnt", self.log)
-        if boot == "UEFI":
-            mount_efi(efi_part, "/mnt", self.log)
+        if cfg.dry_run:
+            dry(self.log, f"Would mount root {root_part} to /mnt (fs={fs}).")
+            if boot == "UEFI":
+                dry(self.log, f"Would mount EFI {efi_part} to /mnt/boot/efi.")
+        else:
+            mount_root_fs(root_part, fs, "/mnt", self.log)
+            if boot == "UEFI":
+                mount_efi(efi_part, "/mnt", self.log)
 
         self.sig_progress.emit(20)
 
-        ensure_multilib_enabled_live(self.log)
-        pacman_sync_live(self.log)
+        if cfg.dry_run:
+            dry(self.log, "Would enable multilib and sync pacman DB on live ISO.")
+        else:
+            ensure_multilib_enabled_live(self.log)
+            pacman_sync_live(self.log)
 
         pkgs, source_desc = choose_package_list(
             mode=boot,
@@ -2642,6 +2726,8 @@ class InstallThread(QThread):
             fs=fs,
             desktops=cfg.desktops or [DE_XFCE],
             dm=dm,
+            gpu_choice=cfg.gpu_driver,
+            gpu_info=cfg.gpu_info,
             use_local_packages_txt=cfg.use_local_packages_txt,
             use_github_packages_list=cfg.use_github_packages_list,
             log=self.log
@@ -2650,105 +2736,229 @@ class InstallThread(QThread):
         self.log(f"Package list source: {source_desc}")
         pkgs = sanitize_package_list(pkgs, self.log)
 
-        pacstrap_robust("/mnt", pkgs, self.log)
+        if cfg.dry_run:
+            dry(self.log, f"Would pacstrap to /mnt with {len(pkgs)} packages.")
+        else:
+            pacstrap_robust("/mnt", pkgs, self.log)
+
         self.sig_progress.emit(45)
 
-        write_fstab(target_root, self.log)
-        ensure_multilib_enabled_target(target_root, self.log)
+        if cfg.dry_run:
+            dry(self.log, "Would generate fstab and enable multilib in target.")
+        else:
+            write_fstab(target_root, self.log)
+            ensure_multilib_enabled_target(target_root, self.log)
 
         try:
-            install_zst_theme_packages(target_root, self.log)
+            if cfg.dry_run:
+                dry(self.log, "Would install ZST theme packages (best-effort).")
+            else:
+                install_zst_theme_packages(target_root, self.log)
         except Exception as e:
             self.log(f"!! ZST theme install failed (non-fatal): {e}")
 
-        apply_skel_preset(target_root, self.log)
-        enable_system_oh_my_bash_in_skel(target_root, self.log)
-
-        if cfg.copy_oh_my_bash:
-            copy_oh_my_bash_to_skel(target_root, cfg.live_user, self.log)
-
-        copy_ages_wallpapers_into_backgrounds(target_root, self.log)
-        migrate_usr_share_icons(target_root, self.log)
-        migrate_usr_local_bin(target_root, self.log)
-
-        wp = ensure_wallpaper_from_host(target_root, self.log)
-
-        if DE_XFCE in (cfg.desktops or []):
-            patch_xfce_wallpaper_in_skel(target_root, wp, self.log)
-            install_firstboot_wallpaper_fix(target_root, wp, self.log)
-
-        self.log("Checking for adw-gtk-theme in target system...")
-        if arch_chroot_soft(target_root, "pacman -Q adw-gtk-theme >/dev/null 2>&1", self.log) != 0:
-            self.log("adw-gtk-theme not found, installing...")
-            arch_chroot_soft(target_root, "pacman -S --noconfirm --needed adw-gtk-theme", self.log)
+        if cfg.dry_run:
+            dry(self.log, "Would apply skel preset, wallpapers, icons, /usr/local/bin.")
         else:
-            self.log("adw-gtk-theme already installed")
+            apply_skel_preset(target_root, self.log)
+            enable_system_oh_my_bash_in_skel(target_root, self.log)
+            if cfg.copy_oh_my_bash:
+                copy_oh_my_bash_to_skel(target_root, cfg.live_user, self.log)
+            copy_ages_wallpapers_into_backgrounds(target_root, self.log)
+            migrate_usr_share_icons(target_root, self.log)
+            migrate_usr_local_bin(target_root, self.log)
 
-        theme_name = choose_best_theme_name(target_root, preferred="adw-gtk3-dark")
-        icons = choose_best_icon_theme(target_root)
-        self.log(f"Theme selected: {theme_name}")
-        self.log(f"Icons selected: {icons}")
-        write_default_gtk_settings_to_skel(target_root, theme_name, icons, self.log)
+        wp = "/usr/share/backgrounds/xfce/xfce-x.svg"
+        if cfg.dry_run:
+            dry(self.log, "Would detect/copy wallpaper into target and patch XFCE configs.")
+        else:
+            wp = ensure_wallpaper_from_host(target_root, self.log)
+            if DE_XFCE in (cfg.desktops or []):
+                patch_xfce_wallpaper_in_skel(target_root, wp, self.log)
+                install_firstboot_wallpaper_fix(target_root, wp, self.log)
 
-        if dm == DM_LIGHTDM:
-            configure_lightdm_greeter(target_root, wp, self.log, theme_name, icons)
+        if cfg.dry_run:
+            dry(self.log, "Would ensure adw-gtk-theme, write GTK defaults, configure LightDM greeter if used.")
+        else:
+            self.log("Checking for adw-gtk-theme in target system...")
+            if arch_chroot_soft(target_root, "pacman -Q adw-gtk-theme >/dev/null 2>&1", self.log) != 0:
+                self.log("adw-gtk-theme not found, installing...")
+                arch_chroot_soft(target_root, "pacman -S --noconfirm --needed adw-gtk-theme", self.log)
+            else:
+                self.log("adw-gtk-theme already installed")
+
+            theme_name = choose_best_theme_name(target_root, preferred="adw-gtk3-dark")
+            icons = choose_best_icon_theme(target_root)
+            self.log(f"Theme selected: {theme_name}")
+            self.log(f"Icons selected: {icons}")
+            write_default_gtk_settings_to_skel(target_root, theme_name, icons, self.log)
+
+            if dm == DM_LIGHTDM:
+                configure_lightdm_greeter(target_root, wp, self.log, theme_name, icons)
 
         self.sig_progress.emit(55)
 
-        write_basic_system_files(
-            target_root,
-            hostname=cfg.hostname,
-            tz=cfg.timezone,
-            keymap=cfg.keymap,
-            locale=cfg.locale,
-            log=self.log
-        )
-
-        arch_chroot_soft(target_root, "mkinitcpio -P || true", self.log)
+        if cfg.dry_run:
+            dry(self.log, "Would write hostname/hosts/timezone/locale/keymap into target.")
+        else:
+            write_basic_system_files(
+                target_root,
+                hostname=cfg.hostname,
+                tz=cfg.timezone,
+                keymap=cfg.keymap,
+                locale=cfg.locale,
+                log=self.log
+            )
+            arch_chroot_soft(target_root, "mkinitcpio -P || true", self.log)
 
         root_pw = cfg.root_password or cfg.user_password
-        setup_users(target_root, cfg.username, cfg.user_password, root_pw, self.log)
+        if cfg.dry_run:
+            dry(self.log, f"Would create user '{cfg.username}' and set passwords (min 4 chars).")
+        else:
+            setup_users(target_root, cfg.username, cfg.user_password, root_pw, self.log)
+            ensure_user_home_gets_skel_best_effort(target_root, cfg.username, self.log)
+            enable_base_services(target_root, self.log)
 
-        ensure_user_home_gets_skel_best_effort(target_root, cfg.username, self.log)
-
-        enable_base_services(target_root, self.log)
         self.sig_progress.emit(65)
 
-        enable_dm_service(target_root, dm, self.log)
-        if cfg.autologin:
-            if dm == DM_LIGHTDM:
-                enable_lightdm_autologin(target_root, cfg.username, self.log, session=session_hint)
-            elif dm == DM_GDM:
-                enable_gdm_autologin(target_root, cfg.username, self.log)
-            elif dm == DM_SDDM:
-                enable_sddm_autologin(target_root, cfg.username, self.log, session=session_hint)
+        if cfg.dry_run:
+            dry(self.log, f"Would enable DM service ({dm}) and apply autologin={cfg.autologin}.")
+        else:
+            enable_dm_service(target_root, dm, self.log)
+            if cfg.autologin:
+                if dm == DM_LIGHTDM:
+                    enable_lightdm_autologin(target_root, cfg.username, self.log, session=session_hint)
+                elif dm == DM_GDM:
+                    enable_gdm_autologin(target_root, cfg.username, self.log)
+                elif dm == DM_SDDM:
+                    enable_sddm_autologin(target_root, cfg.username, self.log, session=session_hint)
 
         self.sig_progress.emit(72)
 
         if cfg.desktops and DE_XFCE in cfg.desktops:
-            ensure_xfce_panel_plugins_guarantee_best_effort(target_root, self.log)
+            if cfg.dry_run:
+                dry(self.log, "Would ensure XFCE panel plugins best-effort.")
+            else:
+                ensure_xfce_panel_plugins_guarantee_best_effort(target_root, self.log)
 
         if cfg.want_yay:
-            install_yay_best_effort(target_root, self.log)
+            if cfg.dry_run:
+                dry(self.log, "Would install yay (AUR) best-effort.")
+            else:
+                install_yay_best_effort(target_root, self.log)
 
         if cfg.use_dracut:
-            enable_dracut_in_target(target_root, self.log)
+            if cfg.dry_run:
+                dry(self.log, "Would enable dracut in target and install pacman hook.")
+            else:
+                enable_dracut_in_target(target_root, self.log)
 
         self.sig_progress.emit(82)
 
-        install_bootloader(target_root, boot, disk, fs, self.log)
+        if cfg.dry_run:
+            dry(self.log, f"Would install bootloader (boot={boot}) and fallback to systemd-boot if GRUB fails.")
+        else:
+            install_bootloader(target_root, boot, disk, root_part, fs, self.log)
+
         self.sig_progress.emit(92)
 
         self.log("=== Final cleanup ===")
-        safe_umount_recursive("/mnt")
+        if cfg.dry_run:
+            dry(self.log, "Would unmount /mnt recursively.")
+        else:
+            safe_umount_recursive("/mnt")
         self.sig_progress.emit(100)
+
+        if cfg.dry_run:
+            self.log("✅ Dry-run completed (no changes were made).")
+            return True, "Dry-run completed successfully.", rp
 
         self.log("✅ Installation completed successfully.")
         return True, "Install completed successfully.", rp
 
 
 # ============================================================
-# UI: Step pages
+# Virtualization detection
+# ============================================================
+def detect_virtualization() -> Dict[str, str]:
+    """
+    Returns dict:
+      {"is_vm":"yes/no/unknown", "type":"kvm|qemu|oracle|vmware|microsoft|...|none|unknown", "details":"..."}
+    Best-effort: uses systemd-detect-virt, then virt-what, then DMI heuristics.
+    """
+    if cmd_ok("systemd-detect-virt"):
+        try:
+            cp = subprocess.run(["systemd-detect-virt", "--vm"],
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            out = (cp.stdout or "").strip().lower()
+            if out and out != "none":
+                typ = out
+                if typ in ("kvm", "qemu"):
+                    return {
+                        "is_vm": "yes",
+                        "type": typ,
+                        "details": f"systemd-detect-virt: {typ} (GNOME Boxes / virt-manager / libvirt possible)"
+                    }
+                friendly = {
+                    "oracle": "VirtualBox",
+                    "vmware": "VMware",
+                    "microsoft": "Hyper-V",
+                    "xen": "Xen",
+                    "bochs": "Bochs",
+                    "uml": "User-mode Linux",
+                    "parallels": "Parallels",
+                    "bhyve": "bhyve",
+                    "zvm": "z/VM",
+                    "amazon": "Amazon EC2 Nitro",
+                    "openvz": "OpenVZ",
+                    "lxc": "LXC",
+                    "systemd-nspawn": "systemd-nspawn",
+                    "podman": "Podman",
+                    "docker": "Docker",
+                }.get(typ, typ)
+                return {"is_vm": "yes", "type": typ, "details": f"systemd-detect-virt: {friendly}"}
+            if out == "none":
+                return {"is_vm": "no", "type": "none", "details": "systemd-detect-virt: none"}
+        except Exception:
+            pass
+
+    if cmd_ok("virt-what"):
+        try:
+            cp = subprocess.run(["virt-what"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            out = (cp.stdout or "").strip().lower()
+            if out:
+                lines = [x.strip() for x in out.splitlines() if x.strip()]
+                typ = lines[0] if lines else "unknown"
+                det = ", ".join(lines)
+                if "kvm" in lines or "qemu" in lines:
+                    det += " (GNOME Boxes / virt-manager / libvirt possible)"
+                return {"is_vm": "yes", "type": typ, "details": f"virt-what: {det}"}
+        except Exception:
+            pass
+
+    dmi_paths = [
+        Path("/sys/devices/virtual/dmi/id/product_name"),
+        Path("/sys/devices/virtual/dmi/id/sys_vendor"),
+        Path("/sys/devices/virtual/dmi/id/board_vendor"),
+    ]
+    dmi = " ".join([read_text(p).strip() for p in dmi_paths if p.exists()]).lower()
+    if dmi:
+        if "virtualbox" in dmi or "innotek" in dmi:
+            return {"is_vm": "yes", "type": "oracle", "details": f"DMI: {dmi} (VirtualBox)"}
+        if "vmware" in dmi:
+            return {"is_vm": "yes", "type": "vmware", "details": f"DMI: {dmi} (VMware)"}
+        if "microsoft" in dmi or "hyper-v" in dmi:
+            return {"is_vm": "yes", "type": "microsoft", "details": f"DMI: {dmi} (Hyper-V)"}
+        if "qemu" in dmi or "kvm" in dmi:
+            return {"is_vm": "yes", "type": "kvm", "details": f"DMI: {dmi} (KVM/QEMU; GNOME Boxes/virt-manager/libvirt possible)"}
+        if "xen" in dmi:
+            return {"is_vm": "yes", "type": "xen", "details": f"DMI: {dmi} (Xen)"}
+
+    return {"is_vm": "unknown", "type": "unknown", "details": "Unable to detect (no systemd-detect-virt / virt-what, and no clear DMI match)"}
+
+
+# ============================================================
+# UI plumbing
 # ============================================================
 class StepPage(QWidget):
     def on_enter(self):
@@ -2766,6 +2976,9 @@ def make_scroll_page(inner: QWidget) -> QScrollArea:
     return sc
 
 
+# ============================================================
+# Pages
+# ============================================================
 class PreflightPage(StepPage):
     def __init__(self, main):
         super().__init__()
@@ -2789,7 +3002,7 @@ class PreflightPage(StepPage):
 
         self.details = QPlainTextEdit()
         self.details.setReadOnly(True)
-        self.details.setMinimumHeight(220)
+        self.details.setMinimumHeight(240)
         lay.addWidget(self.details)
 
         self.ack = QCheckBox("I understand this installer can ERASE disks and I accept full responsibility.")
@@ -2830,6 +3043,15 @@ class PreflightPage(StepPage):
 
         msgs.append(f"Boot detected: {'UEFI' if is_uefi() else 'BIOS/Legacy'}")
         msgs.append(f"Internet: {'Yes' if have_internet_fast() else 'No / Unknown'}")
+        msgs.append(pacman_db_sync_smoke_test(self.main._log_quiet))
+
+        gpu_info = detect_gpu_info()
+        if gpu_info.has_nvidia:
+            msgs.append(f"GPU: NVIDIA detected ({gpu_info.model}).")
+            if gpu_info.recommended_pkg:
+                msgs.append(f"     Recommendation: {gpu_info.recommended_pkg}")
+        else:
+            msgs.append("GPU: No NVIDIA card detected (or lspci unavailable).")
 
         self.status.setText("\n".join(msgs))
         self.details.setPlainText("\n".join(msgs))
@@ -3157,6 +3379,14 @@ class SystemPage(StepPage):
         self.live_user = QLineEdit(live_user_best_effort())
         fl3.addRow("Live user name:", self.live_user)
 
+        self.restore_point = QCheckBox("BTRFS restore point (existing BTRFS root, NO format) (best-effort)")
+        self.restore_point.setChecked(False)
+        fl3.addRow("", self.restore_point)
+
+        self.dry_run = QCheckBox("Dry-run mode (NO disk changes; prints what would happen)")
+        self.dry_run.setChecked(False)
+        fl3.addRow("", self.dry_run)
+
         note = QLabel("Oh My Bash source path: /home/<live_user>/.oh-my-bash")
         note.setStyleSheet("color:#b8c2ff;")
         note.setWordWrap(True)
@@ -3180,8 +3410,10 @@ class SystemPage(StepPage):
             w.currentIndexChanged.connect(self._changed)
         self.use_dracut.stateChanged.connect(lambda _=None: self._changed())
         self.copy_omb.stateChanged.connect(lambda _=None: self._changed())
+        self.restore_point.stateChanged.connect(lambda _=None: self._changed())
+        self.dry_run.stateChanged.connect(lambda _=None: self._changed())
 
-        self._changed()
+        QTimer.singleShot(0, self._changed)
 
     def _toggle_root(self):
         en = self.separate_root.isChecked()
@@ -3189,21 +3421,25 @@ class SystemPage(StepPage):
         self.root_password2.setEnabled(en)
         self._changed()
 
+    def _set_text_safely(self, line_edit: QLineEdit, text: str) -> None:
+        if line_edit.text() == text:
+            return
+        line_edit.blockSignals(True)
+        line_edit.setText(text)
+        line_edit.blockSignals(False)
+
     def _changed(self):
         h = sanitize_hostname(self.hostname.text())
         u = sanitize_username(self.username.text())
-        if self.hostname.text() != h:
-            self.hostname.setText(h)
-        if self.username.text() != u:
-            self.username.setText(u)
+
+        self._set_text_safely(self.hostname, h)
+        self._set_text_safely(self.username, u)
 
         lu = sanitize_username(self.live_user.text()) or live_user_best_effort()
-        if self.live_user.text() != lu:
-            self.live_user.setText(lu)
+        self._set_text_safely(self.live_user, lu)
 
         upw = self.user_password.text()
         upw2 = self.user_password2.text()
-
         ok_user = bool(h) and bool(u) and bool(upw) and (upw == upw2) and (len(upw) >= 4)
 
         if self.separate_root.isChecked():
@@ -3267,7 +3503,7 @@ class DesktopPage(StepPage):
             cb.stateChanged.connect(self._changed)
         lay.addWidget(box_wm_wl)
 
-        box2 = QGroupBox("Display Manager + Autologin")
+        box2 = QGroupBox("Display Manager + Autologin + GPU")
         fl = QFormLayout(box2)
 
         self.dm = QComboBox()
@@ -3285,13 +3521,23 @@ class DesktopPage(StepPage):
         self.want_yay.stateChanged.connect(self._changed)
         fl.addRow("", self.want_yay)
 
+        self.gpu = QComboBox()
+        self.gpu.addItems([GPU_NONE, GPU_NVIDIA_AUTO_SMART, GPU_NVIDIA_DKMS, GPU_NVIDIA_OPEN_DKMS])
+        self.gpu.currentIndexChanged.connect(self._changed)
+        fl.addRow("GPU driver:", self.gpu)
+
+        self.gpu_status = QLabel("Status: ...")
+        self.gpu_status.setWordWrap(True)
+        fl.addRow("", self.gpu_status)
+
         lay.addWidget(box2)
 
         self.note = QLabel(
             "Autologin writes drop-in configs:\n"
             "• LightDM: /etc/lightdm/lightdm.conf.d/50-ages-autologin.conf\n"
             "• SDDM: /etc/sddm.conf.d/50-ages-autologin.conf\n"
-            "• GDM: /etc/gdm/custom.conf\n"
+            "• GDM: /etc/gdm/custom.conf\n\n"
+            "GPU driver toggle is best-effort and depends on repo availability."
         )
         self.note.setWordWrap(True)
         self.note.setStyleSheet("color:#b8c2ff;")
@@ -3302,33 +3548,44 @@ class DesktopPage(StepPage):
         out = QVBoxLayout(self)
         out.addWidget(self.scroll)
 
-        self._changed()
+        QTimer.singleShot(0, self._changed)
 
-    def desktops_selected(self) -> List[str]:
+    def selected_desktops(self) -> List[str]:
         out = []
-        if self.cb_xfce.isChecked(): out.append(DE_XFCE)
-        if self.cb_gnome.isChecked(): out.append(DE_GNOME)
-        if self.cb_kde.isChecked(): out.append(DE_KDE)
-        if self.cb_cinnamon.isChecked(): out.append(DE_CINNAMON)
-        if self.cb_mate.isChecked(): out.append(DE_MATE)
-        if self.cb_lxqt.isChecked(): out.append(DE_LXQT)
-
-        if self.cb_i3.isChecked(): out.append(DE_I3)
-        if self.cb_openbox.isChecked(): out.append(DE_OPENBOX)
-        if self.cb_bspwm.isChecked(): out.append(DE_BSPWM)
-        if self.cb_qtile.isChecked(): out.append(DE_QTILE)
-
-        if self.cb_sway.isChecked(): out.append(DE_SWAY)
-        if self.cb_hyprland.isChecked(): out.append(DE_HYPRLAND)
-
+        for cb, name in [
+            (self.cb_xfce, DE_XFCE),
+            (self.cb_gnome, DE_GNOME),
+            (self.cb_kde, DE_KDE),
+            (self.cb_cinnamon, DE_CINNAMON),
+            (self.cb_mate, DE_MATE),
+            (self.cb_lxqt, DE_LXQT),
+            (self.cb_i3, DE_I3),
+            (self.cb_openbox, DE_OPENBOX),
+            (self.cb_bspwm, DE_BSPWM),
+            (self.cb_qtile, DE_QTILE),
+            (self.cb_sway, DE_SWAY),
+            (self.cb_hyprland, DE_HYPRLAND),
+        ]:
+            if cb.isChecked():
+                out.append(name)
         return out
 
     def _changed(self):
-        desktops = self.desktops_selected()
+        desktops = self.selected_desktops()
         if not desktops:
-            self.cb_xfce.setChecked(True)
-            desktops = [DE_XFCE]
-        self.main.set_step_done(4, bool(desktops))
+            self.gpu_status.setText("Status: Select at least one desktop/window manager.")
+            self.main.set_step_done(4, False)
+            self.main.refresh_confirm_page()
+            return
+
+        gpu_info = detect_gpu_info()
+        if gpu_info.has_nvidia:
+            rec = gpu_info.recommended_pkg or "nvidia-dkms"
+            self.gpu_status.setText(f"Status: NVIDIA detected ({gpu_info.model}). Recommended: {rec}")
+        else:
+            self.gpu_status.setText("Status: No NVIDIA detected (or lspci unavailable).")
+
+        self.main.set_step_done(4, True)
         self.main.refresh_confirm_page()
 
 
@@ -3340,173 +3597,141 @@ class ConfirmPage(StepPage):
         root = QWidget()
         lay = QVBoxLayout(root)
 
-        title = QLabel("Confirm (Read Carefully)")
+        title = QLabel("Confirm & Safety")
         title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
         lay.addWidget(title)
 
+        warn = QLabel(
+            "⚠️ IMPORTANT: You are responsible for any data loss.\n"
+            "This installer can ERASE disks and modify partitions.\n"
+            "Always double-check the disk and selections."
+        )
+        warn.setStyleSheet("color:#ffb3b3; font-weight:900;")
+        warn.setWordWrap(True)
+        lay.addWidget(warn)
+
         self.summary = QPlainTextEdit()
         self.summary.setReadOnly(True)
-        self.summary.setMinimumHeight(220)
+        self.summary.setMinimumHeight(240)
         lay.addWidget(self.summary)
 
-        self.disclaimer = QLabel(
-            "⚠️ DISCLAIMER:\n"
-            "This installer may ERASE disks/partitions and can cause total data loss.\n"
-            "You accept full responsibility for any damage, data loss, or downtime.\n"
-            "ONLY proceed if you understand exactly what will happen."
-        )
-        self.disclaimer.setStyleSheet("color:#ffb3b3; font-weight:900;")
-        self.disclaimer.setWordWrap(True)
-        lay.addWidget(self.disclaimer)
-
-        self.confirm_word_label = QLabel("Type the confirmation word to enable Install:")
-        self.confirm_word_label.setStyleSheet("font-weight:900; color:#dbe3ff;")
-        lay.addWidget(self.confirm_word_label)
-
+        box = QGroupBox("Type the required confirmation word to enable Install")
+        fl = QFormLayout(box)
+        self.required = QLabel("...")
+        self.required.setStyleSheet("font-weight:900; color:#dbe3ff;")
         self.confirm_word = QLineEdit()
-        lay.addWidget(self.confirm_word)
+        fl.addRow("Required word:", self.required)
+        fl.addRow("You type:", self.confirm_word)
+        lay.addWidget(box)
 
-        self.restore_btrfs = QCheckBox("Optional: Create BTRFS restore point (EXISTING partitions + NO formatting + BTRFS only)")
-        lay.addWidget(self.restore_btrfs)
-
-        self.ack = QCheckBox("I understand and I want to proceed.")
-        self.ack.setProperty("danger", "true")
-        lay.addWidget(self.ack)
+        self.ack2 = QCheckBox("I understand. Proceed at my own risk.")
+        self.ack2.setProperty("danger", "true")
+        lay.addWidget(self.ack2)
 
         lay.addStretch(1)
+
         self.scroll = make_scroll_page(root)
         out = QVBoxLayout(self)
         out.addWidget(self.scroll)
 
-        self.confirm_word.textChanged.connect(self._changed)
-        self.ack.stateChanged.connect(lambda _=None: self._changed())
-        self.restore_btrfs.stateChanged.connect(lambda _=None: self._changed())
+        self.confirm_word.textChanged.connect(lambda _=None: self._changed())
+        self.ack2.stateChanged.connect(lambda _=None: self._changed())
 
     def required_word(self) -> str:
         mode = self.main.disk_page.mode_combo.currentText()
+        fmt_root = self.main.partitions_page.format_root.isChecked()
+        fmt_efi = self.main.partitions_page.format_efi.isChecked()
+        boot = effective_boot_mode(self.main.disk_page.boot_combo.currentText())
+
         if mode == MODE_ERASE:
             return "ERASE"
-        if self.main.partitions_page.format_root.isChecked() or self.main.partitions_page.format_efi.isChecked():
+        if fmt_root or (boot == "UEFI" and fmt_efi):
             return "FORMAT"
         return "INSTALL"
 
-    def on_enter(self):
-        self.refresh()
-
-    def refresh(self):
+    def build_summary_text(self) -> str:
         disk = self.main.disk_page.disk_combo.currentData() or ""
         mode = self.main.disk_page.mode_combo.currentText()
         boot = effective_boot_mode(self.main.disk_page.boot_combo.currentText())
         fs = effective_fs(self.main.disk_page.fs_combo.currentText())
 
-        desktops = self.main.desktop_page.desktops_selected()
-        dm_sel = self.main.desktop_page.dm.currentText()
-        dm_eff = dm_sel if dm_sel != DM_AUTO else choose_default_dm_for_desktops(desktops)
+        root_part = self.main.partitions_page.root_combo.currentData() or ""
+        efi_part = self.main.partitions_page.efi_combo.currentData() or ""
+        fmt_root = self.main.partitions_page.format_root.isChecked()
+        fmt_efi = self.main.partitions_page.format_efi.isChecked()
 
-        host = sanitize_hostname(self.main.system_page.hostname.text())
-        user = sanitize_username(self.main.system_page.username.text())
+        h = self.main.system_page.hostname.text()
+        u = self.main.system_page.username.text()
         tz = self.main.system_page.tz.currentText()
         km = self.main.system_page.keymap.currentText()
         loc = self.main.system_page.locale.currentText()
 
+        desktops = self.main.desktop_page.selected_desktops()
+        dm = self.main.desktop_page.dm.currentText()
+        autologin = self.main.desktop_page.autologin.isChecked()
+        want_yay = self.main.desktop_page.want_yay.isChecked()
+        gpu_choice = self.main.desktop_page.gpu.currentText()
+
         use_dracut = self.main.system_page.use_dracut.isChecked()
         copy_omb = self.main.system_page.copy_omb.isChecked()
-        live_user = sanitize_username(self.main.system_page.live_user.text()) or live_user_best_effort()
-
-        sep_root = self.main.system_page.separate_root.isChecked()
-        rpw_mode = "separate" if sep_root else "same as user"
-
-        rootp = ""
-        efip = ""
-        fmt_root = False
-        fmt_efi = False
-        if mode == MODE_EXISTING:
-            rootp = self.main.partitions_page.root_combo.currentData() or ""
-            efip = self.main.partitions_page.efi_combo.currentData() or ""
-            fmt_root = self.main.partitions_page.format_root.isChecked()
-            fmt_efi = self.main.partitions_page.format_efi.isChecked()
-        else:
-            fmt_root = True
-            fmt_efi = (boot == "UEFI")
-
-        v = detect_virtualization()
-        vm_line = ""
-        if v.get("is_vm") == "yes":
-            vm_line = f"Virtualization: YES — {v.get('details','')}"
-        elif v.get("is_vm") == "no":
-            vm_line = "Virtualization: No (bare metal)"
-        else:
-            vm_line = f"Virtualization: Unknown — {v.get('details','')}"
-
-        word = self.required_word()
+        live_user = self.main.system_page.live_user.text().strip() or live_user_best_effort()
+        dry_run = self.main.system_page.dry_run.isChecked()
+        restore = self.main.system_page.restore_point.isChecked()
 
         lines = []
-        lines.append("=== Summary ===")
-        lines.append(vm_line)
-        lines.append("")
+        lines.append("=== Planned Install ===")
         lines.append(f"Mode: {mode}")
         lines.append(f"Disk: {disk}")
-        lines.append(f"Boot: {boot}")
-        lines.append(f"Filesystem: {fs}")
+        lines.append(f"Boot: {boot} | Filesystem: {fs}")
         if mode == MODE_EXISTING:
-            lines.append(f"Root partition: {rootp}  (format={fmt_root})")
-            lines.append(f"EFI partition: {efip if boot=='UEFI' else '(not used)'}  (format={fmt_efi})")
+            lines.append(f"Root partition: {root_part}")
+            lines.append(f"EFI partition: {efi_part if boot == 'UEFI' else '(not used)'}")
+            lines.append(f"Format root: {'YES' if fmt_root else 'NO'}")
+            lines.append(f"Format EFI:  {'YES' if (boot == 'UEFI' and fmt_efi) else 'NO'}")
         else:
-            lines.append("Partitions: AUTO (created by installer)")
-            lines.append(f"Root will be formatted: YES ({fs})")
-            lines.append(f"EFI will be formatted: {'YES' if boot=='UEFI' else 'NO'}")
+            lines.append("Partitions: automatic (ERASE mode)")
 
         lines.append("")
-        lines.append(f"Host: {host}")
-        lines.append(f"User: {user}")
-        lines.append("Passwords: minimum 4 characters.")
-        lines.append(f"Root password: {rpw_mode}")
-        lines.append(f"Timezone: {tz}")
-        lines.append(f"Keymap: {km}")
-        lines.append(f"Locale: {loc}")
-
+        lines.append(f"Hostname: {h}")
+        lines.append(f"Username: {u}")
+        lines.append(f"Timezone: {tz} | Keymap: {km} | Locale: {loc}")
+        lines.append("Password policy: minimum 4 characters (user/root).")
         lines.append("")
-        lines.append("Desktop environments: " + ", ".join(desktops))
-        lines.append(f"Display manager: {dm_eff}  (selected: {dm_sel})")
-        lines.append(f"Autologin: {'YES' if self.main.desktop_page.autologin.isChecked() else 'NO'}")
-        lines.append(f"AUR yay: {'YES' if self.main.desktop_page.want_yay.isChecked() else 'NO'}")
+        lines.append(f"Desktops/WMs: {', '.join(desktops) if desktops else '(none selected)'}")
+        lines.append(f"Display Manager: {dm} | Autologin: {'YES' if autologin else 'NO'}")
+        lines.append(f"GPU: {gpu_choice}")
+        lines.append(f"AUR helper (yay): {'YES' if want_yay else 'NO'}")
         lines.append("")
-        lines.append(f"Use dracut: {'YES' if use_dracut else 'NO'}")
-        lines.append(f"Copy Oh My Bash to skel: {'YES' if copy_omb else 'NO'} (live_user={live_user})")
-
-        # Restore point eligibility hint
-        eligible_restore = (fs == "btrfs" and mode == MODE_EXISTING and (not fmt_root) and (not fmt_efi))
+        lines.append(f"Dracut: {'YES' if use_dracut else 'NO'}")
+        lines.append(f"Oh My Bash to /etc/skel: {'YES' if copy_omb else 'NO'} (live_user={live_user})")
+        lines.append(f"BTRFS restore point (eligible only in specific cases): {'YES' if restore else 'NO'}")
+        lines.append(f"Dry-run: {'YES' if dry_run else 'NO'}")
         lines.append("")
-        lines.append("BTRFS restore point eligibility: " + ("ELIGIBLE" if eligible_restore else "NOT eligible (requires EXISTING + no formatting + btrfs)"))
+        lines.append("Log file:")
+        lines.append(str(LOG_FILE))
+        return "\n".join(lines)
 
-        lines.append("")
-        lines.append(f"Confirmation word required: {word}")
-        self.summary.setPlainText("\n".join(lines))
-
+    def refresh(self):
+        req = self.required_word()
+        self.required.setText(req)
+        self.summary.setPlainText(self.build_summary_text())
         self._changed()
 
+    def on_enter(self):
+        self.refresh()
+
     def _changed(self):
-        req = self.required_word()
+        req = self.required_word().strip().upper()
         typed = (self.confirm_word.text() or "").strip().upper()
-        ok_word = (typed == req)
-        ok_ack = self.ack.isChecked()
+        ok = (typed == req) and self.ack2.isChecked()
 
-        # Restore point only allowed when eligible
-        mode = self.main.disk_page.mode_combo.currentText()
-        fs = effective_fs(self.main.disk_page.fs_combo.currentText())
-        fmt_root = self.main.partitions_page.format_root.isChecked()
-        fmt_efi = self.main.partitions_page.format_efi.isChecked()
-        eligible_restore = (fs == "btrfs" and mode == MODE_EXISTING and (not fmt_root) and (not fmt_efi))
-        if self.restore_btrfs.isChecked() and not eligible_restore:
-            # auto-uncheck if not eligible
-            self.restore_btrfs.blockSignals(True)
-            self.restore_btrfs.setChecked(False)
-            self.restore_btrfs.blockSignals(False)
+        # Confirm page depends on previous steps too
+        for i in range(0, 5):
+            if not self.main.step_done[i]:
+                ok = False
+                break
 
-        all_prev_ok = self.main.steps_unlocked_upto(5)  # confirm step index=5; needs previous 0..4
-        ok = ok_word and ok_ack and all_prev_ok
         self.main.set_step_done(5, ok)
-        self.main.install_page.update_install_enabled()
 
 
 class InstallPage(StepPage):
@@ -3514,10 +3739,8 @@ class InstallPage(StepPage):
         super().__init__()
         self.main = main
         self.thread: Optional[InstallThread] = None
-        self.success = False
 
-        root = QWidget()
-        lay = QVBoxLayout(root)
+        lay = QVBoxLayout(self)
 
         title = QLabel("Install")
         title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
@@ -3527,362 +3750,227 @@ class InstallPage(StepPage):
         self.progress.setValue(0)
         lay.addWidget(self.progress)
 
-        btnrow = QHBoxLayout()
-        self.btn_install = QPushButton("Install Now")
-        self.btn_install.clicked.connect(self.start_install)
-        btnrow.addWidget(self.btn_install)
+        self.logbox = QPlainTextEdit()
+        self.logbox.setReadOnly(True)
+        self.logbox.setMinimumHeight(260)
+        lay.addWidget(self.logbox)
 
-        self.btn_open_log = QPushButton("Open Log")
-        self.btn_open_log.clicked.connect(self.open_log)
-        btnrow.addWidget(self.btn_open_log)
+        row = QHBoxLayout()
+        self.btn_start = QPushButton("Start Install")
+        self.btn_start.clicked.connect(self.start_install)
+        row.addWidget(self.btn_start)
 
-        self.btn_copy_log_usb = QPushButton("Copy Log to USB")
-        self.btn_copy_log_usb.clicked.connect(self.copy_log_to_usb)
-        btnrow.addWidget(self.btn_copy_log_usb)
+        self.btn_copy_log = QPushButton("Copy Log to USB")
+        self.btn_copy_log.setEnabled(False)
+        self.btn_copy_log.clicked.connect(self.copy_log_to_usb)
+        row.addWidget(self.btn_copy_log)
+
+        self.btn_open_log = QPushButton("Open Log Path")
+        self.btn_open_log.clicked.connect(self.show_log_path)
+        row.addWidget(self.btn_open_log)
 
         self.btn_reboot = QPushButton("Reboot")
         self.btn_reboot.setEnabled(False)
         self.btn_reboot.clicked.connect(self.reboot_now)
-        btnrow.addWidget(self.btn_reboot)
+        row.addWidget(self.btn_reboot)
 
-        btnrow.addStretch(1)
-        lay.addLayout(btnrow)
+        row.addStretch(1)
+        lay.addLayout(row)
 
-        self.logbox = QPlainTextEdit()
-        self.logbox.setReadOnly(True)
-        self.logbox.setMinimumHeight(280)
-        lay.addWidget(self.logbox)
-
-        note = QLabel(
-            "Tip: If installation fails, the full log is saved at:\n"
-            f"{LOG_FILE}\n\n"
-            "Passwords must be at least 4 characters."
+        hint = QLabel(
+            "Tip: If you want to test first, enable Dry-run in System Settings.\n"
+            "The installer always writes a log to: /tmp/ages_easy_installer.log"
         )
-        note.setStyleSheet("color:#b8c2ff;")
-        note.setWordWrap(True)
-        lay.addWidget(note)
-
-        lay.addStretch(1)
-        self.scroll = make_scroll_page(root)
-        out = QVBoxLayout(self)
-        out.addWidget(self.scroll)
-
-        self.update_install_enabled()
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color:#b8c2ff;")
+        lay.addWidget(hint)
 
     def on_enter(self):
-        self.update_install_enabled()
+        # Install page is always allowed once Confirm is done
+        self.main.set_step_done(6, True)
 
     def append_line(self, s: str):
         self.logbox.appendPlainText(s)
-        # keep view at bottom
-        cur = self.logbox.textCursor()
-        cur.movePosition(cur.End)
-        self.logbox.setTextCursor(cur)
-
-    def update_install_enabled(self):
-        ok = self.main.step_done[5]  # Confirm step
-        running = self.thread is not None and self.thread.isRunning()
-        self.btn_install.setEnabled(ok and (not running))
-        self.btn_open_log.setEnabled(True)
-        self.btn_copy_log_usb.setEnabled(True)
-        self.btn_reboot.setEnabled(self.success and (not running))
-
-    def gather_config(self) -> InstallerConfig:
-        boot = effective_boot_mode(self.main.disk_page.boot_combo.currentText())
-        fs = effective_fs(self.main.disk_page.fs_combo.currentText())
-        mode = self.main.disk_page.mode_combo.currentText()
-        disk = self.main.disk_page.disk_combo.currentData() or ""
-
-        rootp = ""
-        efip = ""
-        fmt_root = True
-        fmt_efi = (boot == "UEFI")
-
-        if mode == MODE_EXISTING:
-            rootp = self.main.partitions_page.root_combo.currentData() or ""
-            efip = self.main.partitions_page.efi_combo.currentData() or ""
-            fmt_root = self.main.partitions_page.format_root.isChecked()
-            fmt_efi = self.main.partitions_page.format_efi.isChecked()
-
-        host = sanitize_hostname(self.main.system_page.hostname.text())
-        user = sanitize_username(self.main.system_page.username.text())
-        upw = self.main.system_page.user_password.text()
-        sep_root = self.main.system_page.separate_root.isChecked()
-        rpw = self.main.system_page.root_password.text() if sep_root else ""
-
-        tz = self.main.system_page.tz.currentText()
-        km = self.main.system_page.keymap.currentText()
-        loc = self.main.system_page.locale.currentText()
-
-        desktops = self.main.desktop_page.desktops_selected()
-        dm_sel = self.main.desktop_page.dm.currentText()
-        autologin = self.main.desktop_page.autologin.isChecked()
-        want_yay = self.main.desktop_page.want_yay.isChecked()
-
-        use_dracut = self.main.system_page.use_dracut.isChecked()
-        copy_omb = self.main.system_page.copy_omb.isChecked()
-        live_user = sanitize_username(self.main.system_page.live_user.text()) or live_user_best_effort()
-
-        restore = self.main.confirm_page.restore_btrfs.isChecked()
-
-        cfg = InstallerConfig(
-            boot_mode=boot,
-            fs=fs,
-            install_mode=mode,
-            disk=disk,
-            root_part=rootp,
-            efi_part=efip,
-            format_root=fmt_root,
-            format_efi=fmt_efi,
-            hostname=host,
-            username=user,
-            user_password=upw,
-            root_password=rpw,
-            timezone=tz,
-            keymap=km,
-            locale=loc,
-            desktops=desktops,
-            dm=dm_sel,
-            autologin=autologin,
-            want_yay=want_yay,
-            use_local_packages_txt=True,
-            use_github_packages_list=True,
-            restore_point_enabled=restore,
-            use_dracut=use_dracut,
-            copy_oh_my_bash=copy_omb,
-            live_user=live_user
-        )
-        return cfg
+        self.logbox.verticalScrollBar().setValue(self.logbox.verticalScrollBar().maximum())
 
     def start_install(self):
-        if self.thread is not None and self.thread.isRunning():
+        if self.thread and self.thread.isRunning():
+            QMessageBox.information(self, "Install", "Install is already running.")
             return
 
-        # extra safety: confirm again
-        req = self.main.confirm_page.required_word()
-        typed = (self.main.confirm_page.confirm_word.text() or "").strip().upper()
-        if typed != req or not self.main.confirm_page.ack.isChecked():
-            QMessageBox.warning(self, "Not ready", "You must acknowledge and type the correct confirmation word.")
+        if not self.main.step_done[5]:
+            QMessageBox.warning(self, "Not ready", "Confirm step is not complete. Go back and type the required word.")
             return
 
-        cfg = self.gather_config()
+        cfg = self.main.build_config_from_ui()
+        cfg.gpu_info = detect_gpu_info()
 
-        # sanity checks
-        if not cfg.disk:
-            QMessageBox.warning(self, "Missing disk", "No disk selected.")
-            return
-        if cfg.install_mode == MODE_EXISTING and not cfg.root_part:
-            QMessageBox.warning(self, "Missing root partition", "Select a root partition in Partitions step.")
-            return
-        if cfg.boot_mode == "UEFI" and cfg.install_mode == MODE_EXISTING and not cfg.efi_part:
-            QMessageBox.warning(self, "Missing EFI partition", "Select an EFI partition in Partitions step.")
-            return
-        if len(cfg.user_password) < 4:
-            QMessageBox.warning(self, "Password too short", "User password must be at least 4 characters.")
-            return
-        if cfg.root_password and len(cfg.root_password) < 4:
-            QMessageBox.warning(self, "Password too short", "Root password must be at least 4 characters.")
-            return
-
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Final Warning")
-        msg.setText("This will perform installation and may ERASE DATA.\n\nProceed?")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        if msg.exec_() != QMessageBox.Yes:
-            return
-
-        self.success = False
-        self.btn_reboot.setEnabled(False)
-        self.progress.setValue(0)
         self.logbox.clear()
+        self.progress.setValue(0)
+        self.btn_start.setEnabled(False)
+        self.btn_copy_log.setEnabled(False)
+        self.btn_reboot.setEnabled(False)
 
         self.thread = InstallThread(cfg, self)
         self.thread.sig_line.connect(self.append_line)
         self.thread.sig_progress.connect(self.progress.setValue)
-        self.thread.sig_done.connect(self._done)
+        self.thread.sig_done.connect(self.install_done)
         self.thread.start()
 
-        self.update_install_enabled()
-
-    def _done(self, ok: bool, message: str):
-        self.update_install_enabled()
+    def install_done(self, ok: bool, msg: str):
+        self.btn_start.setEnabled(True)
+        self.btn_copy_log.setEnabled(True)
+        self.btn_reboot.setEnabled(bool(ok))
         if ok:
-            self.success = True
-            self.btn_reboot.setEnabled(True)
-            QMessageBox.information(self, "Success", "Install completed successfully.\n\nYou can reboot now.")
+            QMessageBox.information(self, "Install Completed", msg)
         else:
-            self.success = False
-            QMessageBox.critical(self, "Installation failed", f"{message}\n\nLog saved at:\n{LOG_FILE}")
+            QMessageBox.critical(self, "Install Failed", msg + f"\n\nLog: {LOG_FILE}")
 
-        self.update_install_enabled()
+    def show_log_path(self):
+        QMessageBox.information(self, "Log", f"Log path:\n{LOG_FILE}")
 
-    def open_log(self):
-        # Best effort open in editor/pager; otherwise just show path
-        if cmd_ok("xdg-open"):
-            subprocess.Popen(["xdg-open", str(LOG_FILE)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif cmd_ok("nano"):
-            subprocess.Popen(["nano", str(LOG_FILE)])
-        else:
-            QMessageBox.information(self, "Log file", f"Log saved at:\n{LOG_FILE}")
-
-    def _find_mounted_removable_targets(self) -> List[Path]:
-        """
-        Best-effort: find mounted removable media mountpoints to copy log to.
-        Looks for /run/media/*, /media/*, /mnt/*.
-        """
-        candidates = []
-        for base in [Path("/run/media"), Path("/media"), Path("/mnt")]:
-            if base.exists():
-                for root, dirs, files in os.walk(str(base)):
-                    # only take top few levels
-                    depth = len(Path(root).parts) - len(base.parts)
-                    if depth > 3:
-                        dirs[:] = []
+    def _find_usb_mountpoints(self) -> List[str]:
+        mps: List[str] = []
+        # Prefer lsblk list of usb-mounted partitions
+        if cmd_ok("lsblk"):
+            cp = subprocess.run(["lsblk", "-nrpo", "NAME,TYPE,TRAN,MOUNTPOINT"],
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            for line in (cp.stdout or "").splitlines():
+                parts = line.split(None, 3)
+                if len(parts) < 4:
+                    continue
+                _name, typ, tran, mp = parts[0], parts[1], parts[2], parts[3].strip()
+                if typ != "part":
+                    continue
+                if tran.strip().lower() != "usb":
+                    continue
+                if mp and mp != "-":
+                    mps.append(mp)
+        # Fallback: common locations
+        for base in ["/run/media", "/media"]:
+            if Path(base).exists():
+                for root, dirs, files in os.walk(base):
+                    # Only take top-ish mounted dirs (avoid deep recursion)
+                    if root.count(os.sep) - base.count(os.sep) > 2:
                         continue
-                    p = Path(root)
-                    # must be mountpoint
-                    try:
-                        if cmd_ok("mountpoint"):
-                            cp = subprocess.run(["mountpoint", "-q", str(p)])
-                            if cp.returncode == 0:
-                                candidates.append(p)
-                        else:
-                            # fallback: check /proc/mounts contains it
-                            mounts = read_text(Path("/proc/mounts"))
-                            if re.search(rf"(?m)^\S+\s+{re.escape(str(p))}\s+", mounts):
-                                candidates.append(p)
-                    except Exception:
-                        pass
-        # de-dupe + prefer /run/media
-        uniq = []
-        seen = set()
-        for p in candidates:
-            if str(p) not in seen:
-                seen.add(str(p))
-                uniq.append(p)
-        uniq.sort(key=lambda x: (0 if str(x).startswith("/run/media") else 1, len(str(x))))
-        return uniq
+                    if root not in mps and Path(root).is_dir():
+                        mps.append(root)
+        # Dedup
+        out = []
+        for x in mps:
+            if x and x not in out:
+                out.append(x)
+        return out
 
     def copy_log_to_usb(self):
         if not LOG_FILE.exists():
-            QMessageBox.warning(self, "No log", f"Log not found:\n{LOG_FILE}")
+            QMessageBox.warning(self, "Copy Log", f"Log file not found:\n{LOG_FILE}")
             return
-        targets = self._find_mounted_removable_targets()
-        if not targets:
-            QMessageBox.warning(self, "No USB found", "No mounted removable media found (e.g., /run/media/<user>/USB).")
+
+        mps = self._find_usb_mountpoints()
+        if not mps:
+            QMessageBox.warning(self, "Copy Log", "No mounted USB drive found.\nMount a USB drive and try again.")
             return
-        dest_dir = targets[0] / "AGES-Logs"
-        try:
-            ensure_dir(dest_dir)
-            ts = time.strftime("%Y%m%d-%H%M%S")
-            dest = dest_dir / f"ages_easy_installer_{ts}.log"
-            shutil.copy2(str(LOG_FILE), str(dest))
-            QMessageBox.information(self, "Copied", f"Copied log to:\n{dest}")
-        except Exception as e:
-            QMessageBox.critical(self, "Copy failed", str(e))
+
+        # Pick first writable mountpoint
+        for mp in mps:
+            try:
+                p = Path(mp)
+                if not p.exists() or not os.access(str(p), os.W_OK):
+                    continue
+                dest = p / f"ages_easy_installer_{time.strftime('%Y%m%d-%H%M%S')}.log"
+                shutil.copy2(str(LOG_FILE), str(dest))
+                QMessageBox.information(self, "Copy Log", f"Copied log to:\n{dest}")
+                return
+            except Exception:
+                continue
+
+        QMessageBox.warning(self, "Copy Log", "Found USB mountpoints, but none were writable.")
 
     def reboot_now(self):
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Reboot")
-        msg.setText("Reboot now?")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        if msg.exec_() != QMessageBox.Yes:
+        r = QMessageBox.question(self, "Reboot", "Reboot now?", QMessageBox.Yes | QMessageBox.No)
+        if r != QMessageBox.Yes:
             return
-        # Try systemctl first
-        if cmd_ok("systemctl"):
-            subprocess.Popen(["systemctl", "reboot"])
-        else:
-            subprocess.Popen(["reboot"])
+        try:
+            subprocess.run(["systemctl", "reboot"])
+        except Exception as e:
+            QMessageBox.critical(self, "Reboot failed", str(e))
 
 
 # ============================================================
-# Main Window + Sidebar navigation (gated)
+# Main window + navigation
 # ============================================================
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("A.G.E.S Easy Installer")
-        self.resize(1150, 720)
+        self.setMinimumSize(1024, 640)  # 14" friendly baseline
 
-        # ==========================================================
-        # CRITICAL FIX: initialize step_done BEFORE pages are created
-        # ==========================================================
-        self.step_names = ["Preflight", "Disk", "Partitions", "System", "Desktop", "Confirm", "Install"]
-        self.step_done = [False] * len(self.step_names)
+        self.step_titles = [
+            "1. Preflight",
+            "2. Disk & Mode",
+            "3. Partitions",
+            "4. System",
+            "5. Desktop & Login",
+            "6. Confirm",
+            "7. Install",
+        ]
+        self.step_done = [False] * len(self.step_titles)
+        self.current_index = 0
 
-        # (Optional but recommended if you gate navigation)
-        self.step_unlocked = [False] * len(self.step_names)
-        self.step_unlocked[0] = True
-
-        self.current_step = 0
-
-        # -------- Main layout --------
+        # Root layout
         central = QWidget()
         self.setCentralWidget(central)
-
         outer = QHBoxLayout(central)
-        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setContentsMargins(8, 8, 8, 8)
+        outer.setSpacing(8)
 
-        # -------- Sidebar --------
-        self.side = QWidget()
-        self.side.setObjectName("SideNav")
-        self.side.setFixedWidth(260)
-        side_lay = QVBoxLayout(self.side)
-        side_lay.setContentsMargins(8, 10, 8, 10)
+        # Sidebar
+        side = QWidget(objectName="SideNav")
+        side.setFixedWidth(240)
+        side_lay = QVBoxLayout(side)
+        side_lay.setContentsMargins(6, 6, 6, 6)
+        side_lay.setSpacing(2)
 
-        logo = QLabel("A.G.E.S")
-        logo.setStyleSheet("font-size: 22pt; font-weight: 900; color:#dbe3ff; padding: 6px 10px;")
-        side_lay.addWidget(logo)
-
-        sub = QLabel("Arch Easy Installer")
-        sub.setStyleSheet("color:#b8c2ff; font-weight:700; padding: 0 10px 10px 10px;")
-        side_lay.addWidget(sub)
+        brand = QLabel("A.G.E.S Installer")
+        brand.setStyleSheet("font-size: 14pt; font-weight: 900; color: #dbe3ff; padding: 6px;")
+        side_lay.addWidget(brand)
 
         self.nav_buttons: List[QPushButton] = []
-        for i, name in enumerate(self.step_names):
-            b = QPushButton(f"{i+1}. {name}")
+        for i, t in enumerate(self.step_titles):
+            b = QPushButton(t)
             b.setProperty("class", "NavStep")
             b.clicked.connect(lambda _=None, idx=i: self.goto_step(idx))
+            b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             self.nav_buttons.append(b)
             side_lay.addWidget(b)
 
         side_lay.addStretch(1)
 
-        # -------- Content area --------
-        right = QWidget()
-        right_lay = QVBoxLayout(right)
-        right_lay.setContentsMargins(14, 14, 14, 14)
+        # Main stack
+        main = QWidget()
+        main_lay = QVBoxLayout(main)
+        main_lay.setContentsMargins(8, 8, 8, 8)
+        main_lay.setSpacing(8)
 
         self.stack = QStackedWidget()
-        right_lay.addWidget(self.stack, 1)
+        main_lay.addWidget(self.stack, 1)
 
-        # -------- Bottom nav --------
+        # Bottom nav buttons
         navrow = QHBoxLayout()
-
         self.btn_back = QPushButton("Back")
-        self.btn_back.clicked.connect(self.go_back)
-        navrow.addWidget(self.btn_back)
-
         self.btn_next = QPushButton("Next")
-        self.btn_next.clicked.connect(self.go_next)
+        self.btn_back.clicked.connect(self.prev_step)
+        self.btn_next.clicked.connect(self.next_step)
+        navrow.addWidget(self.btn_back)
         navrow.addWidget(self.btn_next)
-
         navrow.addStretch(1)
+        main_lay.addLayout(navrow)
 
-        self.btn_quit = QPushButton("Quit")
-        self.btn_quit.clicked.connect(self.close)
-        navrow.addWidget(self.btn_quit)
+        outer.addWidget(side)
+        outer.addWidget(main, 1)
 
-        right_lay.addLayout(navrow)
-
-        outer.addWidget(self.side)
-        outer.addWidget(right, 1)
-
-        # -------- Pages --------
-        # IMPORTANT: Pages may call self.set_step_done() during their __init__.
-        # step_done must already exist (we initialized it above).
+        # Pages
         self.preflight_page = PreflightPage(self)
         self.disk_page = DiskPage(self)
         self.partitions_page = PartitionsPage(self)
@@ -3900,108 +3988,71 @@ class MainWindow(QMainWindow):
             self.confirm_page,
             self.install_page,
         ]
-
         for p in self.pages:
             self.stack.addWidget(p)
 
-        # If your code assumes step_done length == len(pages), keep it synced:
-        if len(self.step_done) != len(self.pages):
-            self.step_done = [False] * len(self.pages)
-            self.step_unlocked = [False] * len(self.pages)
-            self.step_unlocked[0] = True
+        self._update_nav_styles()
+        self._update_back_next_state()
 
-        # -------- Wire cross-refreshes (auto summary) --------
-        self.desktop_page.dm.currentIndexChanged.connect(lambda _=None: self.refresh_confirm_page())
-        self.desktop_page.autologin.stateChanged.connect(lambda _=None: self.refresh_confirm_page())
-        self.desktop_page.want_yay.stateChanged.connect(lambda _=None: self.refresh_confirm_page())
+        QTimer.singleShot(0, lambda: self.goto_step(0, force=True))
 
-        # -------- Initial --------
-        self.update_nav()
-        self.goto_step(0, force=True)
+    # ---- logging helper used by preflight smoke test ----
+    def _log_quiet(self, s: str) -> None:
+        # used where a "log callback" is required, but we don't want to spam UI
+        log_to_file("[PRECHECK] " + s)
 
-
-    def steps_unlocked_upto(self, idx_inclusive: int) -> bool:
-        """
-        True if all steps before idx_inclusive are done.
-        """
-        if idx_inclusive <= 0:
-            return True
-        for i in range(0, idx_inclusive):
-            if not self.step_done[i]:
-                return False
-        return True
-
-    def set_step_done(self, idx: int, done: bool):
-        # Safety: if something calls this too early, don't crash
-        if not hasattr(self, "step_done"):
+    # ---- step gating / styles ----
+    def set_step_done(self, index: int, done: bool):
+        if index < 0 or index >= len(self.step_done):
             return
-        if not isinstance(self.step_done, list):
-            return
-        if idx < 0 or idx >= len(self.step_done):
-            return
+        self.step_done[index] = bool(done)
+        self._update_nav_styles()
+        self._update_back_next_state()
 
-        self.step_done[idx] = bool(done)
+    def _is_step_locked(self, idx: int) -> bool:
+        if idx <= 0:
+            return False
+        # Locked if any previous step not done
+        return any(not self.step_done[i] for i in range(0, idx))
 
-        # If you have a function that recolors / updates sidebar step buttons
-        if hasattr(self, "refresh_step_styles"):
-            try:
-                self.refresh_step_styles()
-            except Exception:
-                pass
-
-
-    def update_nav(self):
+    def _update_nav_styles(self):
         for i, b in enumerate(self.nav_buttons):
-            active = (i == self.current_step)
+            active = (i == self.current_index)
             done = self.step_done[i]
-            locked = (not self.steps_unlocked_upto(i))
+            locked = self._is_step_locked(i) and (i != self.current_index)
             b.setProperty("active", "true" if active else "false")
-            b.setProperty("done", "true" if done else "false")
+            b.setProperty("done", "true" if (done and not active) else "false")
             b.setProperty("locked", "true" if locked else "false")
-            b.setEnabled(not locked)
+            b.setEnabled(not locked or i == self.current_index)
+            # Refresh QSS
             b.style().unpolish(b)
             b.style().polish(b)
 
-        self.update_bottom_buttons()
+    def _update_back_next_state(self):
+        self.btn_back.setEnabled(self.current_index > 0)
 
-    def update_bottom_buttons(self):
-        self.btn_back.setEnabled(self.current_step > 0)
-        # Next is enabled only if current step is done AND next step exists and unlocked
-        if self.current_step < len(self.pages) - 1:
-            can_next = self.step_done[self.current_step] and self.steps_unlocked_upto(self.current_step + 1)
-        else:
-            can_next = False
-        self.btn_next.setEnabled(can_next)
+        if self.current_index >= len(self.pages) - 1:
+            self.btn_next.setEnabled(False)
+            return
 
-    def refresh_partitions_page(self):
-        try:
-            self.partitions_page.refresh()
-        except Exception:
-            pass
-        self.refresh_confirm_page()
-
-    def refresh_confirm_page(self):
-        try:
-            self.confirm_page.refresh()
-        except Exception:
-            pass
+        # Next allowed only if current step done
+        self.btn_next.setEnabled(bool(self.step_done[self.current_index]))
 
     def goto_step(self, idx: int, force: bool = False):
         if idx < 0 or idx >= len(self.pages):
             return
-        if not force and not self.steps_unlocked_upto(idx):
-            QMessageBox.warning(self, "Locked", "Complete previous steps first.")
+        if not force and self._is_step_locked(idx):
+            QMessageBox.warning(self, "Locked", "You can't jump ahead. Complete previous steps first.")
             return
 
-        # leave current
+        # leave old
         try:
-            self.pages[self.current_step].on_leave()
+            self.pages[self.current_index].on_leave()
         except Exception:
             pass
 
-        self.current_step = idx
+        self.current_index = idx
         self.stack.setCurrentIndex(idx)
-        self.update_nav()
 
         # enter new
         try:
@@ -4009,38 +4060,97 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        # keep summary fresh when arriving at confirm/install
-        if idx in (5, 6):
-            self.refresh_confirm_page()
+        self._update_nav_styles()
+        self._update_back_next_state()
 
-    def go_back(self):
-        self.goto_step(self.current_step - 1)
+    def next_step(self):
+        if not self.step_done[self.current_index]:
+            QMessageBox.warning(self, "Not ready", "Complete this step before continuing.")
+            return
+        self.goto_step(self.current_index + 1)
 
-    def go_next(self):
-        self.goto_step(self.current_step + 1)
+    def prev_step(self):
+        self.goto_step(self.current_index - 1, force=True)
+
+    # ---- cross-page refresh triggers ----
+    def refresh_partitions_page(self):
+        try:
+            self.partitions_page.refresh()
+        except Exception:
+            pass
+
+    def refresh_confirm_page(self):
+        try:
+            if self.current_index == 5:
+                self.confirm_page.refresh()
+            else:
+                # keep summary reasonably current without forcing focus
+                self.confirm_page.summary.setPlainText(self.confirm_page.build_summary_text())
+                self.confirm_page.required.setText(self.confirm_page.required_word())
+                self.confirm_page._changed()
+        except Exception:
+            pass
+
+    # ---- Build installer config from UI ----
+    def build_config_from_ui(self) -> InstallerConfig:
+        cfg = InstallerConfig()
+
+        cfg.install_mode = self.disk_page.mode_combo.currentText()
+        cfg.boot_mode = effective_boot_mode(self.disk_page.boot_combo.currentText())
+        cfg.fs = effective_fs(self.disk_page.fs_combo.currentText())
+        cfg.disk = self.disk_page.disk_combo.currentData() or ""
+
+        if cfg.install_mode == MODE_EXISTING:
+            cfg.root_part = self.partitions_page.root_combo.currentData() or ""
+            cfg.efi_part = self.partitions_page.efi_combo.currentData() or ""
+            cfg.format_root = self.partitions_page.format_root.isChecked()
+            cfg.format_efi = self.partitions_page.format_efi.isChecked()
+        else:
+            cfg.root_part = ""
+            cfg.efi_part = ""
+            cfg.format_root = True
+            cfg.format_efi = True
+
+        cfg.hostname = sanitize_hostname(self.system_page.hostname.text())
+        cfg.username = sanitize_username(self.system_page.username.text())
+        cfg.user_password = self.system_page.user_password.text()
+        if self.system_page.separate_root.isChecked():
+            cfg.root_password = self.system_page.root_password.text()
+        else:
+            cfg.root_password = ""  # will fallback to user pw
+
+        cfg.timezone = self.system_page.tz.currentText()
+        cfg.keymap = self.system_page.keymap.currentText()
+        cfg.locale = self.system_page.locale.currentText()
+
+        cfg.use_dracut = self.system_page.use_dracut.isChecked()
+        cfg.copy_oh_my_bash = self.system_page.copy_omb.isChecked()
+        cfg.live_user = sanitize_username(self.system_page.live_user.text()) or live_user_best_effort()
+        cfg.dry_run = self.system_page.dry_run.isChecked()
+        cfg.restore_point_enabled = self.system_page.restore_point.isChecked()
+
+        cfg.desktops = self.desktop_page.selected_desktops()
+        cfg.dm = self.desktop_page.dm.currentText()
+        cfg.autologin = self.desktop_page.autologin.isChecked()
+        cfg.want_yay = self.desktop_page.want_yay.isChecked()
+        cfg.gpu_driver = self.desktop_page.gpu.currentText()
+
+        # package list toggles (kept enabled by default)
+        cfg.use_local_packages_txt = True
+        cfg.use_github_packages_list = True
+
+        return cfg
+
 
 # ============================================================
-# Entrypoint
+# App entry
 # ============================================================
 def main():
     app = QApplication(sys.argv)
     app.setStyleSheet(MIDNIGHT_QSS)
 
-    # nice default font
-    f = QFont()
-    f.setPointSize(10)
-    app.setFont(f)
-
-    w = MainWindow()
-    w.show()
-
-    # If not root, warn immediately (still let UI show preflight).
-    if not is_root():
-        QMessageBox.warning(
-            w,
-            "Not root",
-            "You are not running as root.\n\nRun:\n  sudo python3 ages_easy_installer.py\n\nPreflight will show this too."
-        )
+    win = MainWindow()
+    win.show()
 
     sys.exit(app.exec_())
 
