@@ -2,83 +2,19 @@
 # -*- coding: utf-8 -*-
 
 """
-StormOS / Arch Easy Installer — PyQt5 (UEFI + BIOS) — No-Freeze Edition
-FULL SINGLE-FILE CODE (Midnight Theme + Accent Colors)
+AGES Easy Installer — Modern Redesign with Smart Location Detection
+FULL SINGLE-FILE CODE (Modern Design + Location Detection + All Features)
 
-UI Redesign (Notebook/Bookmark Sidebar):
-✅ Left-side notebook “bookmark” step navigator (clickable steps)
-✅ Current step is highlighted; completed steps show as “done”
-✅ Steps are gated (can’t jump ahead until unlocked)
-✅ 14" friendly (scroll pages)
-
-Robust + intelligent defaults:
-✅ Preflight auto-runs when entering Preflight
-✅ Disk list auto-refresh + auto-selects best disk (largest non-removable) BUT:
-   - Will NEVER overwrite disk selection after user manually touches the disk dropdown
-✅ Partitions auto-refresh on disk/mode/boot changes
-✅ Auto DM choice based on selected DEs
-✅ Confirm page auto-generates summary + required confirmation word
-✅ Password minimum length: 4 chars
-
-Safety / Liability:
-✅ Strong disclaimers + explicit acknowledgements
-✅ Smart confirmation words:
-   - ERASE mode -> type ERASE
-   - Existing partitions + any formatting -> type FORMAT
-   - Existing partitions no formatting -> type INSTALL
-✅ Refuses to erase LIVE boot media (ArchISO /run/archiso/bootmnt best-effort)
-✅ Before partitioning, tries swapoff + unmount partitions on that disk (best-effort)
-
-Autologin (bypass login screen):
-✅ LightDM: /etc/lightdm/lightdm.conf.d/50-stormos-autologin.conf (timeout=0)
-✅ SDDM: /etc/sddm.conf.d/50-stormos-autologin.conf
-✅ GDM: /etc/gdm/custom.conf
-
-“Restore point” (best-effort):
-✅ Optional restore point for BTRFS only
-   - ONLY safe in: EXISTING partitions + NO formatting + BTRFS
-   - Creates snapshots of @ and @home if present (or top-level) before install
-   - On failure: best-effort rollback (restore @ from snapshot) if possible
-   - Always logs instructions for manual rollback if auto-rollback cannot run
-
-NEW: DRACUT SUPPORT (no pacstrap failures)
-✅ NEVER installs non-existent repo package "dracut-hook"
-✅ Optional "Use dracut initramfs" toggle
-✅ Installs dracut in target + writes /etc/dracut.conf.d/stormos.conf
-✅ Adds a pacman hook /etc/pacman.d/hooks/90-dracut.hook to regenerate initramfs
-✅ Runs: dracut --force --regenerate-all (best-effort)
-
-NEW: Oh My Bash copy to /etc/skel
-✅ Copies /home/<live_user>/.oh-my-bash -> target /etc/skel/.oh-my-bash
-✅ Copies /home/<live_user>/.bashrc -> target /etc/skel/.bashrc
-✅ Ensures /etc/skel/.bashrc sources Oh My Bash
-
-NEW: Fix pacstrap interactive prompt
-✅ Replaces problematic group "xorg-drivers" with explicit packages
-✅ Removes "dracut-hook" if it ever appears in package list
-
-NEW: XFCE panel plugins "guarantee best-effort"
-✅ Installs a broader known-good plugin set if XFCE is selected
-✅ Verifies key plugin .so files exist
-✅ If missing after retries, patches panel config in skel to remove missing plugin entries (prevents popups)
-
-NEW: Ensure created user receives skel content (best-effort)
-✅ After user creation: rsync /etc/skel into /home/<user> and chown it
-
-NEW: Reboot button after successful install
-✅ Success dialog offers "Reboot now"
-✅ Install page has "Reboot" button enabled only after success
-
-NEW: Virtual Machine Detector (guest-side)
-✅ Preflight shows virtualization type (VirtualBox / VMware / Hyper-V / KVM/QEMU / etc.)
-✅ KVM/QEMU is shown as: "kvm/qemu (GNOME Boxes / virt-manager / libvirt possible)"
-
-NEW: POPULAR WINDOW MANAGERS
-✅ Added support for i3, Openbox, Bspwm, Awesome, Qtile, Sway, Hyprland.
-✅ Intelligent Display Manager selection:
-   - GNOME -> GDM
-   - KDE/LXQt -> SDDM
-   - XFCE/MATE/Cinnamon/i3/Openbox/others -> LightDM
+FEATURES:
+✅ Modern, clean UI optimized for 14" monitors
+✅ Smart location detection for NYC, LA, and global cities
+✅ Card-based design with better visual hierarchy
+✅ Enhanced navigation with progress indicator
+✅ All original functionality preserved
+✅ Automatic timezone, keymap, and locale suggestions
+✅ Multi-source location detection (IP, system, DNS)
+✅ Async location detection with visual feedback
+✅ Navigation lock during installation (NEW)
 """
 
 import os
@@ -91,176 +27,624 @@ import socket
 import subprocess
 import urllib.request
 import urllib.error
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Callable, Dict
 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
+from PyQt5.QtGui import QFont, QPalette, QColor
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QLineEdit, QPushButton, QComboBox, QStackedWidget, QMessageBox,
     QPlainTextEdit, QProgressBar, QCheckBox, QGroupBox, QScrollArea,
-    QSizePolicy
+    QSizePolicy, QFrame
 )
 
 # ============================================================
-# Midnight theme palette + app-wide stylesheet
+# Modern theme palette + app-wide stylesheet
 # ============================================================
-MIDNIGHT_QSS = r"""
-QWidget {
-    background: #0b1020;
-    color: #e7e9ff;
-    font-family: "Sans";
+MODERN_QSS = r"""
+* {
+    font-family: "Segoe UI", "Noto Sans", "DejaVu Sans", "Inter";
     font-size: 11pt;
 }
-QMainWindow { background: #0b1020; }
-QToolTip {
-    background: #111a2e;
-    color: #e7e9ff;
-    border: 1px solid #2a3760;
-    padding: 6px;
+
+QMainWindow {
+    background: #0a0e1a;
+}
+
+#SideNav {
+    background: #0f1525;
+    border-right: 1px solid #1a233a;
+}
+
+QLabel {
+    color: #e0e6ff;
+    background: transparent;
+}
+
+QLabel[class="Title"] {
+    font-size: 20pt;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 5px;
+}
+
+QLabel[class="Subtitle"] {
+    font-size: 12pt;
+    color: #a0a8cc;
+    margin-bottom: 15px;
+}
+
+QLabel[class="SectionTitle"] {
+    font-size: 14pt;
+    font-weight: 600;
+    color: #7aa2f7;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+QLabel[class="LocationBadge"] {
+    font-size: 10pt;
+    font-weight: 500;
+    color: #7aa2f7;
+    background: rgba(122, 162, 247, 0.1);
+    border: 1px solid rgba(122, 162, 247, 0.3);
     border-radius: 8px;
+    padding: 6px 12px;
 }
-QScrollArea, QStackedWidget { background: #0b1020; border: none; }
+
 QGroupBox {
-    background: #0f1730;
-    border: 1px solid #2a3760;
-    border-radius: 14px;
-    margin-top: 12px;
-    padding: 12px;
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    margin-top: 15px;
+    padding-top: 15px;
 }
+
 QGroupBox::title {
     subcontrol-origin: margin;
     left: 12px;
-    padding: 0 8px;
-    color: #b8c2ff;
-    font-weight: 700;
+    padding: 0 8px 0 8px;
+    color: #a0a8cc;
+    font-weight: 600;
 }
-QLineEdit, QComboBox, QPlainTextEdit {
-    background: #101a34;
-    border: 1px solid #2a3760;
-    border-radius: 12px;
-    padding: 8px 10px;
-    selection-background-color: #2b77ff;
-    selection-color: #ffffff;
+
+QLineEdit, QComboBox, QPlainTextEdit, QTextEdit {
+    background: #0d1422;
+    color: #e0e6ff;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 10px;
+    selection-background-color: #1e40af;
 }
+
 QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus {
-    border: 1px solid #6aa9ff;
-}
-QComboBox::drop-down { border: none; width: 28px; }
-QComboBox::down-arrow {
-    image: none;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 8px solid #b8c2ff;
-    margin-right: 10px;
+    border: 1px solid #3b82f6;
+    background: #0f172a;
 }
 
-/* Default checkbox */
-QCheckBox { spacing: 10px; }
-QCheckBox::indicator {
-    width: 18px; height: 18px;
-    border-radius: 5px;
-    border: 1px solid #2a3760;
-    background: #101a34;
-}
-QCheckBox::indicator:checked {
-    background: #2b77ff;
-    border: 1px solid #6aa9ff;
+QComboBox::drop-down {
+    border-left: 1px solid #2d3748;
+    width: 30px;
 }
 
-/* "Danger" checkbox (red border) - setProperty("danger", "true") */
-QCheckBox[danger="true"]::indicator {
-    border: 2px solid #ff5c5c;
-}
-QCheckBox[danger="true"]::indicator:checked {
-    background: #ff5c5c;
-    border: 2px solid #ffb3b3;
+QComboBox QAbstractItemView {
+    background: #111827;
+    color: #e0e6ff;
+    selection-background-color: #1e40af;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 5px;
 }
 
 QPushButton {
-    background: #17224a;
-    border: 1px solid #2a3760;
-    border-radius: 12px;
-    padding: 10px 14px;
-    font-weight: 700;
+    background: #1e293b;
+    color: #e0e6ff;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-weight: 500;
+    min-height: 44px;
 }
-QPushButton:hover { background: #1b2a5e; border: 1px solid #3b4c83; }
-QPushButton:pressed { background: #132044; }
-QPushButton:disabled {
-    background: #111829;
-    border: 1px solid #1a2340;
-    color: #7f87b8;
-}
-QProgressBar {
-    background: #101a34;
-    border: 1px solid #2a3760;
-    border-radius: 12px;
-    text-align: center;
-    padding: 2px;
-}
-QProgressBar::chunk { background: #2b77ff; border-radius: 10px; }
-QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
-QScrollBar::handle:vertical { background: #2a3760; border-radius: 6px; min-height: 22px; }
-QScrollBar::handle:vertical:hover { background: #3b4c83; }
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
-QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
-QScrollBar::handle:horizontal { background: #2a3760; border-radius: 6px; min-width: 22px; }
-QScrollBar::handle:horizontal:hover { background: #3b4c83; }
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0px; }
 
-/* ========== Notebook Sidebar ========== */
-#SideNav {
-    background: #081022;
-    border-right: 1px solid #1e2b4f;
+QPushButton:hover {
+    background: #334155;
+    border-color: #475569;
 }
+
+QPushButton:pressed {
+    background: #1e293b;
+}
+
+QPushButton:disabled {
+    background: #0f172a;
+    color: #475569;
+    border-color: #1e293b;
+}
+
+QPushButton[class="Primary"] {
+    background: #3b82f6;
+    color: #ffffff;
+    border: 1px solid #2563eb;
+    font-weight: 600;
+}
+
+QPushButton[class="Primary"]:hover {
+    background: #2563eb;
+}
+
+QPushButton[class="Primary"]:pressed {
+    background: #1d4ed8;
+}
+
 QPushButton[class="NavStep"] {
     text-align: left;
-    padding: 10px 12px;
-    margin: 6px 8px;
-    border-radius: 12px;
-    background: #0f1730;
-    border: 1px solid #24345f;
-    color: #b8c2ff;
-    font-weight: 900;
+    padding: 15px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    min-height: 60px;
 }
-QPushButton[class="NavStep"]:hover {
-    background: #121d3b;
-    border: 1px solid #2f4379;
-    color: #dbe3ff;
-}
+
 QPushButton[class="NavStep"][active="true"] {
-    background: #172a55;
-    border: 2px solid #2b77ff;
-    color: #ffffff;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid #3b82f6;
 }
+
 QPushButton[class="NavStep"][done="true"] {
-    background: #0f2a1f;
-    border: 1px solid #1f5b3f;
-    color: #cfffdf;
+    border: 1px solid rgba(34, 197, 94, 0.3);
 }
+
 QPushButton[class="NavStep"][locked="true"] {
-    background: #0c1327;
-    border: 1px solid #1a2340;
-    color: #7f87b8;
+    color: #64748b;
+}
+
+QPushButton[class="NavStep"][disabled="true"] {
+    color: #475569;
+    pointer-events: none;
+}
+
+QProgressBar {
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    text-align: center;
+    background: #0d1422;
+    color: #e0e6ff;
+    height: 24px;
+}
+
+QProgressBar::chunk {
+    background-color: #3b82f6;
+    border-radius: 8px;
+}
+
+QCheckBox, QRadioButton {
+    color: #e0e6ff;
+    spacing: 10px;
+}
+
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 20px;
+    height: 20px;
+}
+
+QCheckBox::indicator {
+    border: 2px solid #475569;
+    border-radius: 6px;
+    background: #0d1422;
+}
+
+QCheckBox::indicator:checked {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+QRadioButton::indicator {
+    border: 2px solid #475569;
+    border-radius: 10px;
+    background: #0d1422;
+}
+
+QRadioButton::indicator:checked {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+QScrollArea {
+    border: none;
+    background: transparent;
+}
+
+QScrollBar:vertical {
+    background: #0d1422;
+    width: 10px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical {
+    background: #475569;
+    min-height: 30px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #64748b;
+}
+
+QPlainTextEdit[readonly="true"] {
+    background: #0d1422;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+}
+
+QLabel[class="Warning"] {
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+QLabel[class="Error"] {
+    color: #ef4444;
+    font-weight: 500;
+}
+
+QLabel[class="Success"] {
+    color: #10b981;
+    font-weight: 500;
+}
+
+QWidget[class="LocationWidget"] {
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 10px;
+    padding: 15px;
 }
 """
 
 # ============================================================
-# GitHub sources (USED for PACKAGES + ZST THEMES)
+# Location Detection Module
 # ============================================================
-GITHUB_PACKAGES_BLOB_URL = (
-    "https://github.com/bfitzgit23/stormos-build-files/blob/main/install-stormos-xfce/packages.x86_64"
-)
-GITHUB_ZST_BLOB_URLS = [
-    "https://github.com/bfitzgit23/stormos/blob/main/x86_64/adw-gtk-theme-git-5.7.r4.gf3ba1d7-1-any.pkg.tar.zst",
-]
+
+class LocationDetector:
+    """Enhanced location detection with better accuracy for major cities"""
+    
+    # Major city mappings with better accuracy
+    CITY_TO_TIMEZONE = {
+        # USA
+        "new york": "America/New_York",
+        "new york city": "America/New_York",
+        "nyc": "America/New_York",
+        "los angeles": "America/Los_Angeles",
+        "la": "America/Los_Angeles",
+        "chicago": "America/Chicago",
+        "houston": "America/Chicago",
+        "phoenix": "America/Phoenix",
+        "philadelphia": "America/New_York",
+        "san antonio": "America/Chicago",
+        "san diego": "America/Los_Angeles",
+        "dallas": "America/Chicago",
+        "san jose": "America/Los_Angeles",
+        "austin": "America/Chicago",
+        "jacksonville": "America/New_York",
+        "fort worth": "America/Chicago",
+        "columbus": "America/New_York",
+        "charlotte": "America/New_York",
+        "san francisco": "America/Los_Angeles",
+        "seattle": "America/Los_Angeles",
+        "denver": "America/Denver",
+        "washington": "America/New_York",
+        "boston": "America/New_York",
+        "detroit": "America/Detroit",
+        "nashville": "America/Chicago",
+        "memphis": "America/Chicago",
+        "portland": "America/Los_Angeles",
+        "las vegas": "America/Los_Angeles",
+        "atlanta": "America/New_York",
+        "miami": "America/New_York",
+        "orlando": "America/New_York",
+        "tampa": "America/New_York",
+        
+        # Canada
+        "toronto": "America/Toronto",
+        "vancouver": "America/Vancouver",
+        "montreal": "America/Toronto",
+        "calgary": "America/Edmonton",
+        "ottawa": "America/Toronto",
+        "edmonton": "America/Edmonton",
+        "winnipeg": "America/Winnipeg",
+        "quebec": "America/Toronto",
+        
+        # Europe
+        "london": "Europe/London",
+        "paris": "Europe/Paris",
+        "berlin": "Europe/Berlin",
+        "madrid": "Europe/Madrid",
+        "rome": "Europe/Rome",
+        "amsterdam": "Europe/Amsterdam",
+        "brussels": "Europe/Brussels",
+        "vienna": "Europe/Vienna",
+        "prague": "Europe/Prague",
+        "warsaw": "Europe/Warsaw",
+        "budapest": "Europe/Budapest",
+        "dublin": "Europe/Dublin",
+        "lisbon": "Europe/Lisbon",
+        "athens": "Europe/Athens",
+        "stockholm": "Europe/Stockholm",
+        "oslo": "Europe/Oslo",
+        "helsinki": "Europe/Helsinki",
+        "copenhagen": "Europe/Copenhagen",
+        "zurich": "Europe/Zurich",
+        
+        # Asia
+        "tokyo": "Asia/Tokyo",
+        "seoul": "Asia/Seoul",
+        "beijing": "Asia/Shanghai",
+        "shanghai": "Asia/Shanghai",
+        "hong kong": "Asia/Hong_Kong",
+        "singapore": "Asia/Singapore",
+        "taipei": "Asia/Taipei",
+        "bangkok": "Asia/Bangkok",
+        "jakarta": "Asia/Jakarta",
+        "manila": "Asia/Manila",
+        "kuala lumpur": "Asia/Kuala_Lumpur",
+        "delhi": "Asia/Kolkata",
+        "mumbai": "Asia/Kolkata",
+        "bangalore": "Asia/Kolkata",
+        "karachi": "Asia/Karachi",
+        "dhaka": "Asia/Dhaka",
+        
+        # Australia/NZ
+        "sydney": "Australia/Sydney",
+        "melbourne": "Australia/Melbourne",
+        "brisbane": "Australia/Brisbane",
+        "perth": "Australia/Perth",
+        "adelaide": "Australia/Adelaide",
+        "auckland": "Pacific/Auckland",
+        "wellington": "Pacific/Auckland",
+        
+        # Latin America
+        "mexico city": "America/Mexico_City",
+        "sao paulo": "America/Sao_Paulo",
+        "rio de janeiro": "America/Sao_Paulo",
+        "buenos aires": "America/Argentina/Buenos_Aires",
+        "lima": "America/Lima",
+        "bogota": "America/Bogota",
+        "santiago": "America/Santiago",
+        "caracas": "America/Caracas",
+    }
+    
+    # Region-based timezone fallbacks
+    REGION_TO_TIMEZONE = {
+        "us": "America/New_York",
+        "united states": "America/New_York",
+        "usa": "America/New_York",
+        "canada": "America/Toronto",
+        "uk": "Europe/London",
+        "united kingdom": "Europe/London",
+        "germany": "Europe/Berlin",
+        "france": "Europe/Paris",
+        "spain": "Europe/Madrid",
+        "italy": "Europe/Rome",
+        "japan": "Asia/Tokyo",
+        "china": "Asia/Shanghai",
+        "australia": "Australia/Sydney",
+        "brazil": "America/Sao_Paulo",
+        "mexico": "America/Mexico_City",
+    }
+    
+    @staticmethod
+    def detect_location() -> Dict[str, str]:
+        """
+        Detect location using multiple methods in order of reliability
+        Returns dict with: city, region, country, timezone, method
+        """
+        methods_tried = []
+        result = {
+            "city": "",
+            "region": "",
+            "country": "",
+            "timezone": "",
+            "method": "unknown",
+            "confidence": "low"
+        }
+        
+        # Method 1: Try IP-based geolocation with multiple providers
+        geo_data = LocationDetector._get_ip_geolocation()
+        if geo_data:
+            methods_tried.append("ip_geolocation")
+            result.update(geo_data)
+            result["method"] = "ip_geolocation"
+            result["confidence"] = "high"
+            
+            # If we got a city, try to match it to our known cities
+            if result["city"]:
+                city_lower = result["city"].lower()
+                if city_lower in LocationDetector.CITY_TO_TIMEZONE:
+                    result["timezone"] = LocationDetector.CITY_TO_TIMEZONE[city_lower]
+                    result["confidence"] = "very_high"
+            
+            # If we still don't have a timezone, try region/country
+            if not result["timezone"] and result["region"]:
+                region_lower = result["region"].lower()
+                if region_lower in LocationDetector.REGION_TO_TIMEZONE:
+                    result["timezone"] = LocationDetector.REGION_TO_TIMEZONE[region_lower]
+                    result["confidence"] = "medium"
+            
+            return result
+        
+        # Method 2: Try system timezone
+        system_tz = LocationDetector._get_system_timezone()
+        if system_tz:
+            methods_tried.append("system_timezone")
+            result["timezone"] = system_tz
+            result["method"] = "system_timezone"
+            result["confidence"] = "medium"
+            
+            # Try to infer city from timezone
+            city = LocationDetector._infer_city_from_timezone(system_tz)
+            if city:
+                result["city"] = city
+            
+            return result
+        
+        # Method 3: Try reverse DNS lookup (less reliable)
+        hostname = socket.getfqdn()
+        if hostname and hostname != "localhost":
+            methods_tried.append("dns_lookup")
+            # Extract possible location hints from hostname
+            if any(city in hostname.lower() for city in LocationDetector.CITY_TO_TIMEZONE.keys()):
+                for city in LocationDetector.CITY_TO_TIMEZONE.keys():
+                    if city in hostname.lower():
+                        result["city"] = city.title()
+                        result["timezone"] = LocationDetector.CITY_TO_TIMEZONE[city]
+                        result["method"] = "dns_inference"
+                        result["confidence"] = "low"
+                        break
+        
+        # Final fallback
+        if not result["timezone"]:
+            result["timezone"] = "America/New_York"  # Default to NYC
+            result["method"] = "default_fallback"
+            result["confidence"] = "very_low"
+        
+        return result
+    
+    @staticmethod
+    def _get_ip_geolocation() -> Optional[Dict[str, str]]:
+        """Get geolocation from IP using multiple public APIs"""
+        providers = [
+            {
+                "url": "https://ipapi.co/json/",
+                "mapping": {
+                    "city": "city",
+                    "region": "region",
+                    "country": "country_name",
+                    "timezone": "timezone"
+                }
+            },
+            {
+                "url": "https://ipinfo.io/json",
+                "mapping": {
+                    "city": "city",
+                    "region": "region",
+                    "country": "country",
+                    "timezone": "timezone"
+                }
+            },
+            {
+                "url": "http://ip-api.com/json/",
+                "mapping": {
+                    "city": "city",
+                    "region": "regionName",
+                    "country": "country",
+                    "timezone": "timezone"
+                }
+            }
+        ]
+        
+        for provider in providers:
+            try:
+                req = urllib.request.Request(
+                    provider["url"],
+                    headers={"User-Agent": "AGES-Installer/1.0"}
+                )
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+                    
+                    result = {}
+                    for key, source_key in provider["mapping"].items():
+                        if source_key in data:
+                            result[key] = str(data[source_key]).strip()
+                    
+                    # Validate we got useful data
+                    if "timezone" in result and result["timezone"]:
+                        return result
+            except Exception:
+                continue
+        
+        return None
+    
+    @staticmethod
+    def _get_system_timezone() -> Optional[str]:
+        """Get system timezone from multiple sources"""
+        try:
+            # Try /etc/timezone
+            tz_path = Path("/etc/timezone")
+            if tz_path.exists():
+                tz = tz_path.read_text().strip()
+                if tz:
+                    return tz
+            
+            # Try /etc/localtime symlink
+            localtime = Path("/etc/localtime")
+            if localtime.is_symlink():
+                target = os.readlink(str(localtime))
+                if "/usr/share/zoneinfo/" in target:
+                    return target.split("/usr/share/zoneinfo/", 1)[1]
+            
+            # Try timedatectl
+            if shutil.which("timedatectl"):
+                output = subprocess.check_output(
+                    ["timedatectl", "show", "--property=Timezone", "--value"],
+                    text=True
+                ).strip()
+                if output:
+                    return output
+        except Exception:
+            pass
+        
+        return None
+    
+    @staticmethod
+    def _infer_city_from_timezone(timezone: str) -> Optional[str]:
+        """Try to infer a major city from a timezone"""
+        # Reverse lookup in our city mapping
+        for city, tz in LocationDetector.CITY_TO_TIMEZONE.items():
+            if tz == timezone:
+                return city.title()
+        
+        # Common patterns
+        if "New_York" in timezone:
+            return "New York"
+        elif "Los_Angeles" in timezone:
+            return "Los Angeles"
+        elif "Chicago" in timezone:
+            return "Chicago"
+        elif "London" in timezone:
+            return "London"
+        elif "Paris" in timezone:
+            return "Paris"
+        elif "Tokyo" in timezone:
+            return "Tokyo"
+        elif "Sydney" in timezone:
+            return "Sydney"
+        
+        return None
+
+
+# ============================================================
+# Location Detection Thread (for async detection)
+# ============================================================
+class LocationDetectionThread(QThread):
+    """Thread for async location detection"""
+    
+    sig_location_detected = pyqtSignal(dict)
+    sig_detection_failed = pyqtSignal(str)
+    
+    def run(self):
+        """Run location detection"""
+        try:
+            location = LocationDetector.detect_location()
+            self.sig_location_detected.emit(location)
+        except Exception as e:
+            self.sig_detection_failed.emit(str(e))
+
 
 # ============================================================
 # Installer log file (always written)
 # ============================================================
-LOG_FILE = Path("/tmp/stormos_easy_installer.log")
+LOG_FILE = Path("/tmp/ages_easy_installer.log")
 
 
 def log_to_file(line: str) -> None:
@@ -281,7 +665,7 @@ def reset_log_file() -> None:
 
 
 # ============================================================
-# Helpers
+# Helper Functions (from original code)
 # ============================================================
 def is_root() -> bool:
     try:
@@ -398,7 +782,7 @@ def parse_size_to_bytes(sz: str) -> int:
     elif unit == "T":
         mult = 1024**4
     elif unit == "P":
-        mult = 1024**5
+        mult = 1025**5
     return int(val * mult)
 
 
@@ -582,6 +966,20 @@ def arch_chroot_input(target_root: Path, cmd: str, input_text: str, log) -> None
         raise RuntimeError(f"arch-chroot failed (rc={rc}): {cmd}")
 
 
+def find_ecoos_packages_file() -> str:
+    candidates = [
+        "/etc/stormos/packages.txt",
+        "/usr/share/ecoos/packages.txt",
+        "/run/archiso/airootfs/etc/ecoos/packages.txt",
+        os.path.expanduser("~/ecoos/packages.txt"),
+        os.path.expanduser("~/Desktop/packages.txt"),
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    raise FileNotFoundError("Could not find packages.txt in known locations.")
+
+
 # ============================================================
 # Virtual machine detector (guest-side)
 # ============================================================
@@ -696,96 +1094,6 @@ def wifi_status_line() -> str:
         return "Wi-Fi: Not detected"
     except Exception:
         return "Wi-Fi: Unknown"
-
-
-# ============================================================
-# GitHub download helpers
-# ============================================================
-def github_blob_to_raw(url: str) -> str:
-    u = (url or "").strip()
-    m = re.match(r"^https?://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)$", u)
-    if m:
-        owner, repo, branch, path = m.group(1), m.group(2), m.group(3), m.group(4)
-        return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-    m2 = re.match(r"^https?://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$", u)
-    if m2:
-        owner, repo, branch, path = m2.group(1), m2.group(2), m2.group(3), m2.group(4)
-        return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
-    return u
-
-
-def _download_via_tool(url: str, dest: Optional[Path], want_text: bool) -> Optional[str]:
-    ua = "StormOS-Installer/1.0"
-    if cmd_ok("curl"):
-        if want_text:
-            cp = subprocess.run(["curl", "-fsSL", "-A", ua, url],
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            if cp.returncode == 0:
-                return cp.stdout or ""
-            raise RuntimeError((cp.stdout or "curl failed").strip())
-        else:
-            assert dest is not None
-            ensure_dir(dest.parent)
-            cp = subprocess.run(["curl", "-fL", "-A", ua, "-o", str(dest), url],
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            if cp.returncode == 0 and dest.exists() and dest.stat().st_size > 0:
-                return None
-            raise RuntimeError((cp.stdout or "curl download failed").strip())
-    if cmd_ok("wget"):
-        if want_text:
-            cp = subprocess.run(["wget", "-qO-", "--user-agent", ua, url],
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            if cp.returncode == 0:
-                return cp.stdout or ""
-            raise RuntimeError((cp.stdout or "wget failed").strip())
-        else:
-            assert dest is not None
-            ensure_dir(dest.parent)
-            cp = subprocess.run(["wget", "-qO", str(dest), "--user-agent", ua, url],
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            if cp.returncode == 0 and dest.exists() and dest.stat().st_size > 0:
-                return None
-            raise RuntimeError((cp.stdout or "wget download failed").strip())
-    return None
-
-
-def download_text(url: str, log: Callable[[str], None], timeout: int = 45) -> str:
-    raw = github_blob_to_raw(url)
-    log(f"Downloading text: {raw}")
-    try:
-        t = _download_via_tool(raw, None, want_text=True)
-        if t is not None:
-            return t
-    except Exception as e:
-        log(f"!! curl/wget text fetch failed (will try python): {e}")
-    req = urllib.request.Request(raw, headers={"User-Agent": "StormOS-Installer/1.0"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = resp.read()
-            return data.decode("utf-8", errors="ignore")
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"Failed to download text from {raw}: {e}") from e
-
-
-def download_file(url: str, dest: Path, log: Callable[[str], None], timeout: int = 180) -> None:
-    raw = github_blob_to_raw(url)
-    log(f"Downloading file: {raw} -> {dest}")
-    try:
-        _download_via_tool(raw, dest, want_text=False)
-        if dest.exists() and dest.stat().st_size > 0:
-            return
-    except Exception as e:
-        log(f"!! curl/wget file download failed (will try python): {e}")
-    ensure_dir(dest.parent)
-    req = urllib.request.Request(raw, headers={"User-Agent": "StormOS-Installer/1.0"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            with dest.open("wb") as f:
-                shutil.copyfileobj(resp, f)
-        if not dest.exists() or dest.stat().st_size == 0:
-            raise RuntimeError("Downloaded file is empty.")
-    except Exception as e:
-        raise RuntimeError(f"Failed to download file from {raw}: {e}") from e
 
 
 # ============================================================
@@ -1012,7 +1320,7 @@ def copy_oh_my_bash_to_skel(target_root: Path, live_user: str, log) -> None:
         txt = read_text(dst_bashrc)
         if "oh-my-bash.sh" not in txt:
             addon = (
-                "\n# --- StormOS: Oh My Bash ---\n"
+                "\n# --- AGES: Oh My Bash ---\n"
                 "export OSH=\"$HOME/.oh-my-bash\"\n"
                 "OSH_THEME=\"powerline\"\n"
                 "plugins=(git sudo)\n"
@@ -1042,7 +1350,7 @@ def enable_system_oh_my_bash_in_skel(target_root: Path, log) -> None:
             log("Oh My Bash (system): /etc/skel/.bashrc already sources Oh My Bash — skipping patch.")
             return
         addon = (
-            "\n# --- StormOS: Oh My Bash (system) ---\n"
+            "\n# --- AGES: Oh My Bash (system) ---\n"
             "export OSH=\"/usr/share/oh-my-bash\"\n"
             "OSH_THEME=\"powerline\"\n"
             "plugins=(git sudo)\n"
@@ -1070,11 +1378,11 @@ def apply_skel_preset(target_root: Path, log) -> None:
     copy_tree_merge(LIVE_SKEL, target_root / "etc" / "skel", log)
 
 
-def copy_stormos_wallpapers_into_backgrounds(target_root: Path, log) -> None:
-    live = Path("/usr/share/backgrounds/StormOS")
-    dst = target_root / "usr" / "share" / "backgrounds" / "StormOS"
+def copy_ages_wallpapers_into_backgrounds(target_root: Path, log) -> None:
+    live = Path("/usr/share/backgrounds/AGES")
+    dst = target_root / "usr" / "share" / "backgrounds" / "AGES"
     if not live.exists():
-        log("Wallpapers: live /usr/share/backgrounds/StormOS not found — skipping.")
+        log("Wallpapers: live /usr/share/backgrounds/AGES not found — skipping.")
         return
     log(f"Wallpapers: copying {live} -> {dst}")
     copy_tree_merge(live, dst, log)
@@ -1206,8 +1514,8 @@ def patch_xfce_wallpaper_in_skel(target_root: Path, wallpaper_path: str, log) ->
 def install_firstboot_wallpaper_fix(target_root: Path, wallpaper_path: str, log) -> None:
     service_dir = target_root / "etc" / "skel" / ".config" / "systemd" / "user"
     ensure_dir(service_dir)
-    service_file = service_dir / "stormos-wallpaper-fix.service"
-    script_file = target_root / "etc" / "skel" / ".local" / "bin" / "stormos-apply-wallpaper.sh"
+    service_file = service_dir / "ages-wallpaper-fix.service"
+    script_file = target_root / "etc" / "skel" / ".local" / "bin" / "ages-apply-wallpaper.sh"
     ensure_dir(script_file.parent)
     script_content = f'''#!/bin/bash
 if command -v xfconf-query >/dev/null 2>&1; then
@@ -1216,18 +1524,18 @@ if command -v xfconf-query >/dev/null 2>&1; then
     xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/last-image -s "{wallpaper_path}" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -s "{wallpaper_path}" 2>/dev/null || true
 fi
-systemctl --user disable stormos-wallpaper-fix.service 2>/dev/null || true
-rm -f ~/.config/systemd/user/stormos-wallpaper-fix.service
+systemctl --user disable ages-wallpaper-fix.service 2>/dev/null || true
+rm -f ~/.config/systemd/user/ages-wallpaper-fix.service
 '''
     write_file(script_file, script_content)
     script_file.chmod(0o755)
     service_content = '''[Unit]
-Description=StormOS First-Boot Wallpaper Fix
+Description=AGES First-Boot Wallpaper Fix
 After=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/stormos-apply-wallpaper.sh
+ExecStart=%h/.local/bin/ages-apply-wallpaper.sh
 
 [Install]
 WantedBy=default.target
@@ -1431,8 +1739,13 @@ def choose_default_session(desktops: List[str]) -> str:
 # ============================================================
 # Packages
 # ============================================================
-DEFAULT_BASE_PACKAGES = [
-    "base", "linux", "linux-firmware",
+# Kernel options
+KERNEL_MAINLINE = "linux"
+KERNEL_ZEN = "linux-zen"
+KERNEL_LTS = "linux-lts"
+
+DEFAULT_BASE_PACKAGES_NO_KERNEL = [
+    "base", "linux-firmware",
     "networkmanager", "sudo", "vim",
     "pipewire", "pipewire-pulse",
 ]
@@ -1514,9 +1827,10 @@ def sanitize_package_list(pkgs: List[str], log) -> List[str]:
     return deduped
 
 
-def build_required_packages(mode: str, want_yay: bool, fs: str, desktops: List[str], dm: str) -> List[str]:
+def build_required_packages(kernel: str, mode: str, want_yay: bool, fs: str, desktops: List[str], dm: str) -> List[str]:
     micro = detect_microcode_pkg()
-    base = list(DEFAULT_BASE_PACKAGES)
+    base = list(DEFAULT_BASE_PACKAGES_NO_KERNEL)
+    base.append(kernel)  # Add selected kernel
     base += ICON_PACKAGES
     if fs == "btrfs":
         base += ["btrfs-progs"]
@@ -1539,28 +1853,32 @@ def build_required_packages(mode: str, want_yay: bool, fs: str, desktops: List[s
 
 
 def choose_package_list(
+    kernel: str,
     mode: str,
     want_yay: bool,
     fs: str,
     desktops: List[str],
     dm: str,
     use_local_packages_txt: bool,
-    use_github_packages_list: bool,
     log: Callable[[str], None]
 ) -> Tuple[List[str], str]:
-    required = build_required_packages(mode, want_yay, fs, desktops, dm)
+    required = build_required_packages(kernel, mode, want_yay, fs, desktops, dm)
+    
+    # ALWAYS try to use the local EcoOS packages.txt file first
+    try:
+        local_path = find_ecoos_packages_file()
+        custom = normalize_package_set(read_packages_txt(Path(local_path)))
+        combined = normalize_package_set(custom + required)
+        return combined, f"Local EcoOS list: {local_path} (+ required DE/DM packages)"
+    except FileNotFoundError as e:
+        log(f"!! Local EcoOS packages.txt not found: {e}")
+    
+    # Fallback to the original behavior
     if use_local_packages_txt and LIVE_PKG_LIST.exists():
         custom = normalize_package_set(read_packages_txt(LIVE_PKG_LIST))
         combined = normalize_package_set(custom + required)
         return combined, f"Local list: {LIVE_PKG_LIST} (+ required DE/DM packages)"
-    if use_github_packages_list:
-        try:
-            txt = download_text(GITHUB_PACKAGES_BLOB_URL, log, timeout=45)
-            custom = normalize_package_set(parse_packages_text(txt))
-            combined = normalize_package_set(custom + required)
-            return combined, f"GitHub list: {GITHUB_PACKAGES_BLOB_URL} (+ required DE/DM packages)"
-        except Exception as e:
-            log(f"!! GitHub packages list failed, falling back to required set: {e}")
+    
     return required, "Required safe package set (base + selected DEs + selected DM)"
 
 
@@ -1647,9 +1965,9 @@ def enable_dracut_in_target(target_root: Path, log) -> None:
     arch_chroot_soft(target_root, "pacman -S --noconfirm --needed dracut || true", log)
     confd = target_root / "etc" / "dracut.conf.d"
     ensure_dir(confd)
-    storm_conf = confd / "stormos.conf"
+    storm_conf = confd / "ages.conf"
     conf_txt = (
-        "# StormOS dracut config\n"
+        "# AGES dracut config\n"
         "hostonly=yes\n"
         "compress=zstd\n"
         "# add_dracutmodules+=\" btrfs \"\n"
@@ -1706,7 +2024,7 @@ def enable_dm_service(target_root: Path, dm: str, log) -> None:
 def enable_lightdm_autologin(target_root: Path, username: str, log, session: str = "") -> None:
     confd = target_root / "etc" / "lightdm" / "lightdm.conf.d"
     ensure_dir(confd)
-    drop = confd / "50-stormos-autologin.conf"
+    drop = confd / "50-ages-autologin.conf"
     lines = ["[Seat:*]"]
     lines.append(f"autologin-user={username}")
     lines.append("autologin-user-timeout=0")
@@ -1746,7 +2064,7 @@ def enable_gdm_autologin(target_root: Path, username: str, log) -> None:
 def enable_sddm_autologin(target_root: Path, username: str, log, session: str = "") -> None:
     confd = target_root / "etc" / "sddm.conf.d"
     ensure_dir(confd)
-    drop = confd / "50-stormos-autologin.conf"
+    drop = confd / "50-ages-autologin.conf"
     lines = ["[Autologin]"]
     lines.append(f"User={username}")
     if session:
@@ -1972,6 +2290,15 @@ def install_yay_best_effort(target_root: Path, log) -> None:
 # Timezone / keymap helpers
 # ============================================================
 def guess_live_timezone() -> str:
+    # Try location detection first
+    try:
+        location = LocationDetector.detect_location()
+        if location.get("timezone"):
+            return location["timezone"]
+    except Exception:
+        pass
+    
+    # Fall back to original methods
     try:
         lt = Path("/etc/localtime")
         if lt.is_symlink():
@@ -1980,6 +2307,7 @@ def guess_live_timezone() -> str:
                 return target.split("/usr/share/zoneinfo/", 1)[1]
     except Exception:
         pass
+    
     return "America/New_York"
 
 
@@ -2011,6 +2339,34 @@ def list_timezones_lite(max_items: int = 2000) -> List[str]:
 
 
 def guess_live_keymap() -> str:
+    # Try to infer from location
+    try:
+        location = LocationDetector.detect_location()
+        country = location.get("country", "").lower()
+        
+        # Country to keymap mapping
+        mapping = {
+            "united states": "us",
+            "united kingdom": "uk",
+            "germany": "de",
+            "france": "fr",
+            "spain": "es",
+            "italy": "it",
+            "portugal": "pt",
+            "brazil": "br-abnt2",
+            "russia": "ru",
+            "japan": "jp106",
+            "korea": "kr",
+            "china": "cn",
+        }
+        
+        for country_name, keymap in mapping.items():
+            if country_name in country:
+                return keymap
+    except Exception:
+        pass
+    
+    # Fall back to original method
     if cmd_ok("localectl"):
         try:
             cp = subprocess.run(["localectl", "status"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -2020,6 +2376,7 @@ def guess_live_keymap() -> str:
                 return m.group(1).strip()
         except Exception:
             pass
+    
     return "us"
 
 
@@ -2054,7 +2411,7 @@ def btrfs_create_restore_point_existing_nofmt(root_part: str, log) -> RestorePoi
         rp.notes = "btrfs tool not present on Live ISO."
         log(f"Restore point: disabled ({rp.notes})")
         return rp
-    tmp = f"/tmp/stormos_btrfs_restore_{ts}"
+    tmp = f"/tmp/ages_btrfs_restore_{ts}"
     ensure_dir(Path(tmp))
     try:
         log(f"Restore point: mounting BTRFS root {root_part} -> {tmp} (top-level)")
@@ -2067,7 +2424,7 @@ def btrfs_create_restore_point_existing_nofmt(root_part: str, log) -> RestorePoi
         has_home = Path(tmp, "@home").exists()
         if has_at:
             rp.mounted_subvol = "@"
-            rp.snap_root = f"@stormos-preinstall-{ts}"
+            rp.snap_root = f"@ages-preinstall-{ts}"
             log(f"Restore point: snapshotting @ -> {rp.snap_root}")
             rc = run_stream(["btrfs", "subvolume", "snapshot", "-r", f"{tmp}/@", f"{tmp}/{rp.snap_root}"], log, timeout=60)
             if rc != 0:
@@ -2077,7 +2434,7 @@ def btrfs_create_restore_point_existing_nofmt(root_part: str, log) -> RestorePoi
                     log(f"Restore point: failed ({rp.notes})")
                     return rp
             if has_home:
-                rp.snap_home = f"@home-stormos-preinstall-{ts}"
+                rp.snap_home = f"@home-ages-preinstall-{ts}"
                 log(f"Restore point: snapshotting @home -> {rp.snap_home}")
                 rc = run_stream(["btrfs", "subvolume", "snapshot", "-r", f"{tmp}/@home", f"{tmp}/{rp.snap_home}"], log, timeout=60)
                 if rc != 0:
@@ -2087,7 +2444,7 @@ def btrfs_create_restore_point_existing_nofmt(root_part: str, log) -> RestorePoi
                         rp.snap_home = ""
         else:
             rp.mounted_subvol = ""
-            rp.snap_root = f"stormos-preinstall-{ts}"
+            rp.snap_root = f"ages-preinstall-{ts}"
             log(f"Restore point: no '@' found. Snapshotting top-level -> {rp.snap_root}")
             rc = run_stream(["btrfs", "subvolume", "snapshot", "-r", tmp, f"{tmp}/{rp.snap_root}"], log, timeout=60)
             if rc != 0:
@@ -2121,7 +2478,7 @@ def btrfs_best_effort_rollback(rp: RestorePoint, log) -> None:
         log("Rollback: btrfs tool missing; cannot rollback.")
         return
     ts = rp.ts or time.strftime("%Y%m%d-%H%M%S")
-    tmp = f"/tmp/stormos_btrfs_rollback_{ts}"
+    tmp = f"/tmp/ages_btrfs_rollback_{ts}"
     ensure_dir(Path(tmp))
     try:
         log(f"Rollback: mounting {rp.root_part} -> {tmp} (top-level)")
@@ -2133,7 +2490,7 @@ def btrfs_best_effort_rollback(rp: RestorePoint, log) -> None:
         snap_root_path = Path(tmp, rp.snap_root)
         if has_at and snap_root_path.exists():
             log(f"Rollback: attempting to restore '@' from snapshot '{rp.snap_root}'")
-            bad_name = f"@stormos-bad-{ts}"
+            bad_name = f"@ages-bad-{ts}"
             if Path(tmp, "@").exists():
                 log(f"Rollback: snapshotting current @ -> {bad_name} then deleting @ (best-effort)")
                 run_stream(["btrfs", "subvolume", "snapshot", f"{tmp}/@", f"{tmp}/{bad_name}"], log, timeout=120)
@@ -2144,7 +2501,7 @@ def btrfs_best_effort_rollback(rp: RestorePoint, log) -> None:
                 return
             if rp.snap_home and Path(tmp, "@home").exists() and Path(tmp, rp.snap_home).exists():
                 log(f"Rollback: attempting to restore '@home' from snapshot '{rp.snap_home}' (best-effort)")
-                bad_home = f"@home-stormos-bad-{ts}"
+                bad_home = f"@home-ages-bad-{ts}"
                 run_stream(["btrfs", "subvolume", "snapshot", f"{tmp}/@home", f"{tmp}/{bad_home}"], log, timeout=120)
                 run_stream(["btrfs", "subvolume", "delete", f"{tmp}/@home"], log, timeout=120)
                 run_stream(["btrfs", "subvolume", "snapshot", f"{tmp}/{rp.snap_home}", f"{tmp}/@home"], log, timeout=120)
@@ -2296,7 +2653,7 @@ def write_basic_system_files(target_root: Path, hostname: str, tz: str, keymap: 
     locale_gen = target_root / "etc" / "locale.gen"
     lg = read_text(locale_gen)
     if not lg.strip():
-        lg = "# locale.gen generated by StormOS installer\n"
+        lg = "# locale.gen generated by AGES installer\n"
     if re.search(rf"(?m)^\s*#\s*{re.escape(locale)}\s+UTF-8\s*$", lg):
         lg = re.sub(rf"(?m)^\s*#\s*({re.escape(locale)}\s+UTF-8\s*)$", r"\1", lg)
     elif not re.search(rf"(?m)^\s*{re.escape(locale)}\s+UTF-8\s*$", lg):
@@ -2408,7 +2765,7 @@ def install_bootloader(target_root: Path, boot: str, disk: str, fs: str, log) ->
         log
     )
 
-    cmd1 = "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=StormOS --recheck"
+    cmd1 = "grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=AGES --recheck"
     try:
         arch_chroot(target_root, cmd1, log)
         arch_chroot(target_root, "grub-mkconfig -o /boot/grub/grub.cfg", log)
@@ -2420,42 +2777,11 @@ def install_bootloader(target_root: Path, boot: str, disk: str, fs: str, log) ->
 
     cmd2 = (
         "grub-install --target=x86_64-efi --efi-directory=/boot/efi "
-        "--bootloader-id=StormOS --recheck --removable --no-nvram"
+        "--bootloader-id=AGES --recheck --removable --no-nvram"
     )
     arch_chroot(target_root, cmd2, log)
     arch_chroot(target_root, "grub-mkconfig -o /boot/grub/grub.cfg", log)
     log("Bootloader installed: GRUB (UEFI fallback: removable path, no NVRAM write)")
-
-
-def install_zst_theme_packages(target_root: Path, log) -> None:
-    if not GITHUB_ZST_BLOB_URLS:
-        return
-    if not have_internet_fast():
-        log("ZST theme install: no internet detected; skipping.")
-        return
-    tmpdir = Path("/tmp/stormos_zst")
-    ensure_dir(tmpdir)
-    copied = []
-    for url in GITHUB_ZST_BLOB_URLS:
-        try:
-            fname = Path(github_blob_to_raw(url)).name
-            dest = tmpdir / fname
-            download_file(url, dest, log, timeout=240)
-            copied.append(dest)
-        except Exception as e:
-            log(f"!! ZST theme download failed: {url}: {e}")
-    if not copied:
-        return
-    tgt_tmp = target_root / "tmp" / "stormos_zst"
-    ensure_dir(tgt_tmp)
-    for f in copied:
-        try:
-            shutil.copy2(str(f), str(tgt_tmp / f.name))
-        except Exception as e:
-            log(f"!! ZST copy into target failed: {f}: {e}")
-    arch_chroot_soft(target_root, "pacman -U --noconfirm /tmp/stormos_zst/*.pkg.tar.zst 2>/dev/null || true", log)
-    arch_chroot_soft(target_root, "rm -rf /tmp/stormos_zst 2>/dev/null || true", log)
-    log("ZST theme install: best-effort completed.")
 
 
 # ============================================================
@@ -2463,6 +2789,7 @@ def install_zst_theme_packages(target_root: Path, log) -> None:
 # ============================================================
 @dataclass
 class InstallerConfig:
+    kernel: str = KERNEL_MAINLINE
     boot_mode: str = "UEFI"
     fs: str = "ext4"
     install_mode: str = MODE_ERASE
@@ -2487,7 +2814,6 @@ class InstallerConfig:
     want_yay: bool = True
 
     use_local_packages_txt: bool = True
-    use_github_packages_list: bool = True
 
     restore_point_enabled: bool = False
 
@@ -2503,10 +2829,12 @@ class InstallThread(QThread):
     sig_line = pyqtSignal(str)
     sig_progress = pyqtSignal(int)
     sig_done = pyqtSignal(bool, str)
+    sig_installation_state = pyqtSignal(bool)  # True = started, False = finished
 
     def __init__(self, cfg: InstallerConfig, parent=None):
         super().__init__(parent)
         self.cfg = cfg
+        self.is_running = False
 
     def log(self, s: str) -> None:
         log_to_file(s)
@@ -2517,6 +2845,9 @@ class InstallThread(QThread):
         msg = "Unknown error"
         reset_log_file()
         rp: RestorePoint = RestorePoint(enabled=False)
+        self.is_running = True
+        self.sig_installation_state.emit(True)
+        
         try:
             ok, msg, rp = self._run_impl()
         except Exception as e:
@@ -2537,13 +2868,17 @@ class InstallThread(QThread):
                 self.log(f"  - btrfs subvolume list /mnt")
                 self.log(f"  - restore from snapshot: {rp.snap_root} (and {rp.snap_home or 'no home snapshot'})")
                 self.log("")
+        finally:
+            self.is_running = False
+            self.sig_installation_state.emit(False)
+        
         self.sig_done.emit(ok, msg)
 
     def _run_impl(self) -> Tuple[bool, str, RestorePoint]:
         cfg = self.cfg
         self.sig_progress.emit(0)
-        self.log("=== StormOS Easy Installer ===")
-        self.log(f"Boot: {cfg.boot_mode} | FS: {cfg.fs} | Mode: {cfg.install_mode}")
+        self.log("=== AGES Easy Installer ===")
+        self.log(f"Kernel: {cfg.kernel} | Boot: {cfg.boot_mode} | FS: {cfg.fs} | Mode: {cfg.install_mode}")
         self.log(f"Disk: {cfg.disk}")
         self.log(f"Desktops: {', '.join(cfg.desktops or [])} | DM: {cfg.dm} | Autologin: {cfg.autologin}")
         self.log(f"User: {cfg.username} | Hostname: {cfg.hostname} | TZ: {cfg.timezone} | Keymap: {cfg.keymap}")
@@ -2554,6 +2889,7 @@ class InstallThread(QThread):
         if not cmd_ok("pacstrap") or not cmd_ok("arch-chroot"):
             raise RuntimeError("This must be run from an ArchISO-like environment (pacstrap + arch-chroot required).")
 
+        kernel = cfg.kernel
         boot = cfg.boot_mode
         fs = cfg.fs
         disk = cfg.disk
@@ -2607,13 +2943,13 @@ class InstallThread(QThread):
         pacman_sync_live(self.log)
 
         pkgs, source_desc = choose_package_list(
+            kernel=kernel,
             mode=boot,
             want_yay=cfg.want_yay,
             fs=fs,
             desktops=cfg.desktops or [DE_XFCE],
             dm=dm,
             use_local_packages_txt=cfg.use_local_packages_txt,
-            use_github_packages_list=cfg.use_github_packages_list,
             log=self.log
         )
         
@@ -2626,19 +2962,13 @@ class InstallThread(QThread):
         write_fstab(target_root, self.log)
         ensure_multilib_enabled_target(target_root, self.log)
 
-        # Try to install ZST theme packages as a backup (best-effort)
-        try:
-            install_zst_theme_packages(target_root, self.log)
-        except Exception as e:
-            self.log(f"!! ZST theme install failed (non-fatal): {e}")
-
         apply_skel_preset(target_root, self.log)
         enable_system_oh_my_bash_in_skel(target_root, self.log)
 
         if cfg.copy_oh_my_bash:
             copy_oh_my_bash_to_skel(target_root, cfg.live_user, self.log)
 
-        copy_stormos_wallpapers_into_backgrounds(target_root, self.log)
+        copy_ages_wallpapers_into_backgrounds(target_root, self.log)
         migrate_usr_share_icons(target_root, self.log)
         migrate_usr_local_bin(target_root, self.log)
 
@@ -2723,7 +3053,7 @@ class InstallThread(QThread):
 
 
 # ============================================================
-# UI: Step pages
+# UI: Step pages base class
 # ============================================================
 class StepPage(QWidget):
     def on_enter(self):
@@ -2740,159 +3070,338 @@ def make_scroll_page(inner: QWidget) -> QScrollArea:
     return sc
 
 
+# ============================================================
+# Updated Preflight Page with Location Preview
+# ============================================================
 class PreflightPage(StepPage):
     def __init__(self, main):
         super().__init__()
         self.main = main
-        lay = QVBoxLayout(self)
-
-        title = QLabel("Preflight Check")
-        title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
-        lay.addWidget(title)
-
-        self.wifi = QLabel("Wi-Fi: ...")
-        lay.addWidget(self.wifi)
-
-        self.vm = QLabel("Virtualization: ...")
-        self.vm.setWordWrap(True)
-        lay.addWidget(self.vm)
-
-        self.status = QLabel("")
-        self.status.setWordWrap(True)
-        lay.addWidget(self.status)
-
-        self.details = QPlainTextEdit()
-        self.details.setReadOnly(True)
-        self.details.setMinimumHeight(220)
-        lay.addWidget(self.details)
-
-        self.ack = QCheckBox("I understand this installer can ERASE disks and I accept full responsibility.")
-        self.ack.setProperty("danger", "true")
-        lay.addWidget(self.ack)
-
-        lay.addStretch(1)
-
-        self._wired_once = False
-
+        self.detected_location = None
+        
+        # Create main widget
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        
+        # Title
+        title_label = QLabel("Preflight Check")
+        title_label.setProperty("class", "Title")
+        main_layout.addWidget(title_label)
+        
+        subtitle_label = QLabel("Verify system requirements before installation")
+        subtitle_label.setProperty("class", "Subtitle")
+        main_layout.addWidget(subtitle_label)
+        
+        # System status card
+        self._create_status_card(main_layout)
+        
+        # Location preview card
+        self._create_location_preview(main_layout)
+        
+        # Requirements card
+        self._create_requirements_card(main_layout)
+        
+        # Acknowledgment
+        self._create_acknowledgment(main_layout)
+        
+        main_layout.addStretch(1)
+        
+        # Wrap in scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(main_widget)
+        
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
+    
+    def _create_status_card(self, parent_layout):
+        """Create system status card"""
+        status_card = QWidget()
+        status_card.setProperty("class", "LocationWidget")
+        card_layout = QVBoxLayout(status_card)
+        
+        # Title
+        status_title = QLabel("📊 System Status")
+        status_title.setProperty("class", "SectionTitle")
+        card_layout.addWidget(status_title)
+        
+        # Status items
+        self.status_wifi = QLabel("Wi-Fi: Checking...")
+        card_layout.addWidget(self.status_wifi)
+        
+        self.status_vm = QLabel("Virtualization: Checking...")
+        card_layout.addWidget(self.status_vm)
+        
+        self.status_root = QLabel("Root access: Checking...")
+        card_layout.addWidget(self.status_root)
+        
+        self.status_internet = QLabel("Internet: Checking...")
+        card_layout.addWidget(self.status_internet)
+        
+        self.status_boot = QLabel("Boot mode: Checking...")
+        card_layout.addWidget(self.status_boot)
+        
+        parent_layout.addWidget(status_card)
+    
+    def _create_location_preview(self, parent_layout):
+        """Create location preview card"""
+        self.location_card = QWidget()
+        self.location_card.setProperty("class", "LocationWidget")
+        card_layout = QVBoxLayout(self.location_card)
+        
+        # Title
+        location_title = QLabel("🌍 Location Preview")
+        location_title.setProperty("class", "SectionTitle")
+        card_layout.addWidget(location_title)
+        
+        # Location info
+        self.location_preview = QLabel("Location will be detected in the next step...")
+        self.location_preview.setWordWrap(True)
+        card_layout.addWidget(self.location_preview)
+        
+        # Note
+        note = QLabel("Note: Location helps set correct timezone and regional settings.")
+        note.setProperty("class", "Subtitle")
+        card_layout.addWidget(note)
+        
+        parent_layout.addWidget(self.location_card)
+    
+    def _create_requirements_card(self, parent_layout):
+        """Create requirements checklist"""
+        req_group = QGroupBox("System Requirements")
+        req_layout = QVBoxLayout()
+        
+        self.req_details = QPlainTextEdit()
+        self.req_details.setReadOnly(True)
+        self.req_details.setMaximumHeight(150)
+        req_layout.addWidget(self.req_details)
+        
+        req_group.setLayout(req_layout)
+        parent_layout.addWidget(req_group)
+    
+    def _create_acknowledgment(self, parent_layout):
+        """Create acknowledgment section"""
+        ack_group = QGroupBox("Acknowledgment")
+        ack_layout = QVBoxLayout()
+        
+        warning = QLabel(
+            "⚠️ IMPORTANT: This installer can ERASE disks and destroy data.\n"
+            "You are solely responsible for backing up important data."
+        )
+        warning.setProperty("class", "Warning")
+        warning.setWordWrap(True)
+        ack_layout.addWidget(warning)
+        
+        self.ack_check = QCheckBox(
+            "I understand this installer can ERASE disks and I accept full responsibility "
+            "for any data loss. I have verified the target disk is correct."
+        )
+        self.ack_check.setProperty("danger", "true")
+        ack_layout.addWidget(self.ack_check)
+        
+        ack_group.setLayout(ack_layout)
+        parent_layout.addWidget(ack_group)
+        
+        # Connect to validation
+        self.ack_check.stateChanged.connect(self._validate)
+    
+    def _validate(self):
+        """Validate preflight checks"""
+        all_ok = (
+            self.status_root.text().startswith("✓") and
+            self.status_internet.text().startswith("✓") and
+            self.ack_check.isChecked()
+        )
+        self.main.set_step_done(0, all_ok)
+    
     def on_enter(self):
-        self.wifi.setText(wifi_status_line())
-
+        """Run preflight checks when entering page"""
+        # Check Wi-Fi
+        self.status_wifi.setText(wifi_status_line())
+        
+        # Check virtualization
         v = detect_virtualization()
         if v.get("is_vm") == "yes":
-            self.vm.setText(f"Virtualization: YES — {v.get('details','')}")
+            self.status_vm.setText(f"✓ Virtualization: {v.get('details','')}")
         elif v.get("is_vm") == "no":
-            self.vm.setText("Virtualization: No (bare metal detected)")
+            self.status_vm.setText("✓ Bare metal detected")
         else:
-            self.vm.setText(f"Virtualization: Unknown — {v.get('details','')}")
-
-        ok = True
+            self.status_vm.setText(f"⚠ Virtualization: {v.get('details','')}")
+        
+        # Run system checks
+        self._run_system_checks()
+        
+        # Try early location detection for preview
+        self._preview_location()
+        
+        self._validate()
+    
+    def _run_system_checks(self):
+        """Run system requirement checks"""
         msgs = []
-
+        
+        # Root check
         if not is_root():
-            ok = False
-            msgs.append("❌ Not running as root. Launch with: sudo python3 stormos_easy_installer.py")
+            self.status_root.setText("❌ Not running as root")
+            msgs.append("❌ Not running as root. Launch with: sudo python3 ages_easy_installer.py")
         else:
+            self.status_root.setText("✓ Running as root")
             msgs.append("✅ Running as root.")
-
+        
+        # Internet check
+        if have_internet_fast():
+            self.status_internet.setText("✓ Internet connection detected")
+            msgs.append("✅ Internet connection detected.")
+        else:
+            self.status_internet.setText("⚠ No internet connection")
+            msgs.append("⚠ No internet connection detected. Some features may be limited.")
+        
+        # Boot mode
+        boot_mode = "UEFI" if is_uefi() else "BIOS/Legacy"
+        self.status_boot.setText(f"✓ Boot mode: {boot_mode}")
+        msgs.append(f"✅ Boot mode: {boot_mode}")
+        
+        # Required tools
         need = [
             "lsblk", "wipefs", "sgdisk",
             "pacstrap", "arch-chroot", "genfstab",
-            "mkfs.ext4",
-            "mkfs.fat",      # from dosfstools
-            "mkfs.vfat",     # alias, just in case
-            "mkfs.btrfs",    # from btrfs-progs
-            "mkfs.xfs",      # from xfsprogs
-            "efibootmgr"     # for UEFI boot entry
+            "mkfs.ext4", "mkfs.fat", "mkfs.btrfs", "mkfs.xfs",
+            "efibootmgr"
         ]
         missing = [c for c in need if not cmd_ok(c)]
         if missing:
-            ok = False
             msgs.append(f"❌ Missing required tools: {', '.join(missing)}")
         else:
-            msgs.append("✅ Required tools present.")
+            msgs.append("✅ All required tools present.")
+        
+        self.req_details.setPlainText("\n".join(msgs))
+    
+    def _preview_location(self):
+        """Preview location detection"""
+        # Run quick location check
+        try:
+            location = LocationDetector.detect_location()
+            self.detected_location = location
+            
+            # Build preview text
+            preview_parts = []
+            if location.get("city"):
+                preview_parts.append(f"📍 Detected city: {location['city']}")
+            if location.get("country"):
+                preview_parts.append(f"Country: {location['country']}")
+            if location.get("timezone"):
+                preview_parts.append(f"Suggested timezone: {location['timezone']}")
+            
+            if preview_parts:
+                preview_parts.append("")  # Empty line
+                preview_parts.append("This will be auto-applied in System Settings.")
+                self.location_preview.setText("\n".join(preview_parts))
+        except Exception as e:
+            self.location_preview.setText(f"Location detection failed: {str(e)}\nUsing defaults.")
 
-        msgs.append(f"Boot detected: {'UEFI' if is_uefi() else 'BIOS/Legacy'}")
-        msgs.append(f"Internet: {'Yes' if have_internet_fast() else 'No / Unknown'}")
 
-        self.status.setText("\n".join(msgs))
-        self.details.setPlainText("\n".join(msgs))
-
-        def update_done():
-            self.main.set_step_done(0, ok and self.ack.isChecked())
-
-        update_done()
-        if not self._wired_once:
-            self._wired_once = True
-            self.ack.stateChanged.connect(lambda _=None: update_done())
-
-
+# ============================================================
+# Disk Page (Modernized)
+# ============================================================
 class DiskPage(StepPage):
     def __init__(self, main):
         super().__init__()
         self.main = main
         self.user_touched_disk = False
-
-        root = QWidget()
-        lay = QVBoxLayout(root)
-
-        title = QLabel("Disk & Mode")
-        title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
-        lay.addWidget(title)
-
-        box = QGroupBox("Target disk (⚠️ THIS CAN ERASE DATA)")
-        fl = QFormLayout(box)
-
+        
+        # Create main widget
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        
+        # Title
+        title_label = QLabel("Disk & Mode")
+        title_label.setProperty("class", "Title")
+        main_layout.addWidget(title_label)
+        
+        subtitle_label = QLabel("Select target disk and installation mode")
+        subtitle_label.setProperty("class", "Subtitle")
+        main_layout.addWidget(subtitle_label)
+        
+        # Disk selection card
+        self._create_disk_card(main_layout)
+        
+        # Mode selection card
+        self._create_mode_card(main_layout)
+        
+        main_layout.addStretch(1)
+        
+        # Wrap in scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(main_widget)
+        
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
+        
+        # Timer for disk refresh
+        self.t = QTimer(self)
+        self.t.setInterval(2000)
+        self.t.timeout.connect(self.refresh_disks)
+    
+    def _create_disk_card(self, parent_layout):
+        """Create disk selection card"""
+        disk_group = QGroupBox("Target Disk (⚠️ THIS CAN ERASE DATA)")
+        disk_layout = QFormLayout()
+        
         self.disk_combo = QComboBox()
         self.disk_combo.currentIndexChanged.connect(self._on_disk_changed)
         self.disk_combo.activated.connect(self._user_touched)
-        fl.addRow("Disk:", self.disk_combo)
-
+        disk_layout.addRow("Disk:", self.disk_combo)
+        
+        disk_group.setLayout(disk_layout)
+        parent_layout.addWidget(disk_group)
+    
+    def _create_mode_card(self, parent_layout):
+        """Create mode selection card"""
+        mode_group = QGroupBox("Installation Settings")
+        mode_layout = QFormLayout()
+        
         self.mode_combo = QComboBox()
         self.mode_combo.addItems([MODE_ERASE, MODE_EXISTING])
         self.mode_combo.currentIndexChanged.connect(lambda _=None: self.main.refresh_partitions_page())
-        fl.addRow("Install mode:", self.mode_combo)
-
+        mode_layout.addRow("Install mode:", self.mode_combo)
+        
         self.boot_combo = QComboBox()
         self.boot_combo.addItems([BOOT_AUTO, BOOT_UEFI, BOOT_BIOS])
         self.boot_combo.currentIndexChanged.connect(lambda _=None: self.main.refresh_partitions_page())
-        fl.addRow("Boot mode:", self.boot_combo)
-
+        mode_layout.addRow("Boot mode:", self.boot_combo)
+        
         self.fs_combo = QComboBox()
         self.fs_combo.addItems([FS_EXT4, FS_BTRFS, FS_XFS])
         self.fs_combo.currentIndexChanged.connect(lambda _=None: self.main.refresh_confirm_page())
-        fl.addRow("Filesystem:", self.fs_combo)
-
-        lay.addWidget(box)
-
+        mode_layout.addRow("Filesystem:", self.fs_combo)
+        
+        mode_group.setLayout(mode_layout)
+        parent_layout.addWidget(mode_group)
+        
+        # Warning label
         self.warn = QLabel(
             "⚠️ ERASE mode will DESTROY ALL DATA on the selected disk.\n"
             "Double-check the disk name (e.g., /dev/nvme0n1 is usually internal)."
         )
-        self.warn.setStyleSheet("color:#ffb3b3; font-weight:800;")
+        self.warn.setProperty("class", "Warning")
         self.warn.setWordWrap(True)
-        lay.addWidget(self.warn)
-
-        lay.addStretch(1)
-        self.scroll = make_scroll_page(root)
-        outer = QVBoxLayout(self)
-        outer.addWidget(self.scroll)
-
-        self.t = QTimer(self)
-        self.t.setInterval(2000)
-        self.t.timeout.connect(self.refresh_disks)
-
+        parent_layout.addWidget(self.warn)
+    
     def _user_touched(self):
         self.user_touched_disk = True
-
+    
     def on_enter(self):
         if not self.t.isActive():
             self.t.start()
         self.refresh_disks()
-
+    
     def on_leave(self):
         if self.t.isActive():
             self.t.stop()
-
+    
     def refresh_disks(self):
         disks = list_disks()
         cur = self.disk_combo.currentData()
@@ -2916,7 +3425,7 @@ class DiskPage(StepPage):
                     self.disk_combo.setCurrentIndex(idx)
 
         self._on_disk_changed()
-
+    
     def _on_disk_changed(self):
         disk = self.disk_combo.currentData() or ""
         self.main.set_step_done(1, bool(disk))
@@ -2924,51 +3433,77 @@ class DiskPage(StepPage):
         self.main.refresh_confirm_page()
 
 
+# ============================================================
+# Partitions Page (Modernized)
+# ============================================================
 class PartitionsPage(StepPage):
     def __init__(self, main):
         super().__init__()
         self.main = main
-        root = QWidget()
-        lay = QVBoxLayout(root)
-
-        title = QLabel("Partitions")
-        title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
-        lay.addWidget(title)
-
+        
+        # Create main widget
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        
+        # Title
+        title_label = QLabel("Partitions")
+        title_label.setProperty("class", "Title")
+        main_layout.addWidget(title_label)
+        
+        subtitle_label = QLabel("Configure disk partitions for installation")
+        subtitle_label.setProperty("class", "Subtitle")
+        main_layout.addWidget(subtitle_label)
+        
+        # Info label
         self.info = QLabel("")
         self.info.setWordWrap(True)
-        lay.addWidget(self.info)
-
-        box = QGroupBox("Manual selection (only for USE EXISTING PARTITIONS)")
-        fl = QFormLayout(box)
-
+        self.info.setProperty("class", "Subtitle")
+        main_layout.addWidget(self.info)
+        
+        # Manual selection card (only for EXISTING mode)
+        self._create_partition_card(main_layout)
+        
+        main_layout.addStretch(1)
+        
+        # Wrap in scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(main_widget)
+        
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
+    
+    def _create_partition_card(self, parent_layout):
+        """Create partition selection card"""
+        self.partition_group = QGroupBox("Manual Partition Selection")
+        partition_layout = QFormLayout()
+        
         self.root_combo = QComboBox()
-        fl.addRow("Root ( / ):", self.root_combo)
-
+        partition_layout.addRow("Root ( / ):", self.root_combo)
+        
         self.efi_combo = QComboBox()
-        fl.addRow("EFI (UEFI only):", self.efi_combo)
-
+        partition_layout.addRow("EFI (UEFI only):", self.efi_combo)
+        
         self.format_root = QCheckBox("Format ROOT partition (⚠️ destroys data on that partition)")
         self.format_root.setProperty("danger", "true")
         self.format_root.setChecked(False)
-        fl.addRow("", self.format_root)
-
+        partition_layout.addRow("", self.format_root)
+        
         self.format_efi = QCheckBox("Format EFI partition (FAT32)")
         self.format_efi.setProperty("danger", "true")
         self.format_efi.setChecked(False)
-        fl.addRow("", self.format_efi)
-
-        lay.addWidget(box)
-
-        self.scroll = make_scroll_page(root)
-        out = QVBoxLayout(self)
-        out.addWidget(self.scroll)
-
+        partition_layout.addRow("", self.format_efi)
+        
+        self.partition_group.setLayout(partition_layout)
+        parent_layout.addWidget(self.partition_group)
+        
+        # Connect signals
         for w in [self.root_combo, self.efi_combo]:
             w.currentIndexChanged.connect(lambda _=None: self._changed())
         self.format_root.stateChanged.connect(lambda _=None: self._changed())
         self.format_efi.stateChanged.connect(lambda _=None: self._changed())
-
+    
     def refresh(self):
         disk = self.main.disk_page.disk_combo.currentData() or ""
         mode = self.main.disk_page.mode_combo.currentText()
@@ -2976,18 +3511,16 @@ class PartitionsPage(StepPage):
 
         if mode == MODE_ERASE:
             self.info.setText(
-                "ERASE mode selected:\n"
+                "✅ ERASE mode selected:\n"
                 "• Partitions are created automatically.\n"
                 "• Root is formatted.\n"
                 "• EFI is created/formatted in UEFI mode.\n"
             )
-            self.root_combo.setEnabled(False)
-            self.efi_combo.setEnabled(False)
-            self.format_root.setEnabled(False)
-            self.format_efi.setEnabled(False)
+            self.partition_group.setVisible(False)
             self.main.set_step_done(2, True)
             return
 
+        self.partition_group.setVisible(True)
         self.root_combo.setEnabled(True)
         self.format_root.setEnabled(True)
         self.efi_combo.setEnabled(boot == "UEFI")
@@ -3032,13 +3565,13 @@ class PartitionsPage(StepPage):
         self.efi_combo.blockSignals(False)
 
         self.info.setText(
-            "USE EXISTING PARTITIONS mode:\n"
+            "ℹ️ USE EXISTING PARTITIONS mode:\n"
             "• Select your ROOT partition.\n"
             "• Select EFI partition if UEFI.\n"
             "• Formatting is optional but destructive.\n"
         )
         self._changed()
-
+    
     def _changed(self):
         mode = self.main.disk_page.mode_combo.currentText()
         if mode == MODE_ERASE:
@@ -3055,749 +3588,1255 @@ class PartitionsPage(StepPage):
         self.main.refresh_confirm_page()
 
 
+# ============================================================
+# System Page with Enhanced Location Detection
+# ============================================================
 class SystemPage(StepPage):
     def __init__(self, main):
         super().__init__()
         self.main = main
-
-        root = QWidget()
-        lay = QVBoxLayout(root)
-
-        title = QLabel("System Settings")
-        title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
-        lay.addWidget(title)
-
-        box = QGroupBox("Identity")
-        fl = QFormLayout(box)
-
-        self.hostname = QLineEdit(sanitize_hostname(socket.gethostname() or "arch"))
-        self.username = QLineEdit(sanitize_username(os.environ.get("SUDO_USER") or os.environ.get("USER") or "user"))
-
+        self.location_info = None
+        self.location_thread = None
+        
+        # Create main widget
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        
+        # Title section
+        title_label = QLabel("System Settings")
+        title_label.setProperty("class", "Title")
+        main_layout.addWidget(title_label)
+        
+        subtitle_label = QLabel("Configure your system identity and regional settings")
+        subtitle_label.setProperty("class", "Subtitle")
+        main_layout.addWidget(subtitle_label)
+        
+        # Location detection card
+        self._create_location_card(main_layout)
+        
+        # Kernel selection
+        self._create_kernel_section(main_layout)
+        
+        # User identity
+        self._create_user_section(main_layout)
+        
+        # Locale settings
+        self._create_locale_section(main_layout)
+        
+        main_layout.addStretch(1)
+        
+        # Wrap in scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(main_widget)
+        
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
+    
+    def _create_location_card(self, parent_layout):
+        """Create location detection card"""
+        location_card = QWidget()
+        location_card.setProperty("class", "LocationWidget")
+        card_layout = QVBoxLayout(location_card)
+        
+        # Title
+        location_title = QLabel("🌍 Location Detection")
+        location_title.setProperty("class", "SectionTitle")
+        card_layout.addWidget(location_title)
+        
+        # Status label
+        self.location_status = QLabel("Detecting your location...")
+        self.location_status.setProperty("class", "Subtitle")
+        card_layout.addWidget(self.location_status)
+        
+        # Location info display
+        self.location_display = QLabel("")
+        self.location_display.setWordWrap(True)
+        card_layout.addWidget(self.location_display)
+        
+        # Detect button
+        detect_btn = QPushButton("⟳ Re-detect Location")
+        detect_btn.clicked.connect(self._detect_location)
+        card_layout.addWidget(detect_btn)
+        
+        parent_layout.addWidget(location_card)
+    
+    def _create_kernel_section(self, parent_layout):
+        """Create kernel selection section"""
+        kernel_group = QGroupBox("Kernel Selection")
+        kernel_layout = QVBoxLayout()
+        
+        self.kernel_combo = QComboBox()
+        self.kernel_combo.addItems([
+            "linux (Mainline - Latest features)",
+            "linux-zen (Zen Kernel - Optimized for desktop)",
+            "linux-lts (Long-Term Support - Stable)"
+        ])
+        self.kernel_combo.setCurrentIndex(0)
+        
+        kernel_layout.addWidget(self.kernel_combo)
+        kernel_group.setLayout(kernel_layout)
+        parent_layout.addWidget(kernel_group)
+    
+    def _create_user_section(self, parent_layout):
+        """Create user identity section"""
+        user_group = QGroupBox("User Identity")
+        user_layout = QFormLayout()
+        
+        # Hostname
+        self.hostname = QLineEdit()
+        self.hostname.setPlaceholderText("e.g., my-computer")
+        user_layout.addRow("Hostname:", self.hostname)
+        
+        # Username
+        self.username = QLineEdit()
+        self.username.setPlaceholderText("e.g., user")
+        user_layout.addRow("Username:", self.username)
+        
+        # User password
         self.user_password = QLineEdit()
         self.user_password.setEchoMode(QLineEdit.Password)
+        self.user_password.setPlaceholderText("Minimum 4 characters")
+        user_layout.addRow("User Password:", self.user_password)
+        
         self.user_password2 = QLineEdit()
         self.user_password2.setEchoMode(QLineEdit.Password)
-
-        self.separate_root = QCheckBox("Set a separate root password (optional)")
+        self.user_password2.setPlaceholderText("Confirm password")
+        user_layout.addRow("Confirm:", self.user_password2)
+        
+        # Password warning
+        self.pw_warn = QLabel("")
+        self.pw_warn.setProperty("class", "Warning")
+        user_layout.addRow("", self.pw_warn)
+        
+        # Separate root password
+        self.separate_root = QCheckBox("Set separate root password (optional)")
+        user_layout.addRow("", self.separate_root)
+        
         self.root_password = QLineEdit()
         self.root_password.setEchoMode(QLineEdit.Password)
+        self.root_password.setEnabled(False)
+        self.root_password.setPlaceholderText("Optional - leave empty to use user password")
+        user_layout.addRow("Root Password:", self.root_password)
+        
         self.root_password2 = QLineEdit()
         self.root_password2.setEchoMode(QLineEdit.Password)
-        self.root_password.setEnabled(False)
         self.root_password2.setEnabled(False)
-
-        fl.addRow("Hostname:", self.hostname)
-        fl.addRow("Username:", self.username)
-        fl.addRow("User password:", self.user_password)
-        fl.addRow("Confirm:", self.user_password2)
-
-        self.pw_hint = QLabel("Passwords must be at least 4 characters.")
-        self.pw_hint.setStyleSheet("color:#b8c2ff; font-weight:700;")
-        fl.addRow("", self.pw_hint)
-
-        fl.addRow("", self.separate_root)
-        fl.addRow("Root password:", self.root_password)
-        fl.addRow("Confirm:", self.root_password2)
-
-        lay.addWidget(box)
-
-        box2 = QGroupBox("Locale & Input")
-        fl2 = QFormLayout(box2)
-
-        self.tz = QComboBox()
-        self.tz.addItems(list_timezones_lite())
-        self.tz.setCurrentText(guess_live_timezone())
-
-        self.keymap = QComboBox()
-        self.keymap.addItems(common_keymaps())
-        self.keymap.setCurrentText(guess_live_keymap())
-
-        self.locale = QComboBox()
-        self.locale.addItems(["en_US.UTF-8", "en_GB.UTF-8", "es_ES.UTF-8", "fr_FR.UTF-8", "de_DE.UTF-8"])
-        self.locale.setCurrentText("en_US.UTF-8")
-
-        fl2.addRow("Timezone:", self.tz)
-        fl2.addRow("Keymap:", self.keymap)
-        fl2.addRow("Locale:", self.locale)
-        lay.addWidget(box2)
-
-        box3 = QGroupBox("Advanced")
-        fl3 = QFormLayout(box3)
-
-        self.use_dracut = QCheckBox("Use dracut initramfs (optional; adds pacman hook)")
-        self.use_dracut.setChecked(False)
-        fl3.addRow("", self.use_dracut)
-
-        self.copy_omb = QCheckBox("Copy Oh My Bash from Live user into /etc/skel (if present)")
-        self.copy_omb.setChecked(True)
-        fl3.addRow("", self.copy_omb)
-
-        self.live_user = QLineEdit(live_user_best_effort())
-        fl3.addRow("Live user name:", self.live_user)
-
-        note = QLabel("Oh My Bash source path: /home/<live_user>/.oh-my-bash")
-        note.setStyleSheet("color:#b8c2ff;")
-        note.setWordWrap(True)
-        fl3.addRow("", note)
-
-        lay.addWidget(box3)
-
-        self.scroll = make_scroll_page(root)
-        out = QVBoxLayout(self)
-        out.addWidget(self.scroll)
-
-        # wiring
-        self.separate_root.stateChanged.connect(self._toggle_root)
-        for w in [
-            self.hostname, self.username,
-            self.user_password, self.user_password2,
-            self.root_password, self.root_password2,
-            self.live_user
-        ]:
-            w.textChanged.connect(self._changed)
-        for w in [self.tz, self.keymap, self.locale]:
-            w.currentIndexChanged.connect(self._changed)
-        self.use_dracut.stateChanged.connect(lambda _=None: self._changed())
-        self.copy_omb.stateChanged.connect(lambda _=None: self._changed())
-
-    def _toggle_root(self):
-        en = self.separate_root.isChecked()
-        self.root_password.setEnabled(en)
-        self.root_password2.setEnabled(en)
-        self._changed()
-
-    def _changed(self):
-        h = sanitize_hostname(self.hostname.text())
-        u = sanitize_username(self.username.text())
-        if self.hostname.text() != h:
-            self.hostname.setText(h)
-        if self.username.text() != u:
-            self.username.setText(u)
-
-        lu = sanitize_username(self.live_user.text()) or live_user_best_effort()
-        if self.live_user.text() != lu:
-            self.live_user.setText(lu)
-
-        upw = self.user_password.text()
-        upw2 = self.user_password2.text()
-
-        ok_user = bool(h) and bool(u) and bool(upw) and (upw == upw2) and (len(upw) >= 4)
-
-        if self.separate_root.isChecked():
-            rpw = self.root_password.text()
-            rpw2 = self.root_password2.text()
-            ok_root = bool(rpw) and (rpw == rpw2) and (len(rpw) >= 4)
+        user_layout.addRow("Confirm:", self.root_password2)
+        
+        user_group.setLayout(user_layout)
+        parent_layout.addWidget(user_group)
+        
+        # Connect signals
+        self.separate_root.stateChanged.connect(self._on_separate_root_changed)
+        for widget in [self.hostname, self.username, self.user_password, self.user_password2,
+                      self.root_password, self.root_password2]:
+            widget.textChanged.connect(self._validate)
+    
+    def _create_locale_section(self, parent_layout):
+        """Create locale settings section"""
+        locale_group = QGroupBox("Regional Settings")
+        locale_layout = QFormLayout()
+        
+        # Timezone with smart detection
+        self.timezone_combo = QComboBox()
+        self.timezone_combo.setEditable(True)
+        self.timezone_combo.setInsertPolicy(QComboBox.NoInsert)
+        
+        # Add popular cities first
+        popular_cities = [
+            ("🇺🇸 New York", "America/New_York"),
+            ("🇺🇸 Los Angeles", "America/Los_Angeles"),
+            ("🇺🇸 Chicago", "America/Chicago"),
+            ("🇺🇸 Denver", "America/Denver"),
+            ("🇬🇧 London", "Europe/London"),
+            ("🇫🇷 Paris", "Europe/Paris"),
+            ("🇩🇪 Berlin", "Europe/Berlin"),
+            ("🇯🇵 Tokyo", "Asia/Tokyo"),
+            ("🇨🇳 Shanghai", "Asia/Shanghai"),
+            ("🇦🇺 Sydney", "Australia/Sydney"),
+            ("🇨🇦 Toronto", "America/Toronto"),
+            ("🇧🇷 São Paulo", "America/Sao_Paulo"),
+            ("🇮🇳 Mumbai", "Asia/Kolkata"),
+            ("🇸🇬 Singapore", "Asia/Singapore"),
+            ("🇿🇦 Johannesburg", "Africa/Johannesburg"),
+            ("🇦🇪 Dubai", "Asia/Dubai"),
+            ("🇷🇺 Moscow", "Europe/Moscow"),
+        ]
+        
+        for display, tz in popular_cities:
+            self.timezone_combo.addItem(display, tz)
+        
+        # Add separator
+        self.timezone_combo.insertSeparator(len(popular_cities))
+        
+        # Add all timezones
+        all_tz = self._get_all_timezones()
+        for tz in all_tz:
+            if tz not in [data for _, data in popular_cities]:
+                self.timezone_combo.addItem(tz, tz)
+        
+        locale_layout.addRow("Timezone:", self.timezone_combo)
+        
+        # Keymap
+        self.keymap_combo = QComboBox()
+        self.keymap_combo.addItems([
+            "us", "uk", "de", "fr", "es", "it", "pt", "br-abnt2",
+            "ru", "ua", "pl", "nl", "se", "no", "fi", "dk", "cz",
+            "sk", "hu", "tr", "jp106", "kr", "cn", "in", "latam"
+        ])
+        locale_layout.addRow("Keymap:", self.keymap_combo)
+        
+        # Locale
+        self.locale_combo = QComboBox()
+        self.locale_combo.addItems([
+            "en_US.UTF-8", "en_GB.UTF-8", "de_DE.UTF-8", "fr_FR.UTF-8",
+            "es_ES.UTF-8", "it_IT.UTF-8", "pt_BR.UTF-8", "ru_RU.UTF-8",
+            "ja_JP.UTF-8", "zh_CN.UTF-8", "ko_KR.UTF-8"
+        ])
+        locale_layout.addRow("Locale:", self.locale_combo)
+        
+        locale_group.setLayout(locale_layout)
+        parent_layout.addWidget(locale_group)
+        
+        # Connect timezone change
+        self.timezone_combo.currentIndexChanged.connect(self._validate)
+    
+    def _get_all_timezones(self):
+        """Get list of all available timezones"""
+        base = Path("/usr/share/zoneinfo")
+        if not base.exists():
+            return ["UTC", "America/New_York", "Europe/London", "Asia/Tokyo"]
+        
+        timezones = []
+        try:
+            for root, dirs, files in os.walk(str(base)):
+                rp = Path(root)
+                rel = rp.relative_to(base)
+                if rel.parts and rel.parts[0] in {"posix", "right"}:
+                    continue
+                for f in files:
+                    p = rp / f
+                    if f in {"zone.tab", "zone1970.tab", "leapseconds", "tzdata.zi"}:
+                        continue
+                    if p.is_symlink():
+                        continue
+                    relp = p.relative_to(base)
+                    if len(relp.parts) >= 1:
+                        timezones.append("/".join(relp.parts))
+        except Exception:
+            pass
+        
+        return sorted(set(timezones))
+    
+    def _detect_location(self):
+        """Start location detection"""
+        self.location_status.setText("Detecting your location...")
+        self.location_display.setText("")
+        
+        # Kill existing thread if any
+        if self.location_thread and self.location_thread.isRunning():
+            self.location_thread.terminate()
+            self.location_thread.wait()
+        
+        # Start new detection thread
+        self.location_thread = LocationDetectionThread()
+        self.location_thread.sig_location_detected.connect(self._on_location_detected)
+        self.location_thread.sig_detection_failed.connect(self._on_location_failed)
+        self.location_thread.start()
+    
+    def _on_location_detected(self, location_info):
+        """Handle successful location detection"""
+        self.location_info = location_info
+        
+        # Update status
+        confidence = location_info.get("confidence", "low")
+        method = location_info.get("method", "unknown")
+        
+        confidence_text = {
+            "very_high": "✓ High confidence",
+            "high": "✓ Good confidence",
+            "medium": "⚠ Medium confidence",
+            "low": "⚠ Low confidence",
+            "very_low": "✗ Very low confidence"
+        }.get(confidence, "⚠ Unknown confidence")
+        
+        self.location_status.setText(f"Location detected ({confidence_text})")
+        
+        # Build display text
+        display_parts = []
+        if location_info.get("city"):
+            display_parts.append(f"📍 {location_info['city']}")
+        if location_info.get("region"):
+            display_parts.append(f"Region: {location_info['region']}")
+        if location_info.get("country"):
+            display_parts.append(f"Country: {location_info['country']}")
+        if location_info.get("timezone"):
+            display_parts.append(f"Timezone: {location_info['timezone']}")
+        
+        if display_parts:
+            self.location_display.setText("\n".join(display_parts))
+        
+        # Auto-select timezone if found
+        if location_info.get("timezone"):
+            tz = location_info["timezone"]
+            # Try to find in combo
+            index = self.timezone_combo.findData(tz)
+            if index >= 0:
+                self.timezone_combo.setCurrentIndex(index)
+            else:
+                # Add it if not found
+                self.timezone_combo.addItem(tz, tz)
+                self.timezone_combo.setCurrentIndex(self.timezone_combo.count() - 1)
+        
+        # Auto-suggest keymap based on country
+        self._suggest_keymap(location_info)
+        
+        # Auto-suggest locale
+        self._suggest_locale(location_info)
+    
+    def _on_location_failed(self, error_msg):
+        """Handle location detection failure"""
+        self.location_status.setText("✗ Location detection failed")
+        self.location_display.setText(f"Error: {error_msg}\nUsing system defaults.")
+        
+        # Fallback to system timezone
+        system_tz = LocationDetector._get_system_timezone()
+        if system_tz:
+            index = self.timezone_combo.findData(system_tz)
+            if index >= 0:
+                self.timezone_combo.setCurrentIndex(index)
+    
+    def _suggest_keymap(self, location_info):
+        """Suggest keymap based on location"""
+        country = location_info.get("country", "").lower()
+        city = location_info.get("city", "").lower()
+        
+        keymap_suggestions = {
+            "united states": "us",
+            "usa": "us",
+            "united kingdom": "uk",
+            "germany": "de",
+            "france": "fr",
+            "spain": "es",
+            "italy": "it",
+            "portugal": "pt",
+            "brazil": "br-abnt2",
+            "russia": "ru",
+            "ukraine": "ua",
+            "poland": "pl",
+            "netherlands": "nl",
+            "sweden": "se",
+            "norway": "no",
+            "finland": "fi",
+            "denmark": "dk",
+            "czech": "cz",
+            "slovakia": "sk",
+            "hungary": "hu",
+            "turkey": "tr",
+            "japan": "jp106",
+            "korea": "kr",
+            "china": "cn",
+            "india": "in",
+            "mexico": "latam",
+        }
+        
+        # Try country match
+        for country_name, keymap in keymap_suggestions.items():
+            if country_name in country:
+                index = self.keymap_combo.findText(keymap)
+                if index >= 0:
+                    self.keymap_combo.setCurrentIndex(index)
+                return
+        
+        # Try city match
+        city_keymaps = {
+            "new york": "us",
+            "los angeles": "us",
+            "london": "uk",
+            "paris": "fr",
+            "berlin": "de",
+            "tokyo": "jp106",
+            "moscow": "ru",
+            "beijing": "cn",
+            "seoul": "kr",
+            "mumbai": "in",
+        }
+        
+        for city_name, keymap in city_keymaps.items():
+            if city_name in city:
+                index = self.keymap_combo.findText(keymap)
+                if index >= 0:
+                    self.keymap_combo.setCurrentIndex(index)
+                return
+    
+    def _suggest_locale(self, location_info):
+        """Suggest locale based on location"""
+        country = location_info.get("country", "").lower()
+        city = location_info.get("city", "").lower()
+        
+        locale_suggestions = {
+            "united states": "en_US.UTF-8",
+            "usa": "en_US.UTF-8",
+            "united kingdom": "en_GB.UTF-8",
+            "germany": "de_DE.UTF-8",
+            "france": "fr_FR.UTF-8",
+            "spain": "es_ES.UTF-8",
+            "italy": "it_IT.UTF-8",
+            "portugal": "pt_PT.UTF-8",
+            "brazil": "pt_BR.UTF-8",
+            "russia": "ru_RU.UTF-8",
+            "japan": "ja_JP.UTF-8",
+            "china": "zh_CN.UTF-8",
+            "korea": "ko_KR.UTF-8",
+        }
+        
+        # Try country match
+        for country_name, locale in locale_suggestions.items():
+            if country_name in country:
+                index = self.locale_combo.findText(locale)
+                if index >= 0:
+                    self.locale_combo.setCurrentIndex(index)
+                return
+        
+        # Try city match
+        city_locales = {
+            "new york": "en_US.UTF-8",
+            "los angeles": "en_US.UTF-8",
+            "london": "en_GB.UTF-8",
+            "paris": "fr_FR.UTF-8",
+            "berlin": "de_DE.UTF-8",
+            "tokyo": "ja_JP.UTF-8",
+            "beijing": "zh_CN.UTF-8",
+            "seoul": "ko_KR.UTF-8",
+        }
+        
+        for city_name, locale in city_locales.items():
+            if city_name in city:
+                index = self.locale_combo.findText(locale)
+                if index >= 0:
+                    self.locale_combo.setCurrentIndex(index)
+                return
+    
+    def _on_separate_root_changed(self):
+        """Handle separate root password checkbox"""
+        enabled = self.separate_root.isChecked()
+        self.root_password.setEnabled(enabled)
+        self.root_password2.setEnabled(enabled)
+        self._validate()
+    
+    def _validate(self):
+        """Validate all inputs"""
+        # Password validation
+        user_pw = self.user_password.text()
+        user_pw2 = self.user_password2.text()
+        root_pw = self.root_password.text() if self.separate_root.isChecked() else ""
+        root_pw2 = self.root_password2.text() if self.separate_root.isChecked() else ""
+        
+        ok = True
+        msgs = []
+        
+        # User password
+        if len(user_pw) < 4:
+            ok = False
+            msgs.append("❌ User password must be at least 4 characters")
+        elif user_pw != user_pw2:
+            ok = False
+            msgs.append("❌ User passwords don't match")
         else:
-            ok_root = True
+            msgs.append("✅ User password OK")
+        
+        # Root password (if separate)
+        if self.separate_root.isChecked():
+            if len(root_pw) < 4:
+                ok = False
+                msgs.append("❌ Root password must be at least 4 characters")
+            elif root_pw != root_pw2:
+                ok = False
+                msgs.append("❌ Root passwords don't match")
+            else:
+                msgs.append("✅ Root password OK")
+        
+        # Username and hostname
+        if not self.hostname.text().strip():
+            ok = False
+            msgs.append("❌ Hostname cannot be empty")
+        else:
+            msgs.append("✅ Hostname OK")
+        
+        if not self.username.text().strip():
+            ok = False
+            msgs.append("❌ Username cannot be empty")
+        else:
+            msgs.append("✅ Username OK")
+        
+        # Timezone selection
+        if not self.timezone_combo.currentData():
+            ok = False
+            msgs.append("❌ Please select a timezone")
+        else:
+            msgs.append("✅ Timezone selected")
+        
+        self.pw_warn.setText("\n".join(msgs))
+        self.main.set_step_done(3, ok)
+    
+    def on_enter(self):
+        """Called when entering the page"""
+        # Auto-detect location on first entry
+        if not self.location_info:
+            self._detect_location()
+        
+        # Auto-fill username from environment
+        if not self.username.text():
+            env_user = os.environ.get("SUDO_USER") or os.environ.get("USER") or "user"
+            self.username.setText(env_user)
+        
+        # Auto-fill hostname
+        if not self.hostname.text():
+            try:
+                hostname = socket.gethostname()
+                if hostname and hostname != "localhost":
+                    self.hostname.setText(hostname)
+            except:
+                pass
+        
+        self._validate()
 
-        self.main.set_step_done(3, ok_user and ok_root)
-        self.main.refresh_confirm_page()
 
-
+# ============================================================
+# Desktop Page (Modernized)
+# ============================================================
 class DesktopPage(StepPage):
     def __init__(self, main):
         super().__init__()
         self.main = main
-
-        root = QWidget()
-        lay = QVBoxLayout(root)
-
-        title = QLabel("Desktop & Login")
-        title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
-        lay.addWidget(title)
-
-        # Desktop Environments
-        box = QGroupBox("Desktop environments")
-        v = QVBoxLayout(box)
-        self.cb_xfce = QCheckBox("XFCE (recommended)")
-        self.cb_gnome = QCheckBox("GNOME")
-        self.cb_kde = QCheckBox("KDE Plasma")
-        self.cb_cinnamon = QCheckBox("Cinnamon")
-        self.cb_mate = QCheckBox("MATE")
-        self.cb_lxqt = QCheckBox("LXQt")
-
-        self.cb_xfce.setChecked(True)
-
-        for cb in [self.cb_xfce, self.cb_gnome, self.cb_kde, self.cb_cinnamon, self.cb_mate, self.cb_lxqt]:
-            v.addWidget(cb)
-            cb.stateChanged.connect(self._changed)
-
-        lay.addWidget(box)
-
-        # Window Managers
-        box_wm = QGroupBox("Window Managers")
-        v_wm = QVBoxLayout(box_wm)
         
-        self.cb_i3 = QCheckBox("i3")
-        self.cb_openbox = QCheckBox("Openbox")
-        self.cb_bspwm = QCheckBox("Bspwm")
-        self.cb_awesome = QCheckBox("Awesome")
-        self.cb_qtile = QCheckBox("Qtile")
-        self.cb_sway = QCheckBox("Sway")
-        self.cb_hyprland = QCheckBox("Hyprland")
-
-        for cb in [self.cb_i3, self.cb_openbox, self.cb_bspwm, self.cb_awesome, self.cb_qtile, self.cb_sway, self.cb_hyprland]:
-            v_wm.addWidget(cb)
-            cb.stateChanged.connect(self._changed)
-
-        lay.addWidget(box_wm)
-
-        box2 = QGroupBox("Display Manager + Autologin")
-        fl = QFormLayout(box2)
-        self.dm = QComboBox()
-        self.dm.addItems([DM_AUTO, DM_LIGHTDM, DM_GDM, DM_SDDM])
-        self.dm.currentIndexChanged.connect(self._changed)
-        fl.addRow("Display Manager:", self.dm)
-        self.dm_preview = QLabel("")
-        self.dm_preview.setStyleSheet("color: #b8c2ff; font-style: italic;")
-        fl.addRow("", self.dm_preview)
-
+        # Create main widget
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        
+        # Title
+        title_label = QLabel("Desktop Environment")
+        title_label.setProperty("class", "Title")
+        main_layout.addWidget(title_label)
+        
+        subtitle_label = QLabel("Choose your desktop environment and display settings")
+        subtitle_label.setProperty("class", "Subtitle")
+        main_layout.addWidget(subtitle_label)
+        
+        # Desktop selection
+        self._create_desktop_selection(main_layout)
+        
+        # Display manager
+        self._create_display_manager(main_layout)
+        
+        # Advanced options
+        self._create_advanced_options(main_layout)
+        
+        main_layout.addStretch(1)
+        
+        # Wrap in scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(main_widget)
+        
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
+    
+    def _create_desktop_selection(self, parent_layout):
+        """Create desktop environment selection"""
+        de_group = QGroupBox("Desktop Environment")
+        de_layout = QVBoxLayout()
+        
+        # Popular DEs section
+        popular_label = QLabel("Popular Choices:")
+        popular_label.setProperty("class", "SectionTitle")
+        de_layout.addWidget(popular_label)
+        
+        self.de_checks = {}
+        popular_des = [DE_XFCE, DE_GNOME, DE_KDE, DE_CINNAMON]
+        for de in popular_des:
+            cb = QCheckBox(de)
+            self.de_checks[de] = cb
+            de_layout.addWidget(cb)
+        
+        # Other DEs section
+        other_label = QLabel("Other Options:")
+        other_label.setProperty("class", "SectionTitle")
+        de_layout.addWidget(other_label)
+        
+        other_des = [DE_MATE, DE_LXQT]
+        for de in other_des:
+            cb = QCheckBox(de)
+            self.de_checks[de] = cb
+            de_layout.addWidget(cb)
+        
+        # Window Managers section
+        wm_label = QLabel("Window Managers:")
+        wm_label.setProperty("class", "SectionTitle")
+        de_layout.addWidget(wm_label)
+        
+        self.wm_checks = {}
+        wms = [WM_I3, WM_OPENBOX, WM_BSPWM, WM_AWESOME, WM_QTILE, WM_SWAY, WM_HYPRLAND]
+        for wm in wms:
+            cb = QCheckBox(wm)
+            self.wm_checks[wm] = cb
+            de_layout.addWidget(cb)
+        
+        # Connect signals
+        for cb in list(self.de_checks.values()) + list(self.wm_checks.values()):
+            cb.stateChanged.connect(self._update_dm_combo)
+        
+        de_group.setLayout(de_layout)
+        parent_layout.addWidget(de_group)
+    
+    def _create_display_manager(self, parent_layout):
+        """Create display manager selection"""
+        dm_group = QGroupBox("Display Settings")
+        dm_layout = QVBoxLayout()
+        
+        # DM selection
+        dm_label = QLabel("Display Manager:")
+        dm_layout.addWidget(dm_label)
+        
+        self.dm_combo = QComboBox()
+        self.dm_combo.addItems([DM_AUTO, DM_LIGHTDM, DM_GDM, DM_SDDM])
+        dm_layout.addWidget(self.dm_combo)
+        
+        # Autologin
         self.autologin = QCheckBox("Enable autologin (bypass login screen)")
         self.autologin.setChecked(True)
-        self.autologin.stateChanged.connect(self._changed)
-        fl.addRow("", self.autologin)
-
-        self.want_yay = QCheckBox("Install yay (AUR helper) (best-effort)")
-        self.want_yay.setChecked(True)
-        self.want_yay.stateChanged.connect(self._changed)
-        fl.addRow("", self.want_yay)
-
-        lay.addWidget(box2)
-
-        self.note = QLabel(
-            "Autologin writes drop-in configs:\n"
-            "• LightDM: /etc/lightdm/lightdm.conf.d/50-stormos-autologin.conf\n"
-            "• SDDM: /etc/sddm.conf.d/50-stormos-autologin.conf\n"
-            "• GDM: /etc/gdm/custom.conf\n"
-        )
-        self.note.setWordWrap(True)
-        self.note.setStyleSheet("color:#b8c2ff;")
-        lay.addWidget(self.note)
-
-        lay.addStretch(1)
-        self.scroll = make_scroll_page(root)
-        out = QVBoxLayout(self)
-        out.addWidget(self.scroll)
-
-        self._changed()
-
-    def desktops_selected(self) -> List[str]:
-        out = []
-        # Desktops
-        if self.cb_xfce.isChecked(): out.append(DE_XFCE)
-        if self.cb_gnome.isChecked(): out.append(DE_GNOME)
-        if self.cb_kde.isChecked(): out.append(DE_KDE)
-        if self.cb_cinnamon.isChecked(): out.append(DE_CINNAMON)
-        if self.cb_mate.isChecked(): out.append(DE_MATE)
-        if self.cb_lxqt.isChecked(): out.append(DE_LXQT)
-        # Window Managers
-        if self.cb_i3.isChecked(): out.append(WM_I3)
-        if self.cb_openbox.isChecked(): out.append(WM_OPENBOX)
-        if self.cb_bspwm.isChecked(): out.append(WM_BSPWM)
-        if self.cb_awesome.isChecked(): out.append(WM_AWESOME)
-        if self.cb_qtile.isChecked(): out.append(WM_QTILE)
-        if self.cb_sway.isChecked(): out.append(WM_SWAY)
-        if self.cb_hyprland.isChecked(): out.append(WM_HYPRLAND)
+        dm_layout.addWidget(self.autologin)
         
-        return out
-
-    def _changed(self):
-        desktops = self.desktops_selected()
-        if not desktops:
-            self.cb_xfce.setChecked(True)
-            desktops = [DE_XFCE]
-
-        # Compute effective DM
-        dm_selection = self.dm.currentText()
-        if dm_selection == DM_AUTO:
-            effective_dm = choose_default_dm_for_desktops(desktops)
-            self.dm_preview.setText(f"→ Will install: <b>{effective_dm}</b>")
+        dm_group.setLayout(dm_layout)
+        parent_layout.addWidget(dm_group)
+    
+    def _create_advanced_options(self, parent_layout):
+        """Create advanced options section"""
+        adv_group = QGroupBox("Advanced Options")
+        adv_layout = QVBoxLayout()
+        
+        # Package options
+        self.use_local_packages_txt = QCheckBox("Use local packages.txt file")
+        self.use_local_packages_txt.setChecked(True)
+        adv_layout.addWidget(self.use_local_packages_txt)
+        
+        self.want_yay = QCheckBox("Install yay (AUR helper)")
+        self.want_yay.setChecked(True)
+        adv_layout.addWidget(self.want_yay)
+        
+        self.copy_oh_my_bash = QCheckBox("Copy Oh My Bash to /etc/skel")
+        self.copy_oh_my_bash.setChecked(True)
+        adv_layout.addWidget(self.copy_oh_my_bash)
+        
+        self.use_dracut = QCheckBox("Use dracut initramfs (advanced)")
+        self.use_dracut.setChecked(False)
+        adv_layout.addWidget(self.use_dracut)
+        
+        adv_group.setLayout(adv_layout)
+        parent_layout.addWidget(adv_group)
+        
+        # Connect validation
+        for widget in [self.dm_combo, self.autologin]:
+            if hasattr(widget, 'currentIndexChanged'):
+                widget.currentIndexChanged.connect(self._validate)
+            else:
+                widget.stateChanged.connect(self._validate)
+    
+    def _update_dm_combo(self):
+        """Update DM combo based on selection"""
+        selected = []
+        for de, cb in self.de_checks.items():
+            if cb.isChecked():
+                selected.append(de)
+        for wm, cb in self.wm_checks.items():
+            if cb.isChecked():
+                selected.append(wm)
+        
+        if not selected:
+            selected = [DE_XFCE]
+        
+        auto_dm = choose_default_dm_for_desktops(selected)
+        
+        # Update combo without triggering signals
+        self.dm_combo.blockSignals(True)
+        current_text = self.dm_combo.currentText()
+        
+        if current_text == DM_AUTO:
+            idx = self.dm_combo.findText(DM_AUTO)
+            if idx >= 0:
+                self.dm_combo.setItemText(idx, f"{DM_AUTO} → {auto_dm}")
         else:
-            self.dm_preview.setText(f"→ Will install: <b>{dm_selection}</b>")
+            # Restore original text for Auto option
+            idx = self.dm_combo.findText(f"{DM_AUTO} → ")
+            if idx >= 0:
+                self.dm_combo.setItemText(idx, DM_AUTO)
+        
+        self.dm_combo.blockSignals(False)
+        self._validate()
+    
+    def _validate(self):
+        """Validate desktop selection"""
+        has_desktop = any(cb.isChecked() for cb in self.de_checks.values())
+        has_wm = any(cb.isChecked() for cb in self.wm_checks.values())
+        
+        ok = has_desktop or has_wm
+        self.main.set_step_done(4, ok)
+    
+    def on_enter(self):
+        """Called when entering the page"""
+        # Ensure at least XFCE is checked by default
+        if not any(cb.isChecked() for cb in self.de_checks.values()) and \
+           not any(cb.isChecked() for cb in self.wm_checks.values()):
+            self.de_checks[DE_XFCE].setChecked(True)
+        
+        self._update_dm_combo()
 
-        self.main.set_step_done(4, bool(desktops))
-        self.main.refresh_confirm_page()
 
-
+# ============================================================
+# Confirm Page (Modernized)
+# ============================================================
 class ConfirmPage(StepPage):
     def __init__(self, main):
         super().__init__()
         self.main = main
-
-        root = QWidget()
-        lay = QVBoxLayout(root)
-
-        title = QLabel("Confirm (Read Carefully)")
-        title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
-        lay.addWidget(title)
-
+        
+        # Create main widget
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        
+        # Title
+        title_label = QLabel("Confirmation")
+        title_label.setProperty("class", "Title")
+        main_layout.addWidget(title_label)
+        
+        subtitle_label = QLabel("Review your settings before installation")
+        subtitle_label.setProperty("class", "Subtitle")
+        main_layout.addWidget(subtitle_label)
+        
+        # Summary
         self.summary = QPlainTextEdit()
         self.summary.setReadOnly(True)
-        self.summary.setMinimumHeight(220)
-        lay.addWidget(self.summary)
-
-        self.disclaimer = QLabel(
-            "⚠️ DISCLAIMER:\n"
-            "This installer may ERASE disks/partitions and can cause total data loss.\n"
-            "You accept full responsibility for any damage, data loss, or downtime.\n"
-            "ONLY proceed if you understand exactly what will happen."
+        self.summary.setMinimumHeight(300)
+        main_layout.addWidget(self.summary)
+        
+        # Warning box
+        warning_box = QGroupBox("")
+        warning_box.setStyleSheet("QGroupBox { color: #ff7a7a; border: 2px solid #ff7a7a; }")
+        warning_box_lay = QVBoxLayout(warning_box)
+        
+        self.warning_label = QLabel("")
+        self.warning_label.setWordWrap(True)
+        self.warning_label.setProperty("class", "Warning")
+        warning_box_lay.addWidget(self.warning_label)
+        
+        main_layout.addWidget(warning_box)
+        
+        # Confirmation word section
+        confirm_box = QGroupBox("Confirmation Required")
+        confirm_box.setStyleSheet("QGroupBox { color: #dbe3ff; border: 1px solid #1b2a50; }")
+        confirm_box_lay = QVBoxLayout(confirm_box)
+        
+        self.confirm_word_label = QLabel("")
+        self.confirm_word_label.setWordWrap(True)
+        self.confirm_word_label.setProperty("class", "Warning")
+        confirm_box_lay.addWidget(self.confirm_word_label)
+        
+        self.confirm_input = QLineEdit()
+        self.confirm_input.setPlaceholderText("Type the confirmation word exactly as shown above")
+        confirm_box_lay.addWidget(self.confirm_input)
+        
+        main_layout.addWidget(confirm_box)
+        
+        main_layout.addStretch(1)
+        
+        # Wrap in scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setWidget(main_widget)
+        
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
+        
+        self.confirm_input.textChanged.connect(self._validate)
+    
+    def refresh_summary(self):
+        cfg = self.main.get_config()
+        
+        # Determine confirmation word
+        confirm_word = self._determine_confirm_word(cfg)
+        self.confirm_word_label.setText(
+            f"Type this exact word to proceed:<br><br>"
+            f"<font size='+2' color='#ff7a7a'>{confirm_word}</font>"
         )
-        self.disclaimer.setStyleSheet("color:#ffb3b3; font-weight:900;")
-        self.disclaimer.setWordWrap(True)
-        lay.addWidget(self.disclaimer)
-
-        self.confirm_word_label = QLabel("Type the confirmation word to enable Install:")
-        self.confirm_word_label.setStyleSheet("font-weight:900; color:#dbe3ff;")
-        lay.addWidget(self.confirm_word_label)
-
-        self.confirm_word = QLineEdit()
-        lay.addWidget(self.confirm_word)
-
-        self.restore_btrfs = QCheckBox("Optional: Create BTRFS restore point (EXISTING partitions + NO formatting + BTRFS only)")
-        lay.addWidget(self.restore_btrfs)
-
-        self.ack = QCheckBox("I understand and I want to proceed.")
-        self.ack.setProperty("danger", "true")
-        lay.addWidget(self.ack)
-
-        lay.addStretch(1)
-        self.scroll = make_scroll_page(root)
-        out = QVBoxLayout(self)
-        out.addWidget(self.scroll)
-
-        self.confirm_word.textChanged.connect(self._changed)
-        self.ack.stateChanged.connect(lambda _=None: self._changed())
-        self.restore_btrfs.stateChanged.connect(lambda _=None: self._changed())
-
-    def required_word(self) -> str:
-        mode = self.main.disk_page.mode_combo.currentText()
-        if mode == MODE_ERASE:
+        
+        # Build warning text
+        if cfg.install_mode == MODE_ERASE:
+            disk_display = cfg.disk or "<unknown disk>"
+            warning_text = f"⚠️ ERASE MODE: ALL DATA on {disk_display} will be DESTROYED!"
+        elif cfg.format_root:
+            root_display = cfg.root_part or "<unknown partition>"
+            warning_text = f"⚠️ FORMATTING: The ROOT partition {root_display} will be formatted, destroying all data on it!"
+        else:
+            warning_text = "⚠️ INSTALLING: This will install the system WITHOUT formatting (data should be preserved)."
+        
+        self.warning_label.setText(warning_text)
+        
+        # Build summary
+        summary_lines = []
+        summary_lines.append("=== INSTALLATION SUMMARY ===")
+        summary_lines.append("")
+        summary_lines.append("SYSTEM:")
+        summary_lines.append(f"  Kernel: {cfg.kernel}")
+        summary_lines.append(f"  Boot mode: {cfg.boot_mode}")
+        summary_lines.append(f"  Filesystem: {cfg.fs}")
+        summary_lines.append(f"  Disk: {cfg.disk or '<not selected>'}")
+        summary_lines.append(f"  Install mode: {cfg.install_mode}")
+        
+        if cfg.install_mode == MODE_EXISTING:
+            summary_lines.append(f"  Root partition: {cfg.root_part or '<not selected>'}")
+            if cfg.boot_mode == "UEFI":
+                summary_lines.append(f"  EFI partition: {cfg.efi_part or '<not selected>'}")
+            summary_lines.append(f"  Format root: {cfg.format_root}")
+            if cfg.boot_mode == "UEFI":
+                summary_lines.append(f"  Format EFI: {cfg.format_efi}")
+        
+        summary_lines.append("")
+        summary_lines.append("USER:")
+        summary_lines.append(f"  Hostname: {cfg.hostname or '<empty>'}")
+        summary_lines.append(f"  Username: {cfg.username or '<empty>'}")
+        summary_lines.append(f"  Timezone: {cfg.timezone}")
+        summary_lines.append(f"  Keymap: {cfg.keymap}")
+        summary_lines.append(f"  Locale: {cfg.locale}")
+        
+        summary_lines.append("")
+        summary_lines.append("DESKTOP:")
+        desktops = cfg.desktops or []
+        if desktops:
+            summary_lines.append(f"  Desktop(s): {', '.join(desktops)}")
+        summary_lines.append(f"  Display Manager: {cfg.dm}")
+        summary_lines.append(f"  Autologin: {cfg.autologin}")
+        
+        summary_lines.append("")
+        summary_lines.append("ADVANCED:")
+        summary_lines.append(f"  Install yay: {cfg.want_yay}")
+        summary_lines.append(f"  Copy Oh My Bash: {cfg.copy_oh_my_bash}")
+        summary_lines.append(f"  Use dracut: {cfg.use_dracut}")
+        summary_lines.append(f"  Use local packages.txt: {cfg.use_local_packages_txt}")
+        
+        if cfg.fs == "btrfs" and cfg.install_mode == MODE_EXISTING and not cfg.format_root:
+            summary_lines.append(f"  BTRFS Restore Point: {'YES (best-effort)' if cfg.restore_point_enabled else 'NO'}")
+        
+        self.summary.setPlainText("\n".join(summary_lines))
+    
+    def _determine_confirm_word(self, cfg):
+        if cfg.install_mode == MODE_ERASE:
             return "ERASE"
-        if self.main.partitions_page.format_root.isChecked() or self.main.partitions_page.format_efi.isChecked():
+        elif cfg.format_root:
             return "FORMAT"
-        return "INSTALL"
-
-    def refresh(self):
-        disk = self.main.disk_page.disk_combo.currentData() or ""
-        mode = self.main.disk_page.mode_combo.currentText()
-        boot = effective_boot_mode(self.main.disk_page.boot_combo.currentText())
-        fs = effective_fs(self.main.disk_page.fs_combo.currentText())
-
-        desktops = self.main.desktop_page.desktops_selected()
-        dm_sel = self.main.desktop_page.dm.currentText()
-        dm_eff = dm_sel if dm_sel != DM_AUTO else choose_default_dm_for_desktops(desktops)
-
-        host = sanitize_hostname(self.main.system_page.hostname.text())
-        user = sanitize_username(self.main.system_page.username.text())
-        tz = self.main.system_page.tz.currentText()
-        km = self.main.system_page.keymap.currentText()
-        loc = self.main.system_page.locale.currentText()
-
-        use_dracut = self.main.system_page.use_dracut.isChecked()
-        copy_omb = self.main.system_page.copy_omb.isChecked()
-        live_user = sanitize_username(self.main.system_page.live_user.text()) or live_user_best_effort()
-
-        upw = self.main.system_page.user_password.text()
-        sep_root = self.main.system_page.separate_root.isChecked()
-        rpw = self.main.system_page.root_password.text() if sep_root else ""
-        rpw_mode = "separate" if sep_root else "same as user"
-
-        rootp = ""
-        efip = ""
-        fmt_root = False
-        fmt_efi = False
-        if mode == MODE_EXISTING:
-            rootp = self.main.partitions_page.root_combo.currentData() or ""
-            efip = self.main.partitions_page.efi_combo.currentData() or ""
-            fmt_root = self.main.partitions_page.format_root.isChecked()
-            fmt_efi = self.main.partitions_page.format_efi.isChecked()
         else:
-            fmt_root = True
-            fmt_efi = (boot == "UEFI")
-
-        v = detect_virtualization()
-        vm_line = ""
-        if v.get("is_vm") == "yes":
-            vm_line = f"Virtualization: YES — {v.get('details','')}"
-        elif v.get("is_vm") == "no":
-            vm_line = "Virtualization: No (bare metal)"
-        else:
-            vm_line = f"Virtualization: Unknown — {v.get('details','')}"
-
-        word = self.required_word()
-
-        lines = []
-        lines.append("=== Summary ===")
-        lines.append(vm_line)
-        lines.append("")
-        lines.append(f"Mode: {mode}")
-        lines.append(f"Disk: {disk}")
-        lines.append(f"Boot: {boot}")
-        lines.append(f"Filesystem: {fs}")
-        if mode == MODE_EXISTING:
-            lines.append(f"Root partition: {rootp}  (format={fmt_root})")
-            lines.append(f"EFI partition: {efip if boot=='UEFI' else '(not used)'}  (format={fmt_efi})")
-        else:
-            lines.append("Partitions: AUTO (created by installer)")
-            lines.append(f"Root will be formatted: YES ({fs})")
-            lines.append(f"EFI will be formatted: {'YES' if boot=='UEFI' else 'NO'}")
-
-        lines.append("")
-        lines.append(f"Host: {host}")
-        lines.append(f"User: {user}")
-        lines.append("Passwords: minimum 4 characters.")
-        lines.append(f"Root password: {rpw_mode}")
-        lines.append(f"Timezone: {tz}")
-        lines.append(f"Keymap: {km}")
-        lines.append(f"Locale: {loc}")
-
-        lines.append("")
-        lines.append("Desktops & WMs: " + ", ".join(desktops))
-        lines.append(f"Display manager: {dm_eff}  (selected: {dm_sel})")
-        lines.append(f"Autologin: {'YES' if self.main.desktop_page.autologin.isChecked() else 'NO'}")
-        lines.append(f"AUR yay: {'YES' if self.main.desktop_page.want_yay.isChecked() else 'NO'}")
-
-        lines.append("")
-        lines.append(f"Use dracut: {'YES' if use_dracut else 'NO'}")
-        lines.append(f"Oh My Bash -> skel: {'YES' if copy_omb else 'NO'}  (live_user={live_user})")
-
-        lines.append("")
-        lines.append(f"CONFIRMATION WORD REQUIRED: {word}")
-        lines.append("")
-        lines.append("⚠️ If anything above is wrong, go BACK now.")
-
-        self.summary.setPlainText("\n".join(lines))
-        self.confirm_word_label.setText(f"Type the confirmation word to enable Install:  {word}")
-        self._changed()
-
-    def _changed(self):
-        word = self.required_word().strip().upper()
-        typed = (self.confirm_word.text() or "").strip().upper()
-        ok = (typed == word) and self.ack.isChecked()
+            return "INSTALL"
+    
+    def _validate(self):
+        cfg = self.main.get_config()
+        confirm_word = self._determine_confirm_word(cfg)
+        ok = (self.confirm_input.text() == confirm_word)
         self.main.set_step_done(5, ok)
+    
+    def on_enter(self):
+        self.refresh_summary()
+        self.confirm_input.clear()
+        self._validate()
 
 
+# ============================================================
+# Install Page (Modernized) with navigation lock
+# ============================================================
 class InstallPage(StepPage):
     def __init__(self, main):
         super().__init__()
         self.main = main
+        self.thread = None
+        self.installation_running = False
+        
         lay = QVBoxLayout(self)
 
-        title = QLabel("Install")
-        title.setStyleSheet("font-size: 18pt; font-weight: 900; color: #dbe3ff;")
+        title = QLabel("Installation")
+        title.setProperty("class", "Title")
         lay.addWidget(title)
 
+        subtitle = QLabel("Installing your system...")
+        subtitle.setProperty("class", "Subtitle")
+        lay.addWidget(subtitle)
+
+        # Warning about not going back
+        self.warning_label = QLabel("⚠️ DO NOT navigate away from this page while installation is in progress!")
+        self.warning_label.setProperty("class", "Warning")
+        self.warning_label.setWordWrap(True)
+        self.warning_label.setVisible(False)
+        lay.addWidget(self.warning_label)
+
         self.progress = QProgressBar()
-        self.progress.setRange(0, 100)
         lay.addWidget(self.progress)
 
-        self.logbox = QPlainTextEdit()
-        self.logbox.setReadOnly(True)
-        self.logbox.setMinimumHeight(300)
-        lay.addWidget(self.logbox)
+        self.log_view = QPlainTextEdit()
+        self.log_view.setReadOnly(True)
+        self.log_view.setMinimumHeight(400)
+        lay.addWidget(self.log_view)
 
-        self.hint = QLabel(f"Log file: {LOG_FILE}")
-        self.hint.setStyleSheet("color:#b8c2ff;")
-        lay.addWidget(self.hint)
+        self.reboot_btn = QPushButton("Reboot")
+        self.reboot_btn.clicked.connect(self._reboot)
+        self.reboot_btn.setEnabled(False)
+        
+        self.back_btn = QPushButton("Back to Start")
+        self.back_btn.clicked.connect(lambda: self.main.set_current_step(0))
+        self.back_btn.setEnabled(False)
+        
+        btn_lay = QHBoxLayout()
+        btn_lay.addWidget(self.reboot_btn)
+        btn_lay.addWidget(self.back_btn)
+        lay.addLayout(btn_lay)
 
-        self.reboot_btn = QPushButton("Reboot now")
-        self.reboot_btn.setDisabled(True)
-        self.reboot_btn.clicked.connect(self._reboot_now)
-        lay.addWidget(self.reboot_btn)
+    def on_enter(self):
+        self.progress.setValue(0)
+        self.log_view.clear()
+        self.reboot_btn.setEnabled(False)
+        self.back_btn.setEnabled(False)
+        self.warning_label.setVisible(False)
+        
+        # Start installation
+        cfg = self.main.get_config()
+        self.thread = InstallThread(cfg)
+        self.thread.sig_line.connect(self._log)
+        self.thread.sig_progress.connect(self.progress.setValue)
+        self.thread.sig_done.connect(self._install_done)
+        self.thread.sig_installation_state.connect(self._on_installation_state)
+        self.thread.start()
 
-    def append(self, s: str):
-        self.logbox.appendPlainText(s)
-        self.logbox.verticalScrollBar().setValue(self.logbox.verticalScrollBar().maximum())
+    def on_leave(self):
+        """Prevent leaving during installation"""
+        if self.installation_running:
+            # Show warning and prevent navigation
+            QMessageBox.warning(
+                self,
+                "Installation in Progress",
+                "Cannot navigate away while installation is running.\n"
+                "Please wait for installation to complete or restart the installer."
+            )
+            # Force return to this page
+            self.main.stack.setCurrentWidget(self)
 
-    def set_reboot_enabled(self, enabled: bool):
-        self.reboot_btn.setDisabled(not enabled)
+    def _log(self, line):
+        self.log_view.appendPlainText(line)
+        # Auto-scroll to bottom
+        scrollbar = self.log_view.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
-    def _reboot_now(self):
-        try:
-            subprocess.run(["systemctl", "reboot"], check=False)
-        except Exception:
-            try:
-                subprocess.run(["reboot"], check=False)
-            except Exception:
-                QMessageBox.warning(self, "Reboot failed", "Could not reboot automatically. Please reboot manually.")
+    def _on_installation_state(self, is_running):
+        """Handle installation state changes"""
+        self.installation_running = is_running
+        self.warning_label.setVisible(is_running)
+        
+        # Update main window navigation lock
+        self.main.installation_running = is_running
+        self.main.update_nav()
+
+    def _install_done(self, success, message):
+        if success:
+            self._log("✅ Installation completed successfully!")
+            self._log("You can now reboot into your new system.")
+            self.reboot_btn.setEnabled(True)
+            self.back_btn.setEnabled(True)
+        else:
+            self._log(f"❌ Installation failed: {message}")
+            self._log("Please check the log above for details.")
+            self.back_btn.setEnabled(True)
+
+    def _reboot(self):
+        reply = QMessageBox.question(
+            self, "Reboot",
+            "Are you sure you want to reboot now?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self._log("Rebooting system...")
+            subprocess.run(["reboot"])
 
 
 # ============================================================
-# Main window + sidebar gating
+# Main Window with navigation lock
 # ============================================================
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("StormOS Easy Installer")
-        self.resize(1100, 700)
-
-        self.step_titles = ["Preflight", "Disk", "Partitions", "System", "Desktop", "Confirm", "Install"]
-        self.step_done = [False] * len(self.step_titles)
-
+        self.setWindowTitle("AGES EcoOS Installer")
+        self.setMinimumSize(1200, 700)
+        
+        # Set application style
+        self.setStyleSheet(MODERN_QSS)
+        
+        # Initialize ALL attributes before creating pages
+        self.current_step = 0
+        self._step_done = [False] * 7  # We have 7 steps
+        self.installation_running = False  # NEW: Track installation state
+        
+        # Central widget
         central = QWidget()
         self.setCentralWidget(central)
-        outer = QVBoxLayout(central)
-        mid = QHBoxLayout()
-        outer.addLayout(mid, 1)
-
-        self.side = QWidget(objectName="SideNav")
-        self.side.setFixedWidth(220)
-        self.side_lay = QVBoxLayout(self.side)
-        self.side_lay.setContentsMargins(8, 10, 8, 10)
-        self.side_lay.setSpacing(4)
-
-        self.nav_buttons: List[QPushButton] = []
-        for i, t in enumerate(self.step_titles):
-            b = QPushButton(f"  {t}")
-            b.setProperty("class", "NavStep")
-            b.clicked.connect(lambda _=None, idx=i: self.go_step(idx))
-            self.nav_buttons.append(b)
-            self.side_lay.addWidget(b)
-        self.side_lay.addStretch(1)
-        mid.addWidget(self.side)
-
-        self.stack = QStackedWidget()
-        mid.addWidget(self.stack, 1)
-
-        # Create pages FIRST (prevents timer/refresh AttributeErrors)
-        self.preflight_page = PreflightPage(self)
-        self.disk_page = DiskPage(self)
-        self.partitions_page = PartitionsPage(self)
-        self.system_page = SystemPage(self)
-        self.desktop_page = DesktopPage(self)
-        self.confirm_page = ConfirmPage(self)
-        self.install_page = InstallPage(self)
-
-        self.pages: List[StepPage] = [
-            self.preflight_page,
-            self.disk_page,
-            self.partitions_page,
-            self.system_page,
-            self.desktop_page,
-            self.confirm_page,
-            self.install_page,
+        main_lay = QHBoxLayout(central)
+        main_lay.setContentsMargins(0, 0, 0, 0)
+        main_lay.setSpacing(0)
+        
+        # Left sidebar (navigation)
+        self.sidebar = QWidget()
+        self.sidebar.setObjectName("SideNav")
+        self.sidebar.setFixedWidth(220)
+        sidebar_lay = QVBoxLayout(self.sidebar)
+        sidebar_lay.setContentsMargins(10, 10, 10, 10)
+        
+        nav_title = QLabel("AGES Installer")
+        nav_title.setProperty("class", "Title")
+        sidebar_lay.addWidget(nav_title)
+        
+        self.nav_btns = []
+        steps = [
+            ("Preflight", "Check system requirements"),
+            ("Disk & Mode", "Select target disk and mode"),
+            ("Partitions", "Configure partitions"),
+            ("System", "Set up users and locale"),
+            ("Desktop", "Choose DE/WM and options"),
+            ("Confirm", "Review and confirm"),
+            ("Install", "Install system")
         ]
-        for p in self.pages:
-            self.stack.addWidget(p)
-
-        bot = QHBoxLayout()
-        outer.addLayout(bot)
-
-        self.back_btn = QPushButton("Back")
-        self.next_btn = QPushButton("Next")
-        self.install_btn = QPushButton("INSTALL NOW")
-        self.install_btn.setStyleSheet("border: 2px solid #ff5c5c; font-weight: 900;")
-        self.install_btn.setDisabled(True)
-
-        bot.addWidget(self.back_btn)
-        bot.addStretch(1)
-        bot.addWidget(self.next_btn)
-        bot.addWidget(self.install_btn)
-
-        self.back_btn.clicked.connect(self.back)
-        self.next_btn.clicked.connect(self.next)
-        self.install_btn.clicked.connect(self.start_install)
-
-        self.thread: Optional[InstallThread] = None
-        self.go_step(0)
-
-    def set_step_done(self, idx: int, done: bool):
-        if idx < 0 or idx >= len(self.step_done):
+        
+        for i, (title, desc) in enumerate(steps):
+            btn = QPushButton(f"{i+1}. {title}\n{desc}")
+            btn.setProperty("class", "NavStep")
+            btn.clicked.connect(lambda checked, idx=i: self.set_current_step(idx))
+            btn.setEnabled(False)
+            self.nav_btns.append(btn)
+            sidebar_lay.addWidget(btn)
+        
+        sidebar_lay.addStretch(1)
+        
+        # Add version info
+        version = QLabel("AGES EcoOS Installer v2.0")
+        version.setProperty("class", "Subtitle")
+        sidebar_lay.addWidget(version)
+        
+        main_lay.addWidget(self.sidebar)
+        
+        # Right area (pages)
+        self.stack = QStackedWidget()
+        main_lay.addWidget(self.stack, 1)
+        
+        # Create pages
+        self.pages = [
+            PreflightPage(self),
+            DiskPage(self),
+            PartitionsPage(self),
+            SystemPage(self),
+            DesktopPage(self),
+            ConfirmPage(self),
+            InstallPage(self)
+        ]
+        
+        for page in self.pages:
+            self.stack.addWidget(page)
+        
+        # Update navigation
+        self.update_nav()
+        
+        # Show first page
+        self.set_current_step(0)
+    
+    def set_current_step(self, step):
+        """Navigate to a specific step with installation lock check"""
+        if step < 0 or step >= len(self.pages):
             return
-        self.step_done[idx] = bool(done)
-        self._update_nav()
-        if idx == 5:
-            self.install_btn.setDisabled(not self.step_done[5])
-
-    def can_go(self, idx: int) -> bool:
-        if idx <= 0:
-            return True
-        return all(self.step_done[:idx])
-
-    def go_step(self, idx: int):
-        if idx < 0 or idx >= len(self.pages):
+        
+        # Check if installation is running and trying to navigate away from install page
+        if self.installation_running and step != self.current_step:
+            QMessageBox.warning(
+                self,
+                "Installation in Progress",
+                "Cannot navigate away while installation is running.\n"
+                "Please wait for installation to complete."
+            )
             return
-        if not self.can_go(idx):
-            QMessageBox.warning(self, "Locked", "You cannot jump ahead until previous steps are completed.")
+        
+        # Leave current page
+        if self.current_step < len(self.pages):
+            self.pages[self.current_step].on_leave()
+        
+        # Enter new page
+        self.current_step = step
+        self.stack.setCurrentIndex(step)
+        self.pages[step].on_enter()
+        
+        self.update_nav()
+    
+    def update_nav(self):
+        """Update navigation buttons state"""
+        for i, btn in enumerate(self.nav_btns):
+            active = (i == self.current_step)
+            done = self._step_done[i] if i < len(self._step_done) else False
+            
+            # NEW: Disable navigation during installation (except current install page)
+            if self.installation_running:
+                locked = (i != self.current_step)
+                btn.setEnabled(not locked)
+                btn.setProperty("disabled", "true" if locked else "false")
+            else:
+                locked = (i > 0 and not self._step_done[i-1])
+                btn.setEnabled(not locked or active)
+                btn.setProperty("disabled", "false")
+            
+            btn.setProperty("active", "true" if active else "false")
+            btn.setProperty("done", "true" if done else "false")
+            btn.setProperty("locked", "true" if locked else "false")
+            
+            # Update style
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+    
+    def is_step_done(self, step):
+        if step < 0 or step >= len(self._step_done):
+            return False
+        return self._step_done[step]
+    
+    def set_step_done(self, step, done):
+        if step < 0 or step >= len(self._step_done):
             return
-
-        cur = self.stack.currentIndex()
-        if 0 <= cur < len(self.pages):
-            try:
-                self.pages[cur].on_leave()
-            except Exception:
-                pass
-
-        self.stack.setCurrentIndex(idx)
-        self._update_nav()
-
-        try:
-            self.pages[idx].on_enter()
-        except Exception:
-            pass
-
-        if idx == 2:
-            self.refresh_partitions_page()
-        if idx == 5:
-            self.refresh_confirm_page()
-
-        self.back_btn.setDisabled(idx == 0 or self.thread is not None)
-        self.next_btn.setDisabled(idx >= 5 or self.thread is not None)
-        self.install_btn.setDisabled((idx != 5) or (not self.step_done[5]) or (self.thread is not None))
-
-    def _update_nav(self):
-        cur = self.stack.currentIndex()
-        for i, b in enumerate(self.nav_buttons):
-            b.setProperty("active", "true" if i == cur else "false")
-            b.setProperty("done", "true" if self.step_done[i] else "false")
-            b.setProperty("locked", "true" if not self.can_go(i) else "false")
-            b.style().unpolish(b)
-            b.style().polish(b)
-
-    def back(self):
-        self.go_step(self.stack.currentIndex() - 1)
-
-    def next(self):
-        self.go_step(self.stack.currentIndex() + 1)
-
+        
+        self._step_done[step] = done
+        self.update_nav()
+    
+    @property
+    def disk_page(self):
+        return self.pages[1]
+    
+    @property
+    def partitions_page(self):
+        return self.pages[2]
+    
+    @property
+    def system_page(self):
+        return self.pages[3]
+    
+    @property
+    def desktop_page(self):
+        return self.pages[4]
+    
+    @property
+    def confirm_page(self):
+        return self.pages[5]
+    
     def refresh_partitions_page(self):
-        try:
-            self.partitions_page.refresh()
-        except Exception:
-            pass
-
+        self.pages[2].refresh()
+    
     def refresh_confirm_page(self):
-        try:
-            self.confirm_page.refresh()
-        except Exception:
-            pass
-
-    def build_config(self) -> InstallerConfig:
+        if self.current_step >= 5:  # Only if we're on or past confirm page
+            self.pages[5].refresh_summary()
+    
+    def get_config(self):
         cfg = InstallerConfig()
+        
+        # Get disk/mode info
+        cfg.disk = self.disk_page.disk_combo.currentData() or ""
+        cfg.install_mode = self.disk_page.mode_combo.currentText()
         cfg.boot_mode = effective_boot_mode(self.disk_page.boot_combo.currentText())
         cfg.fs = effective_fs(self.disk_page.fs_combo.currentText())
-        cfg.install_mode = self.disk_page.mode_combo.currentText()
-        cfg.disk = self.disk_page.disk_combo.currentData() or ""
+        
+        # Get partition info
         if cfg.install_mode == MODE_EXISTING:
             cfg.root_part = self.partitions_page.root_combo.currentData() or ""
             cfg.efi_part = self.partitions_page.efi_combo.currentData() or ""
             cfg.format_root = self.partitions_page.format_root.isChecked()
             cfg.format_efi = self.partitions_page.format_efi.isChecked()
-        else:
-            cfg.root_part = ""
-            cfg.efi_part = ""
-            cfg.format_root = True
-            cfg.format_efi = (cfg.boot_mode == "UEFI")
+        
+        # Get system info
+        cfg.kernel = self.system_page.kernel_combo.currentText().split()[0]  # Get first word
         cfg.hostname = sanitize_hostname(self.system_page.hostname.text())
         cfg.username = sanitize_username(self.system_page.username.text())
         cfg.user_password = self.system_page.user_password.text()
+        
         if self.system_page.separate_root.isChecked():
             cfg.root_password = self.system_page.root_password.text()
+        
+        cfg.timezone = self.system_page.timezone_combo.currentData() or "America/New_York"
+        cfg.keymap = self.system_page.keymap_combo.currentText()
+        cfg.locale = self.system_page.locale_combo.currentText()
+        
+        # Get desktop info
+        selected_desktops = []
+        for de, cb in self.desktop_page.de_checks.items():
+            if cb.isChecked():
+                selected_desktops.append(de)
+        
+        for wm, cb in self.desktop_page.wm_checks.items():
+            if cb.isChecked():
+                selected_desktops.append(wm)
+        
+        cfg.desktops = selected_desktops if selected_desktops else [DE_XFCE]
+        
+        dm = self.desktop_page.dm_combo.currentText()
+        if dm.startswith(DM_AUTO):
+            cfg.dm = DM_AUTO
         else:
-            cfg.root_password = ""  # use user password
-        cfg.timezone = self.system_page.tz.currentText()
-        cfg.keymap = self.system_page.keymap.currentText()
-        cfg.locale = self.system_page.locale.currentText()
-        cfg.desktops = self.desktop_page.desktops_selected()
-
-        # Resolve Display Manager: keep "Auto" in UI, but use correct DM internally
-        dm_selection = self.desktop_page.dm.currentText()
-        if dm_selection == DM_AUTO:
-            cfg.dm = choose_default_dm_for_desktops(cfg.desktops)
-        else:
-            cfg.dm = dm_selection
-
+            cfg.dm = dm
+        
         cfg.autologin = self.desktop_page.autologin.isChecked()
         cfg.want_yay = self.desktop_page.want_yay.isChecked()
-        cfg.restore_point_enabled = self.confirm_page.restore_btrfs.isChecked()
-        cfg.use_dracut = self.system_page.use_dracut.isChecked()
-        cfg.copy_oh_my_bash = self.system_page.copy_omb.isChecked()
-        cfg.live_user = sanitize_username(self.system_page.live_user.text()) or live_user_best_effort()
+        cfg.copy_oh_my_bash = self.desktop_page.copy_oh_my_bash.isChecked()
+        cfg.use_dracut = self.desktop_page.use_dracut.isChecked()
+        cfg.use_local_packages_txt = self.desktop_page.use_local_packages_txt.isChecked()
+        
+        # Live user
+        cfg.live_user = live_user_best_effort()
+        
+        # Restore point (only for BTRFS, existing partitions, no format)
+        if (cfg.fs == "btrfs" and cfg.install_mode == MODE_EXISTING and 
+            not cfg.format_root and cfg.root_part):
+            cfg.restore_point_enabled = True
+        
         return cfg
 
-    def start_install(self):
-        if self.thread is not None:
-            return
-
-        cfg = self.build_config()
-
-        if cfg.install_mode == MODE_ERASE and cfg.disk and _disk_is_boot_media_archiso(cfg.disk):
-            QMessageBox.critical(
-                self, "Refusing",
-                "Refusing to ERASE the LIVE boot media.\n"
-                "Select your internal disk (often /dev/nvme0n1)."
-            )
-            return
-
-        if cfg.install_mode == MODE_EXISTING and cfg.boot_mode == "UEFI" and not cfg.efi_part:
-            QMessageBox.critical(self, "Missing EFI", "UEFI mode requires selecting an EFI partition.")
-            return
-
-        if len(cfg.user_password or "") < 4:
-            QMessageBox.critical(self, "Password too short", "User password must be at least 4 characters.")
-            return
-
-        if cfg.root_password and len(cfg.root_password) < 4:
-            QMessageBox.critical(self, "Password too short", "Root password must be at least 4 characters.")
-            return
-
-        self.go_step(6)
-
-        self.thread = InstallThread(cfg, self)
-        self.thread.sig_line.connect(self.install_page.append)
-        self.thread.sig_progress.connect(self.install_page.progress.setValue)
-        self.thread.sig_done.connect(self._install_done)
-        self._lock_ui(True)
-        self.install_page.set_reboot_enabled(False)
-        self.thread.start()
-
-    def _lock_ui(self, locked: bool):
-        self.back_btn.setDisabled(locked)
-        self.next_btn.setDisabled(locked)
-        for b in self.nav_buttons:
-            b.setDisabled(locked)
-        self.install_btn.setDisabled(True)
-
-    def _install_done(self, ok: bool, msg: str):
-        self._lock_ui(False)
-        self.thread = None
-
-        if ok:
-            self.install_page.set_reboot_enabled(True)
-            mb = QMessageBox(self)
-            mb.setIcon(QMessageBox.Information)
-            mb.setWindowTitle("Success")
-            mb.setText("Installation completed successfully.\n\nYou may reboot now.")
-            mb.setInformativeText(f"Log: {LOG_FILE}")
-            reboot_btn = mb.addButton("Reboot now", QMessageBox.AcceptRole)
-            mb.addButton("Close", QMessageBox.RejectRole)
-            mb.exec_()
-            if mb.clickedButton() == reboot_btn:
-                try:
-                    subprocess.run(["systemctl", "reboot"], check=False)
-                except Exception:
-                    subprocess.run(["reboot"], check=False)
-        else:
-            QMessageBox.critical(
-                self, "Failed",
-                "Installation failed.\n\n"
-                f"{msg}\n\n"
-                f"A detailed log is saved at:\n{LOG_FILE}\n\n"
-                "If you enabled a BTRFS restore point and it was created, the installer may have attempted rollback.\n"
-                "Open the log for rollback instructions."
-            )
-
 
 # ============================================================
-# main
+# Entry point
 # ============================================================
-def main():
-    app = QApplication(sys.argv)
-    app.setStyleSheet(MIDNIGHT_QSS)
-    w = MainWindow()
-    w.show()
-    sys.exit(app.exec_())
-
-
 if __name__ == "__main__":
-    main()
+    if not is_root():
+        print("ERROR: This installer must be run as root (sudo).")
+        sys.exit(1)
+    
+    app = QApplication(sys.argv)
+    app.setFont(QFont("Segoe UI", 10))
+    
+    # Set modern palette
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor("#0a0e1a"))
+    palette.setColor(QPalette.WindowText, QColor("#e0e6ff"))
+    palette.setColor(QPalette.Base, QColor("#0d1422"))
+    palette.setColor(QPalette.AlternateBase, QColor("#111827"))
+    palette.setColor(QPalette.ToolTipBase, QColor("#1e293b"))
+    palette.setColor(QPalette.ToolTipText, QColor("#e0e6ff"))
+    palette.setColor(QPalette.Text, QColor("#e0e6ff"))
+    palette.setColor(QPalette.Button, QColor("#1e293b"))
+    palette.setColor(QPalette.ButtonText, QColor("#e0e6ff"))
+    palette.setColor(QPalette.BrightText, QColor("#ffffff"))
+    palette.setColor(QPalette.Highlight, QColor("#3b82f6"))
+    palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
+    app.setPalette(palette)
+    
+    app.setStyleSheet(MODERN_QSS)
+    
+    window = MainWindow()
+    window.show()
+    
+    sys.exit(app.exec_())
