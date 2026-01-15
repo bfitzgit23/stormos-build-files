@@ -969,9 +969,9 @@ def arch_chroot_input(target_root: Path, cmd: str, input_text: str, log) -> None
 def find_ecoos_packages_file() -> str:
     candidates = [
         "/etc/stormos/packages.txt",
-        "/usr/share/ecoos/packages.txt",
-        "/run/archiso/airootfs/etc/ecoos/packages.txt",
-        os.path.expanduser("~/ecoos/packages.txt"),
+        "/usr/share/stormosos/packages.txt",
+        "/run/archiso/airootfs/etc/stormos/os/packages.txt",
+        os.path.expanduser("~/stormos/packages.txt"),
         os.path.expanduser("~/Desktop/packages.txt"),
     ]
     for p in candidates:
