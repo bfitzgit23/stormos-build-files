@@ -153,7 +153,7 @@ xfce4-goodies
 firefox
 wmctrl
 #calamares-app
-calamares-config-xfce
+#calamares-config-xfce
 pyqt5
 qt5ct
 spice-vdagent
@@ -242,5 +242,5 @@ vulkan-intel
 ffmpeg
 yay
 chromium
-pamac-all
+#pamac-all
 xfce4-docklike-plugin
