@@ -153,7 +153,7 @@ xfce4-goodies
 firefox
 wmctrl
 #calamares-app
-calamares-config-xfce
+#calamares-config-xfce
 pyqt5
 qt5ct
 spice-vdagent
@@ -183,7 +183,6 @@ StormOS-conf
 stormos-grub-theme
 fzf
 gnome-disk-utility
-
 
 xdg-user-dirs
 plymouth
@@ -243,5 +242,5 @@ vulkan-intel
 ffmpeg
 yay
 chromium
-pamac-all
+#pamac-all
 xfce4-docklike-plugin
