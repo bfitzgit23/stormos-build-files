@@ -968,10 +968,10 @@ def arch_chroot_input(target_root: Path, cmd: str, input_text: str, log) -> None
 
 def find_ecoos_packages_file() -> str:
     candidates = [
-        "/etc/stormos/packages.txt",
-        "/usr/share/stormosos/packages.txt",
-        "/run/archiso/airootfs/etc/stormos/os/packages.txt",
-        os.path.expanduser("~/stormos/packages.txt"),
+        "/etc/ecoos/packages.txt",
+        "/usr/share/ecoos/packages.txt",
+        "/run/archiso/airootfs/etc/ecoos/packages.txt",
+        os.path.expanduser("~/ecoos/packages.txt"),
         os.path.expanduser("~/Desktop/packages.txt"),
     ]
     for p in candidates:
@@ -1148,6 +1148,34 @@ def ensure_multilib_enabled_target(target_root: Path, log) -> None:
     tgt_conf = target_root / "etc" / "pacman.conf"
     if tgt_conf.exists():
         enable_repo_in_pacman_conf(tgt_conf, "multilib", log)
+
+
+
+
+def add_eco_repo_to_pacman_conf(target_root: Path, log) -> None:
+    """
+    Adds the [eco_repo] stanza to the target system's /etc/pacman.conf
+    """
+    conf_path = target_root / "etc" / "pacman.conf"
+    eco_repo_stanza = """
+[eco_repo]
+SigLevel = Never
+Server = https://rport99.github.io/eco_repo/$arch
+"""
+
+    try:
+        current_content = read_text(conf_path)
+        # Avoid duplicate entries
+        if "[eco_repo]" in current_content:
+            log("Repository [eco_repo] already present in pacman.conf — skipping.")
+            return
+
+        # Append repo at the end
+        updated_content = current_content.rstrip() + "\n" + eco_repo_stanza + "\n"
+        write_file(conf_path, updated_content)
+        log("Added [eco_repo] to target system's /etc/pacman.conf")
+    except Exception as e:
+        log(f"!! Failed to add [eco_repo] to pacman.conf: {e}")
 
 
 # ============================================================
@@ -2960,6 +2988,7 @@ class InstallThread(QThread):
         self.sig_progress.emit(45)
 
         write_fstab(target_root, self.log)
+        add_eco_repo_to_pacman_conf(target_root, self.log)  # 👈 ADD THIS
         ensure_multilib_enabled_target(target_root, self.log)
 
         apply_skel_preset(target_root, self.log)

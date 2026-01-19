@@ -180,6 +180,9 @@ configs:
     "/home/liveuser/Desktop/StormOS_mirrors.desktop":
       row: 2
       col: 0
+    "/home/bennji/Desktop/installer13":
+      row: 0
+      col: 0
     "/home/bennji/Desktop/keepassxc.desktop":
       row: 1
       col: 0
@@ -218,6 +221,9 @@ configs:
       col: 1
     "/home/bennji/Desktop/system-tool.desktop":
       row: 7
+      col: 0
+    "/home/bennji/Desktop/installer13.download":
+      row: 0
       col: 0
     "/home/ben/Desktop/abif.desktop":
       row: 1

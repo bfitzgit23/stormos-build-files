@@ -185,15 +185,13 @@
       <property name="position-search-alternate" type="bool" value="true"/>
       <property name="button-icon" type="string" value="storm os"/>
       <property name="recent" type="array">
-        <value type="string" value="org.manjaro.pamac.manager.desktop"/>
-        <value type="string" value="gparted.desktop"/>
+        <value type="string" value="xfce4-mime-settings.desktop"/>
+        <value type="string" value="org.gnome.Boxes.desktop"/>
+        <value type="string" value="rustdesk.desktop"/>
+        <value type="string" value="eco-term2.desktop"/>
         <value type="string" value="mpv.desktop"/>
         <value type="string" value="firefox.desktop"/>
-        <value type="string" value="browseros.desktop"/>
-        <value type="string" value="xfce4-mime-settings.desktop"/>
         <value type="string" value="xfce4-screenshooter.desktop"/>
-        <value type="string" value="discord.desktop"/>
-        <value type="string" value="thorium-browser.desktop"/>
         <value type="string" value="xfce4-terminal.desktop"/>
       </property>
     </property>
