@@ -185,8 +185,10 @@
       <property name="position-search-alternate" type="bool" value="true"/>
       <property name="button-icon" type="string" value="storm os"/>
       <property name="recent" type="array">
-        <value type="string" value="xfce4-mime-settings.desktop"/>
         <value type="string" value="org.gnome.Boxes.desktop"/>
+        <value type="string" value="sib3.desktop"/>
+        <value type="string" value="xfce4-mime-settings.desktop"/>
+        <value type="string" value="thorium-browser-avx2.desktop"/>
         <value type="string" value="rustdesk.desktop"/>
         <value type="string" value="eco-term2.desktop"/>
         <value type="string" value="mpv.desktop"/>
