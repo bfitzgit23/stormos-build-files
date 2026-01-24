@@ -247,3 +247,4 @@ chromium
 xfce4-docklike-plugin
 eco-term2
 eco-nexus8
+eco-fm2
