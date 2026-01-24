@@ -3,7 +3,7 @@
 GRUB_DEFAULT=saved
 GRUB_TIMEOUT=10
 GRUB_SAVEDEFAULT=true
-GRUB_DISTRIBUTOR="MyOS"
+GRUB_DISTRIBUTOR="StormOS"
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 GRUB_CMDLINE_LINUX=""
 
@@ -45,7 +45,7 @@ GRUB_COLOR_HIGHLIGHT="light-cyan/blue"
 
 # Uncomment one of them for the gfx desired, a image background or a gfxtheme
 #GRUB_BACKGROUND="/boot/grub/STORM.png"
-GRUB_THEME="/usr/share/grub/themes/myos/theme.txt"
+GRUB_THEME="/usr/share/grub/themes/StormOS/theme.txt"
 
 # Uncomment to get a beep at GRUB start
 #GRUB_INIT_TUNE="480 440 1"
