@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=stormos-installer
-GenericName=Live Installer (Calamares)
+Name=myos-installer
+GenericName=Live Installer
 Comment=Install the operating system to disk
 Exec=sudo /usr/local/bin/installer
 Icon=storm os
