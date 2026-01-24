@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="MyOS_Oblivion"
-iso_label="MyOS_Oblivion_Release"
+iso_name="MyOS_"
+iso_label="MyOS_Release"
 iso_publisher="MyOS"
 iso_application="MyOS Install Media"
-iso_version="January-Point 2"
+iso_version="v1a"
 install_dir="arch"
 buildmodes=('iso')
 bootmodes=('bios.syslinux'
