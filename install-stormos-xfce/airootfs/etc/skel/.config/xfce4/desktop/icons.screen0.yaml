@@ -198,12 +198,12 @@ configs:
     "/home/bennji/Desktop/SWG New Beginnings Launcher.desktop":
       row: 4
       col: 1
+    "/home/bennji/Desktop/installer13.download":
+      row: 0
+      col: 0
     "/home/ben/Desktop/calamares.desktop":
       row: 0
       col: 1
-    "/home/test/Desktop/StormOS_mirrors.desktop":
-      row: 2
-      col: 0
     "/home/bennji/Desktop/OnlyOffice.desktop":
       row: 0
       col: 0
@@ -222,8 +222,8 @@ configs:
     "/home/bennji/Desktop/system-tool.desktop":
       row: 7
       col: 0
-    "/home/bennji/Desktop/installer13.download":
-      row: 0
+    "/home/test/Desktop/StormOS_mirrors.desktop":
+      row: 2
       col: 0
     "/home/ben/Desktop/abif.desktop":
       row: 1

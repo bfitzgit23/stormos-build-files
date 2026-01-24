@@ -38,6 +38,7 @@ fakeroot
 foot-terminfo
 fsarchiver
 gpart
+gparted
 gpm
 gptfdisk
 grml-zsh-config
@@ -245,3 +246,4 @@ chromium
 #pamac-all
 xfce4-docklike-plugin
 eco-term2
+eco-nexus8
