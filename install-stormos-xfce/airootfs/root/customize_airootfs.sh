@@ -80,20 +80,20 @@ cp -af /usr/share/backgrounds/*.* /usr/share/backgrounds/xfce
 
 chown -R liveuser:liveuser /tmp
 
-plymouth-set-default-theme stormos
+plymouth-set-default-theme myos
 
 # Create theme directory
 mkdir -p /usr/share/themes/grub/fonts
 
 # Copy StormOS theme
-cp -r /usr/share/grub/themes/stormos /usr/share/themes/grub/
+cp -r /usr/share/grub/themes/myos /usr/share/themes/grub/
 
 # Ensure proper permissions
 chown -R root:root /usr/share/themes/grub
 chmod -R 755 /usr/share/themes/grub
 
 # Apply theme to GRUB by default
-echo "set theme=/usr/share/grub/themes/stormos/theme.txt" > /etc/default/grub
+echo "set theme=/usr/share/grub/themes/myos/theme.txt" > /etc/default/grub
 
 
 ln -svf /usr/lib/libboost_python313.so.1.89.0 /usr/lib/libboost_python313.so.1.88.0
