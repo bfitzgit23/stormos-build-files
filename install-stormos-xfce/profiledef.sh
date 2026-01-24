@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS_Oblivion"
-iso_label="StormOS_Oblivion_Release"
-iso_publisher="StormOS"
-iso_application="StormOS Install Media"
+iso_name="MyOS_Oblivion"
+iso_label="MyOS_Oblivion_Release"
+iso_publisher="MyOS"
+iso_application="MyOS Install Media"
 iso_version="January-Point 2"
 install_dir="arch"
 buildmodes=('iso')

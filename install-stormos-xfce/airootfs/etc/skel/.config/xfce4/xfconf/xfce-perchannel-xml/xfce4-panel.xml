@@ -186,8 +186,8 @@
       <property name="button-icon" type="string" value="storm os"/>
       <property name="recent" type="array">
         <value type="string" value="eco-nexus8.desktop"/>
-        <value type="string" value="eco-boxes4.desktop"/>
         <value type="string" value="thorium-browser-avx2.desktop"/>
+        <value type="string" value="eco-boxes4.desktop"/>
         <value type="string" value="org.gnome.Boxes.desktop"/>
         <value type="string" value="gparted.desktop"/>
         <value type="string" value="eco-term2.desktop"/>
