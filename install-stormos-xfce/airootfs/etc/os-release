@@ -1,9 +1,0 @@
-NAME=MyOS
-VERSION="MyOS"
-ID=MyOS
-ID_LIKE=arch
-VERSION_ID=21.7
-PRETTY_NAME="MyOS"
-ANSI_COLOR="0;36"
-HOME_URL="https://sourceforge.net/projects/hackman-linux"
-SUPPORT_URL="https://sourceforge.net/p/hackman-linux/discussion/"
