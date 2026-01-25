@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="MyOS_"
-iso_label="MyOS_Release"
-iso_publisher="MyOS"
-iso_application="MyOS Install Media"
+iso_name="StormOS_"
+iso_label="StormOS_Release"
+iso_publisher="StormOS"
+iso_application="StormOS Install Media"
 iso_version="v1a"
 install_dir="arch"
 buildmodes=('iso')
