@@ -246,5 +246,5 @@ chromium
 #pamac-all
 xfce4-docklike-plugin
 eco-term2
-eco-nexus8
+eco-nexus
 eco-fm2
