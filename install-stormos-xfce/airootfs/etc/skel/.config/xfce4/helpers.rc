@@ -1,4 +1,5 @@
-FileManager=custom-FileManager
+FileManager=thunar
 MailReader=custom-MailReader
 TerminalEmulator=custom-TerminalEmulator
+WebBrowser=custom-WebBrowser
 
