@@ -153,8 +153,8 @@ xfce4
 xfce4-goodies
 firefox
 wmctrl
-#calamares-app
-#calamares-config-xfce
+calamares-app
+calamares-config-xfce
 pyqt5
 qt5ct
 spice-vdagent
@@ -173,7 +173,6 @@ unzip
 gnome-disk-utility
 gnome-calculator
 gnome-system-monitor
-mpv
 rclone
 expac
 lightdm-slick-greeter
@@ -248,3 +247,4 @@ xfce4-docklike-plugin
 eco-term2
 eco-nexus
 eco-fm2
+eco-player
