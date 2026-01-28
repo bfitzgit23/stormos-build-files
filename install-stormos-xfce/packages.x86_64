@@ -241,10 +241,9 @@ lib32-mesa
 vulkan-intel
 ffmpeg
 yay
-chromium
 #pamac-all
 xfce4-docklike-plugin
-eco-term2
-eco-nexus
-eco-fm2
-eco-player
+eco_repo/eco-term2
+eco_repoeco-nexus
+eco_repo/eco-fm2
+eco_repo/eco-player
