@@ -305,8 +305,11 @@ class YayBackend(Backend):
     def list_installed(self) -> List[SoftwareItem]:
         # Foreign packages (typically AUR / locally built)
         rc, out, err = run_capture(["pacman", "-Qm"])
+        # pacman exits with 1 when there are no "foreign" packages; treat that as empty.
+        if rc == 1:
+            return []
         if rc != 0:
-            # If pacman is missing, we consider backend unavailable.
+            # If pacman is missing/broken, we consider backend unavailable.
             raise RuntimeError(err.strip() or "pacman -Qm failed")
         items: List[SoftwareItem] = []
         for line in out.splitlines():
