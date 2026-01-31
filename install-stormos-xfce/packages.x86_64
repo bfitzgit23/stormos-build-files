@@ -241,7 +241,7 @@ lib32-mesa
 vulkan-intel
 ffmpeg
 yay
-#pamac-all
+pamac-all
 xfce4-docklike-plugin
 eco_repo/eco-term2
 eco_repo/eco-nexus
