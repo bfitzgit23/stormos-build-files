@@ -1185,6 +1185,23 @@ class WelcomeMenu(QMainWindow):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
+        installer = QGroupBox("Install StormOS")
+        installer.setStyleSheet(self.group_style())
+        il = QVBoxLayout(installer)
+
+        btn_install = QPushButton("Launch Installer (Calamares)")
+        btn_install.setIcon(QIcon.fromTheme("system-installer"))
+        btn_install.setStyleSheet(self.button_style())
+        btn_install.clicked.connect(self.launch_calamares)
+        il.addWidget(btn_install)
+
+        hint = QLabel("Runs the graphical installer to install StormOS to disk.")
+        hint.setStyleSheet("color:#AEB7C2;")
+        hint.setWordWrap(True)
+        il.addWidget(hint)
+
+        layout.addWidget(installer)
+
         quick = QGroupBox("Quick Links")
         quick.setStyleSheet(self.group_style())
         ql = QVBoxLayout(quick)
@@ -1304,6 +1321,35 @@ class WelcomeMenu(QMainWindow):
         self.tabs.addTab(tab, "Help")
 
     # ---------------- Helpers ----------------
+
+    def launch_calamares(self):
+        exe = shutil.which("calamares")
+        if not exe:
+            QMessageBox.warning(
+                self,
+                "Installer not found",
+                "Calamares was not found on this system.\n\n"
+                "On Arch-based systems you may need to install it, or include it in the ISO build.",
+            )
+            return
+
+        try:
+            # If already root, run directly.
+            if hasattr(os, "geteuid") and os.geteuid() == 0:
+                subprocess.Popen([exe])
+                self.set_status("Launching Calamares…")
+                return
+
+            pkexec = shutil.which("pkexec")
+            if pkexec:
+                subprocess.Popen([pkexec, exe])
+                self.set_status("Launching Calamares…")
+                return
+
+            # Fallback: run via sudo inside xfce4-terminal (common on live media).
+            self.run_cmd(["sudo", "-E", exe], title="Calamares Installer", hold=False)
+        except Exception as e:
+            QMessageBox.warning(self, "Failed to launch installer", str(e))
 
     def run_cmd(self, cmd: List[str], title: str = "StormOS", hold: bool = True):
         try:
