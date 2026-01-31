@@ -90,6 +90,7 @@
         <value type="string" value="networkmanager applet"/>
       </property>
       <property name="known-items" type="array">
+        <value type="string" value="EcoOS System Doctor"/>
         <value type="string" value="TelegramDesktop"/>
         <value type="string" value="autoi"/>
         <value type="string" value="flameshot"/>
@@ -147,7 +148,7 @@
       <property name="digital-time-format" type="empty"/>
       <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
       <property name="show-notifications" type="bool" value="true"/>
-      <property name="known-players" type="string" value="Brave;Chromium;eco_nexus8;firefox;Thorium;Vivaldi;vlc"/>
+      <property name="known-players" type="string" value="Brave;Chromium;eco-nexus;eco_nexus8;firefox;Thorium;Vivaldi;vlc"/>
     </property>
     <property name="plugin-9" type="string" value="power-manager-plugin"/>
     <property name="plugin-10" type="string" value="notification-plugin">
@@ -185,15 +186,16 @@
       <property name="position-search-alternate" type="bool" value="true"/>
       <property name="button-icon" type="string" value="storm os"/>
       <property name="recent" type="array">
-        <value type="string" value="xfce4-mime-settings.desktop"/>
-        <value type="string" value="org.gnome.Boxes.desktop"/>
-        <value type="string" value="eco-boxes4.desktop"/>
-        <value type="string" value="thorium-browser-avx2.desktop"/>
+        <value type="string" value="xfce-session-settings.desktop"/>
         <value type="string" value="xfce4-terminal.desktop"/>
-        <value type="string" value="sib3.desktop"/>
-        <value type="string" value="gparted.desktop"/>
-        <value type="string" value="eco-term2.desktop"/>
         <value type="string" value="rustdesk.desktop"/>
+        <value type="string" value="thorium-browser-avx2.desktop"/>
+        <value type="string" value="gimp.desktop"/>
+        <value type="string" value="sib3.desktop"/>
+        <value type="string" value="thunar.desktop"/>
+        <value type="string" value="eco-nexus.desktop"/>
+        <value type="string" value="org.gnome.Boxes.desktop"/>
+        <value type="string" value="eco-player.desktop"/>
       </property>
     </property>
     <property name="plugin-18" type="string" value="weather">
