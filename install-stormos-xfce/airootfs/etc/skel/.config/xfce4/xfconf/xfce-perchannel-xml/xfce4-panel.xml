@@ -186,16 +186,16 @@
       <property name="position-search-alternate" type="bool" value="true"/>
       <property name="button-icon" type="string" value="storm os"/>
       <property name="recent" type="array">
-        <value type="string" value="xfce-session-settings.desktop"/>
+        <value type="string" value="xfce-keyboard-settings.desktop"/>
         <value type="string" value="xfce4-terminal.desktop"/>
-        <value type="string" value="rustdesk.desktop"/>
         <value type="string" value="thorium-browser-avx2.desktop"/>
-        <value type="string" value="gimp.desktop"/>
-        <value type="string" value="sib3.desktop"/>
         <value type="string" value="thunar.desktop"/>
-        <value type="string" value="eco-nexus.desktop"/>
+        <value type="string" value="chromium.desktop"/>
+        <value type="string" value="rustdesk.desktop"/>
+        <value type="string" value="gparted.desktop"/>
+        <value type="string" value="sib3.desktop"/>
         <value type="string" value="org.gnome.Boxes.desktop"/>
-        <value type="string" value="eco-player.desktop"/>
+        <value type="string" value="xfce-session-settings.desktop"/>
       </property>
     </property>
     <property name="plugin-18" type="string" value="weather">
@@ -231,10 +231,6 @@
         <property name="lines" type="int" value="1"/>
         <property name="color" type="string" value="rgba(0,0,0,0)"/>
         <property name="use-color" type="bool" value="false"/>
-      </property>
-      <property name="labels" type="empty">
-        <property name="label0" type="int" value="3"/>
-        <property name="label1" type="int" value="9"/>
       </property>
     </property>
     <property name="plugin-11" type="string" value="docklike"/>

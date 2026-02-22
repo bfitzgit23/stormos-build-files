@@ -58,7 +58,7 @@
       <property name="&lt;Super&gt;3" type="string" value="wmctrl -s 2"/>
       <property name="&lt;Super&gt;4" type="string" value="wmctrl -s 3"/>
       <property name="&lt;Primary&gt;&lt;Alt&gt;t" type="string" value="term"/>
-      <property name="Super_L" type="string" value="launcher"/>
+      <property name="Super_L" type="string" value="xfce4-popup-whiskermenu"/>
     </property>
   </property>
   <property name="xfwm4" type="empty">
