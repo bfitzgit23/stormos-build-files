@@ -4,49 +4,6 @@
 configs:
 - level: 0
   monitors:
-  - id: "4550db14c24f235dbb09f1e861f2c9645e77dcd4"
-    display_name: "Apple Computer Inc 0x9CC5 (LVDS-1)"
-    geometry:
-      x: 0
-      y: 0
-      width: 1280
-      height: 800
-  icons:
-    "/home/ricki/Desktop/stormos-build-files":
-      row: 2
-      col: 1
-    "/home/ricki/Desktop/StormOS_Download_Manager.desktop":
-      row: 2
-      col: 0
-    "/home/ricki/Desktop/stormos-kernel-manager.desktop":
-      row: 3
-      col: 0
-    "/home/ricki/Desktop/StormOS_mirrors.desktop":
-      row: 4
-      col: 0
-    "/home/ricki/Desktop/system-tool.desktop":
-      row: 0
-      col: 1
-    "/home/ricki/Desktop/StormOS_Recorder.desktop":
-      row: 6
-      col: 0
-    "/home/ricki/Desktop/StormOS_Python_Manager.desktop":
-      row: 5
-      col: 0
-    "/home/ricki/Desktop/StomOS Package Manager.desktop":
-      row: 1
-      col: 0
-    "/home/ricki/Desktop/Guvcview.desktop":
-      row: 0
-      col: 0
-    "/home/ricki/Desktop/StormOS-ISO":
-      row: 1
-      col: 1
-    "/home/ricki/Desktop/StormOS-Pescado-XFCE-2024.12.26-x86_64.iso":
-      row: 0
-      col: 4
-- level: 0
-  monitors:
   - id: "bd4586e4497d69c4858f7e8bf6d6f8c31b59d3a3"
     display_name: "Najing CEC Panda FPD Technology CO. ltd 0x004D (eDP-1)"
     geometry:
@@ -111,11 +68,14 @@ configs:
     "/home/test/Desktop/stormos-build-files":
       row: 6
       col: 0
-    "/home/test/Desktop/system-tool.desktop":
-      row: 3
+    "/home/liveuser/Desktop/stormos_browser.desktop":
+      row: 0
       col: 0
     "/home/bennji/Desktop/stormfs_lfs_builder_fixed24.py":
       row: 6
+      col: 1
+    "/home/test/Desktop/StormOS_Download_Manager.desktop":
+      row: 0
       col: 1
     "/home/ben/Desktop/StomOS Package Manager.desktop":
       row: 0
@@ -129,24 +89,24 @@ configs:
     "/home/bennji/Desktop/eco_player_a.download":
       row: 2
       col: 0
+    "/home/liveuser/Desktop/calamares.desktop":
+      row: 1
+      col: 0
     "/home/bennji/Desktop/SWGReturnsPRE-CU":
       row: 7
       col: 0
-    "/home/bennji/Desktop/lfs-backup-main.tar.gz":
-      row: 6
-      col: 1
+    "/home/liveuser/Desktop/abif.desktop":
+      row: 2
+      col: 0
     "/home/bennji/Desktop/mlfs-auto-20260203-113950.log":
       row: 4
       col: 1
-    "/home/test/Desktop/StomOS Package Manager.desktop":
-      row: 4
-      col: 0
     "/home/bennji/Desktop/stormfs_lfs_builder.download":
       row: 6
       col: 1
-    "/home/bennji/Desktop/mlfs-auto-20260203-134906.log":
-      row: 5
-      col: 1
+    "/home/ben/Desktop/StormOS_Nvidia_Launcher.desktop":
+      row: 6
+      col: 0
     "/home/bennji/Desktop/vivaldi.desktop":
       row: 2
       col: 0
@@ -162,18 +122,21 @@ configs:
     "/home/bennji/Desktop/opcore-simplify":
       row: 7
       col: 1
-    "/home/bennji/Desktop/Infinity Login.lnk":
-      row: 7
-      col: 1
-    "/home/ben/Desktop/StormOS_Nvidia_Launcher.desktop":
+    "/home/bennji/Desktop/stormfs_lfs_builder.py.download":
       row: 6
+      col: 1
+    "/home/test/Desktop/StormOS_Recorder.desktop":
+      row: 1
+      col: 1
+    "/home/test/Desktop/StomOS Package Manager.desktop":
+      row: 4
       col: 0
-    "/home/liveuser/Desktop/StomOS Package Manager.desktop":
+    "/home/bennji/Desktop/Message From Seeker.mp4":
+      row: 3
+      col: 0
+    "/home/ben/Desktop/system-tool.desktop":
       row: 0
       col: 1
-    "/home/ben/Desktop/StormOS_Download_Manager.desktop":
-      row: 2
-      col: 0
     "/home/bennji/Desktop/gibMacOS":
       row: 3
       col: 2
@@ -192,26 +155,26 @@ configs:
     "/home/bennji/Desktop/HardWare-Sniffer":
       row: 8
       col: 1
-    "/home/bennji/Desktop/storm_welcome.download":
+    "/home/bennji/Desktop/mlfs-auto-20260203-141107.log":
       row: 8
-      col: 0
-    "/home/bennji/Desktop/mlfs-auto-20260203-140042.log":
-      row: 6
       col: 1
+    "/home/bennji/Desktop/stormos":
+      row: 3
+      col: 0
     "/home/bennji/Desktop/stormfs-build-20260203-202025.log":
       row: 5
+      col: 1
+    "/home/bennji/Desktop/monitor.desktop":
+      row: 0
       col: 1
     "/home/bennji/Desktop/stormfs_lfs_builder_fixed26.py":
       row: 8
       col: 1
-    "/home/bennji/Desktop/stormfs_lfs_builder.REGEN13_clear_ch5_markers.py":
-      row: 4
-      col: 1
     "/home/liveuser/Desktop/StormOS ISO Builder.desktop":
       row: 8
       col: 0
-    "/home/bennji/Desktop/My Stuff":
-      row: 1
+    "/home/bennji/Desktop/steam.desktop":
+      row: 6
       col: 0
     "/home/bennji/Desktop/Retruns-Launcher":
       row: 7
@@ -222,68 +185,65 @@ configs:
     "/home/liveuser/Desktop/StormOS_Browser.desktop":
       row: 7
       col: 0
-    "/home/liveuser/Desktop/StormOS_Python_Manager.desktop":
-      row: 4
-      col: 0
-    "/home/bennji/Desktop/steam.desktop":
-      row: 6
-      col: 0
-    "/home/bennji/Desktop/stormfs_lfs_builder.py":
-      row: 6
-      col: 1
     "/home/bennji/Desktop/BFS-Linux-install":
       row: 4
       col: 1
-    "/home/bennji/Desktop/stormfs_lfs_builder_fixed26.py.crdownload":
-      row: 8
-      col: 1
+    "/home/test/Desktop/StormOS-ISO":
+      row: 5
+      col: 0
     "/home/bennji/Desktop/stormos-themes":
       row: 1
       col: 1
+    "/home/liveuser/Desktop/StormOS_Python_Manager.desktop":
+      row: 4
+      col: 0
+    "/home/bennji/Desktop/stormfs_lfs_builder_fixed26.py.crdownload":
+      row: 8
+      col: 1
+    "/home/bennji/Desktop/My Stuff":
+      row: 1
+      col: 0
     "/home/bennji/Desktop/Hardware-Sniffer":
       row: 3
       col: 2
     "/home/bennji/Desktop/StormOS Downloader.desktop":
       row: 4
       col: 0
+    "/home/bennji/Desktop/SWGReturns Launcher.desktop":
+      row: 5
+      col: 1
     "/home/bennji/Desktop/stormfs_lfs_builder.REGEN13_clear_ch5_markers.py.crdownload":
       row: 4
       col: 1
-    "/home/test/Desktop/stormos-kernel-manager.desktop":
-      row: 1
-      col: 0
-    "/home/test/Desktop/StormOS-ISO":
-      row: 5
-      col: 0
-    "/home/bennji/Desktop/swg_launcher2":
+    "/home/bennji/Desktop/mlfs-auto-20260203-142207.log":
+      row: 2
+      col: 2
+    "/home/bennji/Desktop/stormfs_lfs_builder.py":
       row: 6
-      col: 0
+      col: 1
     "/home/bennji/Desktop/calamares":
       row: 0
       col: 0
     "/home/bennji/Desktop/Gamez":
       row: 8
       col: 0
-    "/home/bennji/Desktop/stormfs_lfs_builder_fixed24.py.crdownload":
-      row: 6
-      col: 1
     "/home/liveuser/Desktop/StormOS_mirrors.desktop":
       row: 2
       col: 0
-    "/home/bennji/Desktop/SWGReturns Launcher.desktop":
-      row: 5
-      col: 1
     "/home/bennji/Desktop/stormfs_lfs_builder.crdownload":
       row: 3
       col: 2
-    "/home/bennji/Desktop/gentoo-installer":
-      row: 1
-      col: 0
     "/home/bennji/Desktop/eco_player_a":
       row: 2
       col: 0
+    "/home/bennji/Desktop/gentoo-installer":
+      row: 1
+      col: 0
     "/home/bennji/Desktop/keepassxc.desktop":
       row: 1
+      col: 0
+    "/home/bennji/Desktop/swg_launcher2":
+      row: 6
       col: 0
     "/home/bennji/Desktop/SWG New Beginnings Launcher.desktop":
       row: 4
@@ -294,26 +254,26 @@ configs:
     "/home/ben/Desktop/StormOS_Python_Manager.desktop":
       row: 7
       col: 0
-    "/home/liveuser/Desktop/stormos-kernel-manager.desktop":
-      row: 0
-      col: 0
     "/home/ben/Desktop/calamares.desktop":
       row: 0
       col: 1
     "/home/test/Desktop/StormOS_mirrors.desktop":
       row: 2
       col: 0
-    "/home/bennji/Desktop/OnlyOffice.desktop":
+    "/home/liveuser/Desktop/stormos-kernel-manager.desktop":
       row: 0
       col: 0
     "/home/bennji/Desktop/installer13.download":
       row: 0
       col: 0
-    "/home/bennji/Desktop/StormFS-Linux":
-      row: 2
+    "/home/bennji/Desktop/OnlyOffice.desktop":
+      row: 0
       col: 0
     "/home/bennji/Desktop/storm_welcome":
       row: 3
+      col: 0
+    "/home/bennji/Desktop/StormFS-Linux":
+      row: 2
       col: 0
     "/home/bennji/Desktop/stormos-welcome":
       row: 3
@@ -327,63 +287,60 @@ configs:
     "/home/bennji/Desktop/system-tool.desktop":
       row: 7
       col: 0
-    "/home/bennji/Desktop/install.patched.crdownload":
-      row: 6
-      col: 1
     "/home/bennji/Desktop/mlfs-auto-20260203-141117.log":
       row: 0
       col: 2
     "/home/bennji/Desktop/stormfs_builder":
       row: 8
       col: 0
+    "/home/bennji/Desktop/mlfs-auto-20260203-134906.log":
+      row: 5
+      col: 1
     "/home/liveuser/Desktop/StormOS_Download_Manager.desktop":
       row: 6
       col: 0
+    "/home/bennji/Desktop/install.patched.crdownload":
+      row: 6
+      col: 1
     "/home/bennji/Desktop/Infinity":
       row: 0
       col: 2
+    "/home/liveuser/Desktop/StormOS_Recorder.desktop":
+      row: 3
+      col: 0
     "/home/bennji/Desktop/stormfs_lfs_builder":
       row: 2
       col: 1
     "/home/bennji/Desktop/RustDesk.desktop":
       row: 8
       col: 0
-    "/home/liveuser/Desktop/StormOS_Recorder.desktop":
-      row: 3
+    "/home/bennji/Desktop/stormfs_lfs_builder_fixed27.py.crdownload":
+      row: 0
+      col: 2
+    "/home/liveuser/Desktop/system-tool.desktop":
+      row: 1
+      col: 1
+    "/home/bennji/Desktop/swg_launcher2.download":
+      row: 8
       col: 0
     "/home/bennji/Desktop/LFS1.png":
       row: 0
       col: 1
-    "/home/liveuser/Desktop/system-tool.desktop":
-      row: 1
-      col: 1
-    "/home/bennji/Desktop/stormfs_lfs_builder_fixed27.py.crdownload":
-      row: 0
-      col: 2
-    "/home/bennji/Desktop/swg_launcher2.download":
-      row: 8
+    "/home/ben/Desktop/stormos-kernel-manager.desktop":
+      row: 4
       col: 0
     "/home/bennji/Desktop/Infinity Login.desktop":
       row: 8
       col: 1
-    "/home/bennji/Desktop/mlfs-auto-20260203-140944.log":
-      row: 7
-      col: 1
-    "/home/ben/Desktop/stormos-kernel-manager.desktop":
-      row: 4
-      col: 0
     "/home/bennji/Desktop/LFS3.png":
       row: 2
       col: 1
-    "/home/bennji/Desktop/installer13":
-      row: 0
-      col: 0
     "/home/bennji/Desktop/stormos-build-files":
       row: 4
       col: 0
-    "/home/bennji/Desktop/gentoo-install":
-      row: 0
-      col: 0
+    "/home/bennji/Desktop/mlfs-auto-20260203-140944.log":
+      row: 7
+      col: 1
     "/home/ben/Desktop/StormOS_Browser.desktop":
       row: 1
       col: 0
@@ -393,51 +350,94 @@ configs:
     "/home/bennji/Desktop/kernel-fix.sh":
       row: 3
       col: 1
-    "/home/test/Desktop/StormOS_Python_Manager.desktop":
+    "/home/liveuser/Desktop/StomOS Package Manager.desktop":
       row: 0
+      col: 1
+    "/home/ben/Desktop/StormOS_Download_Manager.desktop":
+      row: 2
       col: 0
     "/home/bennji/Desktop/StormOS-ISO":
       row: 5
       col: 0
+    "/home/bennji/Desktop/installer13":
+      row: 0
+      col: 0
+    "/home/bennji/Desktop/gentoo-install":
+      row: 0
+      col: 0
+    "/home/test/Desktop/StormOS_Python_Manager.desktop":
+      row: 0
+      col: 0
+    "/home/bennji/Desktop/stormfs_lfs_builder.REGEN13_clear_ch5_markers.py":
+      row: 4
+      col: 1
+    "/home/bennji/Desktop/stormfs_lfs_builder_fixed24.py.crdownload":
+      row: 6
+      col: 1
+    "/home/test/Desktop/system-tool.desktop":
+      row: 3
+      col: 0
+    "/home/bennji/Desktop/Infinity Login.lnk":
+      row: 7
+      col: 1
     "/home/ben/Desktop/abif.desktop":
       row: 1
       col: 0
-    "/home/liveuser/Desktop/stormos_browser.desktop":
-      row: 0
-      col: 0
-    "/home/test/Desktop/StormOS_Download_Manager.desktop":
-      row: 0
-      col: 1
-    "/home/liveuser/Desktop/abif.desktop":
-      row: 2
-      col: 0
-    "/home/bennji/Desktop/stormfs_lfs_builder.py.download":
+    "/home/bennji/Desktop/lfs-backup-main.tar.gz":
       row: 6
       col: 1
-    "/home/bennji/Desktop/Message From Seeker.mp4":
-      row: 3
-      col: 0
-    "/home/test/Desktop/StormOS_Recorder.desktop":
-      row: 1
+    "/home/bennji/Desktop/mlfs-auto-20260203-140042.log":
+      row: 6
       col: 1
+    "/home/test/Desktop/stormos-kernel-manager.desktop":
+      row: 1
+      col: 0
+    "/home/bennji/Desktop/storm_welcome.download":
+      row: 8
+      col: 0
     "/home/bennji/Desktop/gentoo-installer.crdownload":
       row: 4
       col: 1
-    "/home/bennji/Desktop/monitor.desktop":
-      row: 0
+- level: 0
+  monitors:
+  - id: "4550db14c24f235dbb09f1e861f2c9645e77dcd4"
+    display_name: "Apple Computer Inc 0x9CC5 (LVDS-1)"
+    geometry:
+      x: 0
+      y: 0
+      width: 1280
+      height: 800
+  icons:
+    "/home/ricki/Desktop/stormos-build-files":
+      row: 2
       col: 1
-    "/home/ben/Desktop/system-tool.desktop":
-      row: 0
-      col: 1
-    "/home/bennji/Desktop/stormos":
+    "/home/ricki/Desktop/StormOS_Download_Manager.desktop":
+      row: 2
+      col: 0
+    "/home/ricki/Desktop/stormos-kernel-manager.desktop":
       row: 3
       col: 0
-    "/home/bennji/Desktop/mlfs-auto-20260203-141107.log":
-      row: 8
+    "/home/ricki/Desktop/StormOS_mirrors.desktop":
+      row: 4
+      col: 0
+    "/home/ricki/Desktop/system-tool.desktop":
+      row: 0
       col: 1
-    "/home/bennji/Desktop/mlfs-auto-20260203-142207.log":
-      row: 2
-      col: 2
-    "/home/liveuser/Desktop/calamares.desktop":
+    "/home/ricki/Desktop/StormOS_Recorder.desktop":
+      row: 6
+      col: 0
+    "/home/ricki/Desktop/StormOS_Python_Manager.desktop":
+      row: 5
+      col: 0
+    "/home/ricki/Desktop/StomOS Package Manager.desktop":
       row: 1
       col: 0
+    "/home/ricki/Desktop/Guvcview.desktop":
+      row: 0
+      col: 0
+    "/home/ricki/Desktop/StormOS-ISO":
+      row: 1
+      col: 1
+    "/home/ricki/Desktop/StormOS-Pescado-XFCE-2024.12.26-x86_64.iso":
+      row: 0
+      col: 4
