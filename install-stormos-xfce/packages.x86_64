@@ -240,7 +240,7 @@ vulkan-radeon
 lib32-mesa
 vulkan-intel
 ffmpeg
-yay
+yay-bin
 pamac-all
 xfce4-docklike-plugin
 eco_repo/eco-term2
