@@ -877,8 +877,9 @@ class SoftwareCenter(QWidget):
             results.sort(key=lambda x: (not x.installed, x.source, x.name.lower()))
             return results
 
+        # FIX: use single outer quotes to avoid curly-quote syntax error
         run_async(self, _work,
-                  lambda res: self._populate(res, f"Results for "{query}""))
+                  lambda res: self._populate(res, f'Results for "{query}"'))
 
     def on_select(self):
         sel = self.tree.selectedItems()
@@ -1981,7 +1982,7 @@ class WelcomeMenu(QMainWindow):
             **os.environ,
             # Force Qt Fusion style (cross-platform, respects palette)
             "QT_STYLE_OVERRIDE": "Fusion",
-            # Qt colour scheme hint (Qt ≥ 6.5 / some Qt5 builds honour this)
+            # Qt colour scheme hint (Qt >= 6.5 / some Qt5 builds honour this)
             "QT_QPA_PLATFORMTHEME": "gnome",   # fallback; set after
             "XCURSOR_THEME": os.environ.get("XCURSOR_THEME", "Adwaita"),
             # GTK theme (if Calamares uses GTK dialogs)
@@ -1989,7 +1990,6 @@ class WelcomeMenu(QMainWindow):
             # Force dark preference for Qt Quick / KDE apps
             "QT_QUICK_CONTROLS_STYLE": "Material",
             "QT_QUICK_CONTROLS_MATERIAL_THEME": "Dark",
-            # Remove any light-theme overrides
         }
         # Remove variables known to force light themes
         for var in ("QT_STYLE", "QT_PLATFORM_PLUGIN"):
