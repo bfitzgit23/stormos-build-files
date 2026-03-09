@@ -26,6 +26,6 @@ sh ./git_setup*
 mv config .git/config
 git add --all .
 git commit -m "Initialise Repo"
-git push origin master --force
+git push origin main --force
 
 _msg "Clean up completed..."
