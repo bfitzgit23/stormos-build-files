@@ -8,7 +8,7 @@
     <property name="dark-mode" type="bool" value="false"/>
     <property name="panel-1" type="empty">
       <property name="position" type="string" value="p=11;x=984;y=18"/>
-      <property name="length" type="double" value="62.760416666666664"/>
+      <property name="length" type="double" value="100"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="icon-size" type="uint" value="0"/>
       <property name="size" type="uint" value="34"/>
@@ -76,6 +76,7 @@
     <property name="plugin-6" type="string" value="systray">
       <property name="square-icons" type="bool" value="true"/>
       <property name="known-legacy-items" type="array">
+        <value type="string" value="notes"/>
         <value type="string" value="wi-fi network connection “spirit-of-76” active: spirit-of-76 (85%)"/>
         <value type="string" value="wi-fi network connection “spirit-of-76” active: spirit-of-76 (59%)"/>
         <value type="string" value="wi-fi network connection “spirit-of-76” active: spirit-of-76 (86%)"/>
@@ -148,7 +149,7 @@
       <property name="digital-time-format" type="empty"/>
       <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
       <property name="show-notifications" type="bool" value="true"/>
-      <property name="known-players" type="string" value="Brave;Chromium;eco-nexus;eco_nexus8;firefox;Thorium;Vivaldi;vlc"/>
+      <property name="known-players" type="string" value="Brave;Chromium;eco-nexus;eco_nexus8;firefox;spotify;Thorium;Vivaldi;vlc"/>
     </property>
     <property name="plugin-9" type="string" value="power-manager-plugin"/>
     <property name="plugin-10" type="string" value="notification-plugin">
@@ -186,16 +187,22 @@
       <property name="position-search-alternate" type="bool" value="true"/>
       <property name="button-icon" type="string" value="storm os"/>
       <property name="recent" type="array">
-        <value type="string" value="xfce4-mime-settings.desktop"/>
-        <value type="string" value="xfce-keyboard-settings.desktop"/>
-        <value type="string" value="xfce4-terminal.desktop"/>
-        <value type="string" value="thorium-browser-avx2.desktop"/>
-        <value type="string" value="thunar.desktop"/>
-        <value type="string" value="chromium.desktop"/>
-        <value type="string" value="rustdesk.desktop"/>
-        <value type="string" value="gparted.desktop"/>
-        <value type="string" value="sib3.desktop"/>
-        <value type="string" value="org.gnome.Boxes.desktop"/>
+        <value type="string" value="discord.desktop"/>
+        <value type="string" value="thorium-browser.desktop"/>
+        <value type="string" value="steam.desktop"/>
+        <value type="string" value="wine-Programs-SWGReturns-SWGReturns Launcher.desktop"/>
+        <value type="string" value="wine-Programs-SWGEmu-SWGEmu Launchpad-SWGEmu Launchpad.desktop"/>
+        <value type="string" value="STAR WARS The Old Republic.desktop"/>
+        <value type="string" value="wine-Programs-X2Go Client for Windows-X2Go Client.desktop"/>
+        <value type="string" value="wine-Programs-SWG Restoration.desktop"/>
+        <value type="string" value="net.lutris.battlenet-2.desktop"/>
+        <value type="string" value="wine-Programs-SWG Beyond.desktop"/>
+      </property>
+      <property name="favorites" type="array">
+        <value type="string" value="xfce4-web-browser.desktop"/>
+        <value type="string" value="xfce4-mail-reader.desktop"/>
+        <value type="string" value="xfce4-file-manager.desktop"/>
+        <value type="string" value="xfce4-terminal-emulator.desktop"/>
       </property>
     </property>
     <property name="plugin-18" type="string" value="weather">
@@ -206,7 +213,7 @@
       </property>
       <property name="msl" type="int" value="143"/>
       <property name="timezone" type="string" value="America/Kentucky/Louisville"/>
-      <property name="offset" type="string" value="-05:00"/>
+      <property name="offset" type="string" value="-04:00"/>
       <property name="cache-max-age" type="int" value="172800"/>
       <property name="power-saving" type="bool" value="true"/>
       <property name="units" type="empty">
@@ -232,7 +239,16 @@
         <property name="color" type="string" value="rgba(0,0,0,0)"/>
         <property name="use-color" type="bool" value="false"/>
       </property>
+      <property name="labels" type="empty">
+        <property name="label0" type="int" value="3"/>
+        <property name="label1" type="int" value="9"/>
+      </property>
     </property>
     <property name="plugin-11" type="string" value="docklike"/>
+    <property name="notes" type="empty">
+      <property name="global" type="empty">
+        <property name="version" type="string" value="1.12.0"/>
+      </property>
+    </property>
   </property>
 </channel>
