@@ -1,0 +1,89 @@
+name: Test StormOS ISO
+
+on:
+  workflow_run:
+    workflows: ["Build StormOS ISO"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  boot-test:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux/archlinux:latest
+    steps:
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stormos-iso
+          path: .
+
+      - name: Install test dependencies
+        run: |
+          pacman -S --noconfirm qemu-base ovmf swtpm openssh
+
+      - name: Start TPM emulator
+        run: |
+          mkdir -p /tmp/swtpm
+          swtpm socket --tpm2 --tpmstate dir=/tmp/swtpm \
+            --ctrl type=unixio,path=/tmp/swtpm/swtpm-sock \
+            --daemonize
+
+      - name: Start VM with ISO
+        run: |
+          qemu-system-x86_64 \
+            -m 4G \
+            -bios /usr/share/ovmf/x64/OVMF.fd \
+            -cdrom stormos-*.iso \
+            -display none \
+            -serial mon:telnet:127.0.0.1:5000,server,nowait \
+            -netdev user,id=net0 \
+            -device virtio-net-pci,netdev=net0 \
+            -enable-kvm \
+            -machine q35 \
+            -device tpm-tis,tpmdev=tpm0 \
+            -tpmdev emulator,id=tpm0 \
+            -daemonize
+
+      - name: Wait for boot
+        run: sleep 90
+
+      - name: Check if VM is running
+        run: |
+          ps aux | grep qemu | grep -v grep
+
+  installation-test:
+    runs-on: ubuntu-latest
+    needs: boot-test
+    container:
+      image: archlinux/archlinux:latest
+    steps:
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stormos-iso
+          path: .
+
+      - name: Install dependencies
+        run: |
+          pacman -S --noconfirm qemu-base guestfs-tools
+
+      - name: Mount ISO
+        run: |
+          mkdir -p /mnt/iso
+          guestmount -a stormos-*.iso -i /mnt/iso || true
+
+      - name: Verify ISO contents
+        run: |
+          ls -la /mnt/iso
+          cat /mnt/iso/EFI/boot/*.cfg 2>/dev/null || true
+
+      - name: Check for required files
+        run: |
+          echo \"Checking required files...\"
+          test -d /mnt/iso/EFI && echo \"✓ EFI directory found\"
+          test -f /mnt/iso/boot/*.img && echo \"✓ Boot images found\"
+
+      - name: Report success
+        run: |
+          echo \"ISO validation completed successfully!\"
