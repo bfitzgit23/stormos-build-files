@@ -11,6 +11,8 @@ Features
 - Software Center (pacman, AUR/yay, flatpak, snap, appimage)
 - Maintenance (cache, orphans, mirrors, keys)
 - Drivers (NVIDIA, AMD, Intel, Printer, VM)
+- Desktops & WMs (KDE Plasma, GNOME, XFCE, MATE, LXQt, GNOME-Flashback,
+                   Hyprland, Sway, Niri, i3, Openbox, Fluxbox, Awesome, Compiz)
 - Tweaks (services, shell, fonts, Plymouth)
 - Gaming (Steam, Lutris, Proton, MangoHud, etc.)
 - Settings / Appearance
@@ -120,7 +122,6 @@ def disable_autostart():
                 p.unlink()
                 removed.append(str(p))
             except PermissionError:
-                # Try with sudo if we're not root
                 rc = subprocess.call(
                     ["sudo", "rm", "-f", str(p)],
                     stdout=subprocess.DEVNULL,
@@ -709,7 +710,7 @@ class SoftwareCenter(QWidget):
         self.backends_label.setStyleSheet("color:#D8DEE9;")
         back_row.addWidget(self.backends_label)
         back_row.addStretch()
-        btn_help = QPushButton("Install missing backends…")
+        btn_help = QPushButton("Install missing backends...")
         btn_help.setStyleSheet(MINI_BUTTON_STYLE)
         btn_help.clicked.connect(self.show_backend_help)
         back_row.addWidget(btn_help)
@@ -718,7 +719,7 @@ class SoftwareCenter(QWidget):
         # Controls
         controls = QHBoxLayout()
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Search for apps and packages…")
+        self.search_box.setPlaceholderText("Search for apps and packages...")
         self.search_box.returnPressed.connect(self.search)
         self.source_combo = QComboBox()
         self.source_combo.addItem(SOURCE_LABELS["all"], "all")
@@ -729,7 +730,7 @@ class SoftwareCenter(QWidget):
             ("Search", self.search, "system-search"),
             ("Installed", self.refresh_installed, "view-list-details"),
             ("Update all", self.update_all, "system-software-update"),
-            ("Add AppImage…", self.add_appimage, "list-add"),
+            ("Add AppImage...", self.add_appimage, "list-add"),
         ]:
             btn = QPushButton(label)
             btn.setIcon(QIcon.fromTheme(icon))
@@ -802,8 +803,8 @@ class SoftwareCenter(QWidget):
         parts = []
         for key in ("pacman", "aur", "flatpak", "snap", "appimage"):
             ok = self.backends[key].is_available()
-            parts.append(f"{SOURCE_LABELS[key]}: {'✓' if ok else '✕'}")
-        return " · ".join(parts)
+            parts.append(f"{SOURCE_LABELS[key]}: {'ok' if ok else 'x'}")
+        return " | ".join(parts)
 
     def show_backend_help(self):
         QMessageBox.information(self, "Install backends",
@@ -844,7 +845,7 @@ class SoftwareCenter(QWidget):
 
     def refresh_installed(self):
         self._clear()
-        self.status_cb("Loading installed software…")
+        self.status_cb("Loading installed software...")
 
         def _work():
             items: List[SoftwareItem] = []
@@ -864,7 +865,7 @@ class SoftwareCenter(QWidget):
             return
         src = self.source_combo.currentData()
         self._clear()
-        self.status_cb("Searching…")
+        self.status_cb("Searching...")
 
         def _work():
             results: List[SoftwareItem] = []
@@ -877,9 +878,9 @@ class SoftwareCenter(QWidget):
             results.sort(key=lambda x: (not x.installed, x.source, x.name.lower()))
             return results
 
-        # FIX: use single outer quotes to avoid curly-quote syntax error
+        # FIX: use single-quoted outer string to avoid conflict with inner double quotes
         run_async(self, _work,
-                  lambda res: self._populate(res, f'Results for "{query}"'))
+                  lambda res: self._populate(res, 'Results for "{}"'.format(query)))
 
     def on_select(self):
         sel = self.tree.selectedItems()
@@ -891,9 +892,9 @@ class SoftwareCenter(QWidget):
             return
         item = self._current_items[int(idx)]
         self.details_title.setText(
-            f"{item.name}  —  {SOURCE_LABELS.get(item.source, item.source)}"
+            "{} -- {}".format(item.name, SOURCE_LABELS.get(item.source, item.source))
         )
-        self.details_text.setText("Loading details…")
+        self.details_text.setText("Loading details...")
         self._update_action_buttons(item, details_loaded=False)
         backend = self.backends[item.source]
         run_async(self, lambda: backend.details(item),
@@ -1017,7 +1018,7 @@ class SoftwareCenter(QWidget):
 # ============================================================
 
 class MaintenanceTab(QWidget):
-    """System maintenance actions — mirrors, cache, orphans, keys, etc."""
+    """System maintenance actions -- mirrors, cache, orphans, keys, etc."""
 
     def __init__(self, run_cmd: Callable, status_cb: Callable):
         super().__init__()
@@ -1042,7 +1043,6 @@ class MaintenanceTab(QWidget):
         title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
         layout.addWidget(title)
 
-        # ---- Package cache ----
         g_cache = QGroupBox("Package Cache")
         g_cache.setStyleSheet(GROUP_STYLE)
         gc = QVBoxLayout(g_cache)
@@ -1055,7 +1055,7 @@ class MaintenanceTab(QWidget):
         self._add_action(gc,
             "Clear ALL pacman cache",
             ["sudo", "pacman", "-Scc"],
-            "Wipe entire /var/cache/pacman/pkg — frees maximum disk space.",
+            "Wipe entire /var/cache/pacman/pkg -- frees maximum disk space.",
             "edit-delete",
         )
         self._add_action(gc,
@@ -1066,12 +1066,11 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_cache)
 
-        # ---- Mirrors ----
         g_mirrors = QGroupBox("Mirrors & Sync")
         g_mirrors.setStyleSheet(GROUP_STYLE)
         gm = QVBoxLayout(g_mirrors)
         self._add_action(gm,
-            "Rank mirrors (reflector — top 20 HTTPS, sorted by speed)",
+            "Rank mirrors (reflector -- top 20 HTTPS, sorted by speed)",
             ["bash", "-c",
              "sudo reflector --latest 20 --protocol https --sort rate "
              "--save /etc/pacman.d/mirrorlist && echo Done."],
@@ -1086,7 +1085,6 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_mirrors)
 
-        # ---- Keys ----
         g_keys = QGroupBox("Keyring")
         g_keys.setStyleSheet(GROUP_STYLE)
         gk = QVBoxLayout(g_keys)
@@ -1108,7 +1106,6 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_keys)
 
-        # ---- Logs ----
         g_logs = QGroupBox("Logs & Journal")
         g_logs.setStyleSheet(GROUP_STYLE)
         gl = QVBoxLayout(g_logs)
@@ -1126,7 +1123,6 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_logs)
 
-        # ---- Failed services ----
         g_svc = QGroupBox("Services")
         g_svc.setStyleSheet(GROUP_STYLE)
         gs = QVBoxLayout(g_svc)
@@ -1139,7 +1135,7 @@ class MaintenanceTab(QWidget):
         self._add_action(gs,
             "Reset failed service state",
             ["sudo", "systemctl", "reset-failed"],
-            "Clear the 'failed' state so counts reset.",
+            "Clear the failed state so counts reset.",
             "view-refresh",
         )
         layout.addWidget(g_svc)
@@ -1197,18 +1193,17 @@ class DriversTab(QWidget):
         layout.addWidget(title)
 
         note = QLabel(
-            "⚠  GPU driver installs will open a terminal. "
+            "GPU driver installs will open a terminal. "
             "Reboot after installing or switching GPU drivers."
         )
         note.setStyleSheet("color:#EBCB8B; font-size:12px;")
         note.setWordWrap(True)
         layout.addWidget(note)
 
-        # ---- NVIDIA ----
         g_nv = QGroupBox("NVIDIA")
         g_nv.setStyleSheet(GROUP_STYLE)
         gnv = QVBoxLayout(g_nv)
-        self._driver_btn(gnv, "NVIDIA (proprietary — nvidia + nvidia-utils)",
+        self._driver_btn(gnv, "NVIDIA (proprietary -- nvidia + nvidia-utils)",
             ["sudo", "pacman", "-S", "--needed",
              "nvidia", "nvidia-utils", "nvidia-settings", "lib32-nvidia-utils"])
         self._driver_btn(gnv, "NVIDIA DKMS (runs on any kernel)",
@@ -1221,11 +1216,10 @@ class DriversTab(QWidget):
             ["sudo", "pacman", "-S", "--needed", "xf86-video-nouveau"])
         layout.addWidget(g_nv)
 
-        # ---- AMD ----
         g_amd = QGroupBox("AMD / ATI")
         g_amd.setStyleSheet(GROUP_STYLE)
         gamd = QVBoxLayout(g_amd)
-        self._driver_btn(gamd, "AMDGPU (modern — GCN 3+ / Vega / RDNA)",
+        self._driver_btn(gamd, "AMDGPU (modern -- GCN 3+ / Vega / RDNA)",
             ["sudo", "pacman", "-S", "--needed",
              "xf86-video-amdgpu", "mesa", "lib32-mesa",
              "vulkan-radeon", "lib32-vulkan-radeon"])
@@ -1234,7 +1228,6 @@ class DriversTab(QWidget):
              "xf86-video-ati", "mesa", "lib32-mesa"])
         layout.addWidget(g_amd)
 
-        # ---- Intel ----
         g_intel = QGroupBox("Intel")
         g_intel.setStyleSheet(GROUP_STYLE)
         gint = QVBoxLayout(g_intel)
@@ -1244,7 +1237,6 @@ class DriversTab(QWidget):
              "vulkan-intel", "lib32-vulkan-intel"])
         layout.addWidget(g_intel)
 
-        # ---- Printers ----
         g_prn = QGroupBox("Printing (CUPS)")
         g_prn.setStyleSheet(GROUP_STYLE)
         gprn = QVBoxLayout(g_prn)
@@ -1259,7 +1251,6 @@ class DriversTab(QWidget):
             ["yay", "-S", "epson-inkjet-printer-escpr"])
         layout.addWidget(g_prn)
 
-        # ---- Virtualisation ----
         g_virt = QGroupBox("Virtualisation / VMs")
         g_virt.setStyleSheet(GROUP_STYLE)
         gvirt = QVBoxLayout(g_virt)
@@ -1312,7 +1303,6 @@ class TweaksTab(QWidget):
         title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
         layout.addWidget(title)
 
-        # ---- Services ----
         g_svc = QGroupBox("Toggle Services")
         g_svc.setStyleSheet(GROUP_STYLE)
         gs = QVBoxLayout(g_svc)
@@ -1351,7 +1341,6 @@ class TweaksTab(QWidget):
             gs.addLayout(row)
         layout.addWidget(g_svc)
 
-        # ---- Shell ----
         g_shell = QGroupBox("Shell Setup")
         g_shell.setStyleSheet(GROUP_STYLE)
         gsh = QVBoxLayout(g_shell)
@@ -1377,7 +1366,6 @@ class TweaksTab(QWidget):
             gsh.addWidget(btn)
         layout.addWidget(g_shell)
 
-        # ---- Boot / Plymouth ----
         g_boot = QGroupBox("Boot & Plymouth")
         g_boot.setStyleSheet(GROUP_STYLE)
         gb = QVBoxLayout(g_boot)
@@ -1401,7 +1389,6 @@ class TweaksTab(QWidget):
             gb.addWidget(btn)
         layout.addWidget(g_boot)
 
-        # ---- Performance ----
         g_perf = QGroupBox("Performance & Power")
         g_perf.setStyleSheet(GROUP_STYLE)
         gp = QVBoxLayout(g_perf)
@@ -1427,7 +1414,6 @@ class TweaksTab(QWidget):
             gp.addWidget(btn)
         layout.addWidget(g_perf)
 
-        # ---- Fonts ----
         g_fonts = QGroupBox("Fonts")
         g_fonts.setStyleSheet(GROUP_STYLE)
         gf = QVBoxLayout(g_fonts)
@@ -1482,14 +1468,13 @@ class GamingTab(QWidget):
         layout.addWidget(title)
 
         note = QLabel(
-            "ℹ  Enable the multilib repository in /etc/pacman.conf before "
+            "Enable the multilib repository in /etc/pacman.conf before "
             "installing 32-bit (lib32-*) packages."
         )
         note.setStyleSheet("color:#88C0D0; font-size:12px;")
         note.setWordWrap(True)
         layout.addWidget(note)
 
-        # ---- Platforms ----
         g_plat = QGroupBox("Game Platforms")
         g_plat.setStyleSheet(GROUP_STYLE)
         gpl = QVBoxLayout(g_plat)
@@ -1515,7 +1500,6 @@ class GamingTab(QWidget):
             gpl.addWidget(btn)
         layout.addWidget(g_plat)
 
-        # ---- Wine / Proton ----
         g_wine = QGroupBox("Wine & Proton")
         g_wine.setStyleSheet(GROUP_STYLE)
         gw = QVBoxLayout(g_wine)
@@ -1538,7 +1522,6 @@ class GamingTab(QWidget):
             gw.addWidget(btn)
         layout.addWidget(g_wine)
 
-        # ---- Performance ----
         g_perf = QGroupBox("Gaming Performance")
         g_perf.setStyleSheet(GROUP_STYLE)
         gp = QVBoxLayout(g_perf)
@@ -1563,7 +1546,6 @@ class GamingTab(QWidget):
             gp.addWidget(btn)
         layout.addWidget(g_perf)
 
-        # ---- Emulation ----
         g_emu = QGroupBox("Emulation")
         g_emu.setStyleSheet(GROUP_STYLE)
         ge = QVBoxLayout(g_emu)
@@ -1572,9 +1554,9 @@ class GamingTab(QWidget):
              ["sudo", "pacman", "-S", "--needed", "retroarch"]),
             ("Dolphin (GameCube / Wii)",
              ["sudo", "pacman", "-S", "--needed", "dolphin-emu"]),
-            ("RPCS3 (PS3 — AUR)",
+            ("RPCS3 (PS3 -- AUR)",
              ["yay", "-S", "rpcs3-bin"]),
-            ("Yuzu / Ryujinx (Switch — AUR/Flatpak)",
+            ("Ryujinx (Switch -- Flatpak)",
              ["flatpak", "install", "-y",
               "org.ryujinx.Ryujinx"]),
             ("PCSX2 (PS2)",
@@ -1590,6 +1572,415 @@ class GamingTab(QWidget):
 
 
 # ============================================================
+# DESKTOP ENVIRONMENTS & WINDOW MANAGERS TAB
+# ============================================================
+
+class DesktopTab(QWidget):
+    """
+    Install full DEs (KDE, GNOME, XFCE, MATE, LXQt, GNOME-Flashback)
+    and window managers / compositors (Hyprland, Sway, Niri, i3, Openbox,
+    Fluxbox, Awesome, Compiz) with sensible defaults and DM integration.
+    """
+
+    # ------------------------------------------------------------------
+    # Data: (label, packages, aur, display_manager, dm_service, notes)
+    #   aur=True  -> install via yay instead of pacman
+    #   dm_service -> systemd unit to enable (empty = manual / TTY login)
+    # ------------------------------------------------------------------
+    _DE_DATA = [
+        # label, pkgs, aur, dm_unit, badge, desc
+        (
+            "KDE Plasma 6",
+            ["plasma", "plasma-wayland-session", "kde-applications",
+             "sddm", "sddm-kcm"],
+            False, "sddm",
+            "Full DE · Wayland + X11",
+            "KDE Plasma 6 – the flagship Qt desktop. Includes KDE apps suite "
+            "and SDDM display manager. Wayland session is the default on Plasma 6.",
+        ),
+        (
+            "KDE Plasma 6 (minimal)",
+            ["plasma-desktop", "plasma-wayland-session", "konsole",
+             "dolphin", "sddm"],
+            False, "sddm",
+            "Full DE · Minimal",
+            "Plasma desktop only, without the full KDE applications suite. "
+            "Good starting point to add only what you need.",
+        ),
+        (
+            "GNOME",
+            ["gnome", "gnome-extra", "gdm"],
+            False, "gdm",
+            "Full DE · Wayland + X11",
+            "GNOME Shell with all core apps and GDM display manager. "
+            "Wayland is the default session. Extensions can be managed via "
+            "gnome-extensions-app or the browser plugin.",
+        ),
+        (
+            "GNOME (minimal)",
+            ["gnome-shell", "gnome-control-center", "gnome-terminal",
+             "nautilus", "gdm"],
+            False, "gdm",
+            "Full DE · Minimal",
+            "Bare GNOME Shell without extra apps. Ideal if you want to hand-pick "
+            "your GNOME application set.",
+        ),
+        (
+            "GNOME Flashback",
+            ["gnome-flashback", "gnome-session", "metacity",
+             "gnome-applets", "gnome-panel", "gdm"],
+            False, "gdm",
+            "Full DE · X11",
+            "Classic GNOME 2-style panel layout running on X11 via Metacity WM. "
+            "Lightweight alternative to GNOME Shell for older hardware.",
+        ),
+        (
+            "XFCE4",
+            ["xfce4", "xfce4-goodies", "lightdm", "lightdm-gtk-greeter",
+             "lightdm-gtk-greeter-settings"],
+            False, "lightdm",
+            "Full DE · X11",
+            "XFCE4 with all goodies (panel plugins, screensaver, thunar extras) "
+            "and LightDM greeter. Lightweight yet feature-complete desktop.",
+        ),
+        (
+            "MATE",
+            ["mate", "mate-extra", "lightdm", "lightdm-gtk-greeter",
+             "lightdm-gtk-greeter-settings"],
+            False, "lightdm",
+            "Full DE · X11",
+            "MATE desktop — a fork of the classic GNOME 2 environment. "
+            "Familiar panel layout, Caja file manager, and Pluma text editor.",
+        ),
+        (
+            "LXQt",
+            ["lxqt", "sddm", "breeze-icons", "xdg-utils",
+             "gvfs", "lxqt-archiver"],
+            False, "sddm",
+            "Full DE · X11 · Lightweight",
+            "LXQt – the lightweight Qt desktop environment. Low RAM usage while "
+            "still providing a full desktop experience. Uses SDDM.",
+        ),
+    ]
+
+    _WM_DATA = [
+        # label, pkgs, aur, dm_unit, badge, desc
+        (
+            "Hyprland",
+            ["hyprland", "waybar", "wofi", "dunst", "foot",
+             "hyprpaper", "xdg-desktop-portal-hyprland",
+             "polkit-gnome", "qt5-wayland", "qt6-wayland"],
+            False, "",
+            "Wayland Compositor · Tiling",
+            "Hyprland – a dynamic tiling Wayland compositor with eye-candy "
+            "animations and extensive config. Log in from TTY: exec Hyprland. "
+            "Config: ~/.config/hypr/hyprland.conf",
+        ),
+        (
+            "Hyprland extras (AUR)",
+            ["hyprlock", "hypridle", "hyprshot", "nwg-look"],
+            True, "",
+            "Wayland · AUR extras",
+            "Optional AUR packages: hyprlock (lockscreen), hypridle (idle daemon), "
+            "hyprshot (screenshot tool) and nwg-look (GTK theme switcher).",
+        ),
+        (
+            "Sway",
+            ["sway", "waybar", "wofi", "dunst", "foot",
+             "swaybg", "swayidle", "swaylock",
+             "xdg-desktop-portal-wlr", "polkit-gnome"],
+            False, "",
+            "Wayland Compositor · Tiling",
+            "Sway – an i3-compatible tiling Wayland compositor. Drop-in "
+            "replacement for i3 on Wayland. Config: ~/.config/sway/config",
+        ),
+        (
+            "Niri",
+            ["niri", "xwayland-satellite", "waybar", "fuzzel",
+             "mako", "foot"],
+            False, "",
+            "Wayland Compositor · Scrollable Tiling",
+            "Niri – a scrollable-tiling Wayland compositor. Windows are arranged "
+            "in a sideways-scrolling strip of columns. Config: ~/.config/niri/config.kdl",
+        ),
+        (
+            "i3 (X11)",
+            ["i3-wm", "i3status", "i3blocks", "i3lock",
+             "dmenu", "picom", "nitrogen", "dunst",
+             "xterm", "lightdm", "lightdm-gtk-greeter"],
+            False, "lightdm",
+            "X11 WM · Tiling",
+            "i3 tiling window manager with status bar, screen locker, compositor "
+            "and wallpaper tool. Uses LightDM for login.",
+        ),
+        (
+            "i3-gaps / i3 (AUR)",
+            ["i3-gaps"],
+            True, "",
+            "X11 WM · Tiling · Gaps",
+            "i3-gaps adds configurable gaps between windows on top of i3. "
+            "Install after base i3 packages.",
+        ),
+        (
+            "Openbox",
+            ["openbox", "obconf", "lxappearance", "tint2",
+             "picom", "feh", "rofi", "dunst",
+             "lightdm", "lightdm-gtk-greeter"],
+            False, "lightdm",
+            "X11 WM · Stacking",
+            "Openbox – lightweight, highly configurable stacking WM. Paired "
+            "with tint2 panel, picom compositor, and rofi launcher.",
+        ),
+        (
+            "Fluxbox",
+            ["fluxbox", "feh", "picom", "rofi",
+             "lightdm", "lightdm-gtk-greeter"],
+            False, "lightdm",
+            "X11 WM · Stacking",
+            "Fluxbox – fast, minimal WM with a built-in taskbar and tabs. "
+            "Very low resource footprint. Config: ~/.fluxbox/",
+        ),
+        (
+            "Awesome WM",
+            ["awesome", "picom", "rofi", "feh", "dunst",
+             "lightdm", "lightdm-gtk-greeter"],
+            False, "lightdm",
+            "X11 WM · Dynamic Tiling",
+            "Awesome WM – highly configurable, Lua-scripted dynamic tiling "
+            "window manager. Ships with its own status bar widget system.",
+        ),
+        (
+            "Compiz (AUR)",
+            ["compiz", "emerald", "fusion-icon"],
+            True, "",
+            "X11 Compositor · Stacking · AUR",
+            "Compiz with Emerald decorator and Fusion icon tray applet. "
+            "Requires an existing WM/DE (e.g. Openbox) and a compositing-capable "
+            "X session. Enable via: fusion-icon &",
+        ),
+    ]
+
+    # ---------------------------------------------------------------
+
+    def __init__(self, run_cmd: Callable, status_cb: Callable):
+        super().__init__()
+        self._run_cmd = run_cmd
+        self._status  = status_cb
+        self._build_ui()
+
+    def _build_ui(self):
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(scroll.Shape.NoFrame)
+        inner  = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setSpacing(14)
+        scroll.setWidget(inner)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+        # ---- Header ----
+        title = QLabel("Desktop Environments & Window Managers")
+        title.setStyleSheet("font-size:18px;color:#81A1C1;font-weight:600;")
+        layout.addWidget(title)
+
+        note = QLabel(
+            "Each installer opens xfce4-terminal. DM services are enabled "
+            "automatically where shown. Reboot after installation. "
+            "You can safely install multiple DEs/WMs alongside each other."
+        )
+        note.setStyleSheet("color:#EBCB8B; font-size:12px;")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        # ---- Full DEs ----
+        g_de = QGroupBox("Full Desktop Environments")
+        g_de.setStyleSheet(GROUP_STYLE)
+        gde = QVBoxLayout(g_de)
+        gde.setSpacing(10)
+        for entry in self._DE_DATA:
+            self._de_row(gde, *entry)
+        layout.addWidget(g_de)
+
+        # ---- WMs / Compositors ----
+        g_wm = QGroupBox("Window Managers & Wayland Compositors")
+        g_wm.setStyleSheet(GROUP_STYLE)
+        gwm = QVBoxLayout(g_wm)
+        gwm.setSpacing(10)
+        for entry in self._WM_DATA:
+            self._de_row(gwm, *entry)
+        layout.addWidget(g_wm)
+
+        # ---- Display manager helpers ----
+        g_dm = QGroupBox("Display Manager Helpers")
+        g_dm.setStyleSheet(GROUP_STYLE)
+        gdm = QVBoxLayout(g_dm)
+        for label, cmd in [
+            ("Enable SDDM",
+             ["sudo", "systemctl", "enable", "--now", "sddm"]),
+            ("Enable LightDM",
+             ["sudo", "systemctl", "enable", "--now", "lightdm"]),
+            ("Enable GDM (GNOME)",
+             ["sudo", "systemctl", "enable", "--now", "gdm"]),
+            ("Disable current DM (stop autostart)",
+             ["bash", "-c",
+              "sudo systemctl disable sddm gdm lightdm ly 2>/dev/null; "
+              "echo 'All known DMs disabled.'"]),
+            ("Install SDDM",
+             ["sudo", "pacman", "-S", "--needed", "sddm", "sddm-kcm"]),
+            ("Install LightDM + GTK greeter",
+             ["sudo", "pacman", "-S", "--needed",
+              "lightdm", "lightdm-gtk-greeter",
+              "lightdm-gtk-greeter-settings"]),
+            ("Install Ly (TUI display manager)",
+             ["sudo", "pacman", "-S", "--needed", "ly"]),
+            ("Enable Ly",
+             ["sudo", "systemctl", "enable", "--now", "ly"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gdm.addWidget(btn)
+        layout.addWidget(g_dm)
+
+        # ---- Wayland utilities ----
+        g_wl = QGroupBox("Wayland / X11 Utilities")
+        g_wl.setStyleSheet(GROUP_STYLE)
+        gwl = QVBoxLayout(g_wl)
+        for label, cmd in [
+            ("XWayland (X11 app support under Wayland)",
+             ["sudo", "pacman", "-S", "--needed", "xorg-xwayland"]),
+            ("xdg-desktop-portal (screen sharing, file picker)",
+             ["sudo", "pacman", "-S", "--needed",
+              "xdg-desktop-portal", "xdg-desktop-portal-gtk"]),
+            ("PipeWire (audio/screen capture for Wayland)",
+             ["sudo", "pacman", "-S", "--needed",
+              "pipewire", "pipewire-alsa", "pipewire-pulse",
+              "pipewire-jack", "wireplumber"]),
+            ("wl-clipboard (Wayland clipboard tool)",
+             ["sudo", "pacman", "-S", "--needed", "wl-clipboard"]),
+            ("grim + slurp (Wayland screenshot tools)",
+             ["sudo", "pacman", "-S", "--needed", "grim", "slurp"]),
+            ("wlr-randr (Wayland display config)",
+             ["sudo", "pacman", "-S", "--needed", "wlr-randr"]),
+            ("picom (X11 compositor with blur/shadows)",
+             ["sudo", "pacman", "-S", "--needed", "picom"]),
+            ("xorg-server + xinit (bare X11 server)",
+             ["sudo", "pacman", "-S", "--needed",
+              "xorg-server", "xorg-xinit", "xorg-xrandr"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gwl.addWidget(btn)
+        layout.addWidget(g_wl)
+
+        layout.addStretch()
+
+    # ---------------------------------------------------------------
+    # Row builder — install button + optional "Enable DM" button
+    # ---------------------------------------------------------------
+
+    def _de_row(self, parent_layout: QVBoxLayout,
+                label: str, pkgs: List[str], aur: bool,
+                dm_unit: str, badge: str, desc: str):
+        """Add a two-line DE/WM entry: [badge] label  [Install]  [Enable DM?]"""
+
+        wrapper = QWidget()
+        wrapper.setStyleSheet(
+            "QWidget { background:#313845; border-radius:8px; }"
+        )
+        wl = QVBoxLayout(wrapper)
+        wl.setContentsMargins(10, 8, 10, 8)
+        wl.setSpacing(4)
+
+        # Top row: badge + label + buttons
+        top = QHBoxLayout()
+        top.setSpacing(8)
+
+        badge_lbl = QLabel(badge)
+        badge_lbl.setStyleSheet(
+            "background:#4C566A; color:#88C0D0; border-radius:4px;"
+            " padding:2px 7px; font-size:10px; font-weight:600;"
+        )
+        badge_lbl.setFixedHeight(20)
+        top.addWidget(badge_lbl)
+
+        name_lbl = QLabel(label)
+        name_lbl.setStyleSheet("color:#ECEFF4; font-size:13px; font-weight:600;")
+        top.addWidget(name_lbl, 1)
+
+        # AUR tag
+        if aur:
+            aur_tag = QLabel("AUR")
+            aur_tag.setStyleSheet(
+                "background:#5E4A6A; color:#CBA6F7; border-radius:4px;"
+                " padding:2px 6px; font-size:10px; font-weight:700;"
+            )
+            top.addWidget(aur_tag)
+
+        # Install button
+        installer = "yay -S" if aur else "sudo pacman -S --needed"
+        if aur:
+            install_cmd: List[str] = ["yay", "-S"] + pkgs
+        else:
+            install_cmd = ["sudo", "pacman", "-S", "--needed"] + pkgs
+        btn_install = QPushButton("Install")
+        btn_install.setStyleSheet(MINI_BUTTON_STYLE)
+        btn_install.setFixedWidth(88)
+        btn_install.clicked.connect(
+            lambda _, c=install_cmd, t=f"Install {label}": self._run_cmd(c, t)
+        )
+        top.addWidget(btn_install)
+
+        # Enable DM button (only if dm_unit is set)
+        if dm_unit:
+            btn_dm = QPushButton(f"Enable {dm_unit.upper()}")
+            btn_dm.setStyleSheet(
+                MINI_BUTTON_STYLE.replace("#3B4252", "#2E4A3E")
+                                 .replace("#434C5E", "#3A5E4E")
+            )
+            btn_dm.setFixedWidth(118)
+            dm_cmd = ["sudo", "systemctl", "enable", "--now", dm_unit]
+            btn_dm.clicked.connect(
+                lambda _, c=dm_cmd, t=f"Enable {dm_unit}": self._run_cmd(c, t)
+            )
+            top.addWidget(btn_dm)
+
+            # Convenience: Install + enable in one shot
+            full_cmd: List[str] = [
+                "bash", "-c",
+                f"{'yay -S' if aur else 'sudo pacman -S --needed'} "
+                f"{' '.join(pkgs)} && "
+                f"sudo systemctl enable --now {dm_unit} && "
+                f"echo 'Done! Reboot when ready.'"
+            ]
+            btn_all = QPushButton("Install + Enable DM")
+            btn_all.setStyleSheet(
+                MINI_BUTTON_STYLE.replace("#3B4252", "#1E3A5F")
+                                 .replace("#434C5E", "#2A4A72")
+            )
+            btn_all.setFixedWidth(148)
+            btn_all.clicked.connect(
+                lambda _, c=full_cmd, t=f"Install & enable {label}":
+                    self._run_cmd(c, t)
+            )
+            top.addWidget(btn_all)
+
+        wl.addLayout(top)
+
+        # Description line
+        desc_lbl = QLabel(desc)
+        desc_lbl.setStyleSheet("color:#7a8a9a; font-size:11px;")
+        desc_lbl.setWordWrap(True)
+        wl.addWidget(desc_lbl)
+
+        parent_layout.addWidget(wrapper)
+
+
+# ============================================================
 # MAIN WINDOW
 # ============================================================
 
@@ -1600,27 +1991,16 @@ class WelcomeMenu(QMainWindow):
         self.init_ui()
         self.load_settings()
 
-        # If running on an installed system, silently remove autostart entries
-        # so this welcome app doesn't nag the user on every boot.
         if not self._live:
             self._maybe_disable_autostart()
-
-    # ----------------------------------------------------------------
-    # Autostart removal
-    # ----------------------------------------------------------------
 
     def _maybe_disable_autostart(self):
         """Remove autostart .desktop files if we are on an installed system."""
         removed, errors = disable_autostart()
-        # Inform only if something actually changed
         if removed:
             self.set_status(
-                "Autostart disabled — app won't launch again after reboot."
+                "Autostart disabled -- app won't launch again after reboot."
             )
-
-    # ----------------------------------------------------------------
-    # UI construction
-    # ----------------------------------------------------------------
 
     def init_ui(self):
         self.setWindowTitle("StormOS Welcome")
@@ -1645,16 +2025,13 @@ class WelcomeMenu(QMainWindow):
         self._create_software_tab()
         self._create_maintenance_tab()
         self._create_drivers_tab()
+        self._create_desktop_tab()
         self._create_tweaks_tab()
         self._create_gaming_tab()
         self._create_settings_tab()
         self._create_help_tab()
 
         root.addWidget(self.footer)
-
-    # ----------------------------------------------------------------
-    # Header / Footer
-    # ----------------------------------------------------------------
 
     def _create_header(self):
         box = QWidget()
@@ -1698,10 +2075,6 @@ class WelcomeMenu(QMainWindow):
             except Exception:
                 pass
 
-    # ----------------------------------------------------------------
-    # Tabs
-    # ----------------------------------------------------------------
-
     def _create_welcome_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -1718,7 +2091,6 @@ class WelcomeMenu(QMainWindow):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ---- Calamares installer ----
         installer = QGroupBox("Install StormOS")
         installer.setStyleSheet(GROUP_STYLE)
         il = QVBoxLayout(installer)
@@ -1731,7 +2103,7 @@ class WelcomeMenu(QMainWindow):
 
         if not self._live:
             hint = QLabel(
-                "⚠  StormOS appears to be running from an installed system. "
+                "StormOS appears to be running from an installed system. "
                 "The installer is intended for use from the live ISO."
             )
             hint.setStyleSheet("color:#EBCB8B;")
@@ -1742,7 +2114,6 @@ class WelcomeMenu(QMainWindow):
             hint.setWordWrap(True)
         il.addWidget(hint)
 
-        # Autostart control (only on installed system)
         if not self._live:
             autostart_box = QGroupBox("Autostart")
             autostart_box.setStyleSheet(GROUP_STYLE)
@@ -1864,6 +2235,13 @@ class WelcomeMenu(QMainWindow):
         )
         self.tabs.addTab(tab, "Drivers")
 
+    def _create_desktop_tab(self):
+        tab = DesktopTab(
+            run_cmd=self.run_cmd,
+            status_cb=self.set_status,
+        )
+        self.tabs.addTab(tab, "Desktops & WMs")
+
     def _create_tweaks_tab(self):
         tab = TweaksTab(
             run_cmd=self.run_cmd,
@@ -1946,7 +2324,7 @@ class WelcomeMenu(QMainWindow):
             ("About StormOS",
              lambda: QMessageBox.about(
                  self, "About StormOS",
-                 "StormOS — an Arch Linux distribution.\n\n"
+                 "StormOS -- an Arch Linux distribution.\n\n"
                  "Built with PyQt6.\n"
              ),
              "help-about"),
@@ -1961,10 +2339,6 @@ class WelcomeMenu(QMainWindow):
         layout.addStretch()
         self.tabs.addTab(tab, "Help")
 
-    # ----------------------------------------------------------------
-    # Calamares launcher — DARK MODE FIXED
-    # ----------------------------------------------------------------
-
     def launch_calamares(self):
         exe = shutil.which("calamares")
         if not exe:
@@ -1976,40 +2350,31 @@ class WelcomeMenu(QMainWindow):
             )
             return
 
-        # Build environment that forces Calamares into dark / Fusion mode.
-        # This works for both Qt5 and Qt6 builds of Calamares.
         dark_env = {
             **os.environ,
-            # Force Qt Fusion style (cross-platform, respects palette)
             "QT_STYLE_OVERRIDE": "Fusion",
-            # Qt colour scheme hint (Qt >= 6.5 / some Qt5 builds honour this)
-            "QT_QPA_PLATFORMTHEME": "gnome",   # fallback; set after
+            "QT_QPA_PLATFORMTHEME": "gnome",
             "XCURSOR_THEME": os.environ.get("XCURSOR_THEME", "Adwaita"),
-            # GTK theme (if Calamares uses GTK dialogs)
             "GTK_THEME": "Adwaita:dark",
-            # Force dark preference for Qt Quick / KDE apps
             "QT_QUICK_CONTROLS_STYLE": "Material",
             "QT_QUICK_CONTROLS_MATERIAL_THEME": "Dark",
         }
-        # Remove variables known to force light themes
         for var in ("QT_STYLE", "QT_PLATFORM_PLUGIN"):
             dark_env.pop(var, None)
 
         try:
             if hasattr(os, "geteuid") and os.geteuid() == 0:
                 subprocess.Popen([exe], env=dark_env)
-                self.set_status("Launching Calamares (dark)…")
+                self.set_status("Launching Calamares (dark)...")
                 return
 
             pkexec = shutil.which("pkexec")
             if pkexec:
-                # pkexec strips env; pass variables explicitly via env(1)
                 env_args = [f"{k}={v}" for k, v in dark_env.items()]
                 subprocess.Popen([pkexec, "env"] + env_args + [exe])
-                self.set_status("Launching Calamares via pkexec (dark)…")
+                self.set_status("Launching Calamares via pkexec (dark)...")
                 return
 
-            # Last resort: sudo inside xfce4-terminal with env vars
             env_str = " ".join(
                 f'{k}="{v}"' for k, v in dark_env.items()
                 if k.startswith(("QT_", "GTK_", "XCURSOR_"))
@@ -2022,10 +2387,6 @@ class WelcomeMenu(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Failed to launch installer", str(e))
 
-    # ----------------------------------------------------------------
-    # Command runner
-    # ----------------------------------------------------------------
-
     def run_cmd(self, cmd: List[str], title: str = "StormOS",
                 hold: bool = True):
         try:
@@ -2033,10 +2394,6 @@ class WelcomeMenu(QMainWindow):
             self.set_status("Command started in terminal")
         except Exception as e:
             QMessageBox.warning(self, "Terminal error", str(e))
-
-    # ----------------------------------------------------------------
-    # Theme / font
-    # ----------------------------------------------------------------
 
     def change_theme(self, theme: str):
         if theme == "Dark":
