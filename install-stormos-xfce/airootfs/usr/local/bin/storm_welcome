@@ -121,7 +121,6 @@ def disable_autostart():
                 p.unlink()
                 removed.append(str(p))
             except PermissionError:
-                # Try with sudo if we're not root
                 rc = subprocess.call(
                     ["sudo", "rm", "-f", str(p)],
                     stdout=subprocess.DEVNULL,
@@ -710,7 +709,7 @@ class SoftwareCenter(QWidget):
         self.backends_label.setStyleSheet("color:#D8DEE9;")
         back_row.addWidget(self.backends_label)
         back_row.addStretch()
-        btn_help = QPushButton("Install missing backends…")
+        btn_help = QPushButton("Install missing backends...")
         btn_help.setStyleSheet(MINI_BUTTON_STYLE)
         btn_help.clicked.connect(self.show_backend_help)
         back_row.addWidget(btn_help)
@@ -719,7 +718,7 @@ class SoftwareCenter(QWidget):
         # Controls
         controls = QHBoxLayout()
         self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Search for apps and packages…")
+        self.search_box.setPlaceholderText("Search for apps and packages...")
         self.search_box.returnPressed.connect(self.search)
         self.source_combo = QComboBox()
         self.source_combo.addItem(SOURCE_LABELS["all"], "all")
@@ -730,7 +729,7 @@ class SoftwareCenter(QWidget):
             ("Search", self.search, "system-search"),
             ("Installed", self.refresh_installed, "view-list-details"),
             ("Update all", self.update_all, "system-software-update"),
-            ("Add AppImage…", self.add_appimage, "list-add"),
+            ("Add AppImage...", self.add_appimage, "list-add"),
         ]:
             btn = QPushButton(label)
             btn.setIcon(QIcon.fromTheme(icon))
@@ -803,8 +802,8 @@ class SoftwareCenter(QWidget):
         parts = []
         for key in ("pacman", "aur", "flatpak", "snap", "appimage"):
             ok = self.backends[key].is_available()
-            parts.append(f"{SOURCE_LABELS[key]}: {'✓' if ok else '✕'}")
-        return " · ".join(parts)
+            parts.append(f"{SOURCE_LABELS[key]}: {'ok' if ok else 'x'}")
+        return " | ".join(parts)
 
     def show_backend_help(self):
         QMessageBox.information(self, "Install backends",
@@ -845,7 +844,7 @@ class SoftwareCenter(QWidget):
 
     def refresh_installed(self):
         self._clear()
-        self.status_cb("Loading installed software…")
+        self.status_cb("Loading installed software...")
 
         def _work():
             items: List[SoftwareItem] = []
@@ -865,7 +864,7 @@ class SoftwareCenter(QWidget):
             return
         src = self.source_combo.currentData()
         self._clear()
-        self.status_cb("Searching…")
+        self.status_cb("Searching...")
 
         def _work():
             results: List[SoftwareItem] = []
@@ -878,9 +877,9 @@ class SoftwareCenter(QWidget):
             results.sort(key=lambda x: (not x.installed, x.source, x.name.lower()))
             return results
 
-        # FIX: use single outer quotes to avoid curly-quote syntax error
+        # FIX: use single-quoted outer string to avoid conflict with inner double quotes
         run_async(self, _work,
-                  lambda res: self._populate(res, f'Results for "{query}"'))
+                  lambda res: self._populate(res, 'Results for "{}"'.format(query)))
 
     def on_select(self):
         sel = self.tree.selectedItems()
@@ -892,9 +891,9 @@ class SoftwareCenter(QWidget):
             return
         item = self._current_items[int(idx)]
         self.details_title.setText(
-            f"{item.name}  —  {SOURCE_LABELS.get(item.source, item.source)}"
+            "{} -- {}".format(item.name, SOURCE_LABELS.get(item.source, item.source))
         )
-        self.details_text.setText("Loading details…")
+        self.details_text.setText("Loading details...")
         self._update_action_buttons(item, details_loaded=False)
         backend = self.backends[item.source]
         run_async(self, lambda: backend.details(item),
@@ -1018,7 +1017,7 @@ class SoftwareCenter(QWidget):
 # ============================================================
 
 class MaintenanceTab(QWidget):
-    """System maintenance actions — mirrors, cache, orphans, keys, etc."""
+    """System maintenance actions -- mirrors, cache, orphans, keys, etc."""
 
     def __init__(self, run_cmd: Callable, status_cb: Callable):
         super().__init__()
@@ -1043,7 +1042,6 @@ class MaintenanceTab(QWidget):
         title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
         layout.addWidget(title)
 
-        # ---- Package cache ----
         g_cache = QGroupBox("Package Cache")
         g_cache.setStyleSheet(GROUP_STYLE)
         gc = QVBoxLayout(g_cache)
@@ -1056,7 +1054,7 @@ class MaintenanceTab(QWidget):
         self._add_action(gc,
             "Clear ALL pacman cache",
             ["sudo", "pacman", "-Scc"],
-            "Wipe entire /var/cache/pacman/pkg — frees maximum disk space.",
+            "Wipe entire /var/cache/pacman/pkg -- frees maximum disk space.",
             "edit-delete",
         )
         self._add_action(gc,
@@ -1067,12 +1065,11 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_cache)
 
-        # ---- Mirrors ----
         g_mirrors = QGroupBox("Mirrors & Sync")
         g_mirrors.setStyleSheet(GROUP_STYLE)
         gm = QVBoxLayout(g_mirrors)
         self._add_action(gm,
-            "Rank mirrors (reflector — top 20 HTTPS, sorted by speed)",
+            "Rank mirrors (reflector -- top 20 HTTPS, sorted by speed)",
             ["bash", "-c",
              "sudo reflector --latest 20 --protocol https --sort rate "
              "--save /etc/pacman.d/mirrorlist && echo Done."],
@@ -1087,7 +1084,6 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_mirrors)
 
-        # ---- Keys ----
         g_keys = QGroupBox("Keyring")
         g_keys.setStyleSheet(GROUP_STYLE)
         gk = QVBoxLayout(g_keys)
@@ -1109,7 +1105,6 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_keys)
 
-        # ---- Logs ----
         g_logs = QGroupBox("Logs & Journal")
         g_logs.setStyleSheet(GROUP_STYLE)
         gl = QVBoxLayout(g_logs)
@@ -1127,7 +1122,6 @@ class MaintenanceTab(QWidget):
         )
         layout.addWidget(g_logs)
 
-        # ---- Failed services ----
         g_svc = QGroupBox("Services")
         g_svc.setStyleSheet(GROUP_STYLE)
         gs = QVBoxLayout(g_svc)
@@ -1140,7 +1134,7 @@ class MaintenanceTab(QWidget):
         self._add_action(gs,
             "Reset failed service state",
             ["sudo", "systemctl", "reset-failed"],
-            "Clear the 'failed' state so counts reset.",
+            "Clear the failed state so counts reset.",
             "view-refresh",
         )
         layout.addWidget(g_svc)
@@ -1198,18 +1192,17 @@ class DriversTab(QWidget):
         layout.addWidget(title)
 
         note = QLabel(
-            "⚠  GPU driver installs will open a terminal. "
+            "GPU driver installs will open a terminal. "
             "Reboot after installing or switching GPU drivers."
         )
         note.setStyleSheet("color:#EBCB8B; font-size:12px;")
         note.setWordWrap(True)
         layout.addWidget(note)
 
-        # ---- NVIDIA ----
         g_nv = QGroupBox("NVIDIA")
         g_nv.setStyleSheet(GROUP_STYLE)
         gnv = QVBoxLayout(g_nv)
-        self._driver_btn(gnv, "NVIDIA (proprietary — nvidia + nvidia-utils)",
+        self._driver_btn(gnv, "NVIDIA (proprietary -- nvidia + nvidia-utils)",
             ["sudo", "pacman", "-S", "--needed",
              "nvidia", "nvidia-utils", "nvidia-settings", "lib32-nvidia-utils"])
         self._driver_btn(gnv, "NVIDIA DKMS (runs on any kernel)",
@@ -1222,11 +1215,10 @@ class DriversTab(QWidget):
             ["sudo", "pacman", "-S", "--needed", "xf86-video-nouveau"])
         layout.addWidget(g_nv)
 
-        # ---- AMD ----
         g_amd = QGroupBox("AMD / ATI")
         g_amd.setStyleSheet(GROUP_STYLE)
         gamd = QVBoxLayout(g_amd)
-        self._driver_btn(gamd, "AMDGPU (modern — GCN 3+ / Vega / RDNA)",
+        self._driver_btn(gamd, "AMDGPU (modern -- GCN 3+ / Vega / RDNA)",
             ["sudo", "pacman", "-S", "--needed",
              "xf86-video-amdgpu", "mesa", "lib32-mesa",
              "vulkan-radeon", "lib32-vulkan-radeon"])
@@ -1235,7 +1227,6 @@ class DriversTab(QWidget):
              "xf86-video-ati", "mesa", "lib32-mesa"])
         layout.addWidget(g_amd)
 
-        # ---- Intel ----
         g_intel = QGroupBox("Intel")
         g_intel.setStyleSheet(GROUP_STYLE)
         gint = QVBoxLayout(g_intel)
@@ -1245,7 +1236,6 @@ class DriversTab(QWidget):
              "vulkan-intel", "lib32-vulkan-intel"])
         layout.addWidget(g_intel)
 
-        # ---- Printers ----
         g_prn = QGroupBox("Printing (CUPS)")
         g_prn.setStyleSheet(GROUP_STYLE)
         gprn = QVBoxLayout(g_prn)
@@ -1260,7 +1250,6 @@ class DriversTab(QWidget):
             ["yay", "-S", "epson-inkjet-printer-escpr"])
         layout.addWidget(g_prn)
 
-        # ---- Virtualisation ----
         g_virt = QGroupBox("Virtualisation / VMs")
         g_virt.setStyleSheet(GROUP_STYLE)
         gvirt = QVBoxLayout(g_virt)
@@ -1313,7 +1302,6 @@ class TweaksTab(QWidget):
         title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
         layout.addWidget(title)
 
-        # ---- Services ----
         g_svc = QGroupBox("Toggle Services")
         g_svc.setStyleSheet(GROUP_STYLE)
         gs = QVBoxLayout(g_svc)
@@ -1352,7 +1340,6 @@ class TweaksTab(QWidget):
             gs.addLayout(row)
         layout.addWidget(g_svc)
 
-        # ---- Shell ----
         g_shell = QGroupBox("Shell Setup")
         g_shell.setStyleSheet(GROUP_STYLE)
         gsh = QVBoxLayout(g_shell)
@@ -1378,7 +1365,6 @@ class TweaksTab(QWidget):
             gsh.addWidget(btn)
         layout.addWidget(g_shell)
 
-        # ---- Boot / Plymouth ----
         g_boot = QGroupBox("Boot & Plymouth")
         g_boot.setStyleSheet(GROUP_STYLE)
         gb = QVBoxLayout(g_boot)
@@ -1402,7 +1388,6 @@ class TweaksTab(QWidget):
             gb.addWidget(btn)
         layout.addWidget(g_boot)
 
-        # ---- Performance ----
         g_perf = QGroupBox("Performance & Power")
         g_perf.setStyleSheet(GROUP_STYLE)
         gp = QVBoxLayout(g_perf)
@@ -1428,7 +1413,6 @@ class TweaksTab(QWidget):
             gp.addWidget(btn)
         layout.addWidget(g_perf)
 
-        # ---- Fonts ----
         g_fonts = QGroupBox("Fonts")
         g_fonts.setStyleSheet(GROUP_STYLE)
         gf = QVBoxLayout(g_fonts)
@@ -1483,14 +1467,13 @@ class GamingTab(QWidget):
         layout.addWidget(title)
 
         note = QLabel(
-            "ℹ  Enable the multilib repository in /etc/pacman.conf before "
+            "Enable the multilib repository in /etc/pacman.conf before "
             "installing 32-bit (lib32-*) packages."
         )
         note.setStyleSheet("color:#88C0D0; font-size:12px;")
         note.setWordWrap(True)
         layout.addWidget(note)
 
-        # ---- Platforms ----
         g_plat = QGroupBox("Game Platforms")
         g_plat.setStyleSheet(GROUP_STYLE)
         gpl = QVBoxLayout(g_plat)
@@ -1516,7 +1499,6 @@ class GamingTab(QWidget):
             gpl.addWidget(btn)
         layout.addWidget(g_plat)
 
-        # ---- Wine / Proton ----
         g_wine = QGroupBox("Wine & Proton")
         g_wine.setStyleSheet(GROUP_STYLE)
         gw = QVBoxLayout(g_wine)
@@ -1539,7 +1521,6 @@ class GamingTab(QWidget):
             gw.addWidget(btn)
         layout.addWidget(g_wine)
 
-        # ---- Performance ----
         g_perf = QGroupBox("Gaming Performance")
         g_perf.setStyleSheet(GROUP_STYLE)
         gp = QVBoxLayout(g_perf)
@@ -1564,7 +1545,6 @@ class GamingTab(QWidget):
             gp.addWidget(btn)
         layout.addWidget(g_perf)
 
-        # ---- Emulation ----
         g_emu = QGroupBox("Emulation")
         g_emu.setStyleSheet(GROUP_STYLE)
         ge = QVBoxLayout(g_emu)
@@ -1573,9 +1553,9 @@ class GamingTab(QWidget):
              ["sudo", "pacman", "-S", "--needed", "retroarch"]),
             ("Dolphin (GameCube / Wii)",
              ["sudo", "pacman", "-S", "--needed", "dolphin-emu"]),
-            ("RPCS3 (PS3 — AUR)",
+            ("RPCS3 (PS3 -- AUR)",
              ["yay", "-S", "rpcs3-bin"]),
-            ("Yuzu / Ryujinx (Switch — AUR/Flatpak)",
+            ("Ryujinx (Switch -- Flatpak)",
              ["flatpak", "install", "-y",
               "org.ryujinx.Ryujinx"]),
             ("PCSX2 (PS2)",
@@ -1589,7 +1569,6 @@ class GamingTab(QWidget):
 
         layout.addStretch()
 
-
 # ============================================================
 # MAIN WINDOW
 # ============================================================
@@ -1601,22 +1580,15 @@ class WelcomeMenu(QMainWindow):
         self.init_ui()
         self.load_settings()
 
-        # If running on an installed system, silently remove autostart entries
-        # so this welcome app doesn't nag the user on every boot.
         if not self._live:
             self._maybe_disable_autostart()
-
-    # ----------------------------------------------------------------
-    # Autostart removal
-    # ----------------------------------------------------------------
 
     def _maybe_disable_autostart(self):
         """Remove autostart .desktop files if we are on an installed system."""
         removed, errors = disable_autostart()
-        # Inform only if something actually changed
         if removed:
             self.set_status(
-                "Autostart disabled — app won't launch again after reboot."
+                "Autostart disabled -- app won't launch again after reboot."
             )
 
     # ----------------------------------------------------------------
@@ -1662,10 +1634,6 @@ class WelcomeMenu(QMainWindow):
         self._create_help_tab()
 
         root.addWidget(self.footer)
-
-    # ----------------------------------------------------------------
-    # Header / Footer
-    # ----------------------------------------------------------------
 
     def _create_header(self):
         box = QWidget()
@@ -1717,10 +1685,6 @@ class WelcomeMenu(QMainWindow):
             except Exception:
                 pass
 
-    # ----------------------------------------------------------------
-    # Tabs
-    # ----------------------------------------------------------------
-
     def _create_welcome_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -1737,7 +1701,6 @@ class WelcomeMenu(QMainWindow):
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        # ---- Calamares installer ----
         installer = QGroupBox("Install StormOS")
         installer.setStyleSheet(GROUP_STYLE)
         il = QVBoxLayout(installer)
@@ -1750,7 +1713,7 @@ class WelcomeMenu(QMainWindow):
 
         if not self._live:
             hint = QLabel(
-                "⚠  StormOS appears to be running from an installed system. "
+                "StormOS appears to be running from an installed system. "
                 "The installer is intended for use from the live ISO."
             )
             hint.setStyleSheet("color:#EBCB8B;")
@@ -1761,7 +1724,6 @@ class WelcomeMenu(QMainWindow):
             hint.setWordWrap(True)
         il.addWidget(hint)
 
-        # Autostart control (only on installed system)
         if not self._live:
             autostart_box = QGroupBox("Autostart")
             autostart_box.setStyleSheet(GROUP_STYLE)
@@ -1965,7 +1927,7 @@ class WelcomeMenu(QMainWindow):
             ("About StormOS",
              lambda: QMessageBox.about(
                  self, "About StormOS",
-                 "StormOS — an Arch Linux distribution.\n\n"
+                 "StormOS -- an Arch Linux distribution.\n\n"
                  "Built with PyQt6.\n"
              ),
              "help-about"),
@@ -1980,10 +1942,6 @@ class WelcomeMenu(QMainWindow):
         layout.addStretch()
         self.tabs.addTab(tab, "Help")
 
-    # ----------------------------------------------------------------
-    # Calamares launcher — DARK MODE FIXED
-    # ----------------------------------------------------------------
-
     def launch_calamares(self):
         exe = shutil.which("calamares")
         if not exe:
@@ -1995,40 +1953,31 @@ class WelcomeMenu(QMainWindow):
             )
             return
 
-        # Build environment that forces Calamares into dark / Fusion mode.
-        # This works for both Qt5 and Qt6 builds of Calamares.
         dark_env = {
             **os.environ,
-            # Force Qt Fusion style (cross-platform, respects palette)
             "QT_STYLE_OVERRIDE": "Fusion",
-            # Qt colour scheme hint (Qt >= 6.5 / some Qt5 builds honour this)
-            "QT_QPA_PLATFORMTHEME": "gnome",   # fallback; set after
+            "QT_QPA_PLATFORMTHEME": "gnome",
             "XCURSOR_THEME": os.environ.get("XCURSOR_THEME", "Adwaita"),
-            # GTK theme (if Calamares uses GTK dialogs)
             "GTK_THEME": "Adwaita:dark",
-            # Force dark preference for Qt Quick / KDE apps
             "QT_QUICK_CONTROLS_STYLE": "Material",
             "QT_QUICK_CONTROLS_MATERIAL_THEME": "Dark",
         }
-        # Remove variables known to force light themes
         for var in ("QT_STYLE", "QT_PLATFORM_PLUGIN"):
             dark_env.pop(var, None)
 
         try:
             if hasattr(os, "geteuid") and os.geteuid() == 0:
                 subprocess.Popen([exe], env=dark_env)
-                self.set_status("Launching Calamares (dark)…")
+                self.set_status("Launching Calamares (dark)...")
                 return
 
             pkexec = shutil.which("pkexec")
             if pkexec:
-                # pkexec strips env; pass variables explicitly via env(1)
                 env_args = [f"{k}={v}" for k, v in dark_env.items()]
                 subprocess.Popen([pkexec, "env"] + env_args + [exe])
-                self.set_status("Launching Calamares via pkexec (dark)…")
+                self.set_status("Launching Calamares via pkexec (dark)...")
                 return
 
-            # Last resort: sudo inside xfce4-terminal with env vars
             env_str = " ".join(
                 f'{k}="{v}"' for k, v in dark_env.items()
                 if k.startswith(("QT_", "GTK_", "XCURSOR_"))
@@ -2041,10 +1990,6 @@ class WelcomeMenu(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Failed to launch installer", str(e))
 
-    # ----------------------------------------------------------------
-    # Command runner
-    # ----------------------------------------------------------------
-
     def run_cmd(self, cmd: List[str], title: str = "StormOS",
                 hold: bool = True):
         try:
@@ -2052,10 +1997,6 @@ class WelcomeMenu(QMainWindow):
             self.set_status("Command started in terminal")
         except Exception as e:
             QMessageBox.warning(self, "Terminal error", str(e))
-
-    # ----------------------------------------------------------------
-    # Theme / font
-    # ----------------------------------------------------------------
 
     def change_theme(self, theme: str):
         if theme == "Dark":
