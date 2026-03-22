@@ -35,7 +35,8 @@ from pathlib import Path
 from typing import Callable, Optional, List, Dict, Tuple
 
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
-from PyQt6.QtGui import QIcon, QFont
+from PyQt6.QtGui import QIcon, QFont, QGuiApplication
+from PyQt6.QtWidgets import QStyleFactory
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -1590,11 +1591,25 @@ class WelcomeMenu(QMainWindow):
                 "Autostart disabled -- app won't launch again after reboot."
             )
 
+    # ----------------------------------------------------------------
+    # UI construction
+    # ----------------------------------------------------------------
+
+    def _center_window(self):
+        screen = QGuiApplication.primaryScreen()
+        if screen:
+            rect = screen.geometry()
+            self.move(
+                rect.center().x() - self.width() // 2,
+                rect.center().y() - self.height() // 2
+            )
+
     def init_ui(self):
         self.setWindowTitle("StormOS Welcome")
         self.setMinimumSize(1100, 720)
         self.setWindowIcon(QIcon.fromTheme("start-here"))
         self.apply_dark_theme()
+        self._center_window()
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -1645,13 +1660,21 @@ class WelcomeMenu(QMainWindow):
         return box
 
     def _create_footer(self):
-        bar = QStatusBar()
-        bar.setStyleSheet("background:#2E3440;color:#D8DEE9;")
+        footer_widget = QWidget()
+        footer_layout = QHBoxLayout(footer_widget)
+        footer_layout.setContentsMargins(10, 4, 10, 4)
+        footer_layout.setSpacing(20)
+        
         self.status = QLabel("Ready")
-        bar.addWidget(self.status)
-        env_label = "Live ISO" if self._live else "Installed"
-        bar.addPermanentWidget(QLabel(f"StormOS · {env_label}"))
-        return bar
+        self.status.setStyleSheet("color:#D8DEE9;")
+        footer_layout.addWidget(self.status, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        env_label = QLabel(f"StormOS · {'Live ISO' if self._live else 'Installed'}")
+        env_label.setStyleSheet("color:#88C0D0;")
+        footer_layout.addWidget(env_label, alignment=Qt.AlignmentFlag.AlignRight)
+        
+        footer_widget.setStyleSheet("background:#2E3440;")
+        return footer_widget
 
     def set_status(self, msg: str):
         if hasattr(self, "status") and self.status is not None:

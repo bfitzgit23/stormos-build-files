@@ -141,6 +141,28 @@ EOF
     chown -R "${USER_UID:-1000}:${USER_GID:-1000}" "$USER_HOME" 2>/dev/null || true
     chmod 755 "$USER_HOME" 2>/dev/null || true
     echo "✓ Set ownership and permissions"
+
+    # Fix LightDM autologin to use the correct user
+    show_progress "Configuring LightDM autologin..."
+    LIGHTDM_CONF="$TARGET_ROOT/etc/lightdm/lightdm.conf"
+    if [ -f "$LIGHTDM_CONF" ]; then
+        # Remove existing autologin-user line
+        sed -i '/^autologin-user=/d' "$LIGHTDM_CONF"
+        # Add correct autologin user after autologin-guest line
+        sed -i "/^autologin-guest=/a autologin-user=$USER_NAME" "$LIGHTDM_CONF"
+        echo "✓ LightDM autologin set to: $USER_NAME"
+    else
+        echo "⚠ LightDM config not found"
+    fi
+
+    # Fix getty autologin for console login
+    show_progress "Configuring getty autologin..."
+    for conf in "$TARGET_ROOT/etc/systemd/system/getty@"*.service.d/*.conf; do
+        if [ -f "$conf" ]; then
+            sed -i "s|--autologin liveuser|--autologin $USER_NAME|g" "$conf"
+            echo "✓ Updated getty autologin in $(basename "$conf")"
+        fi
+    done
 fi
 # === END USER-SPECIFIC SETUP ===
 
