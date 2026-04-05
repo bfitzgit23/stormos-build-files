@@ -94,6 +94,3 @@ chmod -R 755 /usr/share/themes/grub
 
 # Apply theme to GRUB by default
 echo "set theme=/usr/share/grub/themes/stormos/theme.txt" > /etc/default/grub
-
-
-ln -svf /usr/lib/libboost_python313.so.1.89.0 /usr/lib/libboost_python313.so.1.88.0
