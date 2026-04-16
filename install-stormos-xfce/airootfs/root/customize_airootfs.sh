@@ -92,5 +92,8 @@ cp -r /usr/share/themes/grub/stormos /usr/share/grub/themes
 chown -R root:root /usr/share/themes/grub
 chmod -R 755 /usr/share/themes/grub
 
+systemctl disable --now systemd-userdb-load-credentials.service systemd-userdbd.service systemd-userdbd.socket
+systemctl mask systemd-userdb-load-credentials.service systemd-userdbd.service systemd-userdbd.socket
+
 # Apply theme to GRUB by default
 echo "set theme=/usr/share/grub/themes/stormos/theme.txt" > /etc/default/grub
