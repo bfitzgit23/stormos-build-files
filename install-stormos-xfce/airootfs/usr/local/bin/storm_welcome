@@ -5,21 +5,10 @@ StormOS Welcome
 A modern welcome + lightweight software center + post-install toolkit
 for Arch-based StormOS.
 
-Features
-- Welcome / Quick Links
-- System Actions
-- Software Center (pacman, AUR/yay, flatpak, snap, appimage)
-- Maintenance (cache, orphans, mirrors, keys)
-- Drivers (NVIDIA, AMD, Intel, Printer, VM)
-- Tweaks (services, shell, fonts, Plymouth)
-- Gaming (Steam, Lutris, Proton, MangoHud, etc.)
-- Settings / Appearance
-- Help
-
 Fixes vs original
 - Calamares now launches in forced dark/Fusion mode
-- App auto-removes its own autostart entry after StormOS is fully installed
-  (detected by absence of live-session markers)
+- App properly manages autostart: only disables ONCE after installation
+- Added toggle to manually re-enable autostart in Welcome tab
 """
 
 from __future__ import annotations
@@ -81,6 +70,9 @@ LIVE_MARKERS = [
 
 LIVE_USERS = {"live", "liveuser", "archiso", "stormos-live"}
 
+# Marker file to track if autostart has been disabled after installation
+AUTOSTART_DISABLED_MARKER = Path.home() / ".storm-autostart-disabled"
+
 
 # ============================================================
 # LIVE / INSTALLED DETECTION
@@ -131,6 +123,41 @@ def disable_autostart():
                 else:
                     errors.append(str(p))
     return removed, errors
+
+
+def enable_autostart():
+    """Create autostart .desktop file for the current user."""
+    desktop_content = """[Desktop Entry]
+Type=Application
+Name=StormOS Welcome
+Exec=stormos-welcome
+Icon=start-here
+Comment=StormOS Welcome Screen
+X-GNOME-Autostart-enabled=true
+Terminal=false
+Categories=System;
+"""
+    target = Path.home() / ".config/autostart/stormos-welcome.desktop"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(desktop_content)
+        # Remove the disabled marker if it exists
+        if AUTOSTART_DISABLED_MARKER.exists():
+            AUTOSTART_DISABLED_MARKER.unlink()
+        return True, str(target)
+    except Exception as e:
+        return False, str(e)
+
+
+def is_autostart_enabled() -> bool:
+    """Check if autostart is currently enabled."""
+    user_autostart = Path.home() / ".config/autostart/stormos-welcome.desktop"
+    if user_autostart.exists():
+        return True
+    system_autostart = Path("/etc/xdg/autostart/stormos-welcome.desktop")
+    if system_autostart.exists():
+        return True
+    return False
 
 
 # ============================================================
@@ -877,7 +904,6 @@ class SoftwareCenter(QWidget):
             results.sort(key=lambda x: (not x.installed, x.source, x.name.lower()))
             return results
 
-        # FIX: use single-quoted outer string to avoid conflict with inner double quotes
         run_async(self, _work,
                   lambda res: self._populate(res, 'Results for "{}"'.format(query)))
 
@@ -1569,6 +1595,7 @@ class GamingTab(QWidget):
 
         layout.addStretch()
 
+
 # ============================================================
 # MAIN WINDOW
 # ============================================================
@@ -1580,16 +1607,26 @@ class WelcomeMenu(QMainWindow):
         self.init_ui()
         self.load_settings()
 
-        if not self._live:
+        # Only disable autostart ONCE after installation, not every time
+        if not self._live and not AUTOSTART_DISABLED_MARKER.exists():
             self._maybe_disable_autostart()
 
     def _maybe_disable_autostart(self):
-        """Remove autostart .desktop files if we are on an installed system."""
+        """Remove autostart .desktop files ONLY ONCE after installation."""
         removed, errors = disable_autostart()
         if removed:
-            self.set_status(
-                "Autostart disabled -- app won't launch again after reboot."
-            )
+            # Create marker to indicate autostart has been disabled
+            try:
+                AUTOSTART_DISABLED_MARKER.touch()
+                self.set_status("Autostart disabled (only once after install)")
+            except Exception:
+                pass
+        else:
+            # If no autostart files were found, still mark as done to prevent repeated attempts
+            try:
+                AUTOSTART_DISABLED_MARKER.touch()
+            except Exception:
+                pass
 
     # ----------------------------------------------------------------
     # UI construction
@@ -1728,17 +1765,37 @@ class WelcomeMenu(QMainWindow):
             autostart_box = QGroupBox("Autostart")
             autostart_box.setStyleSheet(GROUP_STYLE)
             al = QVBoxLayout(autostart_box)
+            
+            autostart_status = QLabel()
+            if is_autostart_enabled():
+                autostart_status.setText("✓ Autostart is currently ENABLED")
+                autostart_status.setStyleSheet("color:#A3BE8C;")
+            else:
+                autostart_status.setText("✗ Autostart is currently DISABLED")
+                autostart_status.setStyleSheet("color:#BF616A;")
+            al.addWidget(autostart_status)
+            
             info = QLabel(
-                "The Welcome app has been set to not launch automatically "
-                "on subsequent logins. You can re-enable it below."
+                "You can control whether this welcome app launches automatically "
+                "when you log in to your desktop."
             )
             info.setStyleSheet("color:#D8DEE9;")
             info.setWordWrap(True)
             al.addWidget(info)
-            btn_re = QPushButton("Re-enable autostart")
-            btn_re.setStyleSheet(BUTTON_STYLE)
-            btn_re.clicked.connect(self._reenable_autostart)
-            al.addWidget(btn_re)
+            
+            btn_enable = QPushButton("Enable autostart")
+            btn_enable.setStyleSheet(BUTTON_STYLE)
+            btn_enable.clicked.connect(self._enable_autostart)
+            
+            btn_disable = QPushButton("Disable autostart")
+            btn_disable.setStyleSheet(BUTTON_STYLE)
+            btn_disable.clicked.connect(self._disable_autostart)
+            
+            btn_row = QHBoxLayout()
+            btn_row.addWidget(btn_enable)
+            btn_row.addWidget(btn_disable)
+            al.addLayout(btn_row)
+            
             layout.addWidget(autostart_box)
 
         layout.addWidget(installer)
@@ -1762,28 +1819,58 @@ class WelcomeMenu(QMainWindow):
         layout.addStretch()
         self.tabs.addTab(tab, "Welcome")
 
-    def _reenable_autostart(self):
-        desktop_content = (
-            "[Desktop Entry]\n"
-            "Type=Application\n"
-            "Name=StormOS Welcome\n"
-            "Exec=stormos-welcome\n"
-            "Icon=start-here\n"
-            "Comment=StormOS Welcome Screen\n"
-            "X-GNOME-Autostart-enabled=true\n"
-        )
-        target = Path.home() / ".config/autostart/stormos-welcome.desktop"
-        try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(desktop_content)
+    def _enable_autostart(self):
+        success, result = enable_autostart()
+        if success:
+            # Remove the disabled marker if it exists
+            if AUTOSTART_DISABLED_MARKER.exists():
+                AUTOSTART_DISABLED_MARKER.unlink()
             QMessageBox.information(
                 self, "Autostart enabled",
-                f"Autostart entry written to:\n{target}\n\n"
+                f"Autostart entry created at:\n{result}\n\n"
                 "The welcome app will open on next login."
             )
-            self.set_status("Autostart re-enabled.")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", str(e))
+            self.set_status("Autostart enabled.")
+            # Refresh the welcome tab to update status
+            self._refresh_welcome_tab()
+        else:
+            QMessageBox.warning(self, "Error", f"Failed to enable autostart:\n{result}")
+
+    def _disable_autostart(self):
+        removed, errors = disable_autostart()
+        if removed:
+            # Create marker to track that we've disabled it
+            try:
+                AUTOSTART_DISABLED_MARKER.touch()
+            except Exception:
+                pass
+            QMessageBox.information(
+                self, "Autostart disabled",
+                "Autostart has been disabled.\n\n"
+                "The welcome app will NOT open on next login.\n"
+                "You can re-enable it from this tab at any time."
+            )
+            self.set_status("Autostart disabled.")
+            # Refresh the welcome tab to update status
+            self._refresh_welcome_tab()
+        else:
+            if errors:
+                QMessageBox.warning(self, "Error", f"Failed to disable autostart:\n{errors[0]}")
+            else:
+                QMessageBox.information(self, "Autostart disabled", 
+                                       "Autostart was already disabled.")
+
+    def _refresh_welcome_tab(self):
+        """Refresh the welcome tab to update autostart status display."""
+        # Remove and recreate the welcome tab
+        current_tab_index = self.tabs.currentIndex()
+        welcome_tab = self.tabs.widget(0)
+        if welcome_tab:
+            self.tabs.removeTab(0)
+            welcome_tab.deleteLater()
+        self._create_welcome_tab()
+        # Restore previous tab selection
+        self.tabs.setCurrentIndex(min(current_tab_index, self.tabs.count() - 1))
 
     def _create_system_tab(self):
         tab = QWidget()
