@@ -97,3 +97,23 @@ systemctl mask systemd-userdb-load-credentials.service systemd-userdbd.service s
 
 # Apply theme to GRUB by default
 echo "set theme=/usr/share/grub/themes/stormos/theme.txt" > /etc/default/grub
+
+# Fix libyaml-cpp version mismatch
+if [ -f /usr/lib/libyaml-cpp.so.0.8 ]; then
+    echo "libyaml-cpp.so.0.8 already exists"
+elif [ -f /usr/lib/libyaml-cpp.so.0.7 ]; then
+    ln -sf /usr/lib/libyaml-cpp.so.0.7 /usr/lib/libyaml-cpp.so.0.8
+    echo "Created symlink for libyaml-cpp.so.0.8"
+elif [ -f /usr/lib/libyaml-cpp.so.0.6 ]; then
+    ln -sf /usr/lib/libyaml-cpp.so.0.6 /usr/lib/libyaml-cpp.so.0.8
+    echo "Created symlink for libyaml-cpp.so.0.8"
+else
+    # Find any version
+    for lib in /usr/lib/libyaml-cpp.so*; do
+        if [ -f "$lib" ] && [[ "$lib" != *".0.8"* ]]; then
+            ln -sf "$lib" /usr/lib/libyaml-cpp.so.0.8
+            echo "Created symlink from $lib to libyaml-cpp.so.0.8"
+            break
+        fi
+    done
+fi
