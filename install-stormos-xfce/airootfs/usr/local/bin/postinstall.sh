@@ -71,8 +71,8 @@ if [ "$IS_CALAMARES" = true ]; then
     AUTOSTART_DIR="$USER_HOME/.config/autostart"
     mkdir -p "$AUTOSTART_DIR"
 
-    if [ -f "$TARGET_ROOT/etc/xdg/autostart/stormos-welcome.desktop" ]; then
-        cp "$TARGET_ROOT/etc/xdg/autostart/stormos-welcome.desktop" \
+    if [ -f "$TARGET_ROOT/etc/skel/.config/autostart/stormos-welcome.desktop" ]; then
+        cp "$TARGET_ROOT/etc/skel/.config/autostart/stormos-welcome.desktop" \
            "$AUTOSTART_DIR/stormos-welcome.desktop"
     fi
 
