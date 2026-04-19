@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=StormOS Welcome
-Exec=/usr/local/bin/storm_welcome
-Terminal=false
-OnlyShowIn=XFCE;
-X-GNOME-Autostart-enabled=true
-X-GNOME-Autostart-Delay=2
