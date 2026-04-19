@@ -9,6 +9,7 @@ Fixes vs original
 - Calamares now launches in forced dark/Fusion mode
 - App properly manages autostart: only disables ONCE after installation
 - Added toggle to manually re-enable autostart in Welcome tab
+- Fixed libyaml-cpp compatibility for Calamares
 """
 
 from __future__ import annotations
@@ -70,8 +71,8 @@ LIVE_MARKERS = [
 
 LIVE_USERS = {"live", "liveuser", "archiso", "stormos-live"}
 
-# Marker file to track if autostart has been disabled after installation
-AUTOSTART_DISABLED_MARKER = Path.home() / ".storm-autostart-disabled"
+# Marker file to track first run after installation
+FIRST_RUN_MARKER = Path.home() / ".storm-welcome-first-run"
 
 
 # ============================================================
@@ -101,28 +102,24 @@ def is_live_session() -> bool:
 
 
 def disable_autostart():
-    """
-    Remove all known autostart .desktop files so the app does not
-    launch again after the user has installed StormOS to disk.
-    """
-    removed: List[str] = []
-    errors: List[str] = []
-    for p in AUTOSTART_PATHS:
-        if p.exists():
-            try:
-                p.unlink()
-                removed.append(str(p))
-            except PermissionError:
-                rc = subprocess.call(
-                    ["sudo", "rm", "-f", str(p)],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                if rc == 0:
-                    removed.append(str(p))
-                else:
-                    errors.append(str(p))
-    return removed, errors
+    """Disable autostart by creating a hidden .desktop file."""
+    user_autostart = Path.home() / ".config/autostart/stormos-welcome.desktop"
+
+    try:
+        user_autostart.parent.mkdir(parents=True, exist_ok=True)
+
+        user_autostart.write_text("""[Desktop Entry]
+Type=Application
+Name=StormOS Welcome
+Exec=stormos-welcome
+Hidden=true
+X-GNOME-Autostart-enabled=false
+""")
+
+        return [str(user_autostart)], []
+
+    except Exception as e:
+        return [], [str(e)]
 
 
 def enable_autostart():
@@ -141,9 +138,6 @@ Categories=System;
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(desktop_content)
-        # Remove the disabled marker if it exists
-        if AUTOSTART_DISABLED_MARKER.exists():
-            AUTOSTART_DISABLED_MARKER.unlink()
         return True, str(target)
     except Exception as e:
         return False, str(e)
@@ -152,12 +146,18 @@ Categories=System;
 def is_autostart_enabled() -> bool:
     """Check if autostart is currently enabled."""
     user_autostart = Path.home() / ".config/autostart/stormos-welcome.desktop"
+
     if user_autostart.exists():
+        try:
+            content = user_autostart.read_text()
+            if "Hidden=true" in content:
+                return False
+        except Exception:
+            pass
         return True
+
     system_autostart = Path("/etc/xdg/autostart/stormos-welcome.desktop")
-    if system_autostart.exists():
-        return True
-    return False
+    return system_autostart.exists()
 
 
 # ============================================================
@@ -1607,24 +1607,35 @@ class WelcomeMenu(QMainWindow):
         self.init_ui()
         self.load_settings()
 
-        # Only disable autostart ONCE after installation, not every time
-        if not self._live and not AUTOSTART_DISABLED_MARKER.exists():
+        # Handle autostart logic
+        if not self._live:
+            # If this is the first run after installation, mark it
+            if not FIRST_RUN_MARKER.exists():
+                try:
+                    FIRST_RUN_MARKER.touch()
+                    self.set_status("First run detected")
+                except Exception:
+                    pass
+            # Disable autostart after first run
             self._maybe_disable_autostart()
 
     def _maybe_disable_autostart(self):
-        """Remove autostart .desktop files ONLY ONCE after installation."""
+        """
+        Disable autostart AFTER first run on installed system.
+        """
+        if not FIRST_RUN_MARKER.exists():
+            return
+
         removed, errors = disable_autostart()
+
+        if errors:
+            self.set_status("Failed to disable autostart")
+            return
+
         if removed:
-            # Create marker to indicate autostart has been disabled
             try:
-                AUTOSTART_DISABLED_MARKER.touch()
-                self.set_status("Autostart disabled (only once after install)")
-            except Exception:
-                pass
-        else:
-            # If no autostart files were found, still mark as done to prevent repeated attempts
-            try:
-                AUTOSTART_DISABLED_MARKER.touch()
+                FIRST_RUN_MARKER.unlink(missing_ok=True)
+                self.set_status("Welcome will not run again")
             except Exception:
                 pass
 
@@ -1822,9 +1833,6 @@ class WelcomeMenu(QMainWindow):
     def _enable_autostart(self):
         success, result = enable_autostart()
         if success:
-            # Remove the disabled marker if it exists
-            if AUTOSTART_DISABLED_MARKER.exists():
-                AUTOSTART_DISABLED_MARKER.unlink()
             QMessageBox.information(
                 self, "Autostart enabled",
                 f"Autostart entry created at:\n{result}\n\n"
@@ -1839,11 +1847,6 @@ class WelcomeMenu(QMainWindow):
     def _disable_autostart(self):
         removed, errors = disable_autostart()
         if removed:
-            # Create marker to track that we've disabled it
-            try:
-                AUTOSTART_DISABLED_MARKER.touch()
-            except Exception:
-                pass
             QMessageBox.information(
                 self, "Autostart disabled",
                 "Autostart has been disabled.\n\n"
@@ -2040,6 +2043,7 @@ class WelcomeMenu(QMainWindow):
             )
             return
 
+        # Fix libyaml-cpp compatibility
         dark_env = {
             **os.environ,
             "QT_STYLE_OVERRIDE": "Fusion",
@@ -2049,6 +2053,26 @@ class WelcomeMenu(QMainWindow):
             "QT_QUICK_CONTROLS_STYLE": "Material",
             "QT_QUICK_CONTROLS_MATERIAL_THEME": "Dark",
         }
+        
+        # Add library path for libyaml-cpp compatibility
+        lib_paths = []
+        for lib_dir in ["/usr/lib", "/usr/local/lib", "/lib"]:
+            lib_path = Path(lib_dir)
+            if lib_path.exists():
+                # Look for any version of libyaml-cpp
+                for yaml_lib in lib_path.glob("libyaml-cpp.so*"):
+                    if yaml_lib.is_file() or yaml_lib.is_symlink():
+                        lib_paths.append(str(lib_dir))
+                        break
+        
+        if lib_paths:
+            old_ld_path = dark_env.get("LD_LIBRARY_PATH", "")
+            new_ld_path = ":".join(lib_paths)
+            if old_ld_path:
+                dark_env["LD_LIBRARY_PATH"] = f"{new_ld_path}:{old_ld_path}"
+            else:
+                dark_env["LD_LIBRARY_PATH"] = new_ld_path
+        
         for var in ("QT_STYLE", "QT_PLATFORM_PLUGIN"):
             dark_env.pop(var, None)
 
@@ -2067,7 +2091,7 @@ class WelcomeMenu(QMainWindow):
 
             env_str = " ".join(
                 f'{k}="{v}"' for k, v in dark_env.items()
-                if k.startswith(("QT_", "GTK_", "XCURSOR_"))
+                if k.startswith(("QT_", "GTK_", "XCURSOR_", "LD_"))
             )
             self.run_cmd(
                 ["bash", "-c", f"sudo -E env {env_str} {exe}"],
