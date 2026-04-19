@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Storm Welcome
 Comment=Get started with StormOS — Arch made calm
-Exec=storm_welcome
+Exec=/usr/local/bin/storm_welcome
 Icon=system-software-install
 Terminal=false
 Type=Application
