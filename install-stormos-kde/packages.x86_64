@@ -163,11 +163,12 @@ ffmpegthumbs
 breeze-gtk
 qt5-imageformats
 qt6-imageformats
-phonon-qt6-gstreamer
+phonon-qt6-vlc
 firefox
 wmctrl
 calamares-app
 pyqt5
+python-pyqt6
 qt5ct
 spice-vdagent
 spice-protocol
