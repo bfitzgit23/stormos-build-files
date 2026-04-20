@@ -1,0 +1,2147 @@
+#!/usr/bin/env python3
+"""
+StormOS Welcome
+
+A modern welcome + lightweight software center + post-install toolkit
+for Arch-based StormOS.
+
+Fixes vs original
+- Calamares now launches in forced dark/Fusion mode
+- App properly manages autostart: only disables ONCE after installation
+- Added toggle to manually re-enable autostart in Welcome tab
+- Fixed libyaml-cpp compatibility for Calamares
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import stat
+import shutil
+import subprocess
+import webbrowser
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable, Optional, List, Dict, Tuple
+
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal
+from PyQt6.QtGui import QIcon, QFont, QGuiApplication
+from PyQt6.QtWidgets import QStyleFactory
+from PyQt6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QSplitter,
+    QStatusBar,
+    QTabWidget,
+    QTextEdit,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+
+# ============================================================
+# CONSTANTS / PATHS
+# ============================================================
+
+AUTOSTART_PATHS = [
+    Path("/etc/xdg/autostart/stormos-welcome.desktop"),
+    Path.home() / ".config/autostart/stormos-welcome.desktop",
+]
+
+LIVE_MARKERS = [
+    "/run/archiso",
+    "/run/miso",
+    "/etc/live",
+    "/run/live",
+]
+
+LIVE_USERS = {"live", "liveuser", "archiso", "stormos-live"}
+
+# Marker file to track first run after installation
+FIRST_RUN_MARKER = Path.home() / ".storm-welcome-first-run"
+
+
+# ============================================================
+# LIVE / INSTALLED DETECTION
+# ============================================================
+
+def is_live_session() -> bool:
+    """Return True if we appear to be running inside a live ISO environment."""
+    for marker in LIVE_MARKERS:
+        if Path(marker).exists():
+            return True
+    try:
+        with open("/proc/cmdline") as f:
+            cmdline = f.read()
+        if any(k in cmdline for k in ("boot=live", "copytoram", "archisodevice", "misodevice")):
+            return True
+    except OSError:
+        pass
+    try:
+        import pwd
+        user = pwd.getpwuid(os.getuid()).pw_name
+        if user in LIVE_USERS:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def disable_autostart():
+    """Disable autostart by creating a hidden .desktop file."""
+    user_autostart = Path.home() / ".config/autostart/stormos-welcome.desktop"
+
+    try:
+        user_autostart.parent.mkdir(parents=True, exist_ok=True)
+
+        user_autostart.write_text("""[Desktop Entry]
+Type=Application
+Name=StormOS Welcome
+Exec=stormos-welcome
+Hidden=true
+X-GNOME-Autostart-enabled=false
+""")
+
+        return [str(user_autostart)], []
+
+    except Exception as e:
+        return [], [str(e)]
+
+
+def enable_autostart():
+    """Create autostart .desktop file for the current user."""
+    desktop_content = """[Desktop Entry]
+Type=Application
+Name=StormOS Welcome
+Exec=stormos-welcome
+Icon=start-here
+Comment=StormOS Welcome Screen
+X-GNOME-Autostart-enabled=true
+Terminal=false
+Categories=System;
+"""
+    target = Path.home() / ".config/autostart/stormos-welcome.desktop"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(desktop_content)
+        return True, str(target)
+    except Exception as e:
+        return False, str(e)
+
+
+def is_autostart_enabled() -> bool:
+    """Check if autostart is currently enabled."""
+    user_autostart = Path.home() / ".config/autostart/stormos-welcome.desktop"
+
+    if user_autostart.exists():
+        try:
+            content = user_autostart.read_text()
+            if "Hidden=true" in content:
+                return False
+        except Exception:
+            pass
+        return True
+
+    system_autostart = Path("/etc/xdg/autostart/stormos-welcome.desktop")
+    return system_autostart.exists()
+
+
+# ============================================================
+# DATA MODEL
+# ============================================================
+
+@dataclass
+class SoftwareItem:
+    name: str
+    source: str  # pacman | aur | flatpak | snap | appimage
+    version: str = ""
+    summary: str = ""
+    identifier: str = ""
+    installed: bool = False
+    extra: Dict[str, str] = field(default_factory=dict)
+
+
+# ============================================================
+# ASYNC HELPERS
+# ============================================================
+
+class Worker(QObject):
+    finished = pyqtSignal(object, object)
+
+    def __init__(self, fn: Callable, *args, **kwargs):
+        super().__init__()
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+
+    def run(self):
+        try:
+            res = self.fn(*self.args, **self.kwargs)
+            self.finished.emit(res, None)
+        except Exception as e:
+            self.finished.emit(None, e)
+
+
+def run_async(parent: QWidget, fn: Callable, callback: Callable,
+              errback: Optional[Callable] = None):
+    thread = QThread(parent)
+    worker = Worker(fn)
+    worker.moveToThread(thread)
+
+    def _cleanup():
+        thread.quit()
+        thread.wait()
+        worker.deleteLater()
+        thread.deleteLater()
+
+    def _on_finished(result, error):
+        try:
+            if error is None:
+                callback(result)
+            else:
+                if errback:
+                    errback(error)
+                else:
+                    msg = str(error).strip() or f"{type(error).__name__}"
+                    QMessageBox.warning(parent, "Error", msg)
+        finally:
+            _cleanup()
+
+    thread.started.connect(worker.run)
+    worker.finished.connect(_on_finished)
+    thread.start()
+
+
+# ============================================================
+# TERMINAL / PROCESS UTILITIES
+# ============================================================
+
+def find_xfce_terminal() -> Optional[str]:
+    return shutil.which("konsole")
+
+
+def run_in_terminal(cmd: List[str], title: str = "StormOS", hold: bool = True):
+    term = find_xfce_terminal()
+    if not term:
+        raise RuntimeError(
+            "konsole not found.\n"
+            "Install it first:  sudo pacman -S konsole"
+        )
+    args = [term]
+    if hold:
+        args += ["--hold"]
+    args += ["--title", title, "--execute", *cmd]
+    subprocess.Popen(args)
+
+
+def run_capture(cmd: List[str], timeout: int = 120) -> Tuple[int, str, str]:
+    p = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=timeout,
+        env={**os.environ, "LANG": "C", "LC_ALL": "C"},
+    )
+    return p.returncode, p.stdout, p.stderr
+
+
+# ============================================================
+# BACKENDS (software center)
+# ============================================================
+
+class Backend:
+    name: str = "backend"
+
+    def is_available(self) -> bool:
+        raise NotImplementedError
+
+    def list_installed(self) -> List[SoftwareItem]:
+        raise NotImplementedError
+
+    def search(self, query: str) -> List[SoftwareItem]:
+        raise NotImplementedError
+
+    def details(self, item: SoftwareItem) -> str:
+        return item.summary
+
+    def install_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return None
+
+    def remove_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return None
+
+    def update_all_cmd(self) -> Optional[List[str]]:
+        return None
+
+    def launch(self, item: SoftwareItem) -> Optional[str]:
+        return None
+
+
+class PacmanBackend(Backend):
+    name = "pacman"
+
+    def is_available(self) -> bool:
+        return shutil.which("pacman") is not None
+
+    def list_installed(self) -> List[SoftwareItem]:
+        rc, out, err = run_capture(["pacman", "-Q"])
+        if rc != 0:
+            raise RuntimeError(err.strip() or "pacman -Q failed")
+        items: List[SoftwareItem] = []
+        for line in out.splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                pkg, ver = parts[0], parts[1]
+                items.append(SoftwareItem(
+                    name=pkg, source="pacman", version=ver,
+                    installed=True, identifier=pkg
+                ))
+        return items
+
+    def search(self, query: str) -> List[SoftwareItem]:
+        rc, out, err = run_capture(["pacman", "-Ss", query])
+        if rc != 0 and not out.strip():
+            return []
+        items: List[SoftwareItem] = []
+        lines = out.splitlines()
+        i = 0
+        while i < len(lines):
+            header = lines[i].strip()
+            desc = ""
+            if i + 1 < len(lines) and lines[i + 1].startswith("    "):
+                desc = lines[i + 1].strip()
+                i += 2
+            else:
+                i += 1
+            if "/" not in header:
+                continue
+            repo, rest = header.split("/", 1)
+            parts = rest.split()
+            if len(parts) < 2:
+                continue
+            pkg, ver = parts[0], parts[1]
+            installed = "installed" in header.lower()
+            items.append(SoftwareItem(
+                name=pkg, source="pacman", version=ver, summary=desc,
+                identifier=pkg, installed=installed, extra={"repo": repo}
+            ))
+        return items
+
+    def details(self, item: SoftwareItem) -> str:
+        cmd = ["pacman", "-Qi" if item.installed else "-Si", item.identifier]
+        rc, out, err = run_capture(cmd)
+        return out.strip() if rc == 0 else (err.strip() or "No details available.")
+
+    def install_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["sudo", "pacman", "-S", "--needed", item.identifier]
+
+    def remove_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["sudo", "pacman", "-Rns", item.identifier]
+
+    def update_all_cmd(self) -> Optional[List[str]]:
+        return ["sudo", "pacman", "-Syu"]
+
+
+class YayBackend(Backend):
+    name = "aur"
+
+    def is_available(self) -> bool:
+        return shutil.which("yay") is not None
+
+    def list_installed(self) -> List[SoftwareItem]:
+        rc, out, err = run_capture(["pacman", "-Qm"])
+        if rc == 1:
+            return []
+        if rc != 0:
+            raise RuntimeError(err.strip() or "pacman -Qm failed")
+        items: List[SoftwareItem] = []
+        for line in out.splitlines():
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                pkg, ver = parts[0], parts[1]
+                items.append(SoftwareItem(
+                    name=pkg, source="aur", version=ver,
+                    installed=True, identifier=pkg
+                ))
+        return items
+
+    def search(self, query: str) -> List[SoftwareItem]:
+        rc, out, err = run_capture(["yay", "-Ss", query])
+        if rc != 0 and not out.strip():
+            return []
+        items: List[SoftwareItem] = []
+        lines = out.splitlines()
+        i = 0
+        while i < len(lines):
+            header = lines[i].strip()
+            desc = ""
+            if i + 1 < len(lines) and lines[i + 1].startswith(" "):
+                desc = lines[i + 1].strip()
+                i += 2
+            else:
+                i += 1
+            if header.startswith("aur/"):
+                left = header.split()[0]
+                aur_pkg = left.split("/", 1)[1] if "/" in left else left
+                parts = header.split()
+                ver = parts[1] if len(parts) >= 2 else ""
+                items.append(SoftwareItem(
+                    name=aur_pkg, source="aur", version=ver, summary=desc,
+                    installed="Installed" in header, identifier=aur_pkg,
+                ))
+        return items
+
+    def details(self, item: SoftwareItem) -> str:
+        rc, out, err = run_capture(["yay", "-Si", item.identifier])
+        return out.strip() if rc == 0 and out.strip() else (item.summary or item.name)
+
+    def install_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["yay", "-S", item.identifier]
+
+    def remove_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["yay", "-Rns", item.identifier]
+
+    def update_all_cmd(self) -> Optional[List[str]]:
+        return ["yay", "-Syu"]
+
+
+class FlatpakBackend(Backend):
+    name = "flatpak"
+
+    def is_available(self) -> bool:
+        return shutil.which("flatpak") is not None
+
+    def _installed_set(self) -> set:
+        rc, out, _ = run_capture(["flatpak", "list", "--app", "--columns=application"])
+        return {ln.strip() for ln in out.splitlines() if ln.strip()} if rc == 0 else set()
+
+    def list_installed(self) -> List[SoftwareItem]:
+        rc, out, err = run_capture(
+            ["flatpak", "list", "--app", "--columns=application,name,version,branch,origin"]
+        )
+        if rc != 0:
+            raise RuntimeError(err.strip() or "flatpak list failed")
+        items: List[SoftwareItem] = []
+        for line in out.splitlines():
+            cols = [c.strip() for c in line.split("\t")]
+            if not cols:
+                continue
+            app_id = cols[0]
+            name = cols[1] if len(cols) > 1 else app_id
+            ver = cols[2] if len(cols) > 2 else ""
+            origin = cols[4] if len(cols) > 4 else ""
+            items.append(SoftwareItem(
+                name=name, source="flatpak", version=ver,
+                summary=f"{app_id} ({origin})", identifier=app_id,
+                installed=True, extra={"origin": origin},
+            ))
+        return items
+
+    def search(self, query: str) -> List[SoftwareItem]:
+        installed = self._installed_set()
+        rc, out, _ = run_capture(
+            ["flatpak", "search",
+             "--columns=application,name,description,version,branch,remotes", query],
+            timeout=180,
+        )
+        if rc != 0 and not out.strip():
+            return []
+        items: List[SoftwareItem] = []
+        for line in out.splitlines():
+            cols = [c.strip() for c in line.split("\t")]
+            if not cols:
+                continue
+            app_id = cols[0]
+            name = cols[1] if len(cols) > 1 and cols[1] else app_id
+            desc = cols[2] if len(cols) > 2 else ""
+            ver = cols[3] if len(cols) > 3 else ""
+            remotes = cols[5] if len(cols) > 5 else ""
+            items.append(SoftwareItem(
+                name=name, source="flatpak", version=ver, summary=desc,
+                identifier=app_id, installed=app_id in installed,
+                extra={"remotes": remotes},
+            ))
+        return items
+
+    def details(self, item: SoftwareItem) -> str:
+        rc, out, err = run_capture(["flatpak", "info", item.identifier], timeout=60)
+        return out.strip() if rc == 0 else (err.strip() or "No details available.")
+
+    def install_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["flatpak", "install", "-y", item.identifier]
+
+    def remove_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["flatpak", "uninstall", "-y", item.identifier]
+
+    def update_all_cmd(self) -> Optional[List[str]]:
+        return ["flatpak", "update", "-y"]
+
+
+class SnapBackend(Backend):
+    name = "snap"
+
+    def is_available(self) -> bool:
+        return shutil.which("snap") is not None
+
+    def list_installed(self) -> List[SoftwareItem]:
+        if not self.is_available():
+            return []
+        rc, out, err = run_capture(["snap", "list"], timeout=120)
+        if rc != 0:
+            raise RuntimeError(err.strip() or "snap list failed")
+        items: List[SoftwareItem] = []
+        for line in out.splitlines()[1:]:
+            if not line.strip():
+                continue
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            items.append(SoftwareItem(
+                name=parts[0], source="snap", version=parts[1],
+                installed=True, identifier=parts[0]
+            ))
+        return items
+
+    def search(self, query: str) -> List[SoftwareItem]:
+        if not self.is_available():
+            return []
+        installed_names = {i.identifier for i in self.list_installed()}
+        rc, out, _ = run_capture(["snap", "find", "--color=never", query], timeout=120)
+        if rc != 0 and not out.strip():
+            return []
+        items: List[SoftwareItem] = []
+        for line in out.splitlines()[1:]:
+            if not line.strip():
+                continue
+            parts = line.split(None, 4)
+            if not parts:
+                continue
+            name = parts[0]
+            ver = parts[1] if len(parts) > 1 else ""
+            summary = parts[4] if len(parts) > 4 else ""
+            items.append(SoftwareItem(
+                name=name, source="snap", version=ver, summary=summary,
+                identifier=name, installed=name in installed_names,
+            ))
+        return items
+
+    def details(self, item: SoftwareItem) -> str:
+        if not self.is_available():
+            return "Snap is not installed."
+        rc, out, err = run_capture(["snap", "info", item.identifier], timeout=60)
+        return out.strip() if rc == 0 else (err.strip() or "No details available.")
+
+    def install_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["sudo", "snap", "install", item.identifier]
+
+    def remove_cmd(self, item: SoftwareItem) -> Optional[List[str]]:
+        return ["sudo", "snap", "remove", item.identifier]
+
+    def update_all_cmd(self) -> Optional[List[str]]:
+        return ["sudo", "snap", "refresh"]
+
+
+class AppImageBackend(Backend):
+    name = "appimage"
+
+    def __init__(self, appimage_dir: Path):
+        self.appimage_dir = appimage_dir.expanduser()
+        self.appimage_dir.mkdir(parents=True, exist_ok=True)
+
+    def is_available(self) -> bool:
+        return True
+
+    def _scan(self) -> List[SoftwareItem]:
+        return [
+            SoftwareItem(
+                name=p.stem, source="appimage", summary=str(p),
+                identifier=str(p), installed=True,
+            )
+            for p in sorted(self.appimage_dir.glob("*.AppImage"))
+        ]
+
+    def list_installed(self) -> List[SoftwareItem]:
+        return self._scan()
+
+    def search(self, query: str) -> List[SoftwareItem]:
+        q = query.lower().strip()
+        return [i for i in self._scan()
+                if not q or q in i.name.lower() or q in i.identifier.lower()]
+
+    def details(self, item: SoftwareItem) -> str:
+        p = Path(item.identifier)
+        if not p.exists():
+            return "File not found."
+        try:
+            st = p.stat()
+            size_mb = st.st_size / (1024 * 1024)
+            mode = "executable" if (st.st_mode & stat.S_IXUSR) else "not executable"
+            return (f"AppImage: {p.name}\nPath: {p}\n"
+                    f"Size: {size_mb:.1f} MiB\nStatus: {mode}")
+        except Exception as e:
+            return str(e)
+
+    def launch(self, item: SoftwareItem) -> Optional[str]:
+        p = Path(item.identifier)
+        if not p.exists():
+            return "AppImage file not found."
+        try:
+            st = p.stat()
+            if not (st.st_mode & stat.S_IXUSR):
+                p.chmod(st.st_mode | stat.S_IXUSR)
+            subprocess.Popen([str(p)])
+            return None
+        except Exception as e:
+            return str(e)
+
+    def import_appimage(self, src_path: str) -> SoftwareItem:
+        src = Path(src_path).expanduser()
+        if not src.exists():
+            raise FileNotFoundError(str(src))
+        if src.suffix.lower() != ".appimage":
+            raise RuntimeError("Selected file is not an .AppImage")
+        dst = self.appimage_dir / src.name
+        if dst.exists():
+            raise RuntimeError("An AppImage with this name already exists.")
+        shutil.copy2(src, dst)
+        dst.chmod(dst.stat().st_mode | stat.S_IXUSR)
+        return SoftwareItem(
+            name=dst.stem, source="appimage", summary=str(dst),
+            identifier=str(dst), installed=True
+        )
+
+    def delete_appimage(self, item: SoftwareItem):
+        p = Path(item.identifier)
+        if p.exists():
+            p.unlink()
+
+
+# ============================================================
+# SHARED STYLES
+# ============================================================
+
+BUTTON_STYLE = """
+QPushButton {
+    background-color: #3B4252;
+    color: #ECEFF4;
+    border: 1px solid #4C566A;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-align: left;
+}
+QPushButton:hover { background-color: #434C5E; border-color: #81A1C1; }
+QPushButton:pressed { background-color: #2E3440; }
+"""
+
+MINI_BUTTON_STYLE = """
+QPushButton {
+    background-color: #3B4252;
+    color: #ECEFF4;
+    border: 1px solid #4C566A;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+}
+QPushButton:hover { background-color: #434C5E; border-color:#81A1C1; }
+QPushButton:pressed { background-color: #2E3440; }
+"""
+
+GROUP_STYLE = """
+QGroupBox {
+    border: 1px solid #4C566A;
+    border-radius: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    font-weight: 600;
+    color: #88C0D0;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 14px;
+    padding: 0 6px;
+}
+"""
+
+TAB_STYLE = """
+QTabWidget::pane { border: none; background: #2E3440; }
+QTabBar::tab {
+    background: #3B4252;
+    color: #D8DEE9;
+    padding: 10px 18px;
+    border-radius: 8px;
+    margin-right: 6px;
+}
+QTabBar::tab:selected { background: #434C5E; color: #ECEFF4; }
+"""
+
+SOURCE_LABELS = {
+    "all": "All",
+    "pacman": "Pacman",
+    "aur": "AUR (yay)",
+    "flatpak": "Flatpak",
+    "snap": "Snap",
+    "appimage": "AppImage",
+}
+
+
+# ============================================================
+# SOFTWARE CENTER TAB
+# ============================================================
+
+class SoftwareCenter(QWidget):
+    def __init__(self, status_cb: Callable[[str], None]):
+        super().__init__()
+        self.status_cb = status_cb
+        self.appimage_backend = AppImageBackend(
+            Path("~/.local/share/stormos/appimages")
+        )
+        self.backends: Dict[str, Backend] = {
+            "pacman": PacmanBackend(),
+            "aur": YayBackend(),
+            "flatpak": FlatpakBackend(),
+            "snap": SnapBackend(),
+            "appimage": self.appimage_backend,
+        }
+        self._current_items: List[SoftwareItem] = []
+        self._build_ui()
+        self.refresh_installed()
+
+    def _build_ui(self):
+        root = QVBoxLayout(self)
+        root.setSpacing(12)
+
+        header = QLabel("Software Center")
+        header.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
+        root.addWidget(header)
+
+        # Backend status
+        back_row = QHBoxLayout()
+        self.backends_label = QLabel(self._backend_status_text())
+        self.backends_label.setStyleSheet("color:#D8DEE9;")
+        back_row.addWidget(self.backends_label)
+        back_row.addStretch()
+        btn_help = QPushButton("Install missing backends...")
+        btn_help.setStyleSheet(MINI_BUTTON_STYLE)
+        btn_help.clicked.connect(self.show_backend_help)
+        back_row.addWidget(btn_help)
+        root.addLayout(back_row)
+
+        # Controls
+        controls = QHBoxLayout()
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("Search for apps and packages...")
+        self.search_box.returnPressed.connect(self.search)
+        self.source_combo = QComboBox()
+        self.source_combo.addItem(SOURCE_LABELS["all"], "all")
+        for k in ("pacman", "aur", "flatpak", "snap", "appimage"):
+            self.source_combo.addItem(SOURCE_LABELS[k], k)
+
+        for label, slot, icon in [
+            ("Search", self.search, "system-search"),
+            ("Installed", self.refresh_installed, "view-list-details"),
+            ("Update all", self.update_all, "system-software-update"),
+            ("Add AppImage...", self.add_appimage, "list-add"),
+        ]:
+            btn = QPushButton(label)
+            btn.setIcon(QIcon.fromTheme(icon))
+            btn.setStyleSheet(MINI_BUTTON_STYLE)
+            btn.clicked.connect(slot)
+            controls.addWidget(btn)
+            if label == "Search":
+                controls.insertWidget(0, self.source_combo, 1)
+                controls.insertWidget(0, self.search_box, 3)
+
+        root.addLayout(controls)
+
+        # Splitter
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(["Name", "Source", "Version", "Status"])
+        self.tree.setColumnWidth(0, 260)
+        self.tree.setColumnWidth(1, 90)
+        self.tree.setColumnWidth(2, 120)
+        self.tree.itemSelectionChanged.connect(self.on_select)
+        self.tree.setStyleSheet("""
+            QTreeWidget { border: 1px solid #4C566A; border-radius: 10px; }
+            QTreeWidget::item { padding: 6px; }
+        """)
+
+        details_wrap = QWidget()
+        dl = QVBoxLayout(details_wrap)
+        dl.setContentsMargins(0, 0, 0, 0)
+
+        self.details_title = QLabel("Select an item")
+        self.details_title.setStyleSheet(
+            "font-size:16px; font-weight:600; color:#ECEFF4;"
+        )
+        dl.addWidget(self.details_title)
+
+        self.details_text = QTextEdit()
+        self.details_text.setReadOnly(True)
+        self.details_text.setMinimumHeight(220)
+        self.details_text.setStyleSheet(
+            "border: 1px solid #4C566A; border-radius:8px;"
+        )
+        dl.addWidget(self.details_text, 1)
+
+        btn_row = QHBoxLayout()
+        self.btn_install = QPushButton("Install")
+        self.btn_install.setIcon(QIcon.fromTheme("list-add"))
+        self.btn_install.clicked.connect(self.install_selected)
+        self.btn_remove = QPushButton("Remove")
+        self.btn_remove.setIcon(QIcon.fromTheme("list-remove"))
+        self.btn_remove.clicked.connect(self.remove_selected)
+        self.btn_launch = QPushButton("Launch")
+        self.btn_launch.setIcon(QIcon.fromTheme("system-run"))
+        self.btn_launch.clicked.connect(self.launch_selected)
+
+        for b in (self.btn_install, self.btn_remove, self.btn_launch):
+            b.setStyleSheet(MINI_BUTTON_STYLE)
+            btn_row.addWidget(b)
+        btn_row.addStretch()
+        dl.addLayout(btn_row)
+        self._set_action_buttons_enabled(False)
+
+        splitter.addWidget(self.tree)
+        splitter.addWidget(details_wrap)
+        splitter.setStretchFactor(0, 2)
+        splitter.setStretchFactor(1, 3)
+        root.addWidget(splitter, 1)
+
+    def _backend_status_text(self) -> str:
+        parts = []
+        for key in ("pacman", "aur", "flatpak", "snap", "appimage"):
+            ok = self.backends[key].is_available()
+            parts.append(f"{SOURCE_LABELS[key]}: {'ok' if ok else 'x'}")
+        return " | ".join(parts)
+
+    def show_backend_help(self):
+        QMessageBox.information(self, "Install backends",
+            "AUR (yay):\n  sudo pacman -S --needed git base-devel\n"
+            "  git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si\n\n"
+            "Flatpak:\n  sudo pacman -S flatpak\n"
+            "  flatpak remote-add --if-not-exists flathub "
+            "https://flathub.org/repo/flathub.flatpakrepo\n\n"
+            "Snap:\n  sudo pacman -S snapd\n"
+            "  sudo systemctl enable --now snapd.socket\n\n"
+            "Terminal:\n  sudo pacman -S konsole"
+        )
+
+    def _clear(self):
+        self.tree.clear()
+        self._current_items = []
+        self.details_title.setText("Select an item")
+        self.details_text.setText("")
+        self._set_action_buttons_enabled(False)
+
+    def _populate(self, items: List[SoftwareItem], headline: str):
+        self._current_items = items
+        self.tree.clear()
+        self.details_title.setText(headline)
+        self.details_text.setText("Select an item to see details.")
+        for idx, item in enumerate(items):
+            status = "Installed" if item.installed else "Available"
+            it = QTreeWidgetItem([
+                item.name,
+                SOURCE_LABELS.get(item.source, item.source),
+                item.version,
+                status,
+            ])
+            it.setData(0, Qt.ItemDataRole.UserRole, idx)
+            self.tree.addTopLevelItem(it)
+        self.backends_label.setText(self._backend_status_text())
+        self.status_cb(f"{len(items)} item(s)")
+
+    def refresh_installed(self):
+        self._clear()
+        self.status_cb("Loading installed software...")
+
+        def _work():
+            items: List[SoftwareItem] = []
+            for backend in self.backends.values():
+                if backend.is_available():
+                    items.extend(backend.list_installed())
+            items.sort(key=lambda x: (x.source, x.name.lower()))
+            return items
+
+        run_async(self, _work,
+                  lambda res: self._populate(res, "Installed software"))
+
+    def search(self):
+        query = self.search_box.text().strip()
+        if not query:
+            self.refresh_installed()
+            return
+        src = self.source_combo.currentData()
+        self._clear()
+        self.status_cb("Searching...")
+
+        def _work():
+            results: List[SoftwareItem] = []
+            keys = (["pacman", "aur", "flatpak", "snap", "appimage"]
+                    if src == "all" else [src])
+            for key in keys:
+                backend = self.backends.get(key)
+                if backend and backend.is_available():
+                    results.extend(backend.search(query))
+            results.sort(key=lambda x: (not x.installed, x.source, x.name.lower()))
+            return results
+
+        run_async(self, _work,
+                  lambda res: self._populate(res, 'Results for "{}"'.format(query)))
+
+    def on_select(self):
+        sel = self.tree.selectedItems()
+        if not sel:
+            self._set_action_buttons_enabled(False)
+            return
+        idx = sel[0].data(0, Qt.ItemDataRole.UserRole)
+        if idx is None:
+            return
+        item = self._current_items[int(idx)]
+        self.details_title.setText(
+            "{} -- {}".format(item.name, SOURCE_LABELS.get(item.source, item.source))
+        )
+        self.details_text.setText("Loading details...")
+        self._update_action_buttons(item, details_loaded=False)
+        backend = self.backends[item.source]
+        run_async(self, lambda: backend.details(item),
+                  lambda text: (self.details_text.setText(text),
+                                self._update_action_buttons(item, True)))
+
+    def _set_action_buttons_enabled(self, enabled: bool):
+        for b in (self.btn_install, self.btn_remove, self.btn_launch):
+            b.setEnabled(enabled)
+
+    def _update_action_buttons(self, item: SoftwareItem, details_loaded: bool):
+        backend = self.backends[item.source]
+        if item.source == "appimage":
+            self.btn_install.setEnabled(False)
+            self.btn_remove.setEnabled(True)
+            self.btn_launch.setEnabled(True)
+            return
+        self.btn_install.setEnabled(
+            not item.installed and backend.install_cmd(item) is not None
+        )
+        self.btn_remove.setEnabled(
+            item.installed and backend.remove_cmd(item) is not None
+        )
+        self.btn_launch.setEnabled(False)
+
+    def _selected_item(self) -> Optional[SoftwareItem]:
+        sel = self.tree.selectedItems()
+        if not sel:
+            return None
+        idx = sel[0].data(0, Qt.ItemDataRole.UserRole)
+        try:
+            return self._current_items[int(idx)] if idx is not None else None
+        except Exception:
+            return None
+
+    def install_selected(self):
+        item = self._selected_item()
+        if not item:
+            return
+        cmd = self.backends[item.source].install_cmd(item)
+        if not cmd:
+            return
+        try:
+            run_in_terminal(cmd, title=f"Install: {item.name}")
+            self.status_cb("Install started in terminal")
+        except Exception as e:
+            QMessageBox.warning(self, "Terminal error", str(e))
+
+    def remove_selected(self):
+        item = self._selected_item()
+        if not item:
+            return
+        if item.source == "appimage":
+            if (QMessageBox.question(self, "Remove AppImage",
+                    f"Delete {item.name}?")
+                    == QMessageBox.StandardButton.Yes):
+                try:
+                    self.appimage_backend.delete_appimage(item)
+                    self.refresh_installed()
+                    self.status_cb("Removed AppImage")
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", str(e))
+            return
+        cmd = self.backends[item.source].remove_cmd(item)
+        if not cmd:
+            return
+        try:
+            run_in_terminal(cmd, title=f"Remove: {item.name}")
+            self.status_cb("Remove started in terminal")
+        except Exception as e:
+            QMessageBox.warning(self, "Terminal error", str(e))
+
+    def update_all(self):
+        cmds = [
+            (key, backend.update_all_cmd())
+            for key, backend in self.backends.items()
+            if backend.is_available() and backend.update_all_cmd()
+        ]
+        if not cmds:
+            QMessageBox.information(self, "Updates", "No update backends available.")
+            return
+        for key, cmd in cmds:
+            try:
+                run_in_terminal(cmd, title=f"Update: {SOURCE_LABELS.get(key, key)}")
+            except Exception as e:
+                QMessageBox.warning(self, "Terminal error", str(e))
+                return
+        self.status_cb("Update(s) started in terminal")
+
+    def add_appimage(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select an AppImage", str(Path.home()),
+            "AppImage Files (*.AppImage);;All Files (*)",
+        )
+        if not path:
+            return
+        try:
+            self.appimage_backend.import_appimage(path)
+            self.refresh_installed()
+            self.status_cb("AppImage added")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", str(e))
+
+    def launch_selected(self):
+        item = self._selected_item()
+        if not item:
+            return
+        if item.source != "appimage":
+            QMessageBox.information(self, "Launch",
+                "Launch is supported for AppImages only.")
+            return
+        err = self.appimage_backend.launch(item)
+        if err:
+            QMessageBox.warning(self, "Launch failed", err)
+        else:
+            self.status_cb("Launched AppImage")
+
+
+# ============================================================
+# MAINTENANCE TAB
+# ============================================================
+
+class MaintenanceTab(QWidget):
+    """System maintenance actions -- mirrors, cache, orphans, keys, etc."""
+
+    def __init__(self, run_cmd: Callable, status_cb: Callable):
+        super().__init__()
+        self._run_cmd = run_cmd
+        self._status = status_cb
+        self._build_ui()
+
+    def _build_ui(self):
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(scroll.Shape.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setSpacing(14)
+        scroll.setWidget(inner)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+        title = QLabel("System Maintenance")
+        title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
+        layout.addWidget(title)
+
+        g_cache = QGroupBox("Package Cache")
+        g_cache.setStyleSheet(GROUP_STYLE)
+        gc = QVBoxLayout(g_cache)
+        self._add_action(gc,
+            "Clear pacman cache (keep last 3 versions)",
+            ["sudo", "paccache", "-r"],
+            "Remove old cached package versions (requires pacman-contrib).",
+            "edit-clear",
+        )
+        self._add_action(gc,
+            "Clear ALL pacman cache",
+            ["sudo", "pacman", "-Scc"],
+            "Wipe entire /var/cache/pacman/pkg -- frees maximum disk space.",
+            "edit-delete",
+        )
+        self._add_action(gc,
+            "Remove orphaned packages",
+            ["bash", "-c", "sudo pacman -Rns $(pacman -Qdtq) 2>/dev/null || echo 'No orphans.'"],
+            "Remove packages that are no longer needed by anything.",
+            "user-trash",
+        )
+        layout.addWidget(g_cache)
+
+        g_mirrors = QGroupBox("Mirrors & Sync")
+        g_mirrors.setStyleSheet(GROUP_STYLE)
+        gm = QVBoxLayout(g_mirrors)
+        self._add_action(gm,
+            "Rank mirrors (reflector -- top 20 HTTPS, sorted by speed)",
+            ["bash", "-c",
+             "sudo reflector --latest 20 --protocol https --sort rate "
+             "--save /etc/pacman.d/mirrorlist && echo Done."],
+            "Requires: reflector (sudo pacman -S reflector)",
+            "network-server",
+        )
+        self._add_action(gm,
+            "Force pacman database sync",
+            ["sudo", "pacman", "-Syy"],
+            "Force-refresh all package databases.",
+            "view-refresh",
+        )
+        layout.addWidget(g_mirrors)
+
+        g_keys = QGroupBox("Keyring")
+        g_keys.setStyleSheet(GROUP_STYLE)
+        gk = QVBoxLayout(g_keys)
+        self._add_action(gk,
+            "Refresh keyring",
+            ["bash", "-c",
+             "sudo pacman -S --needed archlinux-keyring && "
+             "sudo pacman-key --refresh-keys"],
+            "Fix signature/trust errors.",
+            "security-high",
+        )
+        self._add_action(gk,
+            "Reinitialise keyring (drastic fix)",
+            ["bash", "-c",
+             "sudo rm -rf /etc/pacman.d/gnupg && "
+             "sudo pacman-key --init && sudo pacman-key --populate archlinux"],
+            "Only needed if the keyring is badly broken.",
+            "dialog-warning",
+        )
+        layout.addWidget(g_keys)
+
+        g_logs = QGroupBox("Logs & Journal")
+        g_logs.setStyleSheet(GROUP_STYLE)
+        gl = QVBoxLayout(g_logs)
+        self._add_action(gl,
+            "Vacuum journal (keep last 2 weeks)",
+            ["sudo", "journalctl", "--vacuum-time=2weeks"],
+            "Trim systemd journal to save disk space.",
+            "text-x-log",
+        )
+        self._add_action(gl,
+            "View recent journal errors",
+            ["journalctl", "-p", "err", "-n", "60", "--no-pager"],
+            "Show the last 60 error-level log messages.",
+            "dialog-error",
+        )
+        layout.addWidget(g_logs)
+
+        g_svc = QGroupBox("Services")
+        g_svc.setStyleSheet(GROUP_STYLE)
+        gs = QVBoxLayout(g_svc)
+        self._add_action(gs,
+            "List failed systemd services",
+            ["systemctl", "--failed"],
+            "Show units that failed to start.",
+            "dialog-warning",
+        )
+        self._add_action(gs,
+            "Reset failed service state",
+            ["sudo", "systemctl", "reset-failed"],
+            "Clear the failed state so counts reset.",
+            "view-refresh",
+        )
+        layout.addWidget(g_svc)
+
+        layout.addStretch()
+
+    def _add_action(self, layout, label: str, cmd: List[str],
+                    tooltip: str = "", icon: str = ""):
+        row = QHBoxLayout()
+        btn = QPushButton(label)
+        if icon:
+            btn.setIcon(QIcon.fromTheme(icon))
+        btn.setStyleSheet(BUTTON_STYLE)
+        btn.setToolTip(tooltip)
+        btn.clicked.connect(
+            lambda _, c=cmd, t=label: self._run_cmd(c, t)
+        )
+        row.addWidget(btn)
+        layout.addLayout(row)
+        if tooltip:
+            lbl = QLabel(tooltip)
+            lbl.setStyleSheet("color:#7a8a9a; font-size:11px; margin-left:4px;")
+            lbl.setWordWrap(True)
+            layout.addWidget(lbl)
+
+
+# ============================================================
+# DRIVERS TAB
+# ============================================================
+
+class DriversTab(QWidget):
+    """GPU, printer, and virtualisation driver helpers."""
+
+    def __init__(self, run_cmd: Callable, status_cb: Callable):
+        super().__init__()
+        self._run_cmd = run_cmd
+        self._status = status_cb
+        self._build_ui()
+
+    def _build_ui(self):
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(scroll.Shape.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setSpacing(14)
+        scroll.setWidget(inner)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+        title = QLabel("Drivers")
+        title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
+        layout.addWidget(title)
+
+        note = QLabel(
+            "GPU driver installs will open a terminal. "
+            "Reboot after installing or switching GPU drivers."
+        )
+        note.setStyleSheet("color:#EBCB8B; font-size:12px;")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        g_nv = QGroupBox("NVIDIA")
+        g_nv.setStyleSheet(GROUP_STYLE)
+        gnv = QVBoxLayout(g_nv)
+        self._driver_btn(gnv, "NVIDIA (proprietary -- nvidia + nvidia-utils)",
+            ["sudo", "pacman", "-S", "--needed",
+             "nvidia", "nvidia-utils", "nvidia-settings", "lib32-nvidia-utils"])
+        self._driver_btn(gnv, "NVIDIA DKMS (runs on any kernel)",
+            ["sudo", "pacman", "-S", "--needed",
+             "nvidia-dkms", "nvidia-utils", "nvidia-settings"])
+        self._driver_btn(gnv, "NVIDIA open (open-source kernel module, Turing+)",
+            ["sudo", "pacman", "-S", "--needed",
+             "nvidia-open", "nvidia-utils"])
+        self._driver_btn(gnv, "Nouveau (open-source, 2D/basic 3D only)",
+            ["sudo", "pacman", "-S", "--needed", "xf86-video-nouveau"])
+        layout.addWidget(g_nv)
+
+        g_amd = QGroupBox("AMD / ATI")
+        g_amd.setStyleSheet(GROUP_STYLE)
+        gamd = QVBoxLayout(g_amd)
+        self._driver_btn(gamd, "AMDGPU (modern -- GCN 3+ / Vega / RDNA)",
+            ["sudo", "pacman", "-S", "--needed",
+             "xf86-video-amdgpu", "mesa", "lib32-mesa",
+             "vulkan-radeon", "lib32-vulkan-radeon"])
+        self._driver_btn(gamd, "RadeonSI / legacy ATI",
+            ["sudo", "pacman", "-S", "--needed",
+             "xf86-video-ati", "mesa", "lib32-mesa"])
+        layout.addWidget(g_amd)
+
+        g_intel = QGroupBox("Intel")
+        g_intel.setStyleSheet(GROUP_STYLE)
+        gint = QVBoxLayout(g_intel)
+        self._driver_btn(gint, "Intel (modesetting + VA-API)",
+            ["sudo", "pacman", "-S", "--needed",
+             "mesa", "lib32-mesa", "intel-media-driver",
+             "vulkan-intel", "lib32-vulkan-intel"])
+        layout.addWidget(g_intel)
+
+        g_prn = QGroupBox("Printing (CUPS)")
+        g_prn.setStyleSheet(GROUP_STYLE)
+        gprn = QVBoxLayout(g_prn)
+        self._driver_btn(gprn, "CUPS + common drivers",
+            ["sudo", "pacman", "-S", "--needed",
+             "cups", "cups-filters", "gutenprint", "ghostscript"])
+        self._driver_btn(gprn, "Enable & start CUPS service",
+            ["sudo", "systemctl", "enable", "--now", "cups"])
+        self._driver_btn(gprn, "HP printers (HPLIP)",
+            ["sudo", "pacman", "-S", "--needed", "hplip"])
+        self._driver_btn(gprn, "Epson printers (AUR: epson-inkjet-printer-escpr)",
+            ["yay", "-S", "epson-inkjet-printer-escpr"])
+        layout.addWidget(g_prn)
+
+        g_virt = QGroupBox("Virtualisation / VMs")
+        g_virt.setStyleSheet(GROUP_STYLE)
+        gvirt = QVBoxLayout(g_virt)
+        self._driver_btn(gvirt, "VirtualBox guest additions",
+            ["sudo", "pacman", "-S", "--needed",
+             "virtualbox-guest-utils", "xf86-video-vmware"])
+        self._driver_btn(gvirt, "VMware guest tools",
+            ["sudo", "pacman", "-S", "--needed",
+             "open-vm-tools", "xf86-video-vmware"])
+        self._driver_btn(gvirt, "QEMU / KVM guest agent",
+            ["sudo", "pacman", "-S", "--needed", "qemu-guest-agent"])
+        layout.addWidget(g_virt)
+
+        layout.addStretch()
+
+    def _driver_btn(self, layout, label: str, cmd: List[str]):
+        btn = QPushButton(label)
+        btn.setStyleSheet(BUTTON_STYLE)
+        btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+        layout.addWidget(btn)
+
+
+# ============================================================
+# TWEAKS TAB
+# ============================================================
+
+class TweaksTab(QWidget):
+    """System tweaks: services, shell, Plymouth, performance, fonts."""
+
+    def __init__(self, run_cmd: Callable, status_cb: Callable):
+        super().__init__()
+        self._run_cmd = run_cmd
+        self._status = status_cb
+        self._build_ui()
+
+    def _build_ui(self):
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(scroll.Shape.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setSpacing(14)
+        scroll.setWidget(inner)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+        title = QLabel("System Tweaks")
+        title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
+        layout.addWidget(title)
+
+        g_svc = QGroupBox("Toggle Services")
+        g_svc.setStyleSheet(GROUP_STYLE)
+        gs = QVBoxLayout(g_svc)
+        services = [
+            ("Bluetooth", "bluetooth"),
+            ("CUPS (printing)", "cups"),
+            ("SSH daemon", "sshd"),
+            ("Avahi / mDNS", "avahi-daemon"),
+            ("NetworkManager", "NetworkManager"),
+            ("fstrim (SSD TRIM weekly)", "fstrim.timer"),
+        ]
+        for name, unit in services:
+            row = QHBoxLayout()
+            lbl = QLabel(name)
+            lbl.setStyleSheet("color:#ECEFF4;")
+            row.addWidget(lbl)
+            row.addStretch()
+            btn_on = QPushButton("Enable")
+            btn_on.setStyleSheet(MINI_BUTTON_STYLE)
+            btn_on.clicked.connect(
+                lambda _, u=unit: self._run_cmd(
+                    ["sudo", "systemctl", "enable", "--now", u],
+                    f"Enable {u}"
+                )
+            )
+            btn_off = QPushButton("Disable")
+            btn_off.setStyleSheet(MINI_BUTTON_STYLE)
+            btn_off.clicked.connect(
+                lambda _, u=unit: self._run_cmd(
+                    ["sudo", "systemctl", "disable", "--now", u],
+                    f"Disable {u}"
+                )
+            )
+            row.addWidget(btn_on)
+            row.addWidget(btn_off)
+            gs.addLayout(row)
+        layout.addWidget(g_svc)
+
+        g_shell = QGroupBox("Shell Setup")
+        g_shell.setStyleSheet(GROUP_STYLE)
+        gsh = QVBoxLayout(g_shell)
+        for label, cmd in [
+            ("Install Zsh + Oh-My-Zsh",
+             ["bash", "-c",
+              "sudo pacman -S --needed zsh && "
+              'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"']),
+            ("Install Fish shell",
+             ["sudo", "pacman", "-S", "--needed", "fish"]),
+            ("Install Starship prompt (works with any shell)",
+             ["bash", "-c",
+              "sudo pacman -S --needed starship || "
+              "curl -sS https://starship.rs/install.sh | sh"]),
+            ("Set Zsh as default shell",
+             ["chsh", "-s", "/bin/zsh"]),
+            ("Set Fish as default shell",
+             ["chsh", "-s", "/usr/bin/fish"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gsh.addWidget(btn)
+        layout.addWidget(g_shell)
+
+        g_boot = QGroupBox("Boot & Plymouth")
+        g_boot.setStyleSheet(GROUP_STYLE)
+        gb = QVBoxLayout(g_boot)
+        for label, cmd in [
+            ("Install Plymouth (animated boot splash)",
+             ["sudo", "pacman", "-S", "--needed", "plymouth"]),
+            ("Set Plymouth theme: bgrt (OEM logo)",
+             ["bash", "-c",
+              "sudo plymouth-set-default-theme -R bgrt && "
+              "sudo mkinitcpio -P"]),
+            ("Set Plymouth theme: spinner",
+             ["bash", "-c",
+              "sudo plymouth-set-default-theme -R spinner && "
+              "sudo mkinitcpio -P"]),
+            ("Rebuild initramfs (mkinitcpio -P)",
+             ["sudo", "mkinitcpio", "-P"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gb.addWidget(btn)
+        layout.addWidget(g_boot)
+
+        g_perf = QGroupBox("Performance & Power")
+        g_perf.setStyleSheet(GROUP_STYLE)
+        gp = QVBoxLayout(g_perf)
+        for label, cmd in [
+            ("Install TLP (laptop power management)",
+             ["sudo", "pacman", "-S", "--needed", "tlp", "tlp-rdw"]),
+            ("Enable TLP",
+             ["sudo", "systemctl", "enable", "--now", "tlp"]),
+            ("Install cpupower + set performance governor",
+             ["bash", "-c",
+              "sudo pacman -S --needed cpupower && "
+              "sudo cpupower frequency-set -g performance"]),
+            ("Install preload (adaptive readahead daemon)",
+             ["yay", "-S", "preload"]),
+            ("Enable earlyoom (OOM killer)",
+             ["bash", "-c",
+              "sudo pacman -S --needed earlyoom && "
+              "sudo systemctl enable --now earlyoom"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gp.addWidget(btn)
+        layout.addWidget(g_perf)
+
+        g_fonts = QGroupBox("Fonts")
+        g_fonts.setStyleSheet(GROUP_STYLE)
+        gf = QVBoxLayout(g_fonts)
+        for label, cmd in [
+            ("Install Nerd Fonts (ttf-nerd-fonts-symbols)",
+             ["sudo", "pacman", "-S", "--needed", "ttf-nerd-fonts-symbols"]),
+            ("Install Microsoft core fonts (AUR: ttf-ms-fonts)",
+             ["yay", "-S", "ttf-ms-fonts"]),
+            ("Install Google Noto fonts",
+             ["sudo", "pacman", "-S", "--needed", "noto-fonts",
+              "noto-fonts-cjk", "noto-fonts-emoji", "noto-fonts-extra"]),
+            ("Rebuild font cache",
+             ["fc-cache", "-fv"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gf.addWidget(btn)
+        layout.addWidget(g_fonts)
+
+        layout.addStretch()
+
+
+# ============================================================
+# GAMING TAB
+# ============================================================
+
+class GamingTab(QWidget):
+    """Gaming tools: Steam, Lutris, Wine, Proton, MangoHud, etc."""
+
+    def __init__(self, run_cmd: Callable, status_cb: Callable):
+        super().__init__()
+        self._run_cmd = run_cmd
+        self._status = status_cb
+        self._build_ui()
+
+    def _build_ui(self):
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(scroll.Shape.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setSpacing(14)
+        scroll.setWidget(inner)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+        title = QLabel("Gaming")
+        title.setStyleSheet("font-size:18px;color:#81A1C1; font-weight:600;")
+        layout.addWidget(title)
+
+        note = QLabel(
+            "Enable the multilib repository in /etc/pacman.conf before "
+            "installing 32-bit (lib32-*) packages."
+        )
+        note.setStyleSheet("color:#88C0D0; font-size:12px;")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+
+        g_plat = QGroupBox("Game Platforms")
+        g_plat.setStyleSheet(GROUP_STYLE)
+        gpl = QVBoxLayout(g_plat)
+        for label, cmd in [
+            ("Steam",
+             ["sudo", "pacman", "-S", "--needed",
+              "steam", "steam-native-runtime"]),
+            ("Lutris (multi-runner)",
+             ["sudo", "pacman", "-S", "--needed", "lutris"]),
+            ("Heroic Games Launcher (Epic / GOG / Amazon)",
+             ["flatpak", "install", "-y",
+              "com.heroicgameslauncher.hgl"]),
+            ("Bottles (Wine manager)",
+             ["flatpak", "install", "-y",
+              "com.usebottles.bottles"]),
+            ("GameHub (all-in-one library)",
+             ["flatpak", "install", "-y",
+              "com.github.tkashkin.gamehub"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gpl.addWidget(btn)
+        layout.addWidget(g_plat)
+
+        g_wine = QGroupBox("Wine & Proton")
+        g_wine.setStyleSheet(GROUP_STYLE)
+        gw = QVBoxLayout(g_wine)
+        for label, cmd in [
+            ("Wine (staging)",
+             ["sudo", "pacman", "-S", "--needed",
+              "wine-staging", "wine-mono", "wine-gecko",
+              "lib32-gnutls", "lib32-libpulse"]),
+            ("Proton-GE (AUR: proton-ge-custom)",
+             ["yay", "-S", "proton-ge-custom"]),
+            ("ProtonUp-Qt (manage Proton/Wine builds)",
+             ["flatpak", "install", "-y",
+              "net.davidotek.pupgui2"]),
+            ("Winetricks",
+             ["sudo", "pacman", "-S", "--needed", "winetricks"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gw.addWidget(btn)
+        layout.addWidget(g_wine)
+
+        g_perf = QGroupBox("Gaming Performance")
+        g_perf.setStyleSheet(GROUP_STYLE)
+        gp = QVBoxLayout(g_perf)
+        for label, cmd in [
+            ("MangoHud (FPS / hardware overlay)",
+             ["sudo", "pacman", "-S", "--needed",
+              "mangohud", "lib32-mangohud"]),
+            ("GOverlay (MangoHud GUI configurator)",
+             ["sudo", "pacman", "-S", "--needed", "goverlay"]),
+            ("GameMode (CPU/GPU optimiser by Feral)",
+             ["sudo", "pacman", "-S", "--needed",
+              "gamemode", "lib32-gamemode"]),
+            ("Enable GameMode daemon",
+             ["sudo", "systemctl", "enable", "--now", "gamemoded"]),
+            ("vkBasalt (post-processing effects)",
+             ["sudo", "pacman", "-S", "--needed",
+              "vkbasalt", "lib32-vkbasalt"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            gp.addWidget(btn)
+        layout.addWidget(g_perf)
+
+        g_emu = QGroupBox("Emulation")
+        g_emu.setStyleSheet(GROUP_STYLE)
+        ge = QVBoxLayout(g_emu)
+        for label, cmd in [
+            ("RetroArch (multi-system emulator)",
+             ["sudo", "pacman", "-S", "--needed", "retroarch"]),
+            ("Dolphin (GameCube / Wii)",
+             ["sudo", "pacman", "-S", "--needed", "dolphin-emu"]),
+            ("RPCS3 (PS3 -- AUR)",
+             ["yay", "-S", "rpcs3-bin"]),
+            ("Ryujinx (Switch -- Flatpak)",
+             ["flatpak", "install", "-y",
+              "org.ryujinx.Ryujinx"]),
+            ("PCSX2 (PS2)",
+             ["sudo", "pacman", "-S", "--needed", "pcsx2"]),
+        ]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, c=cmd, t=label: self._run_cmd(c, t))
+            ge.addWidget(btn)
+        layout.addWidget(g_emu)
+
+        layout.addStretch()
+
+
+# ============================================================
+# MAIN WINDOW
+# ============================================================
+
+class WelcomeMenu(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self._live = is_live_session()
+        self.init_ui()
+        self.load_settings()
+
+        # Handle autostart logic
+        if not self._live:
+            # If this is the first run after installation, mark it
+            if not FIRST_RUN_MARKER.exists():
+                try:
+                    FIRST_RUN_MARKER.touch()
+                    self.set_status("First run detected")
+                except Exception:
+                    pass
+            # Disable autostart after first run
+            self._maybe_disable_autostart()
+
+    def _maybe_disable_autostart(self):
+        """
+        Disable autostart AFTER first run on installed system.
+        """
+        if not FIRST_RUN_MARKER.exists():
+            return
+
+        removed, errors = disable_autostart()
+
+        if errors:
+            self.set_status("Failed to disable autostart")
+            return
+
+        if removed:
+            try:
+                FIRST_RUN_MARKER.unlink(missing_ok=True)
+                self.set_status("Welcome will not run again")
+            except Exception:
+                pass
+
+    # ----------------------------------------------------------------
+    # UI construction
+    # ----------------------------------------------------------------
+
+    def _center_window(self):
+        screen = QGuiApplication.primaryScreen()
+        if screen:
+            rect = screen.geometry()
+            self.move(
+                rect.center().x() - self.width() // 2,
+                rect.center().y() - self.height() // 2
+            )
+
+    def init_ui(self):
+        self.setWindowTitle("StormOS Welcome")
+        self.setMinimumSize(1100, 720)
+        self.setWindowIcon(QIcon.fromTheme("start-here"))
+        self.apply_dark_theme()
+        self._center_window()
+
+        central = QWidget()
+        self.setCentralWidget(central)
+        root = QVBoxLayout(central)
+        root.setSpacing(16)
+
+        root.addWidget(self._create_header())
+        self.footer = self._create_footer()
+
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet(TAB_STYLE)
+        root.addWidget(self.tabs, 1)
+
+        self._create_welcome_tab()
+        self._create_system_tab()
+        self._create_software_tab()
+        self._create_maintenance_tab()
+        self._create_drivers_tab()
+        self._create_tweaks_tab()
+        self._create_gaming_tab()
+        self._create_settings_tab()
+        self._create_help_tab()
+
+        root.addWidget(self.footer)
+
+    def _create_header(self):
+        box = QWidget()
+        layout = QHBoxLayout(box)
+        title = QLabel("StormOS")
+        title.setFont(QFont("Inter", 26, QFont.Weight.Bold))
+        title.setStyleSheet("color: #ECEFF4;")
+        subtitle = QLabel("Welcome · Arch Linux")
+        subtitle.setStyleSheet("color: #A3BE8C; font-size: 13px;")
+        text = QVBoxLayout()
+        text.addWidget(title)
+        text.addWidget(subtitle)
+        layout.addLayout(text)
+
+        if self._live:
+            live_badge = QLabel("  LIVE SESSION  ")
+            live_badge.setStyleSheet(
+                "background:#BF616A; color:#ECEFF4; font-weight:700;"
+                " border-radius:6px; padding:4px 10px;"
+            )
+            layout.addWidget(live_badge)
+
+        layout.addStretch()
+        return box
+
+    def _create_footer(self):
+        footer_widget = QWidget()
+        footer_layout = QHBoxLayout(footer_widget)
+        footer_layout.setContentsMargins(10, 4, 10, 4)
+        footer_layout.setSpacing(20)
+        
+        self.status = QLabel("Ready")
+        self.status.setStyleSheet("color:#D8DEE9;")
+        footer_layout.addWidget(self.status, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        env_label = QLabel(f"StormOS · {'Live ISO' if self._live else 'Installed'}")
+        env_label.setStyleSheet("color:#88C0D0;")
+        footer_layout.addWidget(env_label, alignment=Qt.AlignmentFlag.AlignRight)
+        
+        footer_widget.setStyleSheet("background:#2E3440;")
+        return footer_widget
+
+    def set_status(self, msg: str):
+        if hasattr(self, "status") and self.status is not None:
+            self.status.setText(msg)
+        else:
+            try:
+                self.statusBar().showMessage(msg, 5000)
+            except Exception:
+                pass
+
+    def _create_welcome_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        label = QLabel("Welcome to StormOS")
+        label.setStyleSheet("font-size: 22px; color: #88C0D0;")
+        layout.addWidget(label)
+
+        desc = QLabel(
+            "A refined Arch Linux experience focused on performance, "
+            "elegance, and control."
+        )
+        desc.setStyleSheet("color:#D8DEE9;")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        installer = QGroupBox("Install StormOS")
+        installer.setStyleSheet(GROUP_STYLE)
+        il = QVBoxLayout(installer)
+
+        btn_install = QPushButton("Launch Installer (Calamares)")
+        btn_install.setIcon(QIcon.fromTheme("system-installer"))
+        btn_install.setStyleSheet(BUTTON_STYLE)
+        btn_install.clicked.connect(self.launch_calamares)
+        il.addWidget(btn_install)
+
+        if not self._live:
+            hint = QLabel(
+                "StormOS appears to be running from an installed system. "
+                "The installer is intended for use from the live ISO."
+            )
+            hint.setStyleSheet("color:#EBCB8B;")
+            hint.setWordWrap(True)
+        else:
+            hint = QLabel("Runs the graphical installer to install StormOS to disk.")
+            hint.setStyleSheet("color:#AEB7C2;")
+            hint.setWordWrap(True)
+        il.addWidget(hint)
+
+        if not self._live:
+            autostart_box = QGroupBox("Autostart")
+            autostart_box.setStyleSheet(GROUP_STYLE)
+            al = QVBoxLayout(autostart_box)
+            
+            autostart_status = QLabel()
+            if is_autostart_enabled():
+                autostart_status.setText("✓ Autostart is currently ENABLED")
+                autostart_status.setStyleSheet("color:#A3BE8C;")
+            else:
+                autostart_status.setText("✗ Autostart is currently DISABLED")
+                autostart_status.setStyleSheet("color:#BF616A;")
+            al.addWidget(autostart_status)
+            
+            info = QLabel(
+                "You can control whether this welcome app launches automatically "
+                "when you log in to your desktop."
+            )
+            info.setStyleSheet("color:#D8DEE9;")
+            info.setWordWrap(True)
+            al.addWidget(info)
+            
+            btn_enable = QPushButton("Enable autostart")
+            btn_enable.setStyleSheet(BUTTON_STYLE)
+            btn_enable.clicked.connect(self._enable_autostart)
+            
+            btn_disable = QPushButton("Disable autostart")
+            btn_disable.setStyleSheet(BUTTON_STYLE)
+            btn_disable.clicked.connect(self._disable_autostart)
+            
+            btn_row = QHBoxLayout()
+            btn_row.addWidget(btn_enable)
+            btn_row.addWidget(btn_disable)
+            al.addLayout(btn_row)
+            
+            layout.addWidget(autostart_box)
+
+        layout.addWidget(installer)
+
+        quick = QGroupBox("Quick Links")
+        quick.setStyleSheet(GROUP_STYLE)
+        ql = QVBoxLayout(quick)
+        for label_text, url, icon in [
+            ("Arch Wiki", "https://wiki.archlinux.org", "help-contents"),
+            ("Arch Forums", "https://bbs.archlinux.org", "internet-services"),
+            ("AUR", "https://aur.archlinux.org", "system-software-install"),
+            ("StormOS GitHub", "https://github.com", "system-file-manager"),
+        ]:
+            btn = QPushButton(label_text)
+            btn.setIcon(QIcon.fromTheme(icon))
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(lambda _, u=url: webbrowser.open(u))
+            ql.addWidget(btn)
+
+        layout.addWidget(quick)
+        layout.addStretch()
+        self.tabs.addTab(tab, "Welcome")
+
+    def _enable_autostart(self):
+        success, result = enable_autostart()
+        if success:
+            QMessageBox.information(
+                self, "Autostart enabled",
+                f"Autostart entry created at:\n{result}\n\n"
+                "The welcome app will open on next login."
+            )
+            self.set_status("Autostart enabled.")
+            # Refresh the welcome tab to update status
+            self._refresh_welcome_tab()
+        else:
+            QMessageBox.warning(self, "Error", f"Failed to enable autostart:\n{result}")
+
+    def _disable_autostart(self):
+        removed, errors = disable_autostart()
+        if removed:
+            QMessageBox.information(
+                self, "Autostart disabled",
+                "Autostart has been disabled.\n\n"
+                "The welcome app will NOT open on next login.\n"
+                "You can re-enable it from this tab at any time."
+            )
+            self.set_status("Autostart disabled.")
+            # Refresh the welcome tab to update status
+            self._refresh_welcome_tab()
+        else:
+            if errors:
+                QMessageBox.warning(self, "Error", f"Failed to disable autostart:\n{errors[0]}")
+            else:
+                QMessageBox.information(self, "Autostart disabled", 
+                                       "Autostart was already disabled.")
+
+    def _refresh_welcome_tab(self):
+        """Refresh the welcome tab to update autostart status display."""
+        # Remove and recreate the welcome tab
+        current_tab_index = self.tabs.currentIndex()
+        welcome_tab = self.tabs.widget(0)
+        if welcome_tab:
+            self.tabs.removeTab(0)
+            welcome_tab.deleteLater()
+        self._create_welcome_tab()
+        # Restore previous tab selection
+        self.tabs.setCurrentIndex(min(current_tab_index, self.tabs.count() - 1))
+
+    def _create_system_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        group = QGroupBox("System Actions")
+        group.setStyleSheet(GROUP_STYLE)
+        g = QVBoxLayout(group)
+
+        for text, cmd, icon in [
+            ("Update System (pacman -Syu)",
+             ["sudo", "pacman", "-Syu"],
+             "system-software-update"),
+            ("Update System + AUR (yay -Syu)",
+             ["yay", "-Syu"],
+             "system-software-update"),
+            ("Reboot",
+             ["sudo", "reboot"],
+             "system-reboot"),
+            ("Shutdown",
+             ["sudo", "shutdown", "-h", "now"],
+             "system-shutdown"),
+        ]:
+            btn = QPushButton(text)
+            btn.setIcon(QIcon.fromTheme(icon))
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(
+                lambda _, c=cmd, t=text: self.run_cmd(c, t)
+            )
+            g.addWidget(btn)
+
+        note = QLabel(
+            "Note: commands open in konsole (must be installed)."
+        )
+        note.setStyleSheet("color:#D8DEE9; font-size: 12px;")
+        g.addWidget(note)
+
+        layout.addWidget(group)
+        layout.addStretch()
+        self.tabs.addTab(tab, "System")
+
+    def _create_software_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        self.software_center = SoftwareCenter(status_cb=self.set_status)
+        layout.addWidget(self.software_center, 1)
+        self.tabs.addTab(tab, "Software")
+
+    def _create_maintenance_tab(self):
+        tab = MaintenanceTab(
+            run_cmd=self.run_cmd,
+            status_cb=self.set_status,
+        )
+        self.tabs.addTab(tab, "Maintenance")
+
+    def _create_drivers_tab(self):
+        tab = DriversTab(
+            run_cmd=self.run_cmd,
+            status_cb=self.set_status,
+        )
+        self.tabs.addTab(tab, "Drivers")
+
+    def _create_tweaks_tab(self):
+        tab = TweaksTab(
+            run_cmd=self.run_cmd,
+            status_cb=self.set_status,
+        )
+        self.tabs.addTab(tab, "Tweaks")
+
+    def _create_gaming_tab(self):
+        tab = GamingTab(
+            run_cmd=self.run_cmd,
+            status_cb=self.set_status,
+        )
+        self.tabs.addTab(tab, "Gaming")
+
+    def _create_settings_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+
+        appearance = QGroupBox("Appearance")
+        appearance.setStyleSheet(GROUP_STYLE)
+        form = QFormLayout(appearance)
+
+        self.theme = QComboBox()
+        self.theme.addItems(["Dark", "Light"])
+        self.theme.currentTextChanged.connect(self.change_theme)
+
+        self.font_slider = QSlider(Qt.Orientation.Horizontal)
+        self.font_slider.setRange(10, 18)
+        self.font_slider.valueChanged.connect(self.change_font)
+
+        form.addRow("Theme", self.theme)
+        form.addRow("Font Size", self.font_slider)
+        layout.addWidget(appearance)
+
+        desktop = QGroupBox("Desktop Tools")
+        desktop.setStyleSheet(GROUP_STYLE)
+        d = QVBoxLayout(desktop)
+        for text, cmd, icon in [
+            ("Display Settings (arandr)",
+             ["arandr"], "video-display"),
+            ("Wallpaper (nitrogen)",
+             ["nitrogen"], "preferences-desktop-wallpaper"),
+            ("Network (nm-connection-editor)",
+             ["nm-connection-editor"], "network-wireless"),
+            ("Compositor (picom)",
+             ["picom", "--experimental-backends"], "preferences-system"),
+        ]:
+            btn = QPushButton(text)
+            btn.setIcon(QIcon.fromTheme(icon))
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(
+                lambda _, c=cmd, t=text: self.run_cmd(c, t, hold=False)
+            )
+            d.addWidget(btn)
+
+        layout.addWidget(desktop)
+        layout.addStretch()
+        self.tabs.addTab(tab, "Settings")
+
+    def _create_help_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        group = QGroupBox("Help & Resources")
+        group.setStyleSheet(GROUP_STYLE)
+        g = QVBoxLayout(group)
+
+        for text, action, icon in [
+            ("Arch Wiki",
+             lambda: webbrowser.open("https://wiki.archlinux.org"),
+             "help-contents"),
+            ("Arch Linux Forums",
+             lambda: webbrowser.open("https://bbs.archlinux.org"),
+             "internet-services"),
+            ("Report an issue",
+             lambda: QMessageBox.information(
+                 self, "Issues",
+                 "Point this button to your StormOS issue tracker URL."
+             ),
+             "dialog-information"),
+            ("About StormOS",
+             lambda: QMessageBox.about(
+                 self, "About StormOS",
+                 "StormOS -- an Arch Linux distribution.\n\n"
+                 "Built with PyQt6.\n"
+             ),
+             "help-about"),
+        ]:
+            btn = QPushButton(text)
+            btn.setIcon(QIcon.fromTheme(icon))
+            btn.setStyleSheet(BUTTON_STYLE)
+            btn.clicked.connect(action)
+            g.addWidget(btn)
+
+        layout.addWidget(group)
+        layout.addStretch()
+        self.tabs.addTab(tab, "Help")
+
+    def launch_calamares(self):
+        exe = shutil.which("calamares")
+        if not exe:
+            QMessageBox.warning(
+                self, "Installer not found",
+                "Calamares was not found on this system.\n\n"
+                "On Arch-based systems you may need to install it, "
+                "or include it in the ISO build.",
+            )
+            return
+
+        # Fix libyaml-cpp compatibility
+        dark_env = {
+            **os.environ,
+            "QT_STYLE_OVERRIDE": "Fusion",
+            "QT_QPA_PLATFORMTHEME": "gnome",
+            "XCURSOR_THEME": os.environ.get("XCURSOR_THEME", "Adwaita"),
+            "GTK_THEME": "Adwaita:dark",
+            "QT_QUICK_CONTROLS_STYLE": "Material",
+            "QT_QUICK_CONTROLS_MATERIAL_THEME": "Dark",
+        }
+        
+        # Add library path for libyaml-cpp compatibility
+        lib_paths = []
+        for lib_dir in ["/usr/lib", "/usr/local/lib", "/lib"]:
+            lib_path = Path(lib_dir)
+            if lib_path.exists():
+                # Look for any version of libyaml-cpp
+                for yaml_lib in lib_path.glob("libyaml-cpp.so*"):
+                    if yaml_lib.is_file() or yaml_lib.is_symlink():
+                        lib_paths.append(str(lib_dir))
+                        break
+        
+        if lib_paths:
+            old_ld_path = dark_env.get("LD_LIBRARY_PATH", "")
+            new_ld_path = ":".join(lib_paths)
+            if old_ld_path:
+                dark_env["LD_LIBRARY_PATH"] = f"{new_ld_path}:{old_ld_path}"
+            else:
+                dark_env["LD_LIBRARY_PATH"] = new_ld_path
+        
+        for var in ("QT_STYLE", "QT_PLATFORM_PLUGIN"):
+            dark_env.pop(var, None)
+
+        try:
+            if hasattr(os, "geteuid") and os.geteuid() == 0:
+                subprocess.Popen([exe], env=dark_env)
+                self.set_status("Launching Calamares (dark)...")
+                return
+
+            pkexec = shutil.which("pkexec")
+            if pkexec:
+                env_args = [f"{k}={v}" for k, v in dark_env.items()]
+                subprocess.Popen([pkexec, "env"] + env_args + [exe])
+                self.set_status("Launching Calamares via pkexec (dark)...")
+                return
+
+            env_str = " ".join(
+                f'{k}="{v}"' for k, v in dark_env.items()
+                if k.startswith(("QT_", "GTK_", "XCURSOR_", "LD_"))
+            )
+            self.run_cmd(
+                ["bash", "-c", f"sudo -E env {env_str} {exe}"],
+                title="Calamares Installer",
+                hold=False,
+            )
+        except Exception as e:
+            QMessageBox.warning(self, "Failed to launch installer", str(e))
+
+    def run_cmd(self, cmd: List[str], title: str = "StormOS",
+                hold: bool = True):
+        try:
+            run_in_terminal(cmd, title=title, hold=hold)
+            self.set_status("Command started in terminal")
+        except Exception as e:
+            QMessageBox.warning(self, "Terminal error", str(e))
+
+    def change_theme(self, theme: str):
+        if theme == "Dark":
+            self.apply_dark_theme()
+        else:
+            self.apply_light_theme()
+
+    def change_font(self, size: int):
+        font = self.font()
+        font.setPointSize(size)
+        self.setFont(font)
+
+    def load_settings(self):
+        self.theme.setCurrentText("Dark")
+        self.font_slider.setValue(12)
+
+    def apply_dark_theme(self):
+        self.setStyleSheet("QWidget { background:#2E3440; color:#D8DEE9; }")
+
+    def apply_light_theme(self):
+        self.setStyleSheet("QWidget { background:#F4F6F8; color:#1E1E1E; }")
+
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
+
+def main():
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    win = WelcomeMenu()
+    win.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()

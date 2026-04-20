@@ -1,0 +1,50 @@
+stages:
+  - build
+  - test
+
+variables:
+  ISO_DIR: install-stormos-xfce
+  OUTPUT_DIR: output
+
+build_iso:
+  stage: build
+  image: archlinux/archlinux:latest
+  before_script:
+    - pacman -Sy --noconfirm archiso git
+  script:
+    - cd $ISO_DIR
+    - ./build.sh -v
+  artifacts:
+    paths:
+      - $ISO_DIR/out/*.iso
+    expire_in: 1 week
+  only:
+    - main
+    - merge_requests
+
+checksum:
+  stage: test
+  image: archlinux/archlinux:latest
+  dependencies:
+    - build_iso
+  script:
+    - cd $ISO_DIR/out
+    - sha256sum *.iso > SHA256SUMS
+    - cat SHA256SUMS
+  artifacts:
+    paths:
+      - $ISO_DIR/out/SHA256SUMS
+
+pages:
+  stage: deploy
+  dependencies:
+    - build_iso
+  script:
+    - mkdir -p public
+    - cp $ISO_DIR/out/*.iso public/
+    - sha256sum public/*.iso > public/SHA256SUMS
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
