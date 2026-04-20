@@ -39,4 +39,5 @@ file_permissions=(
   ["/usr/local/bin/hyper8"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
   ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
+  ["/usr/share/libalpm/scripts/stormos-branding-restore"]="0:0:755"
 )
