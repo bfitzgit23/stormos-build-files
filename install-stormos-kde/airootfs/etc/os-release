@@ -1,0 +1,10 @@
+NAME=StormOS
+VERSION="StormOS"
+ID=StormOS
+ID_LIKE=arch
+VERSION_ID=21.7
+PRETTY_NAME="StormOS"
+ANSI_COLOR="0;36"
+LOGO=stormos
+HOME_URL="https://sourceforge.net/projects/hackman-linux"
+SUPPORT_URL="https://sourceforge.net/p/hackman-linux/discussion/"

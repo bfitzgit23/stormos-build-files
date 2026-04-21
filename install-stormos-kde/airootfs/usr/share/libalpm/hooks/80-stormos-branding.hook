@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = filesystem
+
+[Action]
+Description = Restoring StormOS branding (os-release, logo)...
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/stormos-branding-restore
+Depends = coreutils
