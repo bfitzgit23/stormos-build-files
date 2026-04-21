@@ -58,8 +58,8 @@ from PyQt6.QtWidgets import (
 # ============================================================
 
 AUTOSTART_PATHS = [
-    Path("/etc/xdg/autostart/stormos-welcome.desktop"),
-    Path.home() / ".config/autostart/stormos-welcome.desktop",
+    Path("/etc/xdg/autostart/welcome.desktop"),
+    Path.home() / ".config/autostart/welcome.desktop",
 ]
 
 LIVE_MARKERS = [
