@@ -38,7 +38,6 @@ fakeroot
 foot-terminfo
 fsarchiver
 gpart
-gparted
 gpm
 gptfdisk
 grml-zsh-config
@@ -183,9 +182,6 @@ ghostscript
 gsfonts
 hplip
 unzip
-gnome-disk-utility
-gnome-calculator
-gnome-system-monitor
 rclone
 expac
 plasma-login-manager
@@ -194,8 +190,6 @@ gvfs
 StormOS-conf
 stormos-grub-theme
 fzf
-gnome-disk-utility
-
 xdg-user-dirs
 plymouth
 xorg
