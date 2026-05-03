@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS_"
+iso_name="StormOS_XFCE_"
 iso_label="StormOS_Release"
 iso_publisher="StormOS"
 iso_application="StormOS Install Media"
