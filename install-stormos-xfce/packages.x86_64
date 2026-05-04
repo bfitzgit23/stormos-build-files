@@ -8,7 +8,6 @@ archinstall
 archlinux-keyring
 b43-fwcutter
 base
-bcachefs-tools
 bind
 bolt
 brltty
