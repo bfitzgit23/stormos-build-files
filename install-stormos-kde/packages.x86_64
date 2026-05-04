@@ -60,6 +60,8 @@ linux-zen
 linux-zen-headers
 linux-lts
 linux-lts-headers
+linux
+linux-headers
 linux-atm
 linux-firmware
 linux-firmware-marvell
