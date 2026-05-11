@@ -58,8 +58,8 @@ from PyQt6.QtWidgets import (
 # ============================================================
 
 AUTOSTART_PATHS = [
-    Path("/etc/xdg/autostart/welcome.desktop"),
-    Path.home() / ".config/autostart/welcome.desktop",
+    Path("/etc/xdg/autostart/stormos-welcome.desktop"),
+    Path.home() / ".config/autostart/stormos-welcome.desktop",
 ]
 
 LIVE_MARKERS = [
@@ -231,15 +231,15 @@ def run_async(parent: QWidget, fn: Callable, callback: Callable,
 # ============================================================
 
 def find_xfce_terminal() -> Optional[str]:
-    return shutil.which("konsole")
+    return shutil.which("xfce4-terminal")
 
 
 def run_in_terminal(cmd: List[str], title: str = "StormOS", hold: bool = True):
     term = find_xfce_terminal()
     if not term:
         raise RuntimeError(
-            "konsole not found.\n"
-            "Install it first:  sudo pacman -S konsole"
+            "xfce4-terminal not found.\n"
+            "Install it first:  sudo pacman -S xfce4-terminal"
         )
     args = [term]
     if hold:
@@ -841,7 +841,7 @@ class SoftwareCenter(QWidget):
             "https://flathub.org/repo/flathub.flatpakrepo\n\n"
             "Snap:\n  sudo pacman -S snapd\n"
             "  sudo systemctl enable --now snapd.socket\n\n"
-            "Terminal:\n  sudo pacman -S konsole"
+            "Terminal:\n  sudo pacman -S xfce4-terminal"
         )
 
     def _clear(self):
@@ -1905,7 +1905,7 @@ class WelcomeMenu(QMainWindow):
             g.addWidget(btn)
 
         note = QLabel(
-            "Note: commands open in konsole (must be installed)."
+            "Note: commands open in xfce4-terminal (must be installed)."
         )
         note.setStyleSheet("color:#D8DEE9; font-size: 12px;")
         g.addWidget(note)
