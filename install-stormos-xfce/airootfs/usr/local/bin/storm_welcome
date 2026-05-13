@@ -10,6 +10,7 @@ Fixes vs original
 - App properly manages autostart: only disables ONCE after installation
 - Added toggle to manually re-enable autostart in Welcome tab
 - Fixed libyaml-cpp compatibility for Calamares
+- Fixed terminal command launching (now uses any available terminal + pkexec)
 """
 
 from __future__ import annotations
@@ -227,25 +228,66 @@ def run_async(parent: QWidget, fn: Callable, callback: Callable,
 
 
 # ============================================================
-# TERMINAL / PROCESS UTILITIES
+# TERMINAL / PROCESS UTILITIES (FIXED)
 # ============================================================
 
-def find_xfce_terminal() -> Optional[str]:
-    return shutil.which("xfce4-terminal")
+def find_available_terminal() -> Optional[str]:
+    """Find any available terminal emulator."""
+    terminals = ["xfce4-terminal", "xterm", "gnome-terminal", "konsole", "alacritty", "kitty"]
+    for term in terminals:
+        path = shutil.which(term)
+        if path:
+            return path
+    return None
 
 
 def run_in_terminal(cmd: List[str], title: str = "StormOS", hold: bool = True):
-    term = find_xfce_terminal()
+    """
+    Launch a command in a new terminal window.
+    Uses xfce4-terminal if available, otherwise falls back to xterm, etc.
+    """
+    term = find_available_terminal()
     if not term:
         raise RuntimeError(
-            "xfce4-terminal not found.\n"
-            "Install it first:  sudo pacman -S xfce4-terminal"
+            "No terminal emulator found.\n"
+            "Install xfce4-terminal:  sudo pacman -S xfce4-terminal"
         )
+    
+    # Build terminal arguments based on the terminal type
+    term_name = os.path.basename(term)
     args = [term]
-    if hold:
-        args += ["--hold"]
-    args += ["--title", title, "--execute", *cmd]
-    subprocess.Popen(args)
+    
+    if term_name == "xfce4-terminal":
+        args += ["--disable-server"]  # Prevent issues with existing instances
+        if hold:
+            args += ["--hold"]
+        args += ["--title", title, "--execute"] + cmd
+    elif term_name == "xterm":
+        if hold:
+            # xterm: keep open by adding a shell read at the end
+            cmd_with_hold = cmd + [";", "echo", "Press Enter to close...", ";", "read"]
+            args += ["-title", title, "-e", " ".join(cmd_with_hold)]
+        else:
+            args += ["-title", title, "-e"] + cmd
+    elif term_name == "gnome-terminal":
+        if hold:
+            args += ["--title", title, "--", "bash", "-c", " ".join(cmd) + "; exec bash"]
+        else:
+            args += ["--title", title, "--"] + cmd
+    else:
+        # Generic fallback: try to use --execute or -e
+        if "--execute" in args or "-e" in args:
+            args += cmd
+        else:
+            args += ["-e"] + cmd
+    
+    # Set DISPLAY environment variable to ensure terminal shows on correct screen
+    env = os.environ.copy()
+    if "DISPLAY" not in env:
+        env["DISPLAY"] = ":0"
+    
+    # Detach the process so it doesn't close with the parent
+    subprocess.Popen(args, env=env, start_new_session=True)
 
 
 def run_capture(cmd: List[str], timeout: int = 120) -> Tuple[int, str, str]:
@@ -2101,8 +2143,22 @@ class WelcomeMenu(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Failed to launch installer", str(e))
 
-    def run_cmd(self, cmd: List[str], title: str = "StormOS",
-                hold: bool = True):
+    def run_cmd(self, cmd: List[str], title: str = "StormOS", hold: bool = True):
+        """Run a command, using pkexec for sudo if available."""
+        # If the command uses sudo and pkexec exists, use pkexec for graphical password prompt
+        if cmd[0] == "sudo" and shutil.which("pkexec"):
+            # Replace 'sudo' with 'pkexec' and remove the 'sudo' argument
+            pkexec_cmd = ["pkexec"] + cmd[1:]
+            try:
+                # Run pkexec directly (it will show its own GUI)
+                subprocess.Popen(pkexec_cmd, start_new_session=True)
+                self.set_status(f"Running {cmd[1]} with elevated privileges...")
+                return
+            except Exception as e:
+                # Fall back to terminal if pkexec fails
+                pass
+        
+        # Fallback: run in terminal
         try:
             run_in_terminal(cmd, title=title, hold=hold)
             self.set_status("Command started in terminal")
