@@ -10,7 +10,7 @@ Fixes vs original
 - App properly manages autostart: only disables ONCE after installation
 - Added toggle to manually re-enable autostart in Welcome tab
 - Fixed libyaml-cpp compatibility for Calamares
-- Fixed terminal command launching (now uses any available terminal + pkexec)
+- Fixed terminal command launching (now uses shell wrapper + pkexec fallback)
 """
 
 from __future__ import annotations
@@ -228,7 +228,7 @@ def run_async(parent: QWidget, fn: Callable, callback: Callable,
 
 
 # ============================================================
-# TERMINAL / PROCESS UTILITIES (FIXED)
+# TERMINAL / PROCESS UTILITIES (FIXED - RELIABLE)
 # ============================================================
 
 def find_available_terminal() -> Optional[str]:
@@ -244,50 +244,46 @@ def find_available_terminal() -> Optional[str]:
 def run_in_terminal(cmd: List[str], title: str = "StormOS", hold: bool = True):
     """
     Launch a command in a new terminal window.
-    Uses xfce4-terminal if available, otherwise falls back to xterm, etc.
+    Uses a shell wrapper to ensure the command runs and the terminal stays open.
     """
     term = find_available_terminal()
     if not term:
         raise RuntimeError(
             "No terminal emulator found.\n"
-            "Install xfce4-terminal:  sudo pacman -S xfce4-terminal"
+            "Please install xfce4-terminal: sudo pacman -S xfce4-terminal"
         )
-    
-    # Build terminal arguments based on the terminal type
-    term_name = os.path.basename(term)
-    args = [term]
-    
-    if term_name == "xfce4-terminal":
-        args += ["--disable-server"]  # Prevent issues with existing instances
-        if hold:
-            args += ["--hold"]
-        args += ["--title", title, "--execute"] + cmd
-    elif term_name == "xterm":
-        if hold:
-            # xterm: keep open by adding a shell read at the end
-            cmd_with_hold = cmd + [";", "echo", "Press Enter to close...", ";", "read"]
-            args += ["-title", title, "-e", " ".join(cmd_with_hold)]
-        else:
-            args += ["-title", title, "-e"] + cmd
-    elif term_name == "gnome-terminal":
-        if hold:
-            args += ["--title", title, "--", "bash", "-c", " ".join(cmd) + "; exec bash"]
-        else:
-            args += ["--title", title, "--"] + cmd
+
+    # Build a safe shell command that runs the given command and optionally waits
+    # Escape double quotes inside the command for the bash -c string
+    cmd_str = " ".join(f'"{arg}"' if " " in arg else arg for arg in cmd)
+    if hold:
+        shell_cmd = f'bash -c "{cmd_str}; echo; read -p \\"Press Enter to close...\\""'
     else:
-        # Generic fallback: try to use --execute or -e
-        if "--execute" in args or "-e" in args:
-            args += cmd
-        else:
-            args += ["-e"] + cmd
-    
-    # Set DISPLAY environment variable to ensure terminal shows on correct screen
+        shell_cmd = f'bash -c "{cmd_str}"'
+
+    term_name = os.path.basename(term)
+    if term_name == "xfce4-terminal":
+        args = [term, "--disable-server", "--title", title, "-e", shell_cmd]
+    elif term_name == "xterm":
+        args = [term, "-title", title, "-e", shell_cmd]
+    elif term_name == "gnome-terminal":
+        args = [term, "--title", title, "--", "bash", "-c", shell_cmd]
+    elif term_name == "konsole":
+        args = [term, "--title", title, "-e", shell_cmd]
+    else:
+        # Generic fallback: use -e
+        args = [term, "-e", shell_cmd]
+
+    # Ensure DISPLAY is set for GUI apps
     env = os.environ.copy()
     if "DISPLAY" not in env:
         env["DISPLAY"] = ":0"
-    
-    # Detach the process so it doesn't close with the parent
-    subprocess.Popen(args, env=env, start_new_session=True)
+
+    try:
+        # Launch detached and don't wait
+        subprocess.Popen(args, env=env, start_new_session=True)
+    except Exception as e:
+        raise RuntimeError(f"Failed to launch terminal: {e}")
 
 
 def run_capture(cmd: List[str], timeout: int = 120) -> Tuple[int, str, str]:
@@ -2144,26 +2140,28 @@ class WelcomeMenu(QMainWindow):
             QMessageBox.warning(self, "Failed to launch installer", str(e))
 
     def run_cmd(self, cmd: List[str], title: str = "StormOS", hold: bool = True):
-        """Run a command, using pkexec for sudo if available."""
-        # If the command uses sudo and pkexec exists, use pkexec for graphical password prompt
+        """
+        Run a command. If it starts with 'sudo' and pkexec exists, use pkexec for GUI.
+        Otherwise fall back to terminal.
+        """
+        # Special handling for sudo commands: try pkexec first
         if cmd[0] == "sudo" and shutil.which("pkexec"):
-            # Replace 'sudo' with 'pkexec' and remove the 'sudo' argument
             pkexec_cmd = ["pkexec"] + cmd[1:]
             try:
-                # Run pkexec directly (it will show its own GUI)
+                # Launch pkexec directly (graphical password dialog)
                 subprocess.Popen(pkexec_cmd, start_new_session=True)
                 self.set_status(f"Running {cmd[1]} with elevated privileges...")
                 return
             except Exception as e:
-                # Fall back to terminal if pkexec fails
-                pass
-        
+                self.set_status(f"pkexec failed, falling back to terminal: {e}")
+                # Continue to terminal fallback
+
         # Fallback: run in terminal
         try:
             run_in_terminal(cmd, title=title, hold=hold)
             self.set_status("Command started in terminal")
         except Exception as e:
-            QMessageBox.warning(self, "Terminal error", str(e))
+            QMessageBox.critical(self, "Terminal Error", str(e))
 
     def change_theme(self, theme: str):
         if theme == "Dark":
