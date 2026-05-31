@@ -2,15 +2,15 @@
 
 <channel name="xfce4-terminal" version="1.0">
   <property name="misc-show-unsafe-paste-dialog" type="bool" value="false"/>
-  <property name="misc-default-geometry" type="string" value="85x30"/>
+  <property name="misc-default-geometry" type="string" value="80x25"/>
   <property name="cell-height-scale" type="double" value="1"/>
   <property name="cell-width-scale" type="double" value="1"/>
   <property name="background-mode" type="string" value="TERMINAL_BACKGROUND_TRANSPARENT"/>
   <property name="background-darkness" type="double" value="0.90000000000000002"/>
-  <property name="font-name" type="string" value="Ubuntu Mono 16"/>
-  <property name="color-foreground" type="string" value="#3434e2e2e2e2"/>
+  <property name="font-name" type="string" value="Ubuntu Mono 18"/>
+  <property name="color-foreground" type="string" value="#17179393d1d1"/>
   <property name="color-use-theme" type="bool" value="false"/>
-  <property name="color-palette" type="string" value="rgb(10,14,20);rgb(255,85,85);rgb(23,147,209);rgb(252,233,79);rgb(52,226,226);rgb(23,147,209);rgb(0,229,255);rgb(230,230,230);rgb(85,87,83);rgb(239,41,41);rgb(138,226,52);rgb(252,233,79);rgb(52,226,226);rgb(173,127,168);rgb(52,226,226);rgb(238,238,236)"/>
+  <property name="color-palette" type="string" value="rgb(10,14,20);rgb(255,85,85);rgb(23,147,209);rgb(252,233,79);rgb(23,147,209);rgb(23,147,209);rgb(23,147,209);rgb(230,230,230);rgb(85,87,83);rgb(239,41,41);rgb(138,226,52);rgb(252,233,79);rgb(23,147,209);rgb(173,127,168);rgb(23,147,209);rgb(238,238,236)"/>
   <property name="tab-activity-color" type="string" value="#aa0000"/>
   <property name="color-bold-is-bright" type="bool" value="true"/>
   <property name="misc-always-show-tabs" type="bool" value="false"/>
@@ -20,7 +20,7 @@
   <property name="misc-cursor-blinks" type="bool" value="false"/>
   <property name="misc-cursor-shape" type="string" value="TERMINAL_CURSOR_SHAPE_BLOCK"/>
   <property name="misc-inherit-geometry" type="bool" value="false"/>
-  <property name="misc-menubar-default" type="bool" value="false"/>
+  <property name="misc-menubar-default" type="bool" value="true"/>
   <property name="misc-mouse-autohide" type="bool" value="false"/>
   <property name="misc-mouse-wheel-zoom" type="bool" value="true"/>
   <property name="misc-toolbar-default" type="bool" value="false"/>

@@ -117,3 +117,4 @@ else
         fi
     done
 fi
+ln -sf /usr/local/bin/xfce4-terminal /usr/bin/xfce4-terminal

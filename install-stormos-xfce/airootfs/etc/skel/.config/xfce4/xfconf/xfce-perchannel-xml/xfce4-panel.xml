@@ -187,16 +187,13 @@
       <property name="position-search-alternate" type="bool" value="true"/>
       <property name="button-icon" type="string" value="storm os"/>
       <property name="recent" type="array">
-        <value type="string" value="discord.desktop"/>
+        <value type="string" value="xfce-ui-settings.desktop"/>
         <value type="string" value="thorium-browser.desktop"/>
+        <value type="string" value="virtualbox.desktop"/>
+        <value type="string" value="gimp.desktop"/>
+        <value type="string" value="xfce4-terminal.desktop"/>
+        <value type="string" value="xfce4-mime-settings.desktop"/>
         <value type="string" value="steam.desktop"/>
-        <value type="string" value="wine-Programs-SWGReturns-SWGReturns Launcher.desktop"/>
-        <value type="string" value="wine-Programs-SWGEmu-SWGEmu Launchpad-SWGEmu Launchpad.desktop"/>
-        <value type="string" value="STAR WARS The Old Republic.desktop"/>
-        <value type="string" value="wine-Programs-X2Go Client for Windows-X2Go Client.desktop"/>
-        <value type="string" value="wine-Programs-SWG Restoration.desktop"/>
-        <value type="string" value="net.lutris.battlenet-2.desktop"/>
-        <value type="string" value="wine-Programs-SWG Beyond.desktop"/>
       </property>
       <property name="favorites" type="array">
         <value type="string" value="xfce4-web-browser.desktop"/>

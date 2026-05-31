@@ -252,8 +252,6 @@ vte4
 flatpak
 base-devel
 scx-scheds
-eco_repo/eco-term2
-eco_repo/eco-nexus
-eco_repo/eco-fm2
-eco_repo/eco-player
 yaml-cpp
+vlc
+stormos-welcome

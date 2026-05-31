@@ -3,9 +3,9 @@
 
 iso_name="StormOS_KDE_"
 iso_label="StormOS_KDE_Release"
-iso_publisher="StormOS"
+iso_publisher="StormOS_Dev"
 iso_application="StormOS KDE Install Media"
-iso_version="v1a"
+iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m)"
 install_dir="arch"
 buildmodes=('iso')
 bootmodes=('bios.syslinux'
@@ -25,19 +25,16 @@ file_permissions=(
   ["/usr/local/bin/livecd-sound"]="0:0:755"
   ["/usr/local/bin/postinstall.sh"]="0:0:755"
   ["/usr/local/bin/readme"]="0:0:755"
-  ["/usr/local/bin/launcher"]="0:0:755"
-  ["/usr/local/bin/storm_welcome"]="0:0:755"
   ["/etc/gshadow"]="0:0:400"
   ["/etc/shadow"]="0:0:400"
   ["/usr/local/bin/trust.sh"]="0:0:755"
   ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/autoi.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
-  ["/usr/local/bin/fm10"]="0:0:755"
-  ["/usr/local/bin/term5"]="0:0:755"
-  ["/usr/local/bin/launcher"]="0:0:755"
   ["/usr/local/bin/hyper8"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
+  ["/usr/local/bin/stormos-welcome"]="0:0:755"
+  ["/etc/skel/.config/autostart/welcome.desktop"]="0:0:755"
   ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
   ["/usr/share/libalpm/scripts/stormos-branding-restore"]="0:0:755"
 )
