@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-StormOS Welcome - Modern Sleek Theme
-Original glassmorphic design with neon accents
+StormOS Welcome - Modern Sleek Theme with gnome-terminal support
+Glassmorphic design, neon accents, now uses gnome-terminal
 """
 
 import os
@@ -47,26 +47,22 @@ LIVE_MARKERS = ["/run/archiso", "/run/miso", "/etc/live", "/run/live"]
 
 
 # ============================================================
-# UTILITY FUNCTIONS
+# TERMINAL HANDLING - PRIORITIZE gnome-terminal
 # ============================================================
 
-def is_live_session() -> bool:
-    for marker in LIVE_MARKERS:
-        if Path(marker).exists():
-            return True
-    return False
-
-
 def find_terminal() -> Optional[str]:
-    terminals = ["xfce4-terminal", "xterm", "gnome-terminal", "konsole"]
+    """Find available terminal emulator, preferring gnome-terminal."""
+    # Priority order: gnome-terminal first, then xfce4-terminal, xterm, etc.
+    terminals = ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]
     for term in terminals:
         if shutil.which(term):
-            return term
+            return shutil.which(term)
     return None
 
 
 def run_command(cmd: List[str], title: str = "StormOS", hold: bool = True):
-    """Run command with pkexec or terminal."""
+    """Run command using gnome-terminal (or fallback) with proper PTY handling."""
+    # Use pkexec for sudo commands (graphical password dialog)
     if cmd[0] == "sudo" and shutil.which("pkexec"):
         try:
             subprocess.Popen(["pkexec"] + cmd[1:], start_new_session=True,
@@ -77,21 +73,31 @@ def run_command(cmd: List[str], title: str = "StormOS", hold: bool = True):
 
     term = find_terminal()
     if not term:
-        QMessageBox.warning(None, "Terminal Error", "No terminal found.\nInstall xfce4-terminal.")
+        QMessageBox.warning(None, "Terminal Error",
+                           "No terminal found.\nPlease install gnome-terminal or xfce4-terminal.")
         return False
 
+    # Build command string with proper escaping
     cmd_str = " ".join(f'"{arg}"' if " " in arg or "'" in arg else arg for arg in cmd)
+
+    # Create a shell command that keeps the terminal open if hold=True
     if hold:
         wrapper = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"'
     else:
         wrapper = f'bash -c "{cmd_str}"'
 
     term_name = os.path.basename(term)
-    if term_name == "xfce4-terminal":
+
+    # gnome-terminal specific arguments
+    if term_name == "gnome-terminal":
+        # Use -- to separate options from the command
+        args = [term, "--title", title, "--", "bash", "-c", wrapper]
+    elif term_name == "xfce4-terminal":
         args = [term, "--disable-server", "--title", title, "--command", wrapper]
     elif term_name == "xterm":
         args = [term, "-title", title, "-e", wrapper]
     else:
+        # Generic fallback
         args = [term, "-e", wrapper]
 
     try:
@@ -104,6 +110,7 @@ def run_command(cmd: List[str], title: str = "StormOS", hold: bool = True):
 
 
 def run_capture(cmd: List[str]) -> tuple:
+    """Run command and capture output (for package search)."""
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return result.returncode, result.stdout, result.stderr
@@ -112,7 +119,7 @@ def run_capture(cmd: List[str]) -> tuple:
 
 
 # ============================================================
-# PACKAGE BACKENDS (same as before)
+# PACKAGE BACKENDS (unchanged)
 # ============================================================
 
 class PackageBackend:
@@ -201,7 +208,7 @@ class YayBackend(PackageBackend):
 
 
 # ============================================================
-# MAIN WINDOW WITH MODERN THEME
+# MAIN WINDOW WITH MODERN THEME (same as before)
 # ============================================================
 
 class StormWelcome(QMainWindow):
@@ -210,17 +217,17 @@ class StormWelcome(QMainWindow):
         self.is_live = is_live_session()
         self.current_packages = []
         self.selected_package = None
-        
+
         self.init_ui()
         self.apply_styles()
         self.setup_autostart()
         self.animate_window()
-    
+
     def init_ui(self):
         self.setWindowTitle("🌩️ Storm Welcome")
         self.setMinimumSize(1000, 700)
         self.setWindowIcon(QIcon.fromTheme("stormos-welcome"))
-        
+
         # Center window
         screen = QGuiApplication.primaryScreen().geometry()
         self.setGeometry(
@@ -228,7 +235,7 @@ class StormWelcome(QMainWindow):
             (screen.height() - 700) // 2,
             1000, 700
         )
-        
+
         # Central widget with glass effect
         central = QWidget()
         central.setObjectName("central")
@@ -236,10 +243,10 @@ class StormWelcome(QMainWindow):
         layout = QVBoxLayout(central)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
-        
+
         # Header
         layout.addWidget(self.create_header())
-        
+
         # Tabs
         self.tabs = QTabWidget()
         self.tabs.setObjectName("mainTabs")
@@ -253,25 +260,25 @@ class StormWelcome(QMainWindow):
         self.tabs.addTab(self.create_settings_tab(), "⚙️ Settings")
         self.tabs.addTab(self.create_help_tab(), "❓ Help")
         layout.addWidget(self.tabs)
-        
+
         # Footer
         layout.addWidget(self.create_footer())
-    
+
     def create_header(self) -> QWidget:
         header = QWidget()
         header.setObjectName("header")
         layout = QHBoxLayout(header)
         layout.setContentsMargins(20, 10, 20, 10)
-        
+
         title = QLabel("🌩️ StormOS")
         title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
         subtitle = QLabel("Arch Linux made calm")
         subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
-        
+
         layout.addWidget(title)
         layout.addWidget(subtitle)
         layout.addStretch()
-        
+
         if self.is_live:
             badge = QLabel(" LIVE SESSION ")
             badge.setObjectName("live_badge")
@@ -281,50 +288,48 @@ class StormWelcome(QMainWindow):
                 font-weight: bold; font-size: 11px;
             """)
             layout.addWidget(badge)
-        
+
         return header
-    
+
     def create_footer(self) -> QWidget:
         footer = QWidget()
         footer.setObjectName("footer")
         layout = QHBoxLayout(footer)
         layout.setContentsMargins(20, 8, 20, 8)
-        
+
         self.status_label = QLabel("Ready")
         self.status_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
         layout.addWidget(self.status_label)
-        
+
         layout.addStretch()
-        
+
         version = QLabel("v2.0 • Arch made calm")
         version.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
         layout.addWidget(version)
-        
+
         return footer
-    
+
     def create_welcome_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(25)
-        
-        # Welcome title
+
         welcome = QLabel("Welcome to Your New <span style='color:#64ffda'>StormOS</span> System!")
         welcome.setStyleSheet("font-size: 28px; font-weight: bold;")
         welcome.setWordWrap(True)
         layout.addWidget(welcome)
-        
+
         desc = QLabel("Your Arch Linux journey starts now — calm, powerful, and beginner-friendly")
         desc.setStyleSheet(f"color: {STORM_GRAY}; font-size: 15px; margin-bottom: 20px;")
         layout.addWidget(desc)
-        
-        # Installer card (glass)
+
         install_card = self.create_glass_card("💿 Install StormOS")
         install_btn = QPushButton("Launch Installer (Calamares)")
         install_btn.setObjectName("gradientButton")
         install_btn.clicked.connect(self.launch_calamares)
         install_card.layout().addWidget(install_btn)
-        
+
         hint = QLabel(
             "Runs the graphical installer to install StormOS to disk."
             if self.is_live else
@@ -334,20 +339,19 @@ class StormWelcome(QMainWindow):
         hint.setWordWrap(True)
         install_card.layout().addWidget(hint)
         layout.addWidget(install_card)
-        
-        # Autostart card (only for installed system)
+
         if not self.is_live:
             autocard = self.create_glass_card("🔄 Autostart")
             self.autostatus = QLabel()
             autocard.layout().addWidget(self.autostatus)
-            
+
             info = QLabel(
                 "Control whether this welcome app launches automatically when you log in."
             )
             info.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
             info.setWordWrap(True)
             autocard.layout().addWidget(info)
-            
+
             btn_layout = QHBoxLayout()
             enable_btn = QPushButton("Enable autostart")
             enable_btn.setObjectName("glassButton")
@@ -359,11 +363,10 @@ class StormWelcome(QMainWindow):
             btn_layout.addWidget(disable_btn)
             btn_layout.addStretch()
             autocard.layout().addLayout(btn_layout)
-            
+
             layout.addWidget(autocard)
             self.update_autostart_status()
-        
-        # Quick links
+
         links_card = self.create_glass_card("🔗 Quick Links")
         links_layout = QHBoxLayout()
         for name, url in [
@@ -379,46 +382,45 @@ class StormWelcome(QMainWindow):
         links_layout.addStretch()
         links_card.layout().addLayout(links_layout)
         layout.addWidget(links_card)
-        
+
         layout.addStretch()
         return tab
-    
+
     def create_system_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
+
         card = self.create_glass_card("⚡ System Actions")
-        
+
         actions = [
             ("⟳ Update System (pacman -Syu)", ["sudo", "pacman", "-Syu"]),
             ("⟳ Update System + AUR (yay -Syu)", ["yay", "-Syu"]),
             ("🔁 Reboot", ["sudo", "reboot"]),
             ("⏻ Shutdown", ["sudo", "shutdown", "-h", "now"]),
         ]
-        
+
         for text, cmd in actions:
             btn = QPushButton(text)
             btn.setObjectName("actionButton")
             btn.clicked.connect(lambda checked, c=cmd, t=text: self.run_system_cmd(c, t))
             card.layout().addWidget(btn)
-        
-        note = QLabel("Note: commands open in terminal. xfce4-terminal must be installed.")
+
+        note = QLabel("Note: commands open in gnome-terminal (or fallback terminal).")
         note.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px; margin-top: 12px;")
         card.layout().addWidget(note)
-        
+
         layout.addWidget(card)
         layout.addStretch()
         return tab
-    
+
     def create_software_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
-        # Header
+
         header = QHBoxLayout()
         title = QLabel("📦 Software Center")
         title.setStyleSheet("font-size: 20px; font-weight: bold; color: #64ffda;")
@@ -428,34 +430,32 @@ class StormWelcome(QMainWindow):
         self.backend_status.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
         header.addWidget(self.backend_status)
         layout.addLayout(header)
-        
-        # Search bar
+
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search for packages...")
         self.search_input.setObjectName("glassInput")
         self.search_input.returnPressed.connect(self.search_packages)
         search_layout.addWidget(self.search_input)
-        
+
         self.source_combo = QComboBox()
         self.source_combo.addItems(["All", "Pacman", "AUR"])
         self.source_combo.setObjectName("glassCombo")
         search_layout.addWidget(self.source_combo)
-        
+
         search_btn = QPushButton("Search")
         search_btn.setObjectName("smallGlass")
         search_btn.clicked.connect(self.search_packages)
         search_layout.addWidget(search_btn)
-        
+
         installed_btn = QPushButton("Installed")
         installed_btn.setObjectName("smallGlass")
         installed_btn.clicked.connect(self.show_installed)
         search_layout.addWidget(installed_btn)
         layout.addLayout(search_layout)
-        
-        # Splitter
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        
+
         self.package_list = QTreeWidget()
         self.package_list.setHeaderLabels(["Name", "Version", "Source"])
         self.package_list.setColumnWidth(0, 250)
@@ -463,26 +463,26 @@ class StormWelcome(QMainWindow):
         self.package_list.setObjectName("packageList")
         self.package_list.itemClicked.connect(self.on_package_selected)
         splitter.addWidget(self.package_list)
-        
+
         details_widget = QWidget()
         details_layout = QVBoxLayout(details_widget)
         self.details_title = QLabel("Select a package")
         self.details_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #64ffda;")
         details_layout.addWidget(self.details_title)
-        
+
         self.details_text = QTextEdit()
         self.details_text.setReadOnly(True)
         self.details_text.setMaximumHeight(200)
         self.details_text.setObjectName("glassText")
         details_layout.addWidget(self.details_text)
-        
+
         btn_layout = QHBoxLayout()
         self.install_btn = QPushButton("Install")
         self.install_btn.setObjectName("successGlass")
         self.install_btn.clicked.connect(self.install_package)
         self.install_btn.setEnabled(False)
         btn_layout.addWidget(self.install_btn)
-        
+
         self.remove_btn = QPushButton("Remove")
         self.remove_btn.setObjectName("dangerGlass")
         self.remove_btn.clicked.connect(self.remove_package)
@@ -490,19 +490,19 @@ class StormWelcome(QMainWindow):
         btn_layout.addWidget(self.remove_btn)
         btn_layout.addStretch()
         details_layout.addLayout(btn_layout)
-        
+
         splitter.addWidget(details_widget)
         splitter.setSizes([450, 350])
         layout.addWidget(splitter)
-        
+
         return tab
-    
+
     def create_maintenance_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
+
         cache_card = self.create_glass_card("🧹 Package Cache")
         for text, cmd in [
             ("Clear pacman cache (keep last 3 versions)", ["sudo", "paccache", "-r"]),
@@ -514,7 +514,7 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda checked, c=cmd: run_command(c))
             cache_card.layout().addWidget(btn)
         layout.addWidget(cache_card)
-        
+
         mirrors_card = self.create_glass_card("🪞 Mirrors & Sync")
         for text, cmd in [
             ("Rank mirrors (reflector)", ["sudo", "reflector", "--latest", "20", "--protocol", "https", "--sort", "rate", "--save", "/etc/pacman.d/mirrorlist"]),
@@ -525,16 +525,16 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda checked, c=cmd: run_command(c))
             mirrors_card.layout().addWidget(btn)
         layout.addWidget(mirrors_card)
-        
+
         layout.addStretch()
         return tab
-    
+
     def create_drivers_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
+
         nv_card = self.create_glass_card("🎮 NVIDIA")
         for text, cmd in [
             ("NVIDIA (proprietary)", ["sudo", "pacman", "-S", "--needed", "nvidia", "nvidia-utils", "nvidia-settings"]),
@@ -545,30 +545,30 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda checked, c=cmd: run_command(c))
             nv_card.layout().addWidget(btn)
         layout.addWidget(nv_card)
-        
+
         amd_card = self.create_glass_card("🟠 AMD")
         btn = QPushButton("AMDGPU (modern)")
         btn.setObjectName("actionButton")
         btn.clicked.connect(lambda: run_command(["sudo", "pacman", "-S", "--needed", "xf86-video-amdgpu", "mesa", "lib32-mesa"]))
         amd_card.layout().addWidget(btn)
         layout.addWidget(amd_card)
-        
+
         intel_card = self.create_glass_card("🔵 Intel")
         btn = QPushButton("Intel (modesetting)")
         btn.setObjectName("actionButton")
         btn.clicked.connect(lambda: run_command(["sudo", "pacman", "-S", "--needed", "mesa", "lib32-mesa", "intel-media-driver"]))
         intel_card.layout().addWidget(btn)
         layout.addWidget(intel_card)
-        
+
         layout.addStretch()
         return tab
-    
+
     def create_tweaks_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
+
         shell_card = self.create_glass_card("🐚 Shell Setup")
         for text, cmd in [
             ("Install Zsh", ["sudo", "pacman", "-S", "--needed", "zsh"]),
@@ -579,7 +579,7 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda checked, c=cmd: run_command(c))
             shell_card.layout().addWidget(btn)
         layout.addWidget(shell_card)
-        
+
         plymouth_card = self.create_glass_card("🎨 Boot & Plymouth")
         for text, cmd in [
             ("Install Plymouth", ["sudo", "pacman", "-S", "--needed", "plymouth"]),
@@ -590,16 +590,16 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda checked, c=cmd: run_command(c))
             plymouth_card.layout().addWidget(btn)
         layout.addWidget(plymouth_card)
-        
+
         layout.addStretch()
         return tab
-    
+
     def create_gaming_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
+
         plat_card = self.create_glass_card("🎮 Game Platforms")
         for text, cmd in [
             ("Steam", ["sudo", "pacman", "-S", "--needed", "steam"]),
@@ -610,23 +610,23 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda checked, c=cmd: run_command(c))
             plat_card.layout().addWidget(btn)
         layout.addWidget(plat_card)
-        
+
         wine_card = self.create_glass_card("🍷 Wine & Proton")
         btn = QPushButton("Wine (staging)")
         btn.setObjectName("actionButton")
         btn.clicked.connect(lambda: run_command(["sudo", "pacman", "-S", "--needed", "wine-staging", "wine-mono", "wine-gecko"]))
         wine_card.layout().addWidget(btn)
         layout.addWidget(wine_card)
-        
+
         layout.addStretch()
         return tab
-    
+
     def create_settings_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
+
         appearance_card = self.create_glass_card("🎨 Appearance")
         theme_layout = QHBoxLayout()
         theme_layout.addWidget(QLabel("Theme:"))
@@ -637,7 +637,7 @@ class StormWelcome(QMainWindow):
         theme_layout.addStretch()
         appearance_card.layout().addLayout(theme_layout)
         layout.addWidget(appearance_card)
-        
+
         tools_card = self.create_glass_card("🖥️ Desktop Tools")
         for text, cmd in [
             ("Display Settings (arandr)", ["arandr"]),
@@ -649,16 +649,16 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda checked, c=cmd: run_command(c, hold=False))
             tools_card.layout().addWidget(btn)
         layout.addWidget(tools_card)
-        
+
         layout.addStretch()
         return tab
-    
+
     def create_help_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        
+
         help_card = self.create_glass_card("📚 Help & Resources")
         for name, url in [
             ("Arch Wiki", "https://wiki.archlinux.org"),
@@ -668,17 +668,17 @@ class StormWelcome(QMainWindow):
             btn.setObjectName("linkButton")
             btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
             help_card.layout().addWidget(btn)
-        
+
         about_btn = QPushButton("About StormOS")
         about_btn.setObjectName("linkButton")
         about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS",
-            "StormOS Welcome v2.0\n\nModern welcome and software center for StormOS\n\nBuilt with PyQt6"))
+            "StormOS Welcome v2.0\n\nModern welcome and software center for StormOS\n\nBuilt with PyQt6\nUses gnome-terminal for commands"))
         help_card.layout().addWidget(about_btn)
-        
+
         layout.addWidget(help_card)
         layout.addStretch()
         return tab
-    
+
     def create_glass_card(self, title: str) -> QGroupBox:
         card = QGroupBox(title)
         card.setStyleSheet(f"""
@@ -700,7 +700,7 @@ class StormWelcome(QMainWindow):
         layout = QVBoxLayout(card)
         layout.setSpacing(12)
         return card
-    
+
     def apply_styles(self):
         self.setStyleSheet(f"""
             QMainWindow {{
@@ -849,9 +849,8 @@ class StormWelcome(QMainWindow):
                 background: rgba(100, 255, 218, 0.7);
             }}
         """)
-    
+
     def animate_window(self):
-        """Smooth entrance animation."""
         self.setWindowOpacity(0)
         anim = QPropertyAnimation(self, b"windowOpacity")
         anim.setDuration(400)
@@ -859,16 +858,16 @@ class StormWelcome(QMainWindow):
         anim.setEndValue(1)
         anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         anim.start()
-    
+
     def setup_autostart(self):
         if not self.is_live and not AUTOSTART_DISABLED_MARKER.exists():
             QTimer.singleShot(1000, self.disable_autostart_once)
-    
+
     def disable_autostart_once(self):
         self.disable_autostart()
         AUTOSTART_DISABLED_MARKER.touch()
         self.update_autostart_status()
-    
+
     def enable_autostart(self):
         AUTOSTART_FILE.parent.mkdir(parents=True, exist_ok=True)
         AUTOSTART_FILE.write_text("""[Desktop Entry]
@@ -885,14 +884,14 @@ Categories=System;
             AUTOSTART_DISABLED_MARKER.unlink()
         self.update_autostart_status()
         self.status_label.setText("Autostart enabled")
-    
+
     def disable_autostart(self):
         if AUTOSTART_FILE.exists():
             AUTOSTART_FILE.unlink()
         AUTOSTART_DISABLED_MARKER.touch()
         self.update_autostart_status()
         self.status_label.setText("Autostart disabled")
-    
+
     def update_autostart_status(self):
         if not hasattr(self, 'autostatus'):
             return
@@ -902,19 +901,19 @@ Categories=System;
         else:
             self.autostatus.setText("✗ Autostart is currently DISABLED")
             self.autostatus.setStyleSheet(f"color: {STORM_CORAL}; margin-bottom: 8px;")
-    
+
     def run_system_cmd(self, cmd: List[str], title: str):
         run_command(cmd, title)
         self.status_label.setText(f"Running: {title}")
-    
+
     def launch_calamares(self):
         if not shutil.which("calamares"):
-            QMessageBox.warning(self, "Installer not found", 
+            QMessageBox.warning(self, "Installer not found",
                 "Calamares is not installed. This feature is only available in the live ISO.")
             return
         run_command(["calamares"], "Calamares Installer", hold=False)
         self.status_label.setText("Launching Calamares...")
-    
+
     def search_packages(self):
         query = self.search_input.text().strip()
         source = self.source_combo.currentText()
@@ -923,7 +922,7 @@ Categories=System;
         self.package_list.clear()
         self.status_label.setText("Searching...")
         threading.Thread(target=self._do_search, args=(query, source), daemon=True).start()
-    
+
     def _do_search(self, query: str, source: str):
         packages = []
         if source in ["All", "Pacman"]:
@@ -931,19 +930,19 @@ Categories=System;
         if source in ["All", "AUR"] and shutil.which("yay"):
             packages.extend(YayBackend().search(query))
         QApplication.instance().postEvent(self, SearchResultsEvent(packages))
-    
+
     def show_installed(self):
         self.package_list.clear()
         self.status_label.setText("Loading installed...")
         threading.Thread(target=self._do_load_installed, daemon=True).start()
-    
+
     def _do_load_installed(self):
         packages = []
         packages.extend(PacmanBackend().get_installed())
         if shutil.which("yay"):
             packages.extend(YayBackend().get_installed())
         QApplication.instance().postEvent(self, SearchResultsEvent(packages))
-    
+
     def on_package_selected(self, item: QTreeWidgetItem, col: int):
         self.selected_package = {
             'name': item.text(0),
@@ -955,7 +954,7 @@ Categories=System;
         self.details_text.setText("Select Install or Remove to manage this package.")
         self.install_btn.setEnabled(not self.selected_package['installed'])
         self.remove_btn.setEnabled(self.selected_package['installed'])
-    
+
     def install_package(self):
         if not self.selected_package:
             return
@@ -965,7 +964,7 @@ Categories=System;
         else:
             run_command(["yay", "-S", "--noconfirm", pkg])
         self.status_label.setText(f"Installing {pkg}...")
-    
+
     def remove_package(self):
         if not self.selected_package:
             return
@@ -975,18 +974,17 @@ Categories=System;
         else:
             run_command(["yay", "-Rns", pkg])
         self.status_label.setText(f"Removing {pkg}...")
-    
+
     def change_theme(self, theme: str):
         if "Dark" in theme:
             self.apply_styles()
         else:
-            # Simple light fallback
             self.setStyleSheet("QMainWindow { background-color: #f0f0f0; } QLabel { color: #000; }")
-    
+
     def customEvent(self, event):
         if isinstance(event, SearchResultsEvent):
             self._display_results(event.packages)
-    
+
     def _display_results(self, packages: List[Dict]):
         self.package_list.clear()
         for pkg in packages:
@@ -1004,18 +1002,24 @@ class SearchResultsEvent:
         self.packages = packages
 
 
+def is_live_session() -> bool:
+    for marker in LIVE_MARKERS:
+        if Path(marker).exists():
+            return True
+    return False
+
+
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("StormOS Welcome")
     app.setStyle("Fusion")
-    # Dark palette base
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Window, QColor(STORM_NAVY))
     palette.setColor(QPalette.ColorRole.WindowText, QColor(STORM_LIGHT))
     palette.setColor(QPalette.ColorRole.Base, QColor(STORM_DARK))
     palette.setColor(QPalette.ColorRole.Text, QColor(STORM_LIGHT))
     app.setPalette(palette)
-    
+
     window = StormWelcome()
     window.show()
     sys.exit(app.exec())
