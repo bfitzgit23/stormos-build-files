@@ -1,8 +1,41 @@
+#!/usr/bin/env python3
+"""
+StormOS Hub – Nexus Dashboard (Fully working)
+"""
+
+import sys
+import os
+import shutil
+import subprocess
+import webbrowser
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QLabel, QLineEdit, QGroupBox, QScrollArea, QFrame
+)
+from PyQt6.QtCore import Qt
+
+# ============================================================
+# Colors
+# ============================================================
+STORM_NAVY = "#0a192f"
+STORM_BLUE = "#64ffda"
+STORM_GRAY = "#8892b0"
+GLASS_DARK = "rgba(2, 12, 27, 0.85)"
+
+# ============================================================
+# Terminal launcher (fixed for gnome-terminal)
+# ============================================================
+def find_terminal():
+    for term in ["gnome-terminal", "xfce4-terminal", "xterm"]:
+        if shutil.which(term):
+            return shutil.which(term)
+    return None
+
 def run_command(cmd, title="StormOS", hold=True):
-    print(f"[DEBUG] Would run: {cmd}")
+    print(f"[DEBUG] Running: {cmd}")
     term = find_terminal()
     if not term:
-        print("No terminal found – command not executed")
+        print("No terminal found")
         return False
 
     cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
@@ -23,9 +56,114 @@ def run_command(cmd, title="StormOS", hold=True):
         args = [term, "-e", shell_cmd]
 
     try:
-        subprocess.Popen(args, start_new_session=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(args, start_new_session=True)
         return True
     except Exception as e:
         print(f"Terminal error: {e}")
         return False
+
+# ============================================================
+# Main Window
+# ============================================================
+class StormHub(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("🌩️ StormOS Hub")
+        self.setGeometry(100, 100, 1000, 800)
+        central = QWidget()
+        central.setStyleSheet(f"background-color: {STORM_NAVY};")
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        # Header
+        header = QLabel("🌩️ StormOS Hub")
+        header.setStyleSheet(f"color: {STORM_BLUE}; font-size: 28px; font-weight: bold;")
+        layout.addWidget(header)
+
+        # Scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(30)
+
+        # Nexus search
+        card = self.create_glass_card("NEXUS SEARCH")
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search the web or enter a URL...")
+        self.search_bar.setStyleSheet("padding: 12px; border-radius: 30px; border: 2px solid #64ffda;")
+        self.search_bar.returnPressed.connect(self.do_search)
+        card.layout().addWidget(self.search_bar)
+        go_btn = QPushButton("Go")
+        go_btn.setStyleSheet("background: #64ffda; color: #0a192f; border-radius: 20px; padding: 8px 20px;")
+        go_btn.clicked.connect(self.do_search)
+        card.layout().addWidget(go_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        content_layout.addWidget(card)
+
+        # System actions
+        sys_card = self.create_glass_card("⚡ SYSTEM ACTIONS")
+        for text, cmd in [
+            ("⟳ Update System (pacman -Syu)", ["sudo", "pacman", "-Syu"]),
+            ("⟳ Update AUR (yay -Syu)", ["yay", "-Syu"]),
+            ("🔁 Reboot", ["sudo", "reboot"]),
+            ("⏻ Shutdown", ["sudo", "shutdown", "-h", "now"])
+        ]:
+            btn = QPushButton(text)
+            btn.clicked.connect(lambda _, c=cmd, t=text: run_command(c, t))
+            sys_card.layout().addWidget(btn)
+        content_layout.addWidget(sys_card)
+
+        # Test button
+        test_card = self.create_glass_card("TEST BUTTON")
+        test_btn = QPushButton("Echo Hello in terminal")
+        test_btn.clicked.connect(lambda: run_command(["echo", "Hello from StormOS Hub"], hold=True))
+        test_card.layout().addWidget(test_btn)
+        content_layout.addWidget(test_card)
+
+        scroll.setWidget(content)
+        layout.addWidget(scroll)
+
+        # Footer
+        footer = QLabel("Ready")
+        footer.setStyleSheet(f"color: {STORM_GRAY};")
+        layout.addWidget(footer)
+
+    def create_glass_card(self, title):
+        card = QGroupBox(title)
+        card.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {GLASS_DARK};
+                border: 1px solid rgba(100,255,218,0.3);
+                border-radius: 20px;
+                margin-top: 12px;
+                padding-top: 12px;
+                font-weight: bold;
+                font-size: 18px;
+                color: {STORM_BLUE};
+            }}
+            QGroupBox::title {{ left: 20px; padding: 0 12px; }}
+        """)
+        layout = QVBoxLayout(card)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        return card
+
+    def do_search(self):
+        query = self.search_bar.text().strip()
+        if not query:
+            return
+        if query.startswith(("http://", "https://")):
+            webbrowser.open(query)
+        elif "." in query and " " not in query:
+            webbrowser.open("https://" + query)
+        else:
+            webbrowser.open(f"https://duckduckgo.com/?q={query.replace(' ', '+')}")
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    window = StormHub()
+    window.show()
+    sys.exit(app.exec())
