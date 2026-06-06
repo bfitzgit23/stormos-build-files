@@ -5,8 +5,9 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import os
 
-app = Flask(__name__)
-CORS(app) # Allow the HTML file to talk to this Python script
+app = Flask(__name__, static_folder='.')
+# Enable CORS for all routes and all origins (allows file:// to talk to this server)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 def get_pacman_packages(query):
     """Search Pacman DB"""
@@ -98,5 +99,6 @@ def search():
 
 if __name__ == '__main__':
     print("🌩️ StormOS Backend running on http://127.0.0.1:5000")
+    print("🌩️ You can open the app by double-clicking index.html OR by visiting http://127.0.0.1:5000")
     # Run on localhost port 5000
-    app.run(host='127.0.0.1', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=False)
