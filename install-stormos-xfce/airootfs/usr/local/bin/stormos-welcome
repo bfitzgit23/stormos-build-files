@@ -1,50 +1,58 @@
 #!/usr/bin/env python3
 """
-StormOS Hub – Nexus Dashboard (Fully working)
+StormOS Hub – Nexus Smart Web Dashboard
+Uses PyWebView + Flask for a modern Web UI with Python backend power.
 """
 
 import sys
 import os
 import shutil
 import subprocess
+import threading
 import webbrowser
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QLineEdit, QGroupBox, QScrollArea, QFrame
-)
-from PyQt6.QtCore import Qt
+from flask import Flask, request, jsonify, render_template_string
+import webview
 
 # ============================================================
-# Colors
+# Configuration & Colors
 # ============================================================
 STORM_NAVY = "#0a192f"
 STORM_BLUE = "#64ffda"
-STORM_GRAY = "#8892b0"
-GLASS_DARK = "rgba(2, 12, 27, 0.85)"
+STORM_PURPLE = "#a742f5"
+STORM_DARK = "#020c1b"
+STORM_LIGHT = "#e6f1ff"
 
 # ============================================================
-# Terminal launcher (fixed for gnome-terminal)
+# Backend Logic (Terminal & Packages)
 # ============================================================
+
 def find_terminal():
-    for term in ["gnome-terminal", "xfce4-terminal", "xterm"]:
+    for term in ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]:
         if shutil.which(term):
             return shutil.which(term)
     return None
 
 def run_command(cmd, title="StormOS", hold=True):
-    print(f"[DEBUG] Running: {cmd}")
-    term = find_terminal()
-    if not term:
-        print("No terminal found")
-        return False
-
-    cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
-    if hold:
-        shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"'
+    """Execute a command in a terminal."""
+    if isinstance(cmd, list):
+        cmd_str = " ".join(f'"{c}"' if " " in c else c for c in cmd)
     else:
-        shell_cmd = f'bash -c "{cmd_str}"'
+        cmd_str = cmd
+
+    if cmd_str.startswith("sudo") and shutil.which("pkexec"):
+        cmd_str = cmd_str.replace("sudo", "pkexec", 1)
+        try:
+            subprocess.Popen(cmd_str, shell=True, start_new_session=True,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        except Exception:
+            pass
+
+    term = find_terminal()
+    if not term: return False
 
     term_name = os.path.basename(term)
+    shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"' if hold else f'bash -c "{cmd_str}"'
 
     if term_name == "gnome-terminal":
         args = [term, "--title", title, "--", "bash", "-c", shell_cmd]
@@ -56,114 +64,494 @@ def run_command(cmd, title="StormOS", hold=True):
         args = [term, "-e", shell_cmd]
 
     try:
-        subprocess.Popen(args, start_new_session=True)
+        subprocess.Popen(args, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
-    except Exception as e:
-        print(f"Terminal error: {e}")
+    except Exception:
         return False
 
+def run_capture(cmd):
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        return result.returncode, result.stdout, result.stderr
+    except Exception:
+        return 1, "", ""
+
+def search_pacman(query):
+    rc, out, _ = run_capture(["pacman", "-Ss", query])
+    if rc != 0: return []
+    packages = []
+    lines = out.split('\n')
+    for i, line in enumerate(lines):
+        if line.strip() and not line.startswith(' '):
+            parts = line.split()
+            if len(parts) >= 2:
+                name = parts[1] if '/' in parts[0] else parts[0].split('/')[-1]
+                version = parts[2] if len(parts) > 2 else ''
+                desc = lines[i+1].strip() if i+1 < len(lines) else ''
+                packages.append({
+                    'name': name, 'version': version, 'description': desc,
+                    'source': 'pacman', 'installed': 'installed' in line.lower()
+                })
+    return packages
+
+def search_aur(query):
+    if not shutil.which("yay"): return []
+    rc, out, _ = run_capture(["yay", "-Ss", query])
+    if rc != 0: return []
+    packages = []
+    for line in out.split('\n'):
+        if line.startswith('aur/'):
+            parts = line.split()
+            name = parts[0].split('/')[1]
+            version = parts[1] if len(parts) > 1 else ''
+            packages.append({
+                'name': name, 'version': version, 'description': '',
+                'source': 'aur', 'installed': 'Installed' in line
+            })
+    return packages
+
 # ============================================================
-# Main Window
+# Flask Server (API Bridge)
 # ============================================================
-class StormHub(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("🌩️ StormOS Hub")
-        self.setGeometry(100, 100, 1000, 800)
-        central = QWidget()
-        central.setStyleSheet(f"background-color: {STORM_NAVY};")
-        self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        layout.setContentsMargins(20, 20, 20, 20)
+app = Flask(__name__)
 
-        # Header
-        header = QLabel("🌩️ StormOS Hub")
-        header.setStyleSheet(f"color: {STORM_BLUE}; font-size: 28px; font-weight: bold;")
-        layout.addWidget(header)
+@app.route('/')
+def index():
+    # Injecting the HTML/CSS/JS directly here for a single-file solution
+    return render_template_string(HTML_TEMPLATE)
 
-        # Scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setSpacing(30)
+@app.route('/api/command', methods=['POST'])
+def execute_command():
+    data = request.json
+    cmd = data.get('cmd')
+    title = data.get('title', 'StormOS')
+    success = run_command(cmd, title)
+    return jsonify({'status': 'started' if success else 'failed'})
 
-        # Nexus search
-        card = self.create_glass_card("NEXUS SEARCH")
-        self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Search the web or enter a URL...")
-        self.search_bar.setStyleSheet("padding: 12px; border-radius: 30px; border: 2px solid #64ffda;")
-        self.search_bar.returnPressed.connect(self.do_search)
-        card.layout().addWidget(self.search_bar)
-        go_btn = QPushButton("Go")
-        go_btn.setStyleSheet("background: #64ffda; color: #0a192f; border-radius: 20px; padding: 8px 20px;")
-        go_btn.clicked.connect(self.do_search)
-        card.layout().addWidget(go_btn, alignment=Qt.AlignmentFlag.AlignRight)
-        content_layout.addWidget(card)
+@app.route('/api/packages', methods=['POST'])
+def get_packages():
+    data = request.json
+    query = data.get('query', '')
+    source = data.get('source', 'All')
+    
+    pkgs = []
+    if source in ["All", "Pacman"]:
+        pkgs.extend(search_pacman(query))
+    if source in ["All", "AUR"]:
+        pkgs.extend(search_aur(query))
+        
+    return jsonify(pkgs)
 
-        # System actions
-        sys_card = self.create_glass_card("⚡ SYSTEM ACTIONS")
-        for text, cmd in [
-            ("⟳ Update System (pacman -Syu)", ["sudo", "pacman", "-Syu"]),
-            ("⟳ Update AUR (yay -Syu)", ["yay", "-Syu"]),
-            ("🔁 Reboot", ["sudo", "reboot"]),
-            ("⏻ Shutdown", ["sudo", "shutdown", "-h", "now"])
-        ]:
-            btn = QPushButton(text)
-            btn.clicked.connect(lambda _, c=cmd, t=text: run_command(c, t))
-            sys_card.layout().addWidget(btn)
-        content_layout.addWidget(sys_card)
+@app.route('/api/open_url', methods=['POST'])
+def open_url():
+    data = request.json
+    webbrowser.open(data.get('url'))
+    return jsonify({'status': 'opened'})
 
-        # Test button
-        test_card = self.create_glass_card("TEST BUTTON")
-        test_btn = QPushButton("Echo Hello in terminal")
-        test_btn.clicked.connect(lambda: run_command(["echo", "Hello from StormOS Hub"], hold=True))
-        test_card.layout().addWidget(test_btn)
-        content_layout.addWidget(test_card)
+# ============================================================
+# The Smart Web UI (HTML/CSS/JS)
+# ============================================================
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StormOS Hub</title>
+    <style>
+        :root {
+            --bg-navy: #0a192f;
+            --bg-light: #112240;
+            --text-primary: #ccd6f6;
+            --text-secondary: #8892b0;
+            --accent: #64ffda;
+            --accent-purple: #a742f5;
+            --glass: rgba(17, 34, 64, 0.75);
+            --border: rgba(100, 255, 218, 0.2);
+        }
 
-        scroll.setWidget(content)
-        layout.addWidget(scroll)
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        body {
+            background-color: var(--bg-navy);
+            background-image: radial-gradient(circle at 10% 20%, rgba(167, 66, 245, 0.1) 0%, transparent 20%),
+                              radial-gradient(circle at 90% 80%, rgba(0, 209, 178, 0.1) 0%, transparent 20%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-        # Footer
-        footer = QLabel("Ready")
-        footer.setStyleSheet(f"color: {STORM_GRAY};")
-        layout.addWidget(footer)
+        /* Layout Grid */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+        }
 
-    def create_glass_card(self, title):
-        card = QGroupBox(title)
-        card.setStyleSheet(f"""
-            QGroupBox {{
-                background-color: {GLASS_DARK};
-                border: 1px solid rgba(100,255,218,0.3);
-                border-radius: 20px;
-                margin-top: 12px;
-                padding-top: 12px;
-                font-weight: bold;
-                font-size: 18px;
-                color: {STORM_BLUE};
-            }}
-            QGroupBox::title {{ left: 20px; padding: 0 12px; }}
-        """)
-        layout = QVBoxLayout(card)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
-        return card
+        /* Header */
+        header {
+            grid-column: span 12;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
 
-    def do_search(self):
-        query = self.search_bar.text().strip()
-        if not query:
-            return
-        if query.startswith(("http://", "https://")):
-            webbrowser.open(query)
-        elif "." in query and " " not in query:
-            webbrowser.open("https://" + query)
-        else:
-            webbrowser.open(f"https://duckduckgo.com/?q={query.replace(' ', '+')}")
+        h1 { font-size: 2rem; color: var(--accent); letter-spacing: 1px; }
+        .subtitle { color: var(--text-secondary); font-size: 0.9rem; }
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyle("Fusion")
-    window = StormHub()
-    window.show()
-    sys.exit(app.exec())
+        /* Cards */
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.4);
+            border-color: var(--accent);
+        }
+
+        h2 {
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            border-left: 3px solid var(--accent);
+            padding-left: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Specific Grid Areas */
+        .search-area { grid-column: span 12; }
+        .sys-actions { grid-column: span 4; }
+        .streaming { grid-column: span 8; }
+        .software { grid-column: span 8; }
+        .maintenance { grid-column: span 4; }
+        .gaming { grid-column: span 6; }
+        .drivers { grid-column: span 6; }
+        .help { grid-column: span 12; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+        /* UI Elements */
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 20px;
+            border-radius: 50px;
+            border: 2px solid var(--border);
+            background: rgba(2, 12, 27, 0.8);
+            color: var(--text-primary);
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(100,255,218,0.2); }
+
+        button {
+            cursor: pointer;
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(100, 255, 218, 0.05);
+            color: var(--accent);
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            margin-right: 5px;
+        }
+        button:hover { background: rgba(100, 255, 218, 0.15); transform: scale(1.02); }
+        button.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
+        button.danger:hover { background: rgba(255, 107, 107, 0.1); }
+        
+        button.primary {
+            background: linear-gradient(90deg, #00d1b2, #a742f5);
+            color: #fff;
+            border: none;
+        }
+        button.primary:hover { opacity: 0.9; }
+
+        .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        /* Package Table */
+        .pkg-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .pkg-table th { text-align: left; color: var(--text-secondary); padding: 8px; border-bottom: 1px solid var(--border); }
+        .pkg-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .pkg-row:hover { background: rgba(255,255,255,0.03); }
+        .tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
+        .tag.pacman { background: #1793d1; color: white; }
+        .tag.aur { background: #ffb74d; color: #000; }
+
+        /* Links */
+        a { color: var(--text-secondary); text-decoration: none; display: block; padding: 5px 0; }
+        a:hover { color: var(--accent); padding-left: 5px; transition: padding 0.2s; }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-light);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 12px 24px;
+            border-radius: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        #toast.show { opacity: 1; }
+
+        @media (max-width: 1000px) {
+            .sys-actions, .streaming, .software, .maintenance, .gaming, .drivers, .help { grid-column: span 12; }
+            .help { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>🌩️ StormOS Hub</h1>
+                <span class="subtitle">Nexus Web Dashboard</span>
+            </div>
+            <div id="status-indicator" style="color: var(--accent); font-size: 0.9rem;">System Ready</div>
+        </header>
+
+        <!-- Search -->
+        <div class="card search-area">
+            <h2>Nexus Search</h2>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="web-search" placeholder="Search the web or enter URL..." onkeypress="handleWebSearch(event)">
+                <button class="primary" onclick="performWebSearch()">Search</button>
+            </div>
+        </div>
+
+        <!-- System Actions -->
+        <div class="card sys-actions">
+            <h2>⚡ System Actions</h2>
+            <div class="btn-group">
+                <button onclick="execCmd(['sudo', 'pacman', '-Syu'], 'System Update')">Update System</button>
+                <button onclick="execCmd(['yay', '-Syu'], 'AUR Update')">Update AUR</button>
+                <button class="danger" onclick="execCmd(['sudo', 'reboot'], 'Reboot')">Reboot</button>
+                <button class="danger" onclick="execCmd(['sudo', 'shutdown', '-h', 'now'], 'Shutdown')">Shutdown</button>
+            </div>
+        </div>
+
+        <!-- Streaming -->
+        <div class="card streaming">
+            <h2>Free Streaming</h2>
+            <div class="btn-group">
+                <button onclick="openUrl('https://tubitv.com')">Tubi</button>
+                <button onclick="openUrl('https://pluto.tv')">Pluto TV</button>
+                <button onclick="openUrl('https://crackle.com')">Crackle</button>
+                <button onclick="openUrl('https://watch.plex.tv')">Plex</button>
+                <button onclick="openUrl('https://xumo.tv')">Xumo Play</button>
+                <button onclick="openUrl('https://watch.sling.com')">Sling Freestream</button>
+            </div>
+        </div>
+
+        <!-- Software Center -->
+        <div class="card software">
+            <h2>📦 Software Center</h2>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="pkg-query" placeholder="Search packages (e.g. firefox)..." style="flex: 1;">
+                <select id="pkg-source" style="padding: 10px; border-radius: 8px; background: var(--bg-navy); color: var(--text-primary); border: 1px solid var(--border);">
+                    <option value="All">All</option>
+                    <option value="Pacman">Pacman</option>
+                    <option value="AUR">AUR</option>
+                </select>
+                <button class="primary" onclick="searchPackages()">Search</button>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="pkg-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Version</th>
+                            <th>Source</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pkg-results">
+                        <tr><td colspan="4" style="text-align:center; color: var(--text-secondary);">Ready to search</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Maintenance -->
+        <div class="card maintenance">
+            <h2>🔧 Maintenance</h2>
+            <div class="btn-group">
+                <button onclick="execCmd(['sudo', 'paccache', '-r'])">Clean Cache</button>
+                <button onclick="execCmd(['bash', '-c', 'sudo pacman -Rns $(pacman -Qdtq)'])">Remove Orphans</button>
+                <button onclick="execCmd(['sudo', 'reflector', '--latest', '20', '--protocol', 'https', '--sort', 'rate', '--save', '/etc/pacman.d/mirrorlist'])">Rank Mirrors</button>
+            </div>
+        </div>
+
+        <!-- Gaming -->
+        <div class="card gaming">
+            <h2>🎲 Gaming</h2>
+            <div class="btn-group">
+                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'steam'])">Steam</button>
+                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'lutris'])">Lutris</button>
+                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'wine-staging'])">Wine Staging</button>
+            </div>
+        </div>
+
+        <!-- Drivers -->
+        <div class="card drivers">
+            <h2>🎮 Drivers</h2>
+            <div class="btn-group">
+                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'nvidia', 'nvidia-utils', 'nvidia-settings'])">NVIDIA Proprietary</button>
+                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'xf86-video-amdgpu', 'mesa', 'lib32-mesa'])">AMDGPU</button>
+                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'mesa', 'lib32-mesa', 'intel-media-driver'])">Intel</button>
+            </div>
+        </div>
+
+        <!-- Help & Resources -->
+        <div class="card help">
+            <div>
+                <h2>❓ Help</h2>
+                <a href="#" onclick="openUrl('https://wiki.archlinux.org')">Arch Wiki</a>
+                <a href="#" onclick="openUrl('https://bbs.archlinux.org')">Arch Forums</a>
+            </div>
+            <div>
+                <h2>⚙️ Tools</h2>
+                <button onclick="execCmd(['arandr'])">Display (Arandr)</button>
+                <button onclick="execCmd(['nitrogen'])">Wallpaper</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Command Executed</div>
+
+    <script>
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        async function execCmd(cmd, title = 'StormOS') {
+            showToast('Executing: ' + title);
+            try {
+                await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cmd: cmd, title: title })
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function openUrl(url) {
+            try {
+                await fetch('/api/open_url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function handleWebSearch(e) {
+            if (e.key === 'Enter') performWebSearch();
+        }
+
+        function performWebSearch() {
+            const query = document.getElementById('web-search').value.trim();
+            if (!query) return;
+            
+            if (query.startsWith('http') || (query.includes('.') && !query.includes(' '))) {
+                const url = query.startsWith('http') ? query : 'https://' + query;
+                openUrl(url);
+            } else {
+                openUrl('https://duckduckgo.com/?q=' + encodeURIComponent(query));
+            }
+        }
+
+        async function searchPackages() {
+            const query = document.getElementById('pkg-query').value.trim();
+            const source = document.getElementById('pkg-source').value;
+            const tbody = document.getElementById('pkg-results');
+            
+            if (!query) return;
+
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Searching...</td></tr>';
+
+            try {
+                const res = await fetch('/api/packages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, source })
+                });
+                const packages = await res.json();
+                
+                tbody.innerHTML = '';
+                if (packages.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No packages found.</td></tr>';
+                    return;
+                }
+
+                packages.forEach(pkg => {
+                    const row = document.createElement('tr');
+                    row.className = 'pkg-row';
+                    const isInstalled = pkg.installed;
+                    
+                    row.innerHTML = `
+                        <td style="font-weight:bold; color: var(--accent);">${pkg.name}</td>
+                        <td style="color: var(--text-secondary); font-size:0.85rem;">${pkg.version}</td>
+                        <td><span class="tag ${pkg.source.toLowerCase()}">${pkg.source}</span></td>
+                        <td>
+                            <button style="padding: 4px 8px; font-size: 0.8rem;" 
+                                onclick="execCmd(['${pkg.source === 'pacman' ? 'sudo pacman' : 'yay'}', '-S', '--noconfirm', '${pkg.name}'])"
+                                ${isInstalled ? 'disabled style="opacity:0.3;"' : ''}>
+                                Install
+                            </button>
+                            ${isInstalled ? `<button class="danger" style="padding: 4px 8px; font-size: 0.8rem;" onclick="execCmd(['${pkg.source === 'pacman' ? 'sudo pacman' : 'yay'}', '-Rns', '${pkg.name}'])">Remove</button>` : ''}
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #ff6b6b;">Error searching packages</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>
+"""
+
+# ============================================================
+# Entry Point
+# ============================================================
+if __name__ == '__main__':
+    # Start Flask in a separate thread
+    t = threading.Thread(target=app.run, kwargs={'port': 5000, 'use_reloader': False})
+    t.daemon = True
+    t.start()
+
+    # Create Window
+    window = webview.create_window(
+        '🌩️ StormOS Hub',
+        'http://127.0.0.1:5000',
+        width=1200,
+        height=900,
+        background_color='#0a192f'
+    )
+    webview.start()
