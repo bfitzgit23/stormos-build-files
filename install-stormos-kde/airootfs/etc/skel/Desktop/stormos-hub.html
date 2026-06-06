@@ -1,8 +1,212 @@
-(255, 183, 77, 0.2); color: #ffb74d; border: 1px solid rgba(255, 183, 77, 0.3); }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StormOS Hub Interface</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-navy: #0a192f;
+            --bg-light: #112240;
+            --bg-darker: #020c1b;
+            --text-primary: #e6f1ff;
+            --text-secondary: #8892b0;
+            --accent: #64ffda;
+            --accent-purple: #a742f5;
+            --accent-coral: #ff6b6b;
+            --glass: rgba(17, 34, 64, 0.85);
+            --border: rgba(100, 255, 218, 0.15);
+            --shadow: 0 10px 30px -10px rgba(2, 12, 27, 0.7);
+        }
 
-        /* Links */
-        a { color: var(--text-secondary); text-decoration: none; display: block; padding: 8px 0; border-bottom: 1px dashed rgba(136, 146, 176, 0.2); }
-        a:hover { color: var(--accent); padding-left: 5px; border-bottom-color: var(--accent); transition: all 0.2s; }
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+        
+        body {
+            background-color: var(--bg-navy);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(circle at 15% 50%, rgba(100, 255, 218, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(167, 66, 245, 0.05), transparent 25%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Layout Grid */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 20px;
+        }
+
+        /* Header */
+        header {
+            grid-column: span 12;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        h1 { 
+            font-family: 'Rajdhani', sans-serif; 
+            font-size: 2.5rem; 
+            color: var(--accent); 
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+        
+        .status-badge {
+            font-size: 0.8rem;
+            color: var(--accent);
+            background: rgba(100, 255, 218, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .status-dot {
+            width: 8px; height: 8px; background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(100, 255, 218, 0.4);
+            box-shadow: 0 20px 30px -15px rgba(2, 12, 27, 0.9);
+        }
+
+        h2 {
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--accent);
+            padding-left: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Grid Spans */
+        .span-12 { grid-column: span 12; }
+        .span-8  { grid-column: span 8; }
+        .span-6  { grid-column: span 6; }
+        .span-4  { grid-column: span 4; }
+        
+        @media (max-width: 1024px) {
+            .span-8, .span-6, .span-4 { grid-column: span 12; }
+        }
+
+        /* Inputs & Buttons */
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 24px;
+            border-radius: 50px;
+            border: 2px solid var(--border);
+            background: rgba(2, 12, 27, 0.6);
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(100, 255, 218, 0.15);
+        }
+
+        button {
+            cursor: pointer;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(100, 255, 218, 0.05);
+            color: var(--accent);
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        button:hover { background: rgba(100, 255, 218, 0.15); transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+
+        button.primary {
+            background: linear-gradient(135deg, var(--accent) 0%, #00b894 100%);
+            color: var(--bg-navy);
+            border: none;
+            box-shadow: 0 4px 15px rgba(100, 255, 218, 0.3);
+        }
+        button.primary:hover { box-shadow: 0 6px 20px rgba(100, 255, 218, 0.5); }
+
+        button.danger { 
+            color: var(--accent-coral); 
+            border-color: rgba(255, 107, 107, 0.3); 
+        }
+        button.danger:hover { background: rgba(255, 107, 107, 0.1); }
+
+        .btn-group { display: flex; flex-wrap: wrap; gap: 10px; }
+
+        /* Search Area Specifics */
+        .search-container { display: flex; gap: 15px; }
+        .search-container input { flex: 1; }
+
+        /* Software Table */
+        .pkg-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .pkg-table th { 
+            text-align: left; color: var(--text-secondary); padding: 12px; 
+            border-bottom: 1px solid var(--border); font-size: 0.8rem; text-transform: uppercase;
+        }
+        .pkg-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .pkg-row:hover { background: rgba(255,255,255,0.02); }
+        
+        .tag { 
+            font-size: 0.7rem; font-weight: bold; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;
+        }
+        .tag.pacman { background: rgba(23, 147, 209, 0.2); color: #64b5f6; border: 1px solid rgba(23, 147, 209, 0.3); }
+        .tag.aur { background: rgba(255, 183, 77, 0.2); color: #ffb74d; border: 1px solid rgba(255, 183, 77, 0.3); }
 
         /* Terminal Log (Visual Feedback) */
         .terminal-log {
@@ -59,7 +263,7 @@
             </div>
             <div class="status-badge">
                 <div class="status-dot"></div>
-                Online
+                Connected to Backend
             </div>
         </header>
 
@@ -107,7 +311,7 @@
                 </select>
             </h2>
             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <input type="text" id="pkg-query" placeholder="Search packages (e.g., steam, vlc)..." onkeypress="if(event.key==='Enter') searchPackages()">
+                <input type="text" id="pkg-query" placeholder="Search real Pacman & AUR packages..." onkeypress="if(event.key==='Enter') searchPackages()">
                 <button class="primary" onclick="searchPackages()">Search</button>
             </div>
             <div style="max-height: 350px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
@@ -121,7 +325,7 @@
                         </tr>
                     </thead>
                     <tbody id="pkg-results">
-                        <tr><td colspan="4" style="text-align:center; color: var(--text-secondary); padding: 20px;">Enter a query to search</td></tr>
+                        <tr><td colspan="4" style="text-align:center; color: var(--text-secondary); padding: 20px;">Enter a query to search live repos.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -160,7 +364,7 @@
         <div class="card span-12" style="background: rgba(0,0,0,0.3); border-color: #333;">
             <h2 style="border-color: #666; color: #aaa;">⌨️ Command Log</h2>
             <div class="terminal-log" id="console-output">
-                <div class="log-entry"><span class="log-time">[System]</span> Ready. Waiting for user input...</div>
+                <div class="log-entry"><span class="log-time">[System]</span> Ready. Connected to Python backend at http://127.0.0.1:5000</div>
             </div>
         </div>
     </div>
@@ -168,20 +372,6 @@
     <div id="toast">Command executed successfully</div>
 
     <script>
-        // Mock Database for Software Center (since we don't have Python backend)
-        const packageDB = [
-            { name: 'steam', version: '1.0.0.78', source: 'pacman', desc: 'Valve\'s digital game distribution platform' },
-            { name: 'firefox', version: '118.0', source: 'pacman', desc: 'Standalone web browser from mozilla.org' },
-            { name: 'vlc', version: '3.0.18', source: 'pacman', desc: 'Multi-platform MPEG, VCD/DVD, and DivX player' },
-            { name: 'visual-studio-code-bin', version: '1.83.1', source: 'aur', desc: 'Visual Studio Code (VS Code)' },
-            { name: 'yay', version: '12.1.0', source: 'aur', desc: 'Yet another Yogurt - An AUR Helper written in Go' },
-            { name: 'spotify', version: '1.2.22', source: 'aur', desc: 'Digital music service that gives you access to millions of songs' },
-            { name: 'gimp', version: '2.10.34', source: 'pacman', desc: 'The GNU Image Manipulation Program' },
-            { name: 'obs-studio', version: '29.1.3', source: 'pacman', desc: 'Free and open source software for live streaming and screen recording' },
-            { name: 'discord', version: '0.0.15', source: 'pacman', desc: 'All-in-one voice and text chat for gamers' },
-            { name: 'lutris', version: '0.5.13', source: 'pacman', desc: 'Open gaming platform for Linux' }
-        ];
-
         // --- Interaction Logic ---
 
         function showToast(msg) {
@@ -201,14 +391,14 @@
             consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
-        // Simulates running a system command
         function runCmd(cmd, title) {
             logToTerminal(`Executing: <span style="color:var(--accent)">${cmd}</span>`);
             showToast(`Processing: ${title}...`);
             
-            // Visual feedback simulation
+            // Note: Browsers cannot run 'sudo' commands directly. 
+            // This simulates the action and logs the command for the user to run manually if needed.
             setTimeout(() => {
-                logToTerminal(`<span style="color:#0f0">Success:</span> Command '${cmd}' finished.`);
+                logToTerminal(`<span style="color:#0f0">Simulated Success:</span> To run this manually in a terminal:<br><code>${cmd}</code>`);
             }, 800);
         }
 
@@ -224,7 +414,6 @@
         function performWebSearch() {
             const query = document.getElementById('web-search').value.trim();
             if (!query) return;
-            
             let url = '';
             if (query.startsWith('http') || (query.includes('.') && !query.includes(' '))) {
                 url = query.startsWith('http') ? query : 'https://' + query;
@@ -234,48 +423,73 @@
             openLink(url);
         }
 
-        function searchPackages() {
-            const query = document.getElementById('pkg-query').value.trim().toLowerCase();
-            const source = document.getElementById('pkg-source').value;
+        // --- REAL PACKAGE SEARCH LOGIC ---
+        async function searchPackages() {
+            const query = document.getElementById('pkg-query').value.trim();
+            const sourceFilter = document.getElementById('pkg-source').value; 
             const tbody = document.getElementById('pkg-results');
             
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Searching local repository...</td></tr>';
+            if (!query) return;
 
-            setTimeout(() => {
-                tbody.innerHTML = '';
-                const results = packageDB.filter(p => {
-                    const matchName = p.name.toLowerCase().includes(query);
-                    const matchSource = source === 'All' || p.source.toLowerCase() === source.toLowerCase();
-                    return matchName && matchSource;
+            // 1. Show loading state
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Searching Real Repositories...</td></tr>';
+
+            try {
+                // 2. Ask the Python server for data (server.py)
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                
+                if (!res.ok) throw new Error('Server response error');
+                
+                const data = await res.json();
+
+                // 3. Filter based on user dropdown selection (All/Pacman/AUR)
+                const results = data.filter(pkg => {
+                    if (sourceFilter === 'All') return true;
+                    return pkg.source.toLowerCase() === sourceFilter.toLowerCase();
                 });
 
+                tbody.innerHTML = ''; // Clear loading
+
                 if (results.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-secondary);">No packages found matching criteria.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-secondary);">No packages found.</td></tr>';
                     return;
                 }
 
+                // 4. Render results
                 results.forEach(pkg => {
                     const row = document.createElement('tr');
                     row.className = 'pkg-row';
+                    
+                    // Determine install command based on source
+                    const installCmd = pkg.source === 'aur' 
+                        ? `yay -S --noconfirm ${pkg.name}` 
+                        : `sudo pacman -S --noconfirm ${pkg.name}`;
+
                     row.innerHTML = `
                         <td>
                             <div style="font-weight:bold; color:var(--text-primary);">${pkg.name}</div>
                             <div style="font-size:0.8rem; color:var(--text-secondary);">${pkg.desc}</div>
                         </td>
                         <td style="color:var(--text-secondary); font-size:0.85rem;">${pkg.version}</td>
-                        <td><span class="tag ${pkg.source.toLowerCase()}">${pkg.source}</span></td>
+                        <td>
+                            <span class="tag ${pkg.source.toLowerCase()}">${pkg.source}</span>
+                            <span style="font-size:0.7rem; color:#666; margin-left:5px;">${pkg.repo || ''}</span>
+                        </td>
                         <td>
                             <button style="padding: 4px 12px; font-size: 0.8rem;" 
-                                onclick="runCmd('${pkg.source === 'pacman' ? 'sudo pacman -S' : 'yay -S'} --noconfirm ${pkg.name}', 'Install ${pkg.name}')">
+                                onclick="runCmd('${installCmd}', 'Install ${pkg.name}')">
                                 Install
                             </button>
                         </td>
                     `;
                     tbody.appendChild(row);
                 });
-            }, 500); // Simulate network delay
+
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--accent-coral);">Error: Could not connect to Python Server.<br>Make sure <b>server.py</b> is running!</td></tr>';
+                console.error(error);
+            }
         }
     </script>
 </body>
 </html>
-```
