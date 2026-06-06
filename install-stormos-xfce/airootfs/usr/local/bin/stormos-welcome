@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-StormOS Hub – Nexus‑style Dashboard
-All system tools + streaming links + search in one elegant page.
-Errors are printed to terminal (no redirection).
+StormOS Hub – Nexus‑style Dashboard (Fully Debugged)
+No threading, all UI created synchronously. Logs to /tmp/stormos-hub.log.
 """
 
 import sys
@@ -11,13 +10,17 @@ import traceback
 import shutil
 import subprocess
 import webbrowser
-import threading
 from pathlib import Path
 from typing import Optional, List, Dict
 
-# ============================================================
-# Check for PyQt6 and import
-# ============================================================
+# Logging setup
+LOG_FILE = open('/tmp/stormos-hub.log', 'w')
+def log(msg):
+    LOG_FILE.write(msg + '\n')
+    LOG_FILE.flush()
+
+log("=== Starting StormOS Hub ===")
+
 try:
     from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
     from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
@@ -27,12 +30,14 @@ try:
         QMessageBox, QScrollArea, QFrame, QComboBox, QTreeWidget,
         QTreeWidgetItem, QSplitter
     )
-except ImportError as e:
-    print(f"ERROR: PyQt6 not installed. Run: sudo pacman -S python-pyqt6", file=sys.stderr)
+    log("Imports successful")
+except Exception as e:
+    log(f"Import error: {e}")
+    traceback.print_exc(file=LOG_FILE)
     sys.exit(1)
 
 # ============================================================
-# COLORS (Nexus‑style glass theme)
+# COLORS
 # ============================================================
 STORM_NAVY = "#0a192f"
 STORM_BLUE = "#64ffda"
@@ -107,7 +112,7 @@ def is_live_session():
     return any(Path(m).exists() for m in LIVE_MARKERS)
 
 # ============================================================
-# PACKAGE BACKENDS (simplified)
+# PACKAGE BACKENDS (SYNCHRONOUS, NO THREADING)
 # ============================================================
 class PacmanBackend:
     def search(self, query):
@@ -130,19 +135,6 @@ class PacmanBackend:
                     })
             i += 1
         return packages
-    def get_installed(self):
-        rc, out, _ = run_capture(["pacman", "-Q"])
-        if rc != 0: return []
-        packages = []
-        for line in out.split('\n'):
-            if line.strip():
-                parts = line.split()
-                if len(parts) >= 2:
-                    packages.append({
-                        'name': parts[0], 'version': parts[1],
-                        'description': '', 'source': 'pacman', 'installed': True
-                    })
-        return packages
 
 class YayBackend:
     def search(self, query):
@@ -160,45 +152,24 @@ class YayBackend:
                     'source': 'aur', 'installed': 'Installed' in line
                 })
         return packages
-    def get_installed(self):
-        rc, out, _ = run_capture(["pacman", "-Qm"])
-        if rc != 0: return []
-        packages = []
-        for line in out.split('\n'):
-            if line.strip():
-                parts = line.split()
-                if len(parts) >= 2:
-                    packages.append({
-                        'name': parts[0], 'version': parts[1],
-                        'description': '', 'source': 'aur', 'installed': True
-                    })
-        return packages
-    def install(self, pkg):
-        run_command(["yay", "-S", "--noconfirm", pkg])
-    def remove(self, pkg):
-        run_command(["yay", "-Rns", pkg])
 
 # ============================================================
-# MAIN HUB WINDOW
+# MAIN WINDOW
 # ============================================================
 class StormHub(QMainWindow):
     def __init__(self):
         super().__init__()
-        try:
-            self.is_live = is_live_session()
-            self.selected_package = None
-            self.init_ui()
-            self.apply_styles()
-            self.setup_autostart()
-            self.animate_window()
-        except Exception as e:
-            print("ERROR in StormHub.__init__:", file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
-            # Show error in a simple dialog if possible
-            QMessageBox.critical(None, "Startup Error", f"Failed to start StormOS Hub:\n{str(e)}")
-            sys.exit(1)
+        log("StormHub.__init__ started")
+        self.is_live = is_live_session()
+        self.selected_package = None
+        self.init_ui()
+        self.apply_styles()
+        self.setup_autostart()
+        self.animate_window()
+        log("StormHub.__init__ finished")
 
     def init_ui(self):
+        log("init_ui started")
         self.setWindowTitle("🌩️ StormOS Hub")
         self.setMinimumSize(1100, 800)
         screen = QGuiApplication.primaryScreen().geometry()
@@ -225,24 +196,37 @@ class StormHub(QMainWindow):
         content_layout.setSpacing(30)
         content_layout.setContentsMargins(0, 10, 0, 30)
 
+        # Build each card – logging each step
+        log("Creating search section")
         content_layout.addWidget(self.create_search_section())
+        log("Creating streaming section")
         content_layout.addWidget(self.create_streaming_section())
+        log("Creating learn section")
         content_layout.addWidget(self.create_learn_section())
+        log("Creating system card")
         content_layout.addWidget(self.create_system_card())
+        log("Creating software card")
         content_layout.addWidget(self.create_software_card())
+        log("Creating maintenance card")
         content_layout.addWidget(self.create_maintenance_card())
+        log("Creating drivers card")
         content_layout.addWidget(self.create_drivers_card())
+        log("Creating tweaks card")
         content_layout.addWidget(self.create_tweaks_card())
+        log("Creating gaming card")
         content_layout.addWidget(self.create_gaming_card())
+        log("Creating settings card")
         content_layout.addWidget(self.create_settings_card())
+        log("Creating help card")
         content_layout.addWidget(self.create_help_card())
 
         scroll.setWidget(content)
         main_layout.addWidget(scroll)
         main_layout.addWidget(self.create_footer())
+        log("init_ui finished")
 
     # ------------------------------------------------------------------
-    # NEXUS‑STYLE SECTIONS
+    # CARD CREATION (each returns a QWidget)
     # ------------------------------------------------------------------
     def create_search_section(self):
         card = self.create_glass_card("NEXUS SEARCH")
@@ -262,8 +246,7 @@ class StormHub(QMainWindow):
 
     def do_search(self):
         query = self.search_bar.text().strip()
-        if not query:
-            return
+        if not query: return
         if query.startswith(("http://", "https://")):
             webbrowser.open(query)
         elif "." in query and " " not in query:
@@ -320,9 +303,6 @@ class StormHub(QMainWindow):
         card.layout().addLayout(layout)
         return card
 
-    # ------------------------------------------------------------------
-    # SYSTEM TOOL CARDS
-    # ------------------------------------------------------------------
     def create_system_card(self):
         card = self.create_glass_card("⚡ SYSTEM ACTIONS")
         layout = QVBoxLayout()
@@ -344,68 +324,66 @@ class StormHub(QMainWindow):
         card = self.create_glass_card("📦 SOFTWARE CENTER")
         layout = QVBoxLayout()
 
+        # Search row
         row = QHBoxLayout()
         self.soft_search = QLineEdit()
         self.soft_search.setPlaceholderText("Search packages...")
-        self.soft_search.setObjectName("glassInput")
         row.addWidget(self.soft_search)
         self.soft_source = QComboBox()
         self.soft_source.addItems(["All", "Pacman", "AUR"])
         row.addWidget(self.soft_source)
         search_btn = QPushButton("Search")
-        search_btn.setObjectName("smallGlass")
-        search_btn.clicked.connect(self.search_packages)
+        search_btn.clicked.connect(self.search_packages_sync)
         row.addWidget(search_btn)
         layout.addLayout(row)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        # Results tree
         self.package_list = QTreeWidget()
         self.package_list.setHeaderLabels(["Name", "Version", "Source"])
         self.package_list.setMaximumHeight(200)
         self.package_list.itemClicked.connect(self.on_package_selected)
-        splitter.addWidget(self.package_list)
+        layout.addWidget(self.package_list)
 
-        details = QWidget()
-        details_layout = QVBoxLayout(details)
+        # Details
         self.details_title = QLabel("Select a package")
         self.details_title.setStyleSheet("font-weight: bold;")
-        details_layout.addWidget(self.details_title)
+        layout.addWidget(self.details_title)
         self.details_text = QTextEdit()
         self.details_text.setReadOnly(True)
         self.details_text.setMaximumHeight(100)
-        details_layout.addWidget(self.details_text)
+        layout.addWidget(self.details_text)
+
+        # Buttons
         btn_row = QHBoxLayout()
         self.install_btn = QPushButton("Install")
-        self.install_btn.setObjectName("successGlass")
         self.install_btn.clicked.connect(self.install_package)
         self.install_btn.setEnabled(False)
         self.remove_btn = QPushButton("Remove")
-        self.remove_btn.setObjectName("dangerGlass")
         self.remove_btn.clicked.connect(self.remove_package)
         self.remove_btn.setEnabled(False)
         btn_row.addWidget(self.install_btn)
         btn_row.addWidget(self.remove_btn)
-        details_layout.addLayout(btn_row)
-        splitter.addWidget(details)
-        layout.addWidget(splitter)
+        layout.addLayout(btn_row)
 
         card.layout().addLayout(layout)
         return card
 
-    def search_packages(self):
+    def search_packages_sync(self):
+        """Synchronous package search (no threading)"""
         query = self.soft_search.text().strip()
         if not query:
             return
+        source = self.soft_source.currentText()
         self.package_list.clear()
-        threading.Thread(target=self._do_search, args=(query, self.soft_source.currentText()), daemon=True).start()
-
-    def _do_search(self, query, source):
         packages = []
         if source in ["All", "Pacman"]:
             packages.extend(PacmanBackend().search(query))
         if source in ["All", "AUR"] and shutil.which("yay"):
             packages.extend(YayBackend().search(query))
-        QApplication.instance().postEvent(self, SearchResultsEvent(packages))
+        for pkg in packages:
+            item = QTreeWidgetItem([pkg['name'], pkg['version'], pkg['source']])
+            item.setData(0, Qt.ItemDataRole.UserRole, pkg)
+            self.package_list.addTopLevelItem(item)
 
     def on_package_selected(self, item, col):
         pkg = item.data(0, Qt.ItemDataRole.UserRole)
@@ -534,7 +512,7 @@ class StormHub(QMainWindow):
         return card
 
     # ------------------------------------------------------------------
-    # UI helpers
+    # HELPERS
     # ------------------------------------------------------------------
     def create_header(self):
         header = QWidget()
@@ -693,22 +671,12 @@ class StormHub(QMainWindow):
             AUTOSTART_FILE.unlink()
         AUTOSTART_DISABLED_MARKER.touch()
 
-    def customEvent(self, event):
-        if isinstance(event, SearchResultsEvent):
-            self.package_list.clear()
-            for pkg in event.packages:
-                item = QTreeWidgetItem([pkg['name'], pkg['version'], pkg['source']])
-                item.setData(0, Qt.ItemDataRole.UserRole, pkg)
-                self.package_list.addTopLevelItem(item)
-
-class SearchResultsEvent:
-    def __init__(self, packages):
-        self.packages = packages
 
 # ============================================================
-# MAIN ENTRY POINT
+# MAIN
 # ============================================================
-def main():
+if __name__ == "__main__":
+    log("Entering main()")
     app = QApplication(sys.argv)
     app.setApplicationName("StormOS Hub")
     app.setStyle("Fusion")
@@ -720,8 +688,7 @@ def main():
     app.setPalette(palette)
 
     window = StormHub()
+    log("Showing window")
     window.show()
+    log("Entering event loop")
     sys.exit(app.exec())
-
-if __name__ == "__main__":
-    main()
