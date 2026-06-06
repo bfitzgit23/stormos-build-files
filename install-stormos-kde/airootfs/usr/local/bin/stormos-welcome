@@ -2,10 +2,12 @@
 """
 StormOS Hub – Nexus‑style Dashboard
 All system tools + streaming links + search in one elegant page.
+Debug logging added to /tmp/stormos-hub.log
 """
 
 import sys
 import os
+import traceback
 import shutil
 import subprocess
 import webbrowser
@@ -13,14 +15,22 @@ import threading
 from pathlib import Path
 from typing import Optional, List, Dict
 
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QLineEdit, QTextEdit, QGroupBox,
-    QMessageBox, QScrollArea, QFrame, QComboBox, QTreeWidget,
-    QTreeWidgetItem, QSplitter
-)
+# Redirect stderr to a log file for debugging
+LOG_FILE = open('/tmp/stormos-hub.log', 'w')
+sys.stderr = LOG_FILE
+
+try:
+    from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+    from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
+    from PyQt6.QtWidgets import (
+        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+        QPushButton, QLabel, QLineEdit, QTextEdit, QGroupBox,
+        QMessageBox, QScrollArea, QFrame, QComboBox, QTreeWidget,
+        QTreeWidgetItem, QSplitter
+    )
+except ImportError as e:
+    print(f"PyQt6 import error: {e}", file=sys.stderr)
+    sys.exit(1)
 
 # ============================================================
 # COLORS (Nexus‑style glass theme)
@@ -42,7 +52,7 @@ AUTOSTART_DISABLED_MARKER = HOME / ".storm-autostart-disabled"
 LIVE_MARKERS = ["/run/archiso", "/run/miso", "/etc/live", "/run/live"]
 
 # ============================================================
-# UTILITIES (terminal, package backends, etc.)
+# UTILITIES
 # ============================================================
 def find_terminal():
     for term in ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]:
@@ -99,7 +109,7 @@ def is_live_session():
     return any(Path(m).exists() for m in LIVE_MARKERS)
 
 # ============================================================
-# PACKAGE BACKENDS (for software card)
+# PACKAGE BACKENDS
 # ============================================================
 class PacmanBackend:
     def search(self, query):
@@ -171,17 +181,28 @@ class YayBackend:
         run_command(["yay", "-Rns", pkg])
 
 # ============================================================
-# MAIN HUB WINDOW (no tabs – all in one scrollable page)
+# MAIN HUB WINDOW
 # ============================================================
 class StormHub(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.is_live = is_live_session()
-        self.selected_package = None
-        self.init_ui()
-        self.apply_styles()
-        self.setup_autostart()
-        self.animate_window()
+        try:
+            self.is_live = is_live_session()
+            self.selected_package = None
+            self.init_ui()
+            self.apply_styles()
+            self.setup_autostart()
+            self.animate_window()
+        except Exception as e:
+            traceback.print_exc(file=sys.stderr)
+            # Show a simple error label in the window
+            self.setWindowTitle("StormOS Hub - Error")
+            central = QWidget()
+            self.setCentralWidget(central)
+            layout = QVBoxLayout(central)
+            error_label = QLabel(f"Failed to start:\n{str(e)}\n\nCheck /tmp/stormos-hub.log")
+            error_label.setWordWrap(True)
+            layout.addWidget(error_label)
 
     def init_ui(self):
         self.setWindowTitle("🌩️ StormOS Hub")
@@ -193,7 +214,6 @@ class StormHub(QMainWindow):
             1100, 800
         )
 
-        # Main container with glass background
         central = QWidget()
         central.setObjectName("central")
         self.setCentralWidget(central)
@@ -201,10 +221,7 @@ class StormHub(QMainWindow):
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
 
-        # Header
         main_layout.addWidget(self.create_header())
-
-        # Scrollable content area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -214,12 +231,9 @@ class StormHub(QMainWindow):
         content_layout.setSpacing(30)
         content_layout.setContentsMargins(0, 10, 0, 30)
 
-        # ----- NEXUS STYLE SEARCH & STREAMING (top section) -----
         content_layout.addWidget(self.create_search_section())
         content_layout.addWidget(self.create_streaming_section())
         content_layout.addWidget(self.create_learn_section())
-
-        # ----- SYSTEM TOOLS (cards) -----
         content_layout.addWidget(self.create_system_card())
         content_layout.addWidget(self.create_software_card())
         content_layout.addWidget(self.create_maintenance_card())
@@ -231,8 +245,6 @@ class StormHub(QMainWindow):
 
         scroll.setWidget(content)
         main_layout.addWidget(scroll)
-
-        # Footer
         main_layout.addWidget(self.create_footer())
 
     # ------------------------------------------------------------------
@@ -246,7 +258,6 @@ class StormHub(QMainWindow):
         self.search_bar.setObjectName("nexusSearch")
         self.search_bar.returnPressed.connect(self.do_search)
         layout.addWidget(self.search_bar)
-
         go_btn = QPushButton("Go")
         go_btn.setObjectName("gradientButton")
         go_btn.setFixedWidth(100)
@@ -305,7 +316,6 @@ class StormHub(QMainWindow):
         ddg_row.addWidget(ddg_status)
         ddg_row.addStretch()
         layout.addLayout(ddg_row)
-
         for name, url in [("Arch Wiki", "https://wiki.archlinux.org"),
                           ("GitHub", "https://github.com"),
                           ("Stack Overflow", "https://stackoverflow.com")]:
@@ -317,7 +327,7 @@ class StormHub(QMainWindow):
         return card
 
     # ------------------------------------------------------------------
-    # SYSTEM TOOL CARDS (each card contains relevant action buttons)
+    # SYSTEM TOOL CARDS
     # ------------------------------------------------------------------
     def create_system_card(self):
         card = self.create_glass_card("⚡ SYSTEM ACTIONS")
@@ -340,7 +350,6 @@ class StormHub(QMainWindow):
         card = self.create_glass_card("📦 SOFTWARE CENTER")
         layout = QVBoxLayout()
 
-        # Search row
         row = QHBoxLayout()
         self.soft_search = QLineEdit()
         self.soft_search.setPlaceholderText("Search packages...")
@@ -355,7 +364,6 @@ class StormHub(QMainWindow):
         row.addWidget(search_btn)
         layout.addLayout(row)
 
-        # Tree + details (compact)
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self.package_list = QTreeWidget()
         self.package_list.setHeaderLabels(["Name", "Version", "Source"])
@@ -427,9 +435,6 @@ class StormHub(QMainWindow):
             else:
                 run_command(["yay", "-Rns", self.selected_package['name']])
 
-    # ------------------------------------------------------------------
-    # Other cards (simplified but fully functional)
-    # ------------------------------------------------------------------
     def create_maintenance_card(self):
         card = self.create_glass_card("🔧 MAINTENANCE")
         layout = QVBoxLayout()
@@ -535,7 +540,7 @@ class StormHub(QMainWindow):
         return card
 
     # ------------------------------------------------------------------
-    # UI helpers (header, footer, glass card, styles, autostart, animation)
+    # UI helpers
     # ------------------------------------------------------------------
     def create_header(self):
         header = QWidget()
