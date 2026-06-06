@@ -241,3 +241,5 @@ pamac-all
 xfce4-docklike-plugin
 vlc
 yaml-cpp
+python-flask
+python-flask-cors
