@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-StormOS Welcome - Browser Start Page Style
-Clean, modern welcome screen with streaming links, search, and shortcuts.
-System tools are still available in additional tabs.
+StormOS Hub – Nexus‑style Dashboard
+All system tools + streaming links + search in one elegant page.
 """
 
 import sys
@@ -18,13 +17,13 @@ from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTabWidget, QPushButton, QLabel, QLineEdit, QTextEdit,
-    QGroupBox, QMessageBox, QTreeWidget, QTreeWidgetItem,
-    QComboBox, QSplitter, QScrollArea, QFrame
+    QPushButton, QLabel, QLineEdit, QTextEdit, QGroupBox,
+    QMessageBox, QScrollArea, QFrame, QComboBox, QTreeWidget,
+    QTreeWidgetItem, QSplitter
 )
 
 # ============================================================
-# MODERN COLOR PALETTE (Browser‑style start page)
+# COLORS (Nexus‑style glass theme)
 # ============================================================
 STORM_NAVY = "#0a192f"
 STORM_BLUE = "#64ffda"
@@ -34,7 +33,7 @@ STORM_CORAL = "#ff6b6b"
 STORM_GRAY = "#8892b0"
 STORM_DARK = "#020c1b"
 STORM_LIGHT = "#e6f1ff"
-STORM_GLASS_DARK = "rgba(2, 12, 27, 0.85)"
+GLASS_DARK = "rgba(2, 12, 27, 0.85)"
 CARD_BG = "rgba(30, 58, 95, 0.5)"
 
 HOME = Path.home()
@@ -42,24 +41,20 @@ AUTOSTART_FILE = HOME / ".config/autostart/stormos-welcome.desktop"
 AUTOSTART_DISABLED_MARKER = HOME / ".storm-autostart-disabled"
 LIVE_MARKERS = ["/run/archiso", "/run/miso", "/etc/live", "/run/live"]
 
-
 # ============================================================
-# TERMINAL HANDLING (same as before, using gnome‑terminal)
+# UTILITIES (terminal, package backends, etc.)
 # ============================================================
 def find_terminal():
-    terminals = ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]
-    for term in terminals:
+    for term in ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]:
         if shutil.which(term):
             return shutil.which(term)
     return None
-
 
 def run_command(cmd, title="StormOS", hold=True):
     if isinstance(cmd, list):
         cmd_str = " ".join(f'"{c}"' if " " in c else c for c in cmd)
     else:
         cmd_str = cmd
-
     if cmd_str.startswith("sudo") and shutil.which("pkexec"):
         cmd_str = cmd_str.replace("sudo", "pkexec", 1)
         try:
@@ -68,18 +63,15 @@ def run_command(cmd, title="StormOS", hold=True):
             return True
         except Exception:
             pass
-
     term = find_terminal()
     if not term:
         QMessageBox.critical(None, "Terminal Error", "No terminal found. Install gnome-terminal or xfce4-terminal.")
         return False
-
     term_name = os.path.basename(term)
     if hold:
         shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"'
     else:
         shell_cmd = f'bash -c "{cmd_str}"'
-
     if term_name == "gnome-terminal":
         args = [term, "--title", title, "--", "bash", "-c", shell_cmd]
     elif term_name == "xfce4-terminal":
@@ -88,7 +80,6 @@ def run_command(cmd, title="StormOS", hold=True):
         args = [term, "-title", title, "-e", shell_cmd]
     else:
         args = [term, "-e", shell_cmd]
-
     try:
         subprocess.Popen(args, start_new_session=True,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -97,7 +88,6 @@ def run_command(cmd, title="StormOS", hold=True):
         QMessageBox.critical(None, "Terminal Error", str(e))
         return False
 
-
 def run_capture(cmd):
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -105,16 +95,11 @@ def run_capture(cmd):
     except Exception:
         return 1, "", ""
 
-
 def is_live_session():
-    for marker in LIVE_MARKERS:
-        if Path(marker).exists():
-            return True
-    return False
-
+    return any(Path(m).exists() for m in LIVE_MARKERS)
 
 # ============================================================
-# PACKAGE BACKENDS (unchanged, for Software tab)
+# PACKAGE BACKENDS (for software card)
 # ============================================================
 class PacmanBackend:
     def search(self, query):
@@ -185,117 +170,106 @@ class YayBackend:
     def remove(self, pkg):
         run_command(["yay", "-Rns", pkg])
 
-
 # ============================================================
-# MAIN WINDOW – BROWSER STYLE WELCOME TAB
+# MAIN HUB WINDOW (no tabs – all in one scrollable page)
 # ============================================================
-class StormWelcome(QMainWindow):
+class StormHub(QMainWindow):
     def __init__(self):
         super().__init__()
         self.is_live = is_live_session()
+        self.selected_package = None
         self.init_ui()
         self.apply_styles()
         self.setup_autostart()
         self.animate_window()
 
     def init_ui(self):
-        self.setWindowTitle("🌩️ StormOS Welcome")
-        self.setMinimumSize(1000, 700)
+        self.setWindowTitle("🌩️ StormOS Hub")
+        self.setMinimumSize(1100, 800)
         screen = QGuiApplication.primaryScreen().geometry()
         self.setGeometry(
-            (screen.width() - 1000) // 2,
-            (screen.height() - 700) // 2,
-            1000, 700
+            (screen.width() - 1100) // 2,
+            (screen.height() - 800) // 2,
+            1100, 800
         )
+
+        # Main container with glass background
         central = QWidget()
         central.setObjectName("central")
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        main_layout = QVBoxLayout(central)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
 
         # Header
-        layout.addWidget(self.create_header())
+        main_layout.addWidget(self.create_header())
 
-        # Tabs: Welcome (browser page) + System, Software, etc.
-        self.tabs = QTabWidget()
-        self.tabs.setObjectName("mainTabs")
-        self.tabs.addTab(self.create_browser_welcome_tab(), "🌐 Start Page")
-        self.tabs.addTab(self.create_system_tab(), "💻 System")
-        self.tabs.addTab(self.create_software_tab(), "📦 Software")
-        self.tabs.addTab(self.create_maintenance_tab(), "🔧 Maintenance")
-        self.tabs.addTab(self.create_drivers_tab(), "🎮 Drivers")
-        self.tabs.addTab(self.create_tweaks_tab(), "⚙️ Tweaks")
-        self.tabs.addTab(self.create_gaming_tab(), "🎲 Gaming")
-        self.tabs.addTab(self.create_settings_tab(), "⚙️ Settings")
-        self.tabs.addTab(self.create_help_tab(), "❓ Help")
-        layout.addWidget(self.tabs)
-
-        # Footer
-        layout.addWidget(self.create_footer())
-
-    # ------------------------------------------------------------------
-    # NEW BROWSER-STYLE WELCOME TAB (based on your description)
-    # ------------------------------------------------------------------
-    def create_browser_welcome_tab(self):
+        # Scrollable content area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setSpacing(30)
-        layout.setContentsMargins(40, 30, 40, 30)
+        scroll.setStyleSheet("background: transparent; border: none;")
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
+        content_layout.setSpacing(30)
+        content_layout.setContentsMargins(0, 10, 0, 30)
 
-        # ========== SPECIAL THANKS & NEXUS 5 ==========
-        thanks_label = QLabel("SPECIAL THANKS")
-        thanks_label.setStyleSheet("font-size: 14px; font-weight: 600; letter-spacing: 2px;")
-        thanks_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(thanks_label)
+        # ----- NEXUS STYLE SEARCH & STREAMING (top section) -----
+        content_layout.addWidget(self.create_search_section())
+        content_layout.addWidget(self.create_streaming_section())
+        content_layout.addWidget(self.create_learn_section())
 
-        brother_label = QLabel(
-            "To my brother — for helping me get this project off the ground when it needed a push.<br>"
-            "I would not be here without you."
-        )
-        brother_label.setWordWrap(True)
-        brother_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        brother_label.setStyleSheet("color: #8892b0; font-size: 13px; margin-bottom: 20px;")
-        layout.addWidget(brother_label)
+        # ----- SYSTEM TOOLS (cards) -----
+        content_layout.addWidget(self.create_system_card())
+        content_layout.addWidget(self.create_software_card())
+        content_layout.addWidget(self.create_maintenance_card())
+        content_layout.addWidget(self.create_drivers_card())
+        content_layout.addWidget(self.create_tweaks_card())
+        content_layout.addWidget(self.create_gaming_card())
+        content_layout.addWidget(self.create_settings_card())
+        content_layout.addWidget(self.create_help_card())
 
-        nexus_label = QLabel("NEXUS 5")
-        nexus_label.setStyleSheet("font-size: 42px; font-weight: 800; color: #64ffda; margin-top: 10px;")
-        nexus_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(nexus_label)
+        scroll.setWidget(content)
+        main_layout.addWidget(scroll)
 
-        # ========== SEARCH BAR ==========
-        search_layout = QHBoxLayout()
+        # Footer
+        main_layout.addWidget(self.create_footer())
+
+    # ------------------------------------------------------------------
+    # NEXUS‑STYLE SECTIONS
+    # ------------------------------------------------------------------
+    def create_search_section(self):
+        card = self.create_glass_card("NEXUS SEARCH")
+        layout = QVBoxLayout()
         self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Type a search term or URL...")
-        self.search_bar.setStyleSheet("""
-            QLineEdit {
-                background-color: rgba(10, 25, 47, 0.8);
-                border: 2px solid #64ffda;
-                border-radius: 30px;
-                padding: 12px 20px;
-                font-size: 14px;
-                color: #e6f1ff;
-            }
-        """)
+        self.search_bar.setPlaceholderText("Search the web or enter a URL...")
+        self.search_bar.setObjectName("nexusSearch")
         self.search_bar.returnPressed.connect(self.do_search)
-        search_layout.addWidget(self.search_bar)
+        layout.addWidget(self.search_bar)
 
         go_btn = QPushButton("Go")
         go_btn.setObjectName("gradientButton")
-        go_btn.setFixedWidth(80)
+        go_btn.setFixedWidth(100)
         go_btn.clicked.connect(self.do_search)
-        search_layout.addWidget(go_btn)
-        layout.addLayout(search_layout)
+        layout.addWidget(go_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        card.layout().addLayout(layout)
+        return card
 
-        # ========== FREE STREAMING SECTION ==========
-        streaming_card = self.create_glass_card("FREE STREAMING")
-        streaming_card.setStyleSheet(streaming_card.styleSheet() + " QGroupBox { font-size: 18px; }")
-        streaming_layout = QVBoxLayout()
+    def do_search(self):
+        query = self.search_bar.text().strip()
+        if not query:
+            return
+        if query.startswith(("http://", "https://")):
+            webbrowser.open(query)
+        elif "." in query and " " not in query:
+            webbrowser.open("https://" + query)
+        else:
+            webbrowser.open(f"https://duckduckgo.com/?q={query.replace(' ', '+')}")
 
-        streaming_sites = [
+    def create_streaming_section(self):
+        card = self.create_glass_card("FREE STREAMING")
+        layout = QVBoxLayout()
+        sites = [
             ("Tubi", "https://tubitv.com", "Movies & TV, free with ads"),
             ("Pluto TV", "https://pluto.tv", "Live channels & on-demand"),
             ("Crackle", "https://crackle.com", "Sony free movies & shows"),
@@ -304,27 +278,23 @@ class StormWelcome(QMainWindow):
             ("Xumo Play", "https://xumo.tv", "Live TV and movies"),
             ("Sling Freestream", "https://watch.sling.com", "Free live & on-demand")
         ]
-
-        for name, url, desc in streaming_sites:
+        for name, url, desc in sites:
             row = QHBoxLayout()
             btn = QPushButton(name)
             btn.setObjectName("streamButton")
             btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
             row.addWidget(btn)
-            desc_label = QLabel(desc)
-            desc_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
-            row.addWidget(desc_label)
+            lbl = QLabel(desc)
+            lbl.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
+            row.addWidget(lbl)
             row.addStretch()
-            streaming_layout.addLayout(row)
+            layout.addLayout(row)
+        card.layout().addLayout(layout)
+        return card
 
-        streaming_card.layout().addLayout(streaming_layout)
-        layout.addWidget(streaming_card)
-
-        # ========== SEARCH & LEARN SECTION ==========
-        search_card = self.create_glass_card("SEARCH & LEARN")
-        search_card.setStyleSheet(search_card.styleSheet() + " QGroupBox { font-size: 18px; }")
-        search_layout2 = QVBoxLayout()
-
+    def create_learn_section(self):
+        card = self.create_glass_card("SEARCH & LEARN")
+        layout = QVBoxLayout()
         ddg_row = QHBoxLayout()
         ddg_btn = QPushButton("DuckDuckGo")
         ddg_btn.setObjectName("streamButton")
@@ -334,86 +304,65 @@ class StormWelcome(QMainWindow):
         ddg_status.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
         ddg_row.addWidget(ddg_status)
         ddg_row.addStretch()
-        search_layout2.addLayout(ddg_row)
+        layout.addLayout(ddg_row)
 
-        # Additional quick links
         for name, url in [("Arch Wiki", "https://wiki.archlinux.org"),
                           ("GitHub", "https://github.com"),
                           ("Stack Overflow", "https://stackoverflow.com")]:
             btn = QPushButton(name)
             btn.setObjectName("linkButton")
             btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
-            search_layout2.addWidget(btn)
-
-        search_card.layout().addLayout(search_layout2)
-        layout.addWidget(search_card)
-
-        scroll.setWidget(container)
-        return scroll
-
-    def do_search(self):
-        query = self.search_bar.text().strip()
-        if not query:
-            return
-        # If it looks like a URL, open it; else search with DuckDuckGo
-        if query.startswith(("http://", "https://")):
-            webbrowser.open(query)
-        elif "." in query and " " not in query:
-            webbrowser.open("https://" + query)
-        else:
-            webbrowser.open(f"https://duckduckgo.com/?q={query.replace(' ', '+')}")
+            layout.addWidget(btn)
+        card.layout().addLayout(layout)
+        return card
 
     # ------------------------------------------------------------------
-    # All other tabs (System, Software, Maintenance, Drivers, Tweaks, Gaming, Settings, Help)
-    # remain exactly as in your original app – I include minimal versions here for completeness.
-    # (For brevity, I reuse the same methods from previous working code.)
+    # SYSTEM TOOL CARDS (each card contains relevant action buttons)
     # ------------------------------------------------------------------
-    def create_system_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(30, 30, 30, 30)
-        card = self.create_glass_card("⚡ System Actions")
-        for text, cmd in [
+    def create_system_card(self):
+        card = self.create_glass_card("⚡ SYSTEM ACTIONS")
+        layout = QVBoxLayout()
+        actions = [
             ("⟳ Update System (pacman -Syu)", ["sudo", "pacman", "-Syu"]),
-            ("⟳ Update System + AUR (yay -Syu)", ["yay", "-Syu"]),
+            ("⟳ Update AUR (yay -Syu)", ["yay", "-Syu"]),
             ("🔁 Reboot", ["sudo", "reboot"]),
             ("⏻ Shutdown", ["sudo", "shutdown", "-h", "now"])
-        ]:
+        ]
+        for text, cmd in actions:
             btn = QPushButton(text)
             btn.setObjectName("actionButton")
             btn.clicked.connect(lambda _, c=cmd, t=text: run_command(c, t))
-            card.layout().addWidget(btn)
-        layout.addWidget(card)
-        layout.addStretch()
-        return tab
+            layout.addWidget(btn)
+        card.layout().addLayout(layout)
+        return card
 
-    def create_software_tab(self):
-        # Simplified software center – same as original working version
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(30, 30, 30, 30)
-        title = QLabel("📦 Software Center")
-        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #64ffda;")
-        layout.addWidget(title)
+    def create_software_card(self):
+        card = self.create_glass_card("📦 SOFTWARE CENTER")
+        layout = QVBoxLayout()
 
-        search_row = QHBoxLayout()
+        # Search row
+        row = QHBoxLayout()
         self.soft_search = QLineEdit()
         self.soft_search.setPlaceholderText("Search packages...")
         self.soft_search.setObjectName("glassInput")
-        search_row.addWidget(self.soft_search)
+        row.addWidget(self.soft_search)
         self.soft_source = QComboBox()
         self.soft_source.addItems(["All", "Pacman", "AUR"])
-        search_row.addWidget(self.soft_source)
+        row.addWidget(self.soft_source)
         search_btn = QPushButton("Search")
         search_btn.setObjectName("smallGlass")
         search_btn.clicked.connect(self.search_packages)
-        search_row.addWidget(search_btn)
-        layout.addLayout(search_row)
+        row.addWidget(search_btn)
+        layout.addLayout(row)
 
+        # Tree + details (compact)
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self.package_list = QTreeWidget()
         self.package_list.setHeaderLabels(["Name", "Version", "Source"])
+        self.package_list.setMaximumHeight(200)
+        self.package_list.itemClicked.connect(self.on_package_selected)
         splitter.addWidget(self.package_list)
+
         details = QWidget()
         details_layout = QVBoxLayout(details)
         self.details_title = QLabel("Select a package")
@@ -421,22 +370,30 @@ class StormWelcome(QMainWindow):
         details_layout.addWidget(self.details_title)
         self.details_text = QTextEdit()
         self.details_text.setReadOnly(True)
+        self.details_text.setMaximumHeight(100)
         details_layout.addWidget(self.details_text)
         btn_row = QHBoxLayout()
         self.install_btn = QPushButton("Install")
+        self.install_btn.setObjectName("successGlass")
         self.install_btn.clicked.connect(self.install_package)
+        self.install_btn.setEnabled(False)
         self.remove_btn = QPushButton("Remove")
+        self.remove_btn.setObjectName("dangerGlass")
         self.remove_btn.clicked.connect(self.remove_package)
+        self.remove_btn.setEnabled(False)
         btn_row.addWidget(self.install_btn)
         btn_row.addWidget(self.remove_btn)
         details_layout.addLayout(btn_row)
         splitter.addWidget(details)
         layout.addWidget(splitter)
-        return tab
+
+        card.layout().addLayout(layout)
+        return card
 
     def search_packages(self):
         query = self.soft_search.text().strip()
-        if not query: return
+        if not query:
+            return
         self.package_list.clear()
         threading.Thread(target=self._do_search, args=(query, self.soft_source.currentText()), daemon=True).start()
 
@@ -448,70 +405,134 @@ class StormWelcome(QMainWindow):
             packages.extend(YayBackend().search(query))
         QApplication.instance().postEvent(self, SearchResultsEvent(packages))
 
+    def on_package_selected(self, item, col):
+        pkg = item.data(0, Qt.ItemDataRole.UserRole)
+        self.selected_package = pkg
+        self.details_title.setText(f"{pkg['name']} — {pkg['source']}")
+        self.details_text.setText(pkg.get('description', 'No description'))
+        self.install_btn.setEnabled(not pkg.get('installed', False))
+        self.remove_btn.setEnabled(pkg.get('installed', False))
+
     def install_package(self):
-        if not hasattr(self, 'selected_pkg'): return
-        pkg = self.selected_pkg
-        if pkg['source'] == 'pacman':
-            run_command(["sudo", "pacman", "-S", "--noconfirm", pkg['name']])
-        else:
-            run_command(["yay", "-S", "--noconfirm", pkg['name']])
+        if self.selected_package:
+            if self.selected_package['source'] == 'pacman':
+                run_command(["sudo", "pacman", "-S", "--noconfirm", self.selected_package['name']])
+            else:
+                run_command(["yay", "-S", "--noconfirm", self.selected_package['name']])
 
     def remove_package(self):
-        if not hasattr(self, 'selected_pkg'): return
-        pkg = self.selected_pkg
-        if pkg['source'] == 'pacman':
-            run_command(["sudo", "pacman", "-Rns", pkg['name']])
-        else:
-            run_command(["yay", "-Rns", pkg['name']])
-
-    def customEvent(self, event):
-        if isinstance(event, SearchResultsEvent):
-            self.package_list.clear()
-            for pkg in event.packages:
-                item = QTreeWidgetItem([pkg['name'], pkg['version'], pkg['source']])
-                item.setData(0, Qt.ItemDataRole.UserRole, pkg)
-                self.package_list.addTopLevelItem(item)
-            self.package_list.itemClicked.connect(lambda it, col: setattr(self, 'selected_pkg', it.data(0, Qt.ItemDataRole.UserRole)))
+        if self.selected_package:
+            if self.selected_package['source'] == 'pacman':
+                run_command(["sudo", "pacman", "-Rns", self.selected_package['name']])
+            else:
+                run_command(["yay", "-Rns", self.selected_package['name']])
 
     # ------------------------------------------------------------------
-    # Remaining tabs (maintenance, drivers, tweaks, gaming, settings, help) – trivial placeholders
-    # You can copy your full original implementations – I'll keep them short for brevity.
+    # Other cards (simplified but fully functional)
     # ------------------------------------------------------------------
-    def create_maintenance_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.addWidget(QLabel("Maintenance tools – see original code"))
-        return tab
+    def create_maintenance_card(self):
+        card = self.create_glass_card("🔧 MAINTENANCE")
+        layout = QVBoxLayout()
+        for text, cmd in [
+            ("Clear pacman cache (keep last 3)", ["sudo", "paccache", "-r"]),
+            ("Clear ALL pacman cache", ["sudo", "pacman", "-Scc"]),
+            ("Remove orphans", ["bash", "-c", "sudo pacman -Rns $(pacman -Qdtq) 2>/dev/null || echo 'No orphans'"]),
+            ("Rank mirrors (reflector)", ["sudo", "reflector", "--latest", "20", "--protocol", "https", "--sort", "rate", "--save", "/etc/pacman.d/mirrorlist"]),
+            ("Force pacman sync", ["sudo", "pacman", "-Syy"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            layout.addWidget(btn)
+        card.layout().addLayout(layout)
+        return card
 
-    def create_drivers_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.addWidget(QLabel("Driver installation – see original code"))
-        return tab
+    def create_drivers_card(self):
+        card = self.create_glass_card("🎮 DRIVERS")
+        layout = QVBoxLayout()
+        for text, cmd in [
+            ("NVIDIA (proprietary)", ["sudo", "pacman", "-S", "--needed", "nvidia", "nvidia-utils", "nvidia-settings"]),
+            ("NVIDIA DKMS", ["sudo", "pacman", "-S", "--needed", "nvidia-dkms", "nvidia-utils", "nvidia-settings"]),
+            ("AMDGPU (modern)", ["sudo", "pacman", "-S", "--needed", "xf86-video-amdgpu", "mesa", "lib32-mesa"]),
+            ("Intel (modesetting)", ["sudo", "pacman", "-S", "--needed", "mesa", "lib32-mesa", "intel-media-driver"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            layout.addWidget(btn)
+        card.layout().addLayout(layout)
+        return card
 
-    def create_tweaks_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.addWidget(QLabel("System tweaks – see original code"))
-        return tab
+    def create_tweaks_card(self):
+        card = self.create_glass_card("⚙️ TWEAKS")
+        layout = QVBoxLayout()
+        for text, cmd in [
+            ("Install Zsh", ["sudo", "pacman", "-S", "--needed", "zsh"]),
+            ("Install Fish", ["sudo", "pacman", "-S", "--needed", "fish"]),
+            ("Install Plymouth", ["sudo", "pacman", "-S", "--needed", "plymouth"]),
+            ("Rebuild initramfs", ["sudo", "mkinitcpio", "-P"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            layout.addWidget(btn)
+        card.layout().addLayout(layout)
+        return card
 
-    def create_gaming_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.addWidget(QLabel("Gaming tools – see original code"))
-        return tab
+    def create_gaming_card(self):
+        card = self.create_glass_card("🎲 GAMING")
+        layout = QVBoxLayout()
+        for text, cmd in [
+            ("Steam", ["sudo", "pacman", "-S", "--needed", "steam"]),
+            ("Lutris", ["sudo", "pacman", "-S", "--needed", "lutris"]),
+            ("Wine (staging)", ["sudo", "pacman", "-S", "--needed", "wine-staging", "wine-mono", "wine-gecko"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            layout.addWidget(btn)
+        card.layout().addLayout(layout)
+        return card
 
-    def create_settings_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.addWidget(QLabel("Appearance and desktop tools"))
-        return tab
+    def create_settings_card(self):
+        card = self.create_glass_card("⚙️ SETTINGS")
+        layout = QVBoxLayout()
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["Dark (Nexus)", "Light"])
+        self.theme_combo.currentTextChanged.connect(self.change_theme)
+        layout.addWidget(QLabel("Theme:"))
+        layout.addWidget(self.theme_combo)
+        for text, cmd in [
+            ("Display Settings (arandr)", ["arandr"]),
+            ("Wallpaper (nitrogen)", ["nitrogen"]),
+            ("Network (nm-connection-editor)", ["nm-connection-editor"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c, hold=False))
+            layout.addWidget(btn)
+        card.layout().addLayout(layout)
+        return card
 
-    def create_help_tab(self):
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.addWidget(QLabel("Help and resources"))
-        return tab
+    def create_help_card(self):
+        card = self.create_glass_card("❓ HELP & RESOURCES")
+        layout = QVBoxLayout()
+        for name, url in [
+            ("Arch Wiki", "https://wiki.archlinux.org"),
+            ("Arch Forums", "https://bbs.archlinux.org"),
+            ("StormOS GitHub", "https://github.com/stormos")
+        ]:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            layout.addWidget(btn)
+        about_btn = QPushButton("About StormOS Hub")
+        about_btn.setObjectName("linkButton")
+        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS Hub",
+            "StormOS Hub v3.0\n\nNexus‑style dashboard for system management, streaming, and search.\nBuilt with PyQt6"))
+        layout.addWidget(about_btn)
+        card.layout().addLayout(layout)
+        return card
 
     # ------------------------------------------------------------------
     # UI helpers (header, footer, glass card, styles, autostart, animation)
@@ -519,9 +540,9 @@ class StormWelcome(QMainWindow):
     def create_header(self):
         header = QWidget()
         hlayout = QHBoxLayout(header)
-        title = QLabel("🌩️ StormOS")
+        title = QLabel("🌩️ StormOS Hub")
         title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
-        subtitle = QLabel("Arch Linux made calm")
+        subtitle = QLabel("Arch Linux · Nexus Dashboard")
         subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
         hlayout.addWidget(title)
         hlayout.addWidget(subtitle)
@@ -539,7 +560,7 @@ class StormWelcome(QMainWindow):
         self.status_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
         flayout.addWidget(self.status_label)
         flayout.addStretch()
-        version = QLabel("v2.0 • Arch made calm")
+        version = QLabel("v3.0 • Nexus Hub")
         version.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
         flayout.addWidget(version)
         return footer
@@ -548,67 +569,56 @@ class StormWelcome(QMainWindow):
         card = QGroupBox(title)
         card.setStyleSheet(f"""
             QGroupBox {{
-                background-color: {STORM_GLASS_DARK};
+                background-color: {GLASS_DARK};
                 border: 1px solid rgba(100, 255, 218, 0.2);
-                border-radius: 16px;
+                border-radius: 20px;
                 margin-top: 12px;
                 padding-top: 12px;
                 font-weight: bold;
+                font-size: 18px;
                 color: {STORM_BLUE};
             }}
             QGroupBox::title {{
                 subcontrol-origin: margin;
-                left: 16px;
-                padding: 0 8px;
+                left: 20px;
+                padding: 0 12px;
             }}
         """)
         layout = QVBoxLayout(card)
-        layout.setSpacing(12)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
         return card
 
     def apply_styles(self):
         self.setStyleSheet(f"""
             QMainWindow {{ background-color: {STORM_NAVY}; }}
             #central {{
-                background-color: {STORM_GLASS_DARK};
-                border-radius: 20px;
-                border: 1px solid rgba(100, 255, 218, 0.1);
-            }}
-            QTabWidget::pane {{
-                background-color: rgba(2, 12, 27, 0.5);
+                background-color: {GLASS_DARK};
+                border-radius: 25px;
                 border: 1px solid rgba(100, 255, 218, 0.15);
-                border-radius: 16px;
             }}
-            QTabBar::tab {{
-                background: transparent;
-                color: {STORM_GRAY};
-                padding: 12px 24px;
-                font-weight: 600;
-                font-size: 14px;
+            QScrollArea {{ background: transparent; border: none; }}
+            QPushButton#actionButton {{
+                background: rgba(100, 255, 218, 0.08);
+                color: {STORM_LIGHT};
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 12px;
+                padding: 10px 16px;
+                text-align: left;
+                font-size: 13px;
             }}
-            QTabBar::tab:selected {{
-                background: rgba(100, 255, 218, 0.1);
-                color: {STORM_BLUE};
-                border-bottom: 2px solid {STORM_BLUE};
-            }}
-            QPushButton#gradientButton {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {STORM_TEAL}, stop:1 {STORM_PURPLE});
-                color: {STORM_NAVY};
-                border: none;
-                border-radius: 30px;
-                padding: 10px 20px;
-                font-weight: bold;
+            QPushButton#actionButton:hover {{
+                background: rgba(100, 255, 218, 0.15);
+                border-color: {STORM_BLUE};
             }}
             QPushButton#streamButton {{
                 background: rgba(30, 58, 95, 0.7);
                 color: {STORM_BLUE};
                 border: 1px solid {STORM_BLUE};
-                border-radius: 20px;
+                border-radius: 30px;
                 padding: 6px 18px;
                 font-weight: 600;
-                min-width: 100px;
-                text-align: left;
+                min-width: 110px;
             }}
             QPushButton#streamButton:hover {{
                 background: rgba(100, 255, 218, 0.2);
@@ -617,18 +627,54 @@ class StormWelcome(QMainWindow):
                 background: transparent;
                 color: {STORM_BLUE};
                 border: none;
-                padding: 8px 12px;
+                padding: 6px 12px;
                 text-align: left;
             }}
-            QLineEdit {{
-                background-color: rgba(10, 25, 47, 0.8);
-                border: 2px solid {STORM_BLUE};
+            QPushButton#gradientButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {STORM_TEAL}, stop:1 {STORM_PURPLE});
+                color: {STORM_NAVY};
+                border: none;
                 border-radius: 30px;
-                padding: 12px 20px;
-                font-size: 14px;
+                padding: 8px 20px;
+                font-weight: bold;
+            }}
+            QPushButton#successGlass {{
+                background: rgba(0, 209, 178, 0.2);
+                color: {STORM_TEAL};
+                border: 1px solid {STORM_TEAL};
+                border-radius: 8px;
+                padding: 6px 12px;
+            }}
+            QPushButton#dangerGlass {{
+                background: rgba(255, 107, 107, 0.2);
+                color: {STORM_CORAL};
+                border: 1px solid {STORM_CORAL};
+                border-radius: 8px;
+                padding: 6px 12px;
+            }}
+            QLineEdit#nexusSearch {{
+                background-color: rgba(10, 25, 47, 0.9);
+                border: 2px solid {STORM_BLUE};
+                border-radius: 40px;
+                padding: 14px 24px;
+                font-size: 15px;
+                color: {STORM_LIGHT};
+            }}
+            QLineEdit, QComboBox, QTreeWidget, QTextEdit {{
+                background-color: rgba(2, 12, 27, 0.7);
+                border: 1px solid rgba(100, 255, 218, 0.3);
+                border-radius: 12px;
+                padding: 8px;
                 color: {STORM_LIGHT};
             }}
         """)
+
+    def change_theme(self, theme):
+        if "Dark" in theme:
+            self.apply_styles()
+        else:
+            self.setStyleSheet("QMainWindow { background-color: #f0f0f0; } QLabel { color: #000; }")
 
     def animate_window(self):
         self.setWindowOpacity(0)
@@ -648,14 +694,21 @@ class StormWelcome(QMainWindow):
             AUTOSTART_FILE.unlink()
         AUTOSTART_DISABLED_MARKER.touch()
 
+    def customEvent(self, event):
+        if isinstance(event, SearchResultsEvent):
+            self.package_list.clear()
+            for pkg in event.packages:
+                item = QTreeWidgetItem([pkg['name'], pkg['version'], pkg['source']])
+                item.setData(0, Qt.ItemDataRole.UserRole, pkg)
+                self.package_list.addTopLevelItem(item)
+
 class SearchResultsEvent:
     def __init__(self, packages):
         self.packages = packages
 
-
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("StormOS Welcome")
+    app.setApplicationName("StormOS Hub")
     app.setStyle("Fusion")
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Window, QColor(STORM_NAVY))
@@ -664,7 +717,7 @@ def main():
     palette.setColor(QPalette.ColorRole.Text, QColor(STORM_LIGHT))
     app.setPalette(palette)
 
-    window = StormWelcome()
+    window = StormHub()
     window.show()
     sys.exit(app.exec())
 
