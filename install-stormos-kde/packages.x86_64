@@ -254,3 +254,5 @@ base-devel
 scx-scheds
 yaml-cpp
 vlc
+python-flask
+python-flash-cors
