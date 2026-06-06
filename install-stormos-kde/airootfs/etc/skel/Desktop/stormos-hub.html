@@ -1,0 +1,281 @@
+(255, 183, 77, 0.2); color: #ffb74d; border: 1px solid rgba(255, 183, 77, 0.3); }
+
+        /* Links */
+        a { color: var(--text-secondary); text-decoration: none; display: block; padding: 8px 0; border-bottom: 1px dashed rgba(136, 146, 176, 0.2); }
+        a:hover { color: var(--accent); padding-left: 5px; border-bottom-color: var(--accent); transition: all 0.2s; }
+
+        /* Terminal Log (Visual Feedback) */
+        .terminal-log {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            margin-top: 20px;
+        }
+        .log-entry { margin-bottom: 4px; }
+        .log-time { color: #666; margin-right: 10px; }
+
+        /* Toast Notification */
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--bg-light);
+            border: 1px solid var(--accent);
+            color: var(--text-primary);
+            padding: 15px 25px;
+            border-radius: 8px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #toast.show { transform: translateY(0); opacity: 1; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(100, 255, 218, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(100, 255, 218, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(100, 255, 218, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div>
+                <h1>StormOS Hub</h1>
+                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">System Interface & Control Center</div>
+            </div>
+            <div class="status-badge">
+                <div class="status-dot"></div>
+                Online
+            </div>
+        </header>
+
+        <!-- Search -->
+        <div class="card span-12">
+            <h2>StormOS Search</h2>
+            <div class="search-container">
+                <input type="text" id="web-search" placeholder="Search the web, Arch Wiki, or enter URL..." onkeypress="handleWebSearch(event)">
+                <button class="primary" onclick="performWebSearch()">Go</button>
+            </div>
+        </div>
+
+        <!-- System Actions -->
+        <div class="card span-4">
+            <h2>⚡ System Actions</h2>
+            <div class="btn-group">
+                <button onclick="runCmd('sudo pacman -Syu', 'System Update')">Update System</button>
+                <button onclick="runCmd('yay -Syu', 'AUR Update')">Update AUR</button>
+                <button class="danger" onclick="runCmd('sudo reboot', 'Reboot')">Reboot</button>
+                <button class="danger" onclick="runCmd('sudo shutdown -h now', 'Shutdown')">Shutdown</button>
+            </div>
+        </div>
+
+        <!-- Streaming -->
+        <div class="card span-8">
+            <h2>📺 Free Streaming</h2>
+            <div class="btn-group">
+                <button onclick="openLink('https://tubitv.com')">Tubi</button>
+                <button onclick="openLink('https://pluto.tv')">Pluto TV</button>
+                <button onclick="openLink('https://crackle.com')">Crackle</button>
+                <button onclick="openLink('https://watch.plex.tv')">Plex</button>
+                <button onclick="openLink('https://xumo.tv')">Xumo Play</button>
+                <button onclick="openLink('https://watch.sling.com')">Sling Freestream</button>
+            </div>
+        </div>
+
+        <!-- Software Center -->
+        <div class="card span-8">
+            <h2>
+                📦 Software Center
+                <select id="pkg-source" style="background:var(--bg-navy); color:var(--text-primary); border:1px solid var(--border); padding:4px; border-radius:4px; font-size:0.8rem;">
+                    <option value="All">All Sources</option>
+                    <option value="Pacman">Pacman</option>
+                    <option value="AUR">AUR</option>
+                </select>
+            </h2>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <input type="text" id="pkg-query" placeholder="Search packages (e.g., steam, vlc)..." onkeypress="if(event.key==='Enter') searchPackages()">
+                <button class="primary" onclick="searchPackages()">Search</button>
+            </div>
+            <div style="max-height: 350px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <table class="pkg-table">
+                    <thead>
+                        <tr>
+                            <th>Package Name</th>
+                            <th>Version</th>
+                            <th>Source</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pkg-results">
+                        <tr><td colspan="4" style="text-align:center; color: var(--text-secondary); padding: 20px;">Enter a query to search</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Maintenance -->
+        <div class="card span-4">
+            <h2>🔧 Maintenance</h2>
+            <div class="btn-group">
+                <button onclick="runCmd('sudo paccache -r', 'Clean Cache')">Clean Cache</button>
+                <button onclick="runCmd('sudo pacman -Rns $(pacman -Qdtq)', 'Remove Orphans')">Remove Orphans</button>
+                <button onclick="runCmd('sudo reflector --latest 20 --sort rate --save /etc/pacman.d/mirrorlist', 'Rank Mirrors')">Rank Mirrors</button>
+            </div>
+        </div>
+
+        <!-- Gaming & Drivers Grid -->
+        <div class="card span-6">
+            <h2>🎮 Gaming</h2>
+            <div class="btn-group">
+                <button onclick="runCmd('sudo pacman -S steam', 'Install Steam')">Steam</button>
+                <button onclick="runCmd('sudo pacman -S lutris', 'Install Lutris')">Lutris</button>
+                <button onclick="runCmd('sudo pacman -S wine-staging', 'Install Wine')">Wine Staging</button>
+            </div>
+        </div>
+
+        <div class="card span-6">
+            <h2>🎥 Drivers</h2>
+            <div class="btn-group">
+                <button onclick="runCmd('sudo pacman -S nvidia nvidia-utils', 'Install NVIDIA')">NVIDIA</button>
+                <button onclick="runCmd('sudo pacman -S xf86-video-amdgpu mesa', 'Install AMDGPU')">AMDGPU</button>
+                <button onclick="runCmd('sudo pacman -S mesa intel-media-driver', 'Install Intel')">Intel</button>
+            </div>
+        </div>
+
+        <!-- Help & Logs -->
+        <div class="card span-12" style="background: rgba(0,0,0,0.3); border-color: #333;">
+            <h2 style="border-color: #666; color: #aaa;">⌨️ Command Log</h2>
+            <div class="terminal-log" id="console-output">
+                <div class="log-entry"><span class="log-time">[System]</span> Ready. Waiting for user input...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">Command executed successfully</div>
+
+    <script>
+        // Mock Database for Software Center (since we don't have Python backend)
+        const packageDB = [
+            { name: 'steam', version: '1.0.0.78', source: 'pacman', desc: 'Valve\'s digital game distribution platform' },
+            { name: 'firefox', version: '118.0', source: 'pacman', desc: 'Standalone web browser from mozilla.org' },
+            { name: 'vlc', version: '3.0.18', source: 'pacman', desc: 'Multi-platform MPEG, VCD/DVD, and DivX player' },
+            { name: 'visual-studio-code-bin', version: '1.83.1', source: 'aur', desc: 'Visual Studio Code (VS Code)' },
+            { name: 'yay', version: '12.1.0', source: 'aur', desc: 'Yet another Yogurt - An AUR Helper written in Go' },
+            { name: 'spotify', version: '1.2.22', source: 'aur', desc: 'Digital music service that gives you access to millions of songs' },
+            { name: 'gimp', version: '2.10.34', source: 'pacman', desc: 'The GNU Image Manipulation Program' },
+            { name: 'obs-studio', version: '29.1.3', source: 'pacman', desc: 'Free and open source software for live streaming and screen recording' },
+            { name: 'discord', version: '0.0.15', source: 'pacman', desc: 'All-in-one voice and text chat for gamers' },
+            { name: 'lutris', version: '0.5.13', source: 'pacman', desc: 'Open gaming platform for Linux' }
+        ];
+
+        // --- Interaction Logic ---
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function logToTerminal(text) {
+            const consoleDiv = document.getElementById('console-output');
+            const now = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${now}]</span> ${text}`;
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        // Simulates running a system command
+        function runCmd(cmd, title) {
+            logToTerminal(`Executing: <span style="color:var(--accent)">${cmd}</span>`);
+            showToast(`Processing: ${title}...`);
+            
+            // Visual feedback simulation
+            setTimeout(() => {
+                logToTerminal(`<span style="color:#0f0">Success:</span> Command '${cmd}' finished.`);
+            }, 800);
+        }
+
+        function openLink(url) {
+            window.open(url, '_blank');
+            logToTerminal(`Opening external URL: ${url}`);
+        }
+
+        function handleWebSearch(e) {
+            if (e.key === 'Enter') performWebSearch();
+        }
+
+        function performWebSearch() {
+            const query = document.getElementById('web-search').value.trim();
+            if (!query) return;
+            
+            let url = '';
+            if (query.startsWith('http') || (query.includes('.') && !query.includes(' '))) {
+                url = query.startsWith('http') ? query : 'https://' + query;
+            } else {
+                url = 'https://duckduckgo.com/?q=' + encodeURIComponent(query);
+            }
+            openLink(url);
+        }
+
+        function searchPackages() {
+            const query = document.getElementById('pkg-query').value.trim().toLowerCase();
+            const source = document.getElementById('pkg-source').value;
+            const tbody = document.getElementById('pkg-results');
+            
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px;">Searching local repository...</td></tr>';
+
+            setTimeout(() => {
+                tbody.innerHTML = '';
+                const results = packageDB.filter(p => {
+                    const matchName = p.name.toLowerCase().includes(query);
+                    const matchSource = source === 'All' || p.source.toLowerCase() === source.toLowerCase();
+                    return matchName && matchSource;
+                });
+
+                if (results.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-secondary);">No packages found matching criteria.</td></tr>';
+                    return;
+                }
+
+                results.forEach(pkg => {
+                    const row = document.createElement('tr');
+                    row.className = 'pkg-row';
+                    row.innerHTML = `
+                        <td>
+                            <div style="font-weight:bold; color:var(--text-primary);">${pkg.name}</div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary);">${pkg.desc}</div>
+                        </td>
+                        <td style="color:var(--text-secondary); font-size:0.85rem;">${pkg.version}</td>
+                        <td><span class="tag ${pkg.source.toLowerCase()}">${pkg.source}</span></td>
+                        <td>
+                            <button style="padding: 4px 12px; font-size: 0.8rem;" 
+                                onclick="runCmd('${pkg.source === 'pacman' ? 'sudo pacman -S' : 'yay -S'} --noconfirm ${pkg.name}', 'Install ${pkg.name}')">
+                                Install
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }, 500); // Simulate network delay
+        }
+    </script>
+</body>
+</html>
+```
