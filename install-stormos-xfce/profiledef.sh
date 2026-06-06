@@ -31,9 +31,6 @@ file_permissions=(
   ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/autoi.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
-  ["/etc/skel/.config/autostart/welcome.desktop"]="0:0:755"
   ["/usr/local/bin/hyper8"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
-  ["/usr/local/bin/stormos-welcome"]="0:0:755"
-  ["/usr/bin/xfce4-terminal"]="0:0:755"
 )
