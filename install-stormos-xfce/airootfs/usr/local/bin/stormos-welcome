@@ -2,7 +2,7 @@
 """
 StormOS Hub – Nexus‑style Dashboard
 All system tools + streaming links + search in one elegant page.
-Debug logging added to /tmp/stormos-hub.log
+Errors are printed to terminal (no redirection).
 """
 
 import sys
@@ -15,10 +15,9 @@ import threading
 from pathlib import Path
 from typing import Optional, List, Dict
 
-# Redirect stderr to a log file for debugging
-LOG_FILE = open('/tmp/stormos-hub.log', 'w')
-sys.stderr = LOG_FILE
-
+# ============================================================
+# Check for PyQt6 and import
+# ============================================================
 try:
     from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
     from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
@@ -29,7 +28,7 @@ try:
         QTreeWidgetItem, QSplitter
     )
 except ImportError as e:
-    print(f"PyQt6 import error: {e}", file=sys.stderr)
+    print(f"ERROR: PyQt6 not installed. Run: sudo pacman -S python-pyqt6", file=sys.stderr)
     sys.exit(1)
 
 # ============================================================
@@ -44,7 +43,6 @@ STORM_GRAY = "#8892b0"
 STORM_DARK = "#020c1b"
 STORM_LIGHT = "#e6f1ff"
 GLASS_DARK = "rgba(2, 12, 27, 0.85)"
-CARD_BG = "rgba(30, 58, 95, 0.5)"
 
 HOME = Path.home()
 AUTOSTART_FILE = HOME / ".config/autostart/stormos-welcome.desktop"
@@ -109,7 +107,7 @@ def is_live_session():
     return any(Path(m).exists() for m in LIVE_MARKERS)
 
 # ============================================================
-# PACKAGE BACKENDS
+# PACKAGE BACKENDS (simplified)
 # ============================================================
 class PacmanBackend:
     def search(self, query):
@@ -194,15 +192,11 @@ class StormHub(QMainWindow):
             self.setup_autostart()
             self.animate_window()
         except Exception as e:
+            print("ERROR in StormHub.__init__:", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
-            # Show a simple error label in the window
-            self.setWindowTitle("StormOS Hub - Error")
-            central = QWidget()
-            self.setCentralWidget(central)
-            layout = QVBoxLayout(central)
-            error_label = QLabel(f"Failed to start:\n{str(e)}\n\nCheck /tmp/stormos-hub.log")
-            error_label.setWordWrap(True)
-            layout.addWidget(error_label)
+            # Show error in a simple dialog if possible
+            QMessageBox.critical(None, "Startup Error", f"Failed to start StormOS Hub:\n{str(e)}")
+            sys.exit(1)
 
     def init_ui(self):
         self.setWindowTitle("🌩️ StormOS Hub")
@@ -711,6 +705,9 @@ class SearchResultsEvent:
     def __init__(self, packages):
         self.packages = packages
 
+# ============================================================
+# MAIN ENTRY POINT
+# ============================================================
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("StormOS Hub")
