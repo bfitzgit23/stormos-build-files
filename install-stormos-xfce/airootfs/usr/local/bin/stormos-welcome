@@ -1,137 +1,49 @@
 #!/usr/bin/env python3
-"""
-StormOS Hub – Nexus Dashboard
-Fully functional – all buttons work.
-"""
-
 import sys
 import os
 import shutil
 import subprocess
-import webbrowser
-from pathlib import Path
-
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QLineEdit, QGroupBox, QScrollArea, QFrame,
-    QComboBox, QTreeWidget, QTreeWidgetItem, QTextEdit, QSplitter
+    QPushButton, QLabel, QLineEdit, QGroupBox, QScrollArea, QFrame
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt
 
 # ============================================================
 # Colors
 # ============================================================
 STORM_NAVY = "#0a192f"
 STORM_BLUE = "#64ffda"
-STORM_PURPLE = "#a742f5"
-STORM_TEAL = "#00d1b2"
-STORM_CORAL = "#ff6b6b"
 STORM_GRAY = "#8892b0"
-STORM_DARK = "#020c1b"
-STORM_LIGHT = "#e6f1ff"
 GLASS_DARK = "rgba(2, 12, 27, 0.85)"
 
 # ============================================================
-# Terminal launcher (copied from your working original)
+# Terminal launcher (prints to terminal as well)
 # ============================================================
 def find_terminal():
-    for term in ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]:
+    for term in ["gnome-terminal", "xfce4-terminal", "xterm"]:
         if shutil.which(term):
             return shutil.which(term)
     return None
 
 def run_command(cmd, title="StormOS", hold=True):
-    if isinstance(cmd, list):
-        cmd_str = " ".join(f'"{c}"' if " " in c else c for c in cmd)
-    else:
-        cmd_str = cmd
-
-    if cmd_str.startswith("sudo") and shutil.which("pkexec"):
-        cmd_str = cmd_str.replace("sudo", "pkexec", 1)
-        try:
-            subprocess.Popen(cmd_str, shell=True, start_new_session=True,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return True
-        except Exception:
-            pass
-
+    print(f"[DEBUG] Would run: {cmd}")  # Always print to terminal
     term = find_terminal()
     if not term:
-        # Fallback to a message box? We'll just print.
-        print("No terminal found", file=sys.stderr)
+        print("No terminal found – command not executed")
         return False
-
-    term_name = os.path.basename(term)
+    cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
     if hold:
-        shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"'
+        shell_cmd = f'bash -c "{cmd_str}; echo; echo Press Enter to close...; read"'
     else:
         shell_cmd = f'bash -c "{cmd_str}"'
-
-    if term_name == "gnome-terminal":
-        args = [term, "--title", title, "--", "bash", "-c", shell_cmd]
-    elif term_name == "xfce4-terminal":
-        args = [term, "--disable-server", "--title", title, "--command", shell_cmd]
-    elif term_name == "xterm":
-        args = [term, "-title", title, "-e", shell_cmd]
-    else:
-        args = [term, "-e", shell_cmd]
-
+    args = [term, "--disable-server", "--title", title, "--command", shell_cmd]
     try:
-        subprocess.Popen(args, start_new_session=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(args, start_new_session=True)
         return True
     except Exception as e:
-        print(f"Terminal error: {e}", file=sys.stderr)
+        print(f"Terminal error: {e}")
         return False
-
-# ============================================================
-# Package backends (simplified but functional)
-# ============================================================
-def run_capture(cmd):
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        return result.returncode, result.stdout, result.stderr
-    except Exception:
-        return 1, "", ""
-
-class PacmanBackend:
-    def search(self, query):
-        rc, out, _ = run_capture(["pacman", "-Ss", query])
-        if rc != 0: return []
-        packages = []
-        lines = out.split('\n')
-        i = 0
-        while i < len(lines):
-            line = lines[i].strip()
-            if line and not line.startswith(' '):
-                parts = line.split()
-                if len(parts) >= 3:
-                    name = parts[1] if '/' in parts[0] else parts[0].split('/')[-1]
-                    version = parts[2]
-                    desc = lines[i+1].strip() if i+1 < len(lines) else ''
-                    packages.append({
-                        'name': name, 'version': version, 'description': desc,
-                        'source': 'pacman', 'installed': 'installed' in line.lower()
-                    })
-            i += 1
-        return packages
-
-class YayBackend:
-    def search(self, query):
-        if not shutil.which("yay"): return []
-        rc, out, _ = run_capture(["yay", "-Ss", query])
-        if rc != 0: return []
-        packages = []
-        for line in out.split('\n'):
-            if line.startswith('aur/'):
-                parts = line.split()
-                name = parts[0].split('/')[1]
-                version = parts[1] if len(parts) > 1 else ''
-                packages.append({
-                    'name': name, 'version': version, 'description': '',
-                    'source': 'aur', 'installed': 'Installed' in line
-                })
-        return packages
 
 # ============================================================
 # Main Window
@@ -139,506 +51,78 @@ class YayBackend:
 class StormHub(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.selected_package = None
-        self.init_ui()
-
-    def init_ui(self):
-        self.setWindowTitle("🌩️ StormOS Hub")
-        self.setGeometry(100, 100, 1100, 800)
-        self.setMinimumSize(1000, 700)
-
+        self.setWindowTitle("StormOS Hub – TEST")
+        self.setGeometry(100, 100, 900, 700)
         central = QWidget()
         central.setStyleSheet(f"background-color: {STORM_NAVY};")
         self.setCentralWidget(central)
-        main_layout = QVBoxLayout(central)
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(20,20,20,20)
 
         # Header
-        header = QLabel("🌩️ StormOS Hub")
-        header.setStyleSheet(f"color: {STORM_BLUE}; font-size: 28px; font-weight: bold;")
-        main_layout.addWidget(header)
+        header = QLabel("🌩️ StormOS Hub (Test Mode)")
+        header.setStyleSheet(f"color: {STORM_BLUE}; font-size: 24px;")
+        layout.addWidget(header)
 
         # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
         content = QWidget()
         content_layout = QVBoxLayout(content)
-        content_layout.setSpacing(30)
-        content_layout.setContentsMargins(0, 10, 0, 30)
 
-        # Add all cards
-        content_layout.addWidget(self.create_search_card())
-        content_layout.addWidget(self.create_streaming_card())
-        content_layout.addWidget(self.create_learn_card())
-        content_layout.addWidget(self.create_system_card())
-        content_layout.addWidget(self.create_software_card())
-        content_layout.addWidget(self.create_maintenance_card())
-        content_layout.addWidget(self.create_drivers_card())
-        content_layout.addWidget(self.create_tweaks_card())
-        content_layout.addWidget(self.create_gaming_card())
-        content_layout.addWidget(self.create_settings_card())
-        content_layout.addWidget(self.create_help_card())
+        # Nexus search card
+        card = self.create_glass_card("NEXUS SEARCH")
+        search_bar = QLineEdit()
+        search_bar.setPlaceholderText("Search or enter URL...")
+        search_bar.setStyleSheet("padding: 12px; border-radius: 20px; border: 2px solid #64ffda;")
+        search_bar.returnPressed.connect(lambda: self.do_search(search_bar.text()))
+        card.layout().addWidget(search_bar)
+        go_btn = QPushButton("Go")
+        go_btn.clicked.connect(lambda: self.do_search(search_bar.text()))
+        card.layout().addWidget(go_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        content_layout.addWidget(card)
+
+        # Test button
+        test_card = self.create_glass_card("BUTTON TEST")
+        test_btn = QPushButton("Click me – should print to terminal and open a terminal window")
+        test_btn.clicked.connect(lambda: run_command(["echo", "Hello from StormOS Hub"], hold=True))
+        test_card.layout().addWidget(test_btn)
+        content_layout.addWidget(test_card)
 
         scroll.setWidget(content)
-        main_layout.addWidget(scroll)
+        layout.addWidget(scroll)
 
-        # Footer
-        footer = QLabel("Ready")
-        footer.setStyleSheet(f"color: {STORM_GRAY};")
-        main_layout.addWidget(footer)
-
-    # ------------------------------------------------------------------
-    # Card creation helpers
-    # ------------------------------------------------------------------
     def create_glass_card(self, title):
         card = QGroupBox(title)
         card.setStyleSheet(f"""
             QGroupBox {{
                 background-color: {GLASS_DARK};
-                border: 1px solid rgba(100, 255, 218, 0.2);
+                border: 1px solid rgba(100,255,218,0.3);
                 border-radius: 20px;
-                margin-top: 12px;
-                padding-top: 12px;
+                color: {STORM_BLUE};
                 font-weight: bold;
                 font-size: 18px;
-                color: {STORM_BLUE};
             }}
-            QGroupBox::title {{
-                left: 20px;
-                padding: 0 12px;
-            }}
+            QGroupBox::title {{ left: 20px; padding: 0 12px; }}
         """)
         layout = QVBoxLayout(card)
         layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(20,20,20,20)
         return card
 
-    def create_search_card(self):
-        card = self.create_glass_card("NEXUS SEARCH")
-        layout = QVBoxLayout()
-        self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Search the web or enter a URL...")
-        self.search_bar.setStyleSheet("""
-            QLineEdit {
-                background-color: rgba(10, 25, 47, 0.9);
-                border: 2px solid #64ffda;
-                border-radius: 40px;
-                padding: 14px 24px;
-                font-size: 15px;
-                color: #e6f1ff;
-            }
-        """)
-        self.search_bar.returnPressed.connect(self.do_search)
-        layout.addWidget(self.search_bar)
-        go_btn = QPushButton("Go")
-        go_btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #00d1b2, stop:1 #a742f5);
-                color: #0a192f;
-                border: none;
-                border-radius: 30px;
-                padding: 8px 20px;
-                font-weight: bold;
-            }
-        """)
-        go_btn.clicked.connect(self.do_search)
-        layout.addWidget(go_btn, alignment=Qt.AlignmentFlag.AlignRight)
-        card.setLayout(layout)
-        return card
-
-    def do_search(self):
-        query = self.search_bar.text().strip()
-        if not query:
-            return
-        if query.startswith(("http://", "https://")):
+    def do_search(self, query):
+        query = query.strip()
+        if not query: return
+        if query.startswith(("http://","https://")):
+            import webbrowser
             webbrowser.open(query)
         elif "." in query and " " not in query:
-            webbrowser.open("https://" + query)
+            webbrowser.open("https://"+query)
         else:
-            webbrowser.open(f"https://duckduckgo.com/?q={query.replace(' ', '+')}")
+            webbrowser.open(f"https://duckduckgo.com/?q={query.replace(' ','+')}")
 
-    def create_streaming_card(self):
-        card = self.create_glass_card("FREE STREAMING")
-        layout = QVBoxLayout()
-        sites = [
-            ("Tubi", "https://tubitv.com", "Movies & TV, free with ads"),
-            ("Pluto TV", "https://pluto.tv", "Live channels & on-demand"),
-            ("Crackle", "https://crackle.com", "Sony free movies & shows"),
-            ("Roku Channel", "https://therokuchannel.roku.com", "Free shows & movies"),
-            ("Plex", "https://watch.plex.tv", "Free streaming + your media"),
-            ("Xumo Play", "https://xumo.tv", "Live TV and movies"),
-            ("Sling Freestream", "https://watch.sling.com", "Free live & on-demand")
-        ]
-        for name, url, desc in sites:
-            row = QHBoxLayout()
-            btn = QPushButton(name)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(30, 58, 95, 0.7);
-                    color: #64ffda;
-                    border: 1px solid #64ffda;
-                    border-radius: 30px;
-                    padding: 6px 18px;
-                    font-weight: 600;
-                    min-width: 110px;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.2);
-                }
-            """)
-            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
-            row.addWidget(btn)
-            desc_label = QLabel(desc)
-            desc_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
-            row.addWidget(desc_label)
-            row.addStretch()
-            layout.addLayout(row)
-        card.setLayout(layout)
-        return card
-
-    def create_learn_card(self):
-        card = self.create_glass_card("SEARCH & LEARN")
-        layout = QVBoxLayout()
-        ddg_row = QHBoxLayout()
-        ddg_btn = QPushButton("DuckDuckGo")
-        ddg_btn.setStyleSheet("""
-            QPushButton {
-                background: rgba(30, 58, 95, 0.7);
-                color: #64ffda;
-                border: 1px solid #64ffda;
-                border-radius: 30px;
-                padding: 6px 18px;
-                font-weight: 600;
-            }
-        """)
-        ddg_btn.clicked.connect(lambda: webbrowser.open("https://duckduckgo.com"))
-        ddg_row.addWidget(ddg_btn)
-        ddg_status = QLabel("VPN: off   Activity: idle")
-        ddg_status.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
-        ddg_row.addWidget(ddg_status)
-        ddg_row.addStretch()
-        layout.addLayout(ddg_row)
-
-        for name, url in [("Arch Wiki", "https://wiki.archlinux.org"),
-                          ("GitHub", "https://github.com"),
-                          ("Stack Overflow", "https://stackoverflow.com")]:
-            btn = QPushButton(name)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: transparent;
-                    color: #64ffda;
-                    border: none;
-                    text-align: left;
-                    padding: 6px 12px;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.1);
-                    border-radius: 8px;
-                }
-            """)
-            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
-            layout.addWidget(btn)
-        card.setLayout(layout)
-        return card
-
-    def create_system_card(self):
-        card = self.create_glass_card("⚡ SYSTEM ACTIONS")
-        layout = QVBoxLayout()
-        actions = [
-            ("⟳ Update System (pacman -Syu)", ["sudo", "pacman", "-Syu"]),
-            ("⟳ Update AUR (yay -Syu)", ["yay", "-Syu"]),
-            ("🔁 Reboot", ["sudo", "reboot"]),
-            ("⏻ Shutdown", ["sudo", "shutdown", "-h", "now"])
-        ]
-        for text, cmd in actions:
-            btn = QPushButton(text)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(100, 255, 218, 0.08);
-                    color: #e6f1ff;
-                    border: 1px solid rgba(100, 255, 218, 0.2);
-                    border-radius: 12px;
-                    padding: 10px 16px;
-                    text-align: left;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.15);
-                    border-color: #64ffda;
-                }
-            """)
-            btn.clicked.connect(lambda checked, c=cmd, t=text: run_command(c, t))
-            layout.addWidget(btn)
-        card.setLayout(layout)
-        return card
-
-    # ---------- Software Center (fully functional) ----------
-    class SearchThread(QThread):
-        finished = pyqtSignal(list)
-
-        def __init__(self, query, source):
-            super().__init__()
-            self.query = query
-            self.source = source
-
-        def run(self):
-            packages = []
-            if self.source in ["All", "Pacman"]:
-                packages.extend(PacmanBackend().search(self.query))
-            if self.source in ["All", "AUR"] and shutil.which("yay"):
-                packages.extend(YayBackend().search(self.query))
-            self.finished.emit(packages)
-
-    def create_software_card(self):
-        card = self.create_glass_card("📦 SOFTWARE CENTER")
-        layout = QVBoxLayout()
-
-        # Search row
-        row = QHBoxLayout()
-        self.soft_search = QLineEdit()
-        self.soft_search.setPlaceholderText("Search packages...")
-        self.soft_search.setStyleSheet("padding: 8px; border-radius: 8px;")
-        row.addWidget(self.soft_search)
-        self.soft_source = QComboBox()
-        self.soft_source.addItems(["All", "Pacman", "AUR"])
-        row.addWidget(self.soft_source)
-        search_btn = QPushButton("Search")
-        search_btn.clicked.connect(self.start_package_search)
-        row.addWidget(search_btn)
-        layout.addLayout(row)
-
-        # Results area
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.package_tree = QTreeWidget()
-        self.package_tree.setHeaderLabels(["Name", "Version", "Source"])
-        self.package_tree.setMaximumHeight(250)
-        self.package_tree.itemClicked.connect(self.on_package_selected)
-        splitter.addWidget(self.package_tree)
-
-        details_widget = QWidget()
-        details_layout = QVBoxLayout(details_widget)
-        self.details_title = QLabel("Select a package")
-        self.details_title.setStyleSheet("font-weight: bold;")
-        details_layout.addWidget(self.details_title)
-        self.details_text = QTextEdit()
-        self.details_text.setReadOnly(True)
-        self.details_text.setMaximumHeight(100)
-        details_layout.addWidget(self.details_text)
-        btn_row = QHBoxLayout()
-        self.install_btn = QPushButton("Install")
-        self.install_btn.clicked.connect(self.install_package)
-        self.install_btn.setEnabled(False)
-        self.remove_btn = QPushButton("Remove")
-        self.remove_btn.clicked.connect(self.remove_package)
-        self.remove_btn.setEnabled(False)
-        btn_row.addWidget(self.install_btn)
-        btn_row.addWidget(self.remove_btn)
-        details_layout.addLayout(btn_row)
-        splitter.addWidget(details_widget)
-
-        layout.addWidget(splitter)
-        card.setLayout(layout)
-        return card
-
-    def start_package_search(self):
-        query = self.soft_search.text().strip()
-        if not query:
-            return
-        self.package_tree.clear()
-        self.search_thread = self.SearchThread(query, self.soft_source.currentText())
-        self.search_thread.finished.connect(self.display_search_results)
-        self.search_thread.start()
-
-    def display_search_results(self, packages):
-        self.package_tree.clear()
-        for pkg in packages:
-            item = QTreeWidgetItem([pkg['name'], pkg['version'], pkg['source']])
-            item.setData(0, Qt.ItemDataRole.UserRole, pkg)
-            self.package_tree.addTopLevelItem(item)
-
-    def on_package_selected(self, item, col):
-        pkg = item.data(0, Qt.ItemDataRole.UserRole)
-        self.selected_package = pkg
-        self.details_title.setText(f"{pkg['name']} — {pkg['source']}")
-        self.details_text.setText(pkg.get('description', 'No description'))
-        self.install_btn.setEnabled(not pkg.get('installed', False))
-        self.remove_btn.setEnabled(pkg.get('installed', False))
-
-    def install_package(self):
-        if self.selected_package:
-            if self.selected_package['source'] == 'pacman':
-                run_command(["sudo", "pacman", "-S", "--noconfirm", self.selected_package['name']])
-            else:
-                run_command(["yay", "-S", "--noconfirm", self.selected_package['name']])
-
-    def remove_package(self):
-        if self.selected_package:
-            if self.selected_package['source'] == 'pacman':
-                run_command(["sudo", "pacman", "-Rns", self.selected_package['name']])
-            else:
-                run_command(["yay", "-Rns", self.selected_package['name']])
-
-    # ---------- Other cards (simplified but with real buttons) ----------
-    def create_maintenance_card(self):
-        card = self.create_glass_card("🔧 MAINTENANCE")
-        layout = QVBoxLayout()
-        for text, cmd in [
-            ("Clear pacman cache (keep last 3)", ["sudo", "paccache", "-r"]),
-            ("Clear ALL pacman cache", ["sudo", "pacman", "-Scc"]),
-            ("Remove orphans", ["bash", "-c", "sudo pacman -Rns $(pacman -Qdtq) 2>/dev/null || echo 'No orphans'"]),
-            ("Rank mirrors (reflector)", ["sudo", "reflector", "--latest", "20", "--protocol", "https", "--sort", "rate", "--save", "/etc/pacman.d/mirrorlist"]),
-            ("Force pacman sync", ["sudo", "pacman", "-Syy"])
-        ]:
-            btn = QPushButton(text)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(100, 255, 218, 0.08);
-                    color: #e6f1ff;
-                    border: 1px solid rgba(100, 255, 218, 0.2);
-                    border-radius: 12px;
-                    padding: 10px 16px;
-                    text-align: left;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.15);
-                    border-color: #64ffda;
-                }
-            """)
-            btn.clicked.connect(lambda _, c=cmd: run_command(c))
-            layout.addWidget(btn)
-        card.setLayout(layout)
-        return card
-
-    def create_drivers_card(self):
-        card = self.create_glass_card("🎮 DRIVERS")
-        layout = QVBoxLayout()
-        for text, cmd in [
-            ("NVIDIA (proprietary)", ["sudo", "pacman", "-S", "--needed", "nvidia", "nvidia-utils", "nvidia-settings"]),
-            ("NVIDIA DKMS", ["sudo", "pacman", "-S", "--needed", "nvidia-dkms", "nvidia-utils", "nvidia-settings"]),
-            ("AMDGPU (modern)", ["sudo", "pacman", "-S", "--needed", "xf86-video-amdgpu", "mesa", "lib32-mesa"]),
-            ("Intel (modesetting)", ["sudo", "pacman", "-S", "--needed", "mesa", "lib32-mesa", "intel-media-driver"])
-        ]:
-            btn = QPushButton(text)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(100, 255, 218, 0.08);
-                    color: #e6f1ff;
-                    border: 1px solid rgba(100, 255, 218, 0.2);
-                    border-radius: 12px;
-                    padding: 10px 16px;
-                    text-align: left;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.15);
-                    border-color: #64ffda;
-                }
-            """)
-            btn.clicked.connect(lambda _, c=cmd: run_command(c))
-            layout.addWidget(btn)
-        card.setLayout(layout)
-        return card
-
-    def create_tweaks_card(self):
-        card = self.create_glass_card("⚙️ TWEAKS")
-        layout = QVBoxLayout()
-        for text, cmd in [
-            ("Install Zsh", ["sudo", "pacman", "-S", "--needed", "zsh"]),
-            ("Install Fish", ["sudo", "pacman", "-S", "--needed", "fish"]),
-            ("Install Plymouth", ["sudo", "pacman", "-S", "--needed", "plymouth"]),
-            ("Rebuild initramfs", ["sudo", "mkinitcpio", "-P"])
-        ]:
-            btn = QPushButton(text)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(100, 255, 218, 0.08);
-                    color: #e6f1ff;
-                    border: 1px solid rgba(100, 255, 218, 0.2);
-                    border-radius: 12px;
-                    padding: 10px 16px;
-                    text-align: left;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.15);
-                    border-color: #64ffda;
-                }
-            """)
-            btn.clicked.connect(lambda _, c=cmd: run_command(c))
-            layout.addWidget(btn)
-        card.setLayout(layout)
-        return card
-
-    def create_gaming_card(self):
-        card = self.create_glass_card("🎲 GAMING")
-        layout = QVBoxLayout()
-        for text, cmd in [
-            ("Steam", ["sudo", "pacman", "-S", "--needed", "steam"]),
-            ("Lutris", ["sudo", "pacman", "-S", "--needed", "lutris"]),
-            ("Wine (staging)", ["sudo", "pacman", "-S", "--needed", "wine-staging", "wine-mono", "wine-gecko"])
-        ]:
-            btn = QPushButton(text)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(100, 255, 218, 0.08);
-                    color: #e6f1ff;
-                    border: 1px solid rgba(100, 255, 218, 0.2);
-                    border-radius: 12px;
-                    padding: 10px 16px;
-                    text-align: left;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.15);
-                    border-color: #64ffda;
-                }
-            """)
-            btn.clicked.connect(lambda _, c=cmd: run_command(c))
-            layout.addWidget(btn)
-        card.setLayout(layout)
-        return card
-
-    def create_settings_card(self):
-        card = self.create_glass_card("⚙️ SETTINGS")
-        layout = QVBoxLayout()
-        # Add theme selector or other settings here
-        label = QLabel("Settings will appear here.")
-        label.setStyleSheet(f"color: {STORM_GRAY};")
-        layout.addWidget(label)
-        card.setLayout(layout)
-        return card
-
-    def create_help_card(self):
-        card = self.create_glass_card("❓ HELP & RESOURCES")
-        layout = QVBoxLayout()
-        for name, url in [
-            ("Arch Wiki", "https://wiki.archlinux.org"),
-            ("Arch Forums", "https://bbs.archlinux.org"),
-            ("StormOS GitHub", "https://github.com/stormos")
-        ]:
-            btn = QPushButton(name)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: transparent;
-                    color: #64ffda;
-                    border: none;
-                    text-align: left;
-                    padding: 6px 12px;
-                }
-                QPushButton:hover {
-                    background: rgba(100, 255, 218, 0.1);
-                    border-radius: 8px;
-                }
-            """)
-            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
-            layout.addWidget(btn)
-        card.setLayout(layout)
-        return card
-
-# ============================================================
-# Main
-# ============================================================
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")
     window = StormHub()
     window.show()
     sys.exit(app.exec())
