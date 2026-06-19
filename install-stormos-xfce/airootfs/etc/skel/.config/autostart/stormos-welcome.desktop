@@ -1,9 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=StormOS Welcome
-Comment=StormOS welcome screen
+Comment=StormOS welcome screen (first boot helper)
 Exec=stormos-welcome
 Icon=stormos-welcome
 Terminal=false
 Categories=System;
 X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Phase=Application
