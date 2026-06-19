@@ -1,44 +1,69 @@
 #!/usr/bin/env python3
 """
-StormOS Hub – Nexus Smart Web Dashboard
-Uses PyWebView + Flask for a modern Web UI with Python backend power.
+StormOS Welcome – Tabs version, KDE‑friendly (konsole preferred)
 """
 
 import sys
 import os
 import shutil
 import subprocess
-import threading
 import webbrowser
-from flask import Flask, request, jsonify, render_template_string
-import webview
+import threading
+from pathlib import Path
+
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QTabWidget, QPushButton, QLabel, QLineEdit, QTextEdit,
+    QGroupBox, QMessageBox, QTreeWidget, QTreeWidgetItem,
+    QComboBox, QSplitter
+)
 
 # ============================================================
-# Configuration & Colors
+# Colors (glass theme)
 # ============================================================
 STORM_NAVY = "#0a192f"
 STORM_BLUE = "#64ffda"
 STORM_PURPLE = "#a742f5"
+STORM_TEAL = "#00d1b2"
+STORM_CORAL = "#ff6b6b"
+STORM_GRAY = "#8892b0"
 STORM_DARK = "#020c1b"
 STORM_LIGHT = "#e6f1ff"
+GLASS_DARK = "rgba(2, 12, 27, 0.85)"
+
+HOME = Path.home()
+AUTOSTART_FILE = HOME / ".config/autostart/stormos-welcome.desktop"
+AUTOSTART_DISABLED_MARKER = HOME / ".storm-autostart-disabled"
+LIVE_MARKERS = ["/run/archiso", "/run/miso", "/etc/live", "/run/live"]
 
 # ============================================================
-# Backend Logic (Terminal & Packages)
+# Utilities – KDE‑aware terminal detection
 # ============================================================
+def is_live_session():
+    return any(Path(m).exists() for m in LIVE_MARKERS)
 
 def find_terminal():
-    for term in ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]:
+    # Detect KDE Plasma
+    is_kde = os.environ.get('XDG_CURRENT_DESKTOP', '').lower() in ('kde', 'plasma')
+    if is_kde:
+        terminals = ["konsole", "gnome-terminal", "xfce4-terminal", "xterm"]
+    else:
+        terminals = ["gnome-terminal", "xfce4-terminal", "konsole", "xterm"]
+
+    for term in terminals:
         if shutil.which(term):
             return shutil.which(term)
     return None
 
 def run_command(cmd, title="StormOS", hold=True):
-    """Execute a command in a terminal."""
     if isinstance(cmd, list):
         cmd_str = " ".join(f'"{c}"' if " " in c else c for c in cmd)
     else:
         cmd_str = cmd
 
+    # Use pkexec for graphical password prompt (works in KDE too)
     if cmd_str.startswith("sudo") and shutil.which("pkexec"):
         cmd_str = cmd_str.replace("sudo", "pkexec", 1)
         try:
@@ -49,509 +74,779 @@ def run_command(cmd, title="StormOS", hold=True):
             pass
 
     term = find_terminal()
-    if not term: return False
+    if not term:
+        QMessageBox.critical(None, "Terminal Error", "No terminal found.")
+        return False
 
     term_name = os.path.basename(term)
-    shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"' if hold else f'bash -c "{cmd_str}"'
+    if hold:
+        shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"'
+    else:
+        shell_cmd = f'bash -c "{cmd_str}"'
 
+    # Terminal‑specific arguments
     if term_name == "gnome-terminal":
         args = [term, "--title", title, "--", "bash", "-c", shell_cmd]
     elif term_name == "xfce4-terminal":
         args = [term, "--disable-server", "--title", title, "--command", shell_cmd]
     elif term_name == "xterm":
         args = [term, "-title", title, "-e", shell_cmd]
+    elif term_name == "konsole":
+        # --hold keeps window open after command finishes
+        args = [term, "--hold", "-e", shell_cmd]
     else:
         args = [term, "-e", shell_cmd]
 
     try:
-        subprocess.Popen(args, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(args, start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
-    except Exception:
+    except Exception as e:
+        QMessageBox.critical(None, "Terminal Error", str(e))
         return False
 
 def run_capture(cmd):
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return result.returncode, result.stdout, result.stderr
     except Exception:
         return 1, "", ""
 
-def search_pacman(query):
-    rc, out, _ = run_capture(["pacman", "-Ss", query])
-    if rc != 0: return []
-    packages = []
-    lines = out.split('\n')
-    for i, line in enumerate(lines):
-        if line.strip() and not line.startswith(' '):
-            parts = line.split()
-            if len(parts) >= 2:
-                name = parts[1] if '/' in parts[0] else parts[0].split('/')[-1]
-                version = parts[2] if len(parts) > 2 else ''
-                desc = lines[i+1].strip() if i+1 < len(lines) else ''
+# ============================================================
+# Package backends (same as before)
+# ============================================================
+class PacmanBackend:
+    def search(self, query):
+        rc, out, _ = run_capture(["pacman", "-Ss", query])
+        if rc != 0: return []
+        packages = []
+        lines = out.split('\n')
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            if line and not line.startswith(' '):
+                parts = line.split()
+                if len(parts) >= 3:
+                    name = parts[1] if '/' in parts[0] else parts[0].split('/')[-1]
+                    version = parts[2]
+                    desc = lines[i+1].strip() if i+1 < len(lines) else ''
+                    packages.append({
+                        'name': name, 'version': version, 'description': desc,
+                        'source': 'pacman', 'installed': 'installed' in line.lower()
+                    })
+            i += 1
+        return packages
+
+    def get_installed(self):
+        rc, out, _ = run_capture(["pacman", "-Q"])
+        if rc != 0: return []
+        packages = []
+        for line in out.split('\n'):
+            if line.strip():
+                parts = line.split()
+                if len(parts) >= 2:
+                    packages.append({
+                        'name': parts[0], 'version': parts[1],
+                        'description': '', 'source': 'pacman', 'installed': True
+                    })
+        return packages
+
+class YayBackend:
+    def search(self, query):
+        if not shutil.which("yay"): return []
+        rc, out, _ = run_capture(["yay", "-Ss", query])
+        if rc != 0: return []
+        packages = []
+        for line in out.split('\n'):
+            if line.startswith('aur/'):
+                parts = line.split()
+                name = parts[0].split('/')[1]
+                version = parts[1] if len(parts) > 1 else ''
                 packages.append({
-                    'name': name, 'version': version, 'description': desc,
-                    'source': 'pacman', 'installed': 'installed' in line.lower()
+                    'name': name, 'version': version, 'description': '',
+                    'source': 'aur', 'installed': 'Installed' in line
                 })
-    return packages
+        return packages
 
-def search_aur(query):
-    if not shutil.which("yay"): return []
-    rc, out, _ = run_capture(["yay", "-Ss", query])
-    if rc != 0: return []
-    packages = []
-    for line in out.split('\n'):
-        if line.startswith('aur/'):
-            parts = line.split()
-            name = parts[0].split('/')[1]
-            version = parts[1] if len(parts) > 1 else ''
-            packages.append({
-                'name': name, 'version': version, 'description': '',
-                'source': 'aur', 'installed': 'Installed' in line
-            })
-    return packages
+    def get_installed(self):
+        rc, out, _ = run_capture(["pacman", "-Qm"])
+        if rc != 0: return []
+        packages = []
+        for line in out.split('\n'):
+            if line.strip():
+                parts = line.split()
+                if len(parts) >= 2:
+                    packages.append({
+                        'name': parts[0], 'version': parts[1],
+                        'description': '', 'source': 'aur', 'installed': True
+                    })
+        return packages
 
-# ============================================================
-# Flask Server (API Bridge)
-# ============================================================
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    # Injecting the HTML/CSS/JS directly here for a single-file solution
-    return render_template_string(HTML_TEMPLATE)
-
-@app.route('/api/command', methods=['POST'])
-def execute_command():
-    data = request.json
-    cmd = data.get('cmd')
-    title = data.get('title', 'StormOS')
-    success = run_command(cmd, title)
-    return jsonify({'status': 'started' if success else 'failed'})
-
-@app.route('/api/packages', methods=['POST'])
-def get_packages():
-    data = request.json
-    query = data.get('query', '')
-    source = data.get('source', 'All')
-    
-    pkgs = []
-    if source in ["All", "Pacman"]:
-        pkgs.extend(search_pacman(query))
-    if source in ["All", "AUR"]:
-        pkgs.extend(search_aur(query))
-        
-    return jsonify(pkgs)
-
-@app.route('/api/open_url', methods=['POST'])
-def open_url():
-    data = request.json
-    webbrowser.open(data.get('url'))
-    return jsonify({'status': 'opened'})
+    def install(self, pkg):
+        run_command(["yay", "-S", "--noconfirm", pkg])
+    def remove(self, pkg):
+        run_command(["yay", "-Rns", pkg])
 
 # ============================================================
-# The Smart Web UI (HTML/CSS/JS)
+# Main Window
 # ============================================================
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StormOS Hub</title>
-    <style>
-        :root {
-            --bg-navy: #0a192f;
-            --bg-light: #112240;
-            --text-primary: #ccd6f6;
-            --text-secondary: #8892b0;
-            --accent: #64ffda;
-            --accent-purple: #a742f5;
-            --glass: rgba(17, 34, 64, 0.75);
-            --border: rgba(100, 255, 218, 0.2);
-        }
+class StormWelcome(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.is_live = is_live_session()
+        self.selected_package = None
+        self.init_ui()
+        self.apply_styles()
+        self.setup_autostart()
+        self.animate_window()
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        
-        body {
-            background-color: var(--bg-navy);
-            background-image: radial-gradient(circle at 10% 20%, rgba(167, 66, 245, 0.1) 0%, transparent 20%),
-                              radial-gradient(circle at 90% 80%, rgba(0, 209, 178, 0.1) 0%, transparent 20%);
-            color: var(--text-primary);
-            min-height: 100vh;
-            padding: 20px;
-        }
+    def init_ui(self):
+        self.setWindowTitle("🌩️ Storm Welcome")
+        self.setMinimumSize(1000, 700)
+        screen = QGuiApplication.primaryScreen().geometry()
+        self.setGeometry(
+            (screen.width() - 1000) // 2,
+            (screen.height() - 700) // 2,
+            1000, 700
+        )
 
-        /* Layout Grid */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            gap: 20px;
-        }
+        central = QWidget()
+        central.setObjectName("central")
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
 
-        /* Header */
-        header {
-            grid-column: span 12;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 20px;
-        }
+        layout.addWidget(self.create_header())
 
-        h1 { font-size: 2rem; color: var(--accent); letter-spacing: 1px; }
-        .subtitle { color: var(--text-secondary); font-size: 0.9rem; }
+        self.tabs = QTabWidget()
+        self.tabs.setObjectName("mainTabs")
+        self.tabs.addTab(self.create_welcome_tab(), "🚀 Welcome")
+        self.tabs.addTab(self.create_system_tab(), "💻 System")
+        self.tabs.addTab(self.create_software_tab(), "📦 Software")
+        self.tabs.addTab(self.create_maintenance_tab(), "🔧 Maintenance")
+        self.tabs.addTab(self.create_drivers_tab(), "🎮 Drivers")
+        self.tabs.addTab(self.create_tweaks_tab(), "⚙️ Tweaks")
+        self.tabs.addTab(self.create_gaming_tab(), "🎲 Gaming")
+        self.tabs.addTab(self.create_settings_tab(), "⚙️ Settings")
+        self.tabs.addTab(self.create_help_tab(), "❓ Help")
+        layout.addWidget(self.tabs)
 
-        /* Cards */
-        .card {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 12px rgba(0,0,0,0.4);
-            border-color: var(--accent);
-        }
+        layout.addWidget(self.create_footer())
 
-        h2 {
-            color: var(--text-primary);
-            font-size: 1.1rem;
-            margin-bottom: 15px;
-            border-left: 3px solid var(--accent);
-            padding-left: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
+    # ------------------------------------------------------------------
+    # Header, Footer, Glass card helper
+    # ------------------------------------------------------------------
+    def create_header(self):
+        header = QWidget()
+        hlayout = QHBoxLayout(header)
+        title = QLabel("🌩️ StormOS")
+        title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
+        subtitle = QLabel("Arch Linux made calm")
+        subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
+        hlayout.addWidget(title)
+        hlayout.addWidget(subtitle)
+        hlayout.addStretch()
+        if self.is_live:
+            badge = QLabel(" LIVE SESSION ")
+            badge.setStyleSheet(f"background: {STORM_CORAL}; color: {STORM_DARK}; padding: 4px 12px; border-radius: 20px; font-weight: bold;")
+            hlayout.addWidget(badge)
+        return header
 
-        /* Specific Grid Areas */
-        .search-area { grid-column: span 12; }
-        .sys-actions { grid-column: span 4; }
-        .streaming { grid-column: span 8; }
-        .software { grid-column: span 8; }
-        .maintenance { grid-column: span 4; }
-        .gaming { grid-column: span 6; }
-        .drivers { grid-column: span 6; }
-        .help { grid-column: span 12; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    def create_footer(self):
+        footer = QWidget()
+        flayout = QHBoxLayout(footer)
+        self.status_label = QLabel("Ready")
+        self.status_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
+        flayout.addWidget(self.status_label)
+        flayout.addStretch()
+        version = QLabel("v2.0 • Arch made calm")
+        version.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
+        flayout.addWidget(version)
+        return footer
 
-        /* UI Elements */
-        input[type="text"] {
-            width: 100%;
-            padding: 12px 20px;
-            border-radius: 50px;
-            border: 2px solid var(--border);
-            background: rgba(2, 12, 27, 0.8);
-            color: var(--text-primary);
-            font-size: 1rem;
-            outline: none;
-            transition: all 0.3s;
-        }
-        input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(100,255,218,0.2); }
+    def create_glass_card(self, title):
+        card = QGroupBox(title)
+        card.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {GLASS_DARK};
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 16px;
+                margin-top: 12px;
+                padding-top: 12px;
+                font-weight: bold;
+                color: {STORM_BLUE};
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 16px;
+                padding: 0 8px;
+            }}
+        """)
+        layout = QVBoxLayout(card)
+        layout.setSpacing(12)
+        return card
 
-        button {
-            cursor: pointer;
-            padding: 10px 18px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: rgba(100, 255, 218, 0.05);
-            color: var(--accent);
-            font-weight: 600;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-            margin-right: 5px;
-        }
-        button:hover { background: rgba(100, 255, 218, 0.15); transform: scale(1.02); }
-        button.danger { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
-        button.danger:hover { background: rgba(255, 107, 107, 0.1); }
-        
-        button.primary {
-            background: linear-gradient(90deg, #00d1b2, #a742f5);
-            color: #fff;
-            border: none;
-        }
-        button.primary:hover { opacity: 0.9; }
+    # ------------------------------------------------------------------
+    # Welcome Tab
+    # ------------------------------------------------------------------
+    def create_welcome_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(25)
 
-        .btn-group { display: flex; flex-wrap: wrap; gap: 8px; }
+        welcome = QLabel("Welcome to Your New <span style='color:#64ffda'>StormOS</span> System!")
+        welcome.setStyleSheet("font-size: 28px; font-weight: bold;")
+        welcome.setWordWrap(True)
+        layout.addWidget(welcome)
 
-        /* Package Table */
-        .pkg-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        .pkg-table th { text-align: left; color: var(--text-secondary); padding: 8px; border-bottom: 1px solid var(--border); }
-        .pkg-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .pkg-row:hover { background: rgba(255,255,255,0.03); }
-        .tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
-        .tag.pacman { background: #1793d1; color: white; }
-        .tag.aur { background: #ffb74d; color: #000; }
+        desc = QLabel("Your Arch Linux journey starts now — calm, powerful, and beginner-friendly")
+        desc.setStyleSheet(f"color: {STORM_GRAY}; font-size: 15px; margin-bottom: 20px;")
+        layout.addWidget(desc)
 
-        /* Links */
-        a { color: var(--text-secondary); text-decoration: none; display: block; padding: 5px 0; }
-        a:hover { color: var(--accent); padding-left: 5px; transition: padding 0.2s; }
+        # Installer card
+        install_card = self.create_glass_card("💿 Install StormOS")
+        install_btn = QPushButton("Launch Installer (Calamares)")
+        install_btn.setObjectName("gradientButton")
+        install_btn.clicked.connect(self.launch_calamares)
+        install_card.layout().addWidget(install_btn)
+        hint = QLabel("Runs the graphical installer to install StormOS to disk." if self.is_live else "StormOS is already installed.")
+        hint.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px; margin-top: 8px;")
+        hint.setWordWrap(True)
+        install_card.layout().addWidget(hint)
+        layout.addWidget(install_card)
 
-        /* Toast */
-        #toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--bg-light);
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 12px 24px;
-            border-radius: 8px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-            z-index: 1000;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
-        #toast.show { opacity: 1; }
+        # Autostart card (only for installed system)
+        if not self.is_live:
+            autocard = self.create_glass_card("🔄 Autostart")
+            self.autostatus = QLabel()
+            autocard.layout().addWidget(self.autostatus)
+            info = QLabel("Control whether this app launches automatically when you log in.")
+            info.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
+            info.setWordWrap(True)
+            autocard.layout().addWidget(info)
+            btn_layout = QHBoxLayout()
+            enable_btn = QPushButton("Enable autostart")
+            enable_btn.setObjectName("glassButton")
+            enable_btn.clicked.connect(self.enable_autostart)
+            disable_btn = QPushButton("Disable autostart")
+            disable_btn.setObjectName("glassButton")
+            disable_btn.clicked.connect(self.disable_autostart)
+            btn_layout.addWidget(enable_btn)
+            btn_layout.addWidget(disable_btn)
+            btn_layout.addStretch()
+            autocard.layout().addLayout(btn_layout)
+            layout.addWidget(autocard)
+            self.update_autostart_status()
 
-        @media (max-width: 1000px) {
-            .sys-actions, .streaming, .software, .maintenance, .gaming, .drivers, .help { grid-column: span 12; }
-            .help { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <div>
-                <h1>🌩️ StormOS Hub</h1>
-                <span class="subtitle">Nexus Web Dashboard</span>
-            </div>
-            <div id="status-indicator" style="color: var(--accent); font-size: 0.9rem;">System Ready</div>
-        </header>
+        # Quick links
+        links_card = self.create_glass_card("🔗 Quick Links")
+        links_layout = QHBoxLayout()
+        for name, url in [("Arch Wiki", "https://wiki.archlinux.org"), ("Arch Forums", "https://bbs.archlinux.org"), ("AUR", "https://aur.archlinux.org"), ("StormOS GitHub", "https://github.com/stormos")]:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            links_layout.addWidget(btn)
+        links_layout.addStretch()
+        links_card.layout().addLayout(links_layout)
+        layout.addWidget(links_card)
 
-        <!-- Search -->
-        <div class="card search-area">
-            <h2>Nexus Search</h2>
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="web-search" placeholder="Search the web or enter URL..." onkeypress="handleWebSearch(event)">
-                <button class="primary" onclick="performWebSearch()">Search</button>
-            </div>
-        </div>
+        layout.addStretch()
+        return tab
 
-        <!-- System Actions -->
-        <div class="card sys-actions">
-            <h2>⚡ System Actions</h2>
-            <div class="btn-group">
-                <button onclick="execCmd(['sudo', 'pacman', '-Syu'], 'System Update')">Update System</button>
-                <button onclick="execCmd(['yay', '-Syu'], 'AUR Update')">Update AUR</button>
-                <button class="danger" onclick="execCmd(['sudo', 'reboot'], 'Reboot')">Reboot</button>
-                <button class="danger" onclick="execCmd(['sudo', 'shutdown', '-h', 'now'], 'Shutdown')">Shutdown</button>
-            </div>
-        </div>
+    # ------------------------------------------------------------------
+    # System Tab
+    # ------------------------------------------------------------------
+    def create_system_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        card = self.create_glass_card("⚡ System Actions")
+        actions = [
+            ("⟳ Update System (pacman -Syu)", ["sudo", "pacman", "-Syu"]),
+            ("⟳ Update System + AUR (yay -Syu)", ["yay", "-Syu"]),
+            ("🔁 Reboot", ["sudo", "reboot"]),
+            ("⏻ Shutdown", ["sudo", "shutdown", "-h", "now"])
+        ]
+        for text, cmd in actions:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd, t=text: run_command(c, t))
+            card.layout().addWidget(btn)
+        note = QLabel("Note: commands open in your default terminal (konsole on KDE).")
+        note.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px; margin-top: 12px;")
+        card.layout().addWidget(note)
+        layout.addWidget(card)
+        layout.addStretch()
+        return tab
 
-        <!-- Streaming -->
-        <div class="card streaming">
-            <h2>Free Streaming</h2>
-            <div class="btn-group">
-                <button onclick="openUrl('https://tubitv.com')">Tubi</button>
-                <button onclick="openUrl('https://pluto.tv')">Pluto TV</button>
-                <button onclick="openUrl('https://crackle.com')">Crackle</button>
-                <button onclick="openUrl('https://watch.plex.tv')">Plex</button>
-                <button onclick="openUrl('https://xumo.tv')">Xumo Play</button>
-                <button onclick="openUrl('https://watch.sling.com')">Sling Freestream</button>
-            </div>
-        </div>
+    # ------------------------------------------------------------------
+    # Software Tab (unchanged)
+    # ------------------------------------------------------------------
+    def create_software_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
 
-        <!-- Software Center -->
-        <div class="card software">
-            <h2>📦 Software Center</h2>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <input type="text" id="pkg-query" placeholder="Search packages (e.g. firefox)..." style="flex: 1;">
-                <select id="pkg-source" style="padding: 10px; border-radius: 8px; background: var(--bg-navy); color: var(--text-primary); border: 1px solid var(--border);">
-                    <option value="All">All</option>
-                    <option value="Pacman">Pacman</option>
-                    <option value="AUR">AUR</option>
-                </select>
-                <button class="primary" onclick="searchPackages()">Search</button>
-            </div>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table class="pkg-table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Version</th>
-                            <th>Source</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="pkg-results">
-                        <tr><td colspan="4" style="text-align:center; color: var(--text-secondary);">Ready to search</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        header = QHBoxLayout()
+        title = QLabel("📦 Software Center")
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #64ffda;")
+        header.addWidget(title)
+        header.addStretch()
+        self.backend_status = QLabel("Pacman: ✓ | AUR: ?")
+        self.backend_status.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
+        header.addWidget(self.backend_status)
+        layout.addLayout(header)
 
-        <!-- Maintenance -->
-        <div class="card maintenance">
-            <h2>🔧 Maintenance</h2>
-            <div class="btn-group">
-                <button onclick="execCmd(['sudo', 'paccache', '-r'])">Clean Cache</button>
-                <button onclick="execCmd(['bash', '-c', 'sudo pacman -Rns $(pacman -Qdtq)'])">Remove Orphans</button>
-                <button onclick="execCmd(['sudo', 'reflector', '--latest', '20', '--protocol', 'https', '--sort', 'rate', '--save', '/etc/pacman.d/mirrorlist'])">Rank Mirrors</button>
-            </div>
-        </div>
+        search_layout = QHBoxLayout()
+        self.soft_search = QLineEdit()
+        self.soft_search.setPlaceholderText("Search packages...")
+        self.soft_search.setObjectName("glassInput")
+        search_layout.addWidget(self.soft_search)
+        self.soft_source = QComboBox()
+        self.soft_source.addItems(["All", "Pacman", "AUR"])
+        search_layout.addWidget(self.soft_source)
+        search_btn = QPushButton("Search")
+        search_btn.setObjectName("smallGlass")
+        search_btn.clicked.connect(self.search_packages)
+        search_layout.addWidget(search_btn)
+        installed_btn = QPushButton("Installed")
+        installed_btn.setObjectName("smallGlass")
+        installed_btn.clicked.connect(self.show_installed)
+        search_layout.addWidget(installed_btn)
+        layout.addLayout(search_layout)
 
-        <!-- Gaming -->
-        <div class="card gaming">
-            <h2>🎲 Gaming</h2>
-            <div class="btn-group">
-                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'steam'])">Steam</button>
-                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'lutris'])">Lutris</button>
-                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'wine-staging'])">Wine Staging</button>
-            </div>
-        </div>
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.package_list = QTreeWidget()
+        self.package_list.setHeaderLabels(["Name", "Version", "Source"])
+        self.package_list.setColumnWidth(0, 250)
+        self.package_list.setColumnWidth(1, 120)
+        self.package_list.setObjectName("packageList")
+        self.package_list.itemClicked.connect(self.on_package_selected)
+        splitter.addWidget(self.package_list)
 
-        <!-- Drivers -->
-        <div class="card drivers">
-            <h2>🎮 Drivers</h2>
-            <div class="btn-group">
-                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'nvidia', 'nvidia-utils', 'nvidia-settings'])">NVIDIA Proprietary</button>
-                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'xf86-video-amdgpu', 'mesa', 'lib32-mesa'])">AMDGPU</button>
-                <button onclick="execCmd(['sudo', 'pacman', '-S', '--needed', 'mesa', 'lib32-mesa', 'intel-media-driver'])">Intel</button>
-            </div>
-        </div>
+        details_widget = QWidget()
+        details_layout = QVBoxLayout(details_widget)
+        self.details_title = QLabel("Select a package")
+        self.details_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #64ffda;")
+        details_layout.addWidget(self.details_title)
+        self.details_text = QTextEdit()
+        self.details_text.setReadOnly(True)
+        self.details_text.setMaximumHeight(200)
+        self.details_text.setObjectName("glassText")
+        details_layout.addWidget(self.details_text)
+        btn_layout = QHBoxLayout()
+        self.install_btn = QPushButton("Install")
+        self.install_btn.setObjectName("successGlass")
+        self.install_btn.clicked.connect(self.install_package)
+        self.install_btn.setEnabled(False)
+        self.remove_btn = QPushButton("Remove")
+        self.remove_btn.setObjectName("dangerGlass")
+        self.remove_btn.clicked.connect(self.remove_package)
+        self.remove_btn.setEnabled(False)
+        btn_layout.addWidget(self.install_btn)
+        btn_layout.addWidget(self.remove_btn)
+        btn_layout.addStretch()
+        details_layout.addLayout(btn_layout)
+        splitter.addWidget(details_widget)
+        splitter.setSizes([450, 350])
+        layout.addWidget(splitter)
+        return tab
 
-        <!-- Help & Resources -->
-        <div class="card help">
-            <div>
-                <h2>❓ Help</h2>
-                <a href="#" onclick="openUrl('https://wiki.archlinux.org')">Arch Wiki</a>
-                <a href="#" onclick="openUrl('https://bbs.archlinux.org')">Arch Forums</a>
-            </div>
-            <div>
-                <h2>⚙️ Tools</h2>
-                <button onclick="execCmd(['arandr'])">Display (Arandr)</button>
-                <button onclick="execCmd(['nitrogen'])">Wallpaper</button>
-            </div>
-        </div>
-    </div>
+    def search_packages(self):
+        query = self.soft_search.text().strip()
+        if not query:
+            return
+        self.package_list.clear()
+        self.status_label.setText("Searching...")
+        threading.Thread(target=self._do_search, args=(query, self.soft_source.currentText()), daemon=True).start()
 
-    <div id="toast">Command Executed</div>
+    def _do_search(self, query, source):
+        packages = []
+        if source in ["All", "Pacman"]:
+            packages.extend(PacmanBackend().search(query))
+        if source in ["All", "AUR"] and shutil.which("yay"):
+            packages.extend(YayBackend().search(query))
+        QApplication.instance().postEvent(self, SearchResultsEvent(packages))
 
-    <script>
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
+    def show_installed(self):
+        self.package_list.clear()
+        self.status_label.setText("Loading installed...")
+        threading.Thread(target=self._do_load_installed, daemon=True).start()
 
-        async function execCmd(cmd, title = 'StormOS') {
-            showToast('Executing: ' + title);
-            try {
-                await fetch('/api/command', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cmd: cmd, title: title })
-                });
-            } catch (e) {
-                console.error(e);
-            }
-        }
+    def _do_load_installed(self):
+        packages = PacmanBackend().get_installed()
+        if shutil.which("yay"):
+            packages.extend(YayBackend().get_installed())
+        QApplication.instance().postEvent(self, SearchResultsEvent(packages))
 
-        async function openUrl(url) {
-            try {
-                await fetch('/api/open_url', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url })
-                });
-            } catch (e) {
-                console.error(e);
-            }
-        }
+    def on_package_selected(self, item, col):
+        pkg = item.data(0, Qt.ItemDataRole.UserRole)
+        self.selected_package = pkg
+        self.details_title.setText(f"{pkg['name']} — {pkg['source']}")
+        self.details_text.setText(pkg.get('description', 'No description'))
+        self.install_btn.setEnabled(not pkg.get('installed', False))
+        self.remove_btn.setEnabled(pkg.get('installed', False))
 
-        function handleWebSearch(e) {
-            if (e.key === 'Enter') performWebSearch();
-        }
+    def install_package(self):
+        if self.selected_package:
+            if self.selected_package['source'] == 'pacman':
+                run_command(["sudo", "pacman", "-S", "--noconfirm", self.selected_package['name']])
+            else:
+                run_command(["yay", "-S", "--noconfirm", self.selected_package['name']])
 
-        function performWebSearch() {
-            const query = document.getElementById('web-search').value.trim();
-            if (!query) return;
-            
-            if (query.startsWith('http') || (query.includes('.') && !query.includes(' '))) {
-                const url = query.startsWith('http') ? query : 'https://' + query;
-                openUrl(url);
-            } else {
-                openUrl('https://duckduckgo.com/?q=' + encodeURIComponent(query));
-            }
-        }
+    def remove_package(self):
+        if self.selected_package:
+            if self.selected_package['source'] == 'pacman':
+                run_command(["sudo", "pacman", "-Rns", self.selected_package['name']])
+            else:
+                run_command(["yay", "-Rns", self.selected_package['name']])
 
-        async function searchPackages() {
-            const query = document.getElementById('pkg-query').value.trim();
-            const source = document.getElementById('pkg-source').value;
-            const tbody = document.getElementById('pkg-results');
-            
-            if (!query) return;
+    # ------------------------------------------------------------------
+    # Other tabs (shortened – they work the same)
+    # ------------------------------------------------------------------
+    def create_maintenance_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        cache_card = self.create_glass_card("🧹 Package Cache")
+        for text, cmd in [
+            ("Clear pacman cache (keep last 3)", ["sudo", "paccache", "-r"]),
+            ("Clear ALL pacman cache", ["sudo", "pacman", "-Scc"]),
+            ("Remove orphans", ["bash", "-c", "sudo pacman -Rns $(pacman -Qdtq) 2>/dev/null || echo 'No orphans'"]),
+            ("Rank mirrors (reflector)", ["sudo", "reflector", "--latest", "20", "--protocol", "https", "--sort", "rate", "--save", "/etc/pacman.d/mirrorlist"]),
+            ("Force pacman sync", ["sudo", "pacman", "-Syy"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            cache_card.layout().addWidget(btn)
+        layout.addWidget(cache_card)
+        layout.addStretch()
+        return tab
 
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Searching...</td></tr>';
+    def create_drivers_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        nv_card = self.create_glass_card("🎮 NVIDIA")
+        for text, cmd in [
+            ("NVIDIA (proprietary)", ["sudo", "pacman", "-S", "--needed", "nvidia", "nvidia-utils", "nvidia-settings"]),
+            ("NVIDIA DKMS", ["sudo", "pacman", "-S", "--needed", "nvidia-dkms", "nvidia-utils", "nvidia-settings"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            nv_card.layout().addWidget(btn)
+        layout.addWidget(nv_card)
+        amd_card = self.create_glass_card("🟠 AMD")
+        btn = QPushButton("AMDGPU (modern)")
+        btn.setObjectName("actionButton")
+        btn.clicked.connect(lambda: run_command(["sudo", "pacman", "-S", "--needed", "xf86-video-amdgpu", "mesa", "lib32-mesa"]))
+        amd_card.layout().addWidget(btn)
+        layout.addWidget(amd_card)
+        intel_card = self.create_glass_card("🔵 Intel")
+        btn = QPushButton("Intel (modesetting)")
+        btn.setObjectName("actionButton")
+        btn.clicked.connect(lambda: run_command(["sudo", "pacman", "-S", "--needed", "mesa", "lib32-mesa", "intel-media-driver"]))
+        intel_card.layout().addWidget(btn)
+        layout.addWidget(intel_card)
+        layout.addStretch()
+        return tab
 
-            try {
-                const res = await fetch('/api/packages', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, source })
-                });
-                const packages = await res.json();
-                
-                tbody.innerHTML = '';
-                if (packages.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No packages found.</td></tr>';
-                    return;
-                }
+    def create_tweaks_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        shell_card = self.create_glass_card("🐚 Shell Setup")
+        for text, cmd in [
+            ("Install Zsh", ["sudo", "pacman", "-S", "--needed", "zsh"]),
+            ("Install Fish", ["sudo", "pacman", "-S", "--needed", "fish"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            shell_card.layout().addWidget(btn)
+        layout.addWidget(shell_card)
+        plymouth_card = self.create_glass_card("🎨 Boot & Plymouth")
+        for text, cmd in [
+            ("Install Plymouth", ["sudo", "pacman", "-S", "--needed", "plymouth"]),
+            ("Rebuild initramfs", ["sudo", "mkinitcpio", "-P"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            plymouth_card.layout().addWidget(btn)
+        layout.addWidget(plymouth_card)
+        layout.addStretch()
+        return tab
 
-                packages.forEach(pkg => {
-                    const row = document.createElement('tr');
-                    row.className = 'pkg-row';
-                    const isInstalled = pkg.installed;
-                    
-                    row.innerHTML = `
-                        <td style="font-weight:bold; color: var(--accent);">${pkg.name}</td>
-                        <td style="color: var(--text-secondary); font-size:0.85rem;">${pkg.version}</td>
-                        <td><span class="tag ${pkg.source.toLowerCase()}">${pkg.source}</span></td>
-                        <td>
-                            <button style="padding: 4px 8px; font-size: 0.8rem;" 
-                                onclick="execCmd(['${pkg.source === 'pacman' ? 'sudo pacman' : 'yay'}', '-S', '--noconfirm', '${pkg.name}'])"
-                                ${isInstalled ? 'disabled style="opacity:0.3;"' : ''}>
-                                Install
-                            </button>
-                            ${isInstalled ? `<button class="danger" style="padding: 4px 8px; font-size: 0.8rem;" onclick="execCmd(['${pkg.source === 'pacman' ? 'sudo pacman' : 'yay'}', '-Rns', '${pkg.name}'])">Remove</button>` : ''}
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #ff6b6b;">Error searching packages</td></tr>';
-            }
-        }
-    </script>
-</body>
-</html>
-"""
+    def create_gaming_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        plat_card = self.create_glass_card("🎮 Game Platforms")
+        for text, cmd in [
+            ("Steam", ["sudo", "pacman", "-S", "--needed", "steam"]),
+            ("Lutris", ["sudo", "pacman", "-S", "--needed", "lutris"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c))
+            plat_card.layout().addWidget(btn)
+        layout.addWidget(plat_card)
+        wine_card = self.create_glass_card("🍷 Wine & Proton")
+        btn = QPushButton("Wine (staging)")
+        btn.setObjectName("actionButton")
+        btn.clicked.connect(lambda: run_command(["sudo", "pacman", "-S", "--needed", "wine-staging", "wine-mono", "wine-gecko"]))
+        wine_card.layout().addWidget(btn)
+        layout.addWidget(wine_card)
+        layout.addStretch()
+        return tab
+
+    def create_settings_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        appearance_card = self.create_glass_card("🎨 Appearance")
+        theme_layout = QHBoxLayout()
+        theme_layout.addWidget(QLabel("Theme:"))
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["Dark (Glass)", "Light"])
+        self.theme_combo.currentTextChanged.connect(self.change_theme)
+        theme_layout.addWidget(self.theme_combo)
+        theme_layout.addStretch()
+        appearance_card.layout().addLayout(theme_layout)
+        layout.addWidget(appearance_card)
+        tools_card = self.create_glass_card("🖥️ Desktop Tools")
+        for text, cmd in [
+            ("Display Settings (arandr)", ["arandr"]),
+            ("Wallpaper (nitrogen)", ["nitrogen"]),
+            ("Network (nm-connection-editor)", ["nm-connection-editor"])
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_command(c, hold=False))
+            tools_card.layout().addWidget(btn)
+        layout.addWidget(tools_card)
+        layout.addStretch()
+        return tab
+
+    def create_help_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        help_card = self.create_glass_card("📚 Help & Resources")
+        for name, url in [("Arch Wiki", "https://wiki.archlinux.org"), ("Arch Forums", "https://bbs.archlinux.org")]:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            help_card.layout().addWidget(btn)
+        about_btn = QPushButton("About StormOS")
+        about_btn.setObjectName("linkButton")
+        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS", "StormOS Welcome v2.0\n\nBuilt with PyQt6"))
+        help_card.layout().addWidget(about_btn)
+        layout.addWidget(help_card)
+        layout.addStretch()
+        return tab
+
+    # ------------------------------------------------------------------
+    # Actions
+    # ------------------------------------------------------------------
+    def launch_calamares(self):
+        if not shutil.which("calamares"):
+            QMessageBox.warning(self, "Installer not found", "Calamares not installed.")
+            return
+        run_command(["calamares"], "Calamares Installer", hold=False)
+
+    def enable_autostart(self):
+        AUTOSTART_FILE.parent.mkdir(parents=True, exist_ok=True)
+        AUTOSTART_FILE.write_text("""[Desktop Entry]
+Type=Application
+Name=StormOS Welcome
+Exec=stormos-welcome
+Icon=stormos-welcome
+Comment=StormOS Welcome Screen
+X-GNOME-Autostart-enabled=true
+Terminal=false
+Categories=System;
+""")
+        if AUTOSTART_DISABLED_MARKER.exists():
+            AUTOSTART_DISABLED_MARKER.unlink()
+        self.update_autostart_status()
+        self.status_label.setText("Autostart enabled")
+
+    def disable_autostart(self):
+        if AUTOSTART_FILE.exists():
+            AUTOSTART_FILE.unlink()
+        AUTOSTART_DISABLED_MARKER.touch()
+        self.update_autostart_status()
+        self.status_label.setText("Autostart disabled")
+
+    def update_autostart_status(self):
+        if not hasattr(self, 'autostatus'):
+            return
+        if AUTOSTART_FILE.exists() and not AUTOSTART_DISABLED_MARKER.exists():
+            self.autostatus.setText("✓ Autostart is currently ENABLED")
+            self.autostatus.setStyleSheet(f"color: {STORM_TEAL}; margin-bottom: 8px;")
+        else:
+            self.autostatus.setText("✗ Autostart is currently DISABLED")
+            self.autostatus.setStyleSheet(f"color: {STORM_CORAL}; margin-bottom: 8px;")
+
+    def change_theme(self, theme):
+        if "Dark" in theme:
+            self.apply_styles()
+        else:
+            self.setStyleSheet("QMainWindow { background-color: #f0f0f0; } QLabel { color: #000; }")
+
+    def setup_autostart(self):
+        if not self.is_live and not AUTOSTART_DISABLED_MARKER.exists():
+            QTimer.singleShot(1000, self.disable_autostart_once)
+
+    def disable_autostart_once(self):
+        if AUTOSTART_FILE.exists():
+            AUTOSTART_FILE.unlink()
+        AUTOSTART_DISABLED_MARKER.touch()
+
+    def apply_styles(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {STORM_NAVY}; }}
+            #central {{
+                background-color: {GLASS_DARK};
+                border-radius: 20px;
+                border: 1px solid rgba(100, 255, 218, 0.1);
+            }}
+            QTabWidget::pane {{
+                background-color: rgba(2, 12, 27, 0.5);
+                border: 1px solid rgba(100, 255, 218, 0.15);
+                border-radius: 16px;
+            }}
+            QTabBar::tab {{
+                background: transparent;
+                color: {STORM_GRAY};
+                padding: 12px 24px;
+                font-weight: 600;
+                font-size: 14px;
+            }}
+            QTabBar::tab:selected {{
+                background: rgba(100, 255, 218, 0.1);
+                color: {STORM_BLUE};
+                border-bottom: 2px solid {STORM_BLUE};
+            }}
+            QPushButton#gradientButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {STORM_TEAL}, stop:1 {STORM_PURPLE});
+                color: {STORM_NAVY};
+                border: none;
+                border-radius: 12px;
+                padding: 12px 20px;
+                font-weight: bold;
+                font-size: 14px;
+            }}
+            QPushButton#gradientButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {STORM_PURPLE}, stop:1 {STORM_TEAL});
+            }}
+            QPushButton#glassButton {{
+                background: rgba(30, 58, 95, 0.7);
+                color: {STORM_BLUE};
+                border: 1px solid {STORM_BLUE};
+                border-radius: 10px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton#actionButton {{
+                background: rgba(100, 255, 218, 0.08);
+                color: {STORM_LIGHT};
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 10px;
+                padding: 10px 16px;
+                text-align: left;
+            }}
+            QPushButton#actionButton:hover {{
+                background: rgba(100, 255, 218, 0.15);
+                border-color: {STORM_BLUE};
+            }}
+            QPushButton#linkButton {{
+                background: transparent;
+                color: {STORM_BLUE};
+                border: none;
+                padding: 6px 12px;
+            }}
+            QPushButton#smallGlass {{
+                background: rgba(30, 58, 95, 0.7);
+                color: {STORM_BLUE};
+                border: 1px solid rgba(100, 255, 218, 0.3);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }}
+            QLineEdit, QComboBox, QTextEdit {{
+                background-color: rgba(2, 12, 27, 0.7);
+                border: 1px solid rgba(100, 255, 218, 0.3);
+                border-radius: 10px;
+                padding: 8px;
+                color: {STORM_LIGHT};
+            }}
+            QTreeWidget {{
+                background-color: rgba(2, 12, 27, 0.6);
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 12px;
+            }}
+            QTreeWidget::item:selected {{
+                background: rgba(100, 255, 218, 0.15);
+                border-left: 3px solid {STORM_BLUE};
+            }}
+        """)
+
+    def animate_window(self):
+        self.setWindowOpacity(0)
+        anim = QPropertyAnimation(self, b"windowOpacity")
+        anim.setDuration(400)
+        anim.setStartValue(0)
+        anim.setEndValue(1)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        anim.start()
+
+    def customEvent(self, event):
+        if isinstance(event, SearchResultsEvent):
+            self.package_list.clear()
+            for pkg in event.packages:
+                item = QTreeWidgetItem([pkg['name'], pkg['version'], pkg['source']])
+                item.setData(0, Qt.ItemDataRole.UserRole, pkg)
+                if pkg.get('installed', False):
+                    item.setForeground(0, QColor(STORM_TEAL))
+                self.package_list.addTopLevelItem(item)
+            self.backend_status.setText(f"Pacman: ✓ | AUR: {'✓' if shutil.which('yay') else '✗'}")
+            self.status_label.setText(f"Found {len(event.packages)} packages")
+
+class SearchResultsEvent:
+    def __init__(self, packages):
+        self.packages = packages
 
 # ============================================================
-# Entry Point
+# Main
 # ============================================================
-if __name__ == '__main__':
-    # Start Flask in a separate thread
-    t = threading.Thread(target=app.run, kwargs={'port': 5000, 'use_reloader': False})
-    t.daemon = True
-    t.start()
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    app.setApplicationName("StormOS Welcome")
+    app.setStyle("Fusion")
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Window, QColor(STORM_NAVY))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(STORM_LIGHT))
+    palette.setColor(QPalette.ColorRole.Base, QColor(STORM_DARK))
+    palette.setColor(QPalette.ColorRole.Text, QColor(STORM_LIGHT))
+    app.setPalette(palette)
 
-    # Create Window
-    window = webview.create_window(
-        '🌩️ StormOS Hub',
-        'http://127.0.0.1:5000',
-        width=1200,
-        height=900,
-        background_color='#0a192f'
-    )
-    webview.start()
+    window = StormWelcome()
+    window.show()
+    sys.exit(app.exec())
