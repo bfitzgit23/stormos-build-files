@@ -117,3 +117,5 @@ else
         fi
     done
 fi
+
+pacman -Rdd xfce4-terminal
