@@ -119,3 +119,4 @@ else
 fi
 
 pacman -Rdd xfce4-terminal
+ln -sfv /usr/bin/mate-terminal /usr/bin/xfce4-terminal
