@@ -151,7 +151,7 @@ xfce4-terminal
 firefox
 wmctrl
 calamares-app
-calamares-config-xfce
+#calamares-config-xfce
 pyqt5
 qt5ct
 spice-vdagent

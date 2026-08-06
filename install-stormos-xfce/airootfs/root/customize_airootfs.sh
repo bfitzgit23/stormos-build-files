@@ -118,7 +118,17 @@ else
     done
 fi
 
-# The real xfce4-terminal (from the xfce4 group) is left installed and is the
-# system terminal. Do not remove it or replace it with a symlink to a terminal
-# that is not even installed (mate-terminal). See the input/output error bug:
-# /usr/bin/xfce4-terminal -> /usr/bin/mate-terminal was a dangling symlink.
+# The real xfce4-terminal (from the xfce4 group) must remain the system terminal.
+# Older builds replaced it with a dangling symlink to mate-terminal which caused
+# xfce4-terminal to fail with a silent "input/output error". Remove any stale
+# wrapper/symlink left behind and verify the real binary is in place.
+if [ -L /usr/bin/xfce4-terminal ] || [ -f /usr/bin/xfce4-terminal ]; then
+    file /usr/bin/xfce4-terminal | grep -q "symlink to" && rm -f /usr/bin/xfce4-terminal
+fi
+if [ -e /usr/local/bin/xfce4-terminal ] && [ ! -x /usr/local/bin/xfce4-terminal ]; then
+    rm -f /usr/local/bin/xfce4-terminal
+fi
+if ! command -v xfce4-terminal >/dev/null 2>&1 || [ ! -x /usr/bin/xfce4-terminal ]; then
+    echo "WARNING: xfce4-terminal is missing; installing it." >&2
+    pacman -S --noconfirm --needed xfce4-terminal
+fi
