@@ -118,5 +118,7 @@ else
     done
 fi
 
-pacman -Rdd xfce4-terminal
-ln -sfv /usr/bin/mate-terminal /usr/bin/xfce4-terminal
+# The real xfce4-terminal (from the xfce4 group) is left installed and is the
+# system terminal. Do not remove it or replace it with a symlink to a terminal
+# that is not even installed (mate-terminal). See the input/output error bug:
+# /usr/bin/xfce4-terminal -> /usr/bin/mate-terminal was a dangling symlink.

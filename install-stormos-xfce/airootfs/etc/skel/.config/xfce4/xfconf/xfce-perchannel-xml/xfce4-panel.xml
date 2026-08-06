@@ -149,7 +149,7 @@
       <property name="digital-time-format" type="empty"/>
       <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
       <property name="show-notifications" type="bool" value="true"/>
-      <property name="known-players" type="string" value="Brave;Chromium;eco-nexus;eco_nexus8;firefox;spotify;Thorium;Vivaldi;vlc"/>
+      <property name="known-players" type="string" value="Brave;Chromium;firefox;spotify;Thorium;Vivaldi;vlc"/>
     </property>
     <property name="plugin-9" type="string" value="power-manager-plugin"/>
     <property name="plugin-10" type="string" value="notification-plugin">
