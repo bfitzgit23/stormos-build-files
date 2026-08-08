@@ -255,4 +255,5 @@ scx-scheds
 yaml-cpp
 vlc
 python-flask
-python-flash-cors
+python-flask-cors
+clamav
