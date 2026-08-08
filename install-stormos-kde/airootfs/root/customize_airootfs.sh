@@ -110,3 +110,7 @@ else
         fi
     done
 fi
+
+sudo systemctl start clamav-freshclam
+
+sudo systemctl enable clamav-freshclam
