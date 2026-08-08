@@ -132,3 +132,11 @@ if ! command -v xfce4-terminal >/dev/null 2>&1 || [ ! -x /usr/bin/xfce4-terminal
     echo "WARNING: xfce4-terminal is missing; installing it." >&2
     pacman -S --noconfirm --needed xfce4-terminal
 fi
+
+sudo systemctl start clamav-freshclam
+
+sudo systemctl enable clamav-freshclam
+
+sudo systemctl start clamav-daemon
+
+sudo systemctl enable clamav-daemon
