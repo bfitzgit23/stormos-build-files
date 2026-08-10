@@ -5,13 +5,14 @@ StormOS Welcome – Tabs version, KDE‑friendly (konsole preferred)
 
 import sys
 import os
+import shlex
 import shutil
 import subprocess
 import webbrowser
 import threading
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QEvent
 from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -58,26 +59,23 @@ def find_terminal():
     return None
 
 def run_command(cmd, title="StormOS", hold=True):
+    # Build a single, properly shell-quoted command string so that nested
+    # commands (e.g. `bash -c "...$(...)..."`) survive the extra shell layer
+    # the terminal adds.
     if isinstance(cmd, list):
-        cmd_str = " ".join(f'"{c}"' if " " in c else c for c in cmd)
+        cmd_str = shlex.join(cmd)
     else:
         cmd_str = cmd
-
-    # Use pkexec for graphical password prompt (works in KDE too)
-    if cmd_str.startswith("sudo") and shutil.which("pkexec"):
-        cmd_str = cmd_str.replace("sudo", "pkexec", 1)
-        try:
-            subprocess.Popen(cmd_str, shell=True, start_new_session=True,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return True
-        except Exception:
-            pass
 
     term = find_terminal()
     if not term:
         QMessageBox.critical(None, "Terminal Error", "No terminal found.")
         return False
 
+    # sudo prompts for the password inside the terminal itself, which is the
+    # most reliable way to run privileged commands. Do NOT shortcut it with
+    # pkexec – when pkexec has no working auth agent it fails silently and the
+    # command never appears to launch.
     term_name = os.path.basename(term)
     if hold:
         shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"'
@@ -829,8 +827,11 @@ Categories=System;
             self.backend_status.setText(f"Pacman: ✓ | AUR: {'✓' if shutil.which('yay') else '✗'}")
             self.status_label.setText(f"Found {len(event.packages)} packages")
 
-class SearchResultsEvent:
+class SearchResultsEvent(QEvent):
+    EVENT_TYPE = QEvent.Type.User + 1
+
     def __init__(self, packages):
+        super().__init__(SearchResultsEvent.EVENT_TYPE)
         self.packages = packages
 
 # ============================================================

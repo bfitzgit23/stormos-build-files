@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """
-StormOS Welcome – Original Tabs Version
-Glass theme, all system tools, autostart ready.
+StormOS Welcome – Tabs version, KDE‑friendly (konsole preferred)
 """
 
 import sys
 import os
+import shlex
 import shutil
 import subprocess
 import webbrowser
 import threading
 from pathlib import Path
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+
+from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QEvent
 from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -39,49 +40,58 @@ AUTOSTART_DISABLED_MARKER = HOME / ".storm-autostart-disabled"
 LIVE_MARKERS = ["/run/archiso", "/run/miso", "/etc/live", "/run/live"]
 
 # ============================================================
-# Utilities
+# Utilities – KDE‑aware terminal detection
 # ============================================================
 def is_live_session():
     return any(Path(m).exists() for m in LIVE_MARKERS)
 
 def find_terminal():
-    for term in ["gnome-terminal", "xfce4-terminal", "xterm", "konsole"]:
+    # Detect KDE Plasma
+    is_kde = os.environ.get('XDG_CURRENT_DESKTOP', '').lower() in ('kde', 'plasma')
+    if is_kde:
+        terminals = ["konsole", "gnome-terminal", "xfce4-terminal", "xterm"]
+    else:
+        terminals = ["gnome-terminal", "xfce4-terminal", "konsole", "xterm"]
+
+    for term in terminals:
         if shutil.which(term):
             return shutil.which(term)
     return None
 
 def run_command(cmd, title="StormOS", hold=True):
+    # Build a single, properly shell-quoted command string so that nested
+    # commands (e.g. `bash -c "...$(...)..."`) survive the extra shell layer
+    # the terminal adds.
     if isinstance(cmd, list):
-        cmd_str = " ".join(f'"{c}"' if " " in c else c for c in cmd)
+        cmd_str = shlex.join(cmd)
     else:
         cmd_str = cmd
-
-    if cmd_str.startswith("sudo") and shutil.which("pkexec"):
-        cmd_str = cmd_str.replace("sudo", "pkexec", 1)
-        try:
-            subprocess.Popen(cmd_str, shell=True, start_new_session=True,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return True
-        except Exception:
-            pass
 
     term = find_terminal()
     if not term:
         QMessageBox.critical(None, "Terminal Error", "No terminal found.")
         return False
 
+    # sudo prompts for the password inside the terminal itself, which is the
+    # most reliable way to run privileged commands. Do NOT shortcut it with
+    # pkexec – when pkexec has no working auth agent it fails silently and the
+    # command never appears to launch.
     term_name = os.path.basename(term)
     if hold:
         shell_cmd = f'bash -c "{cmd_str}; echo; echo \'Press Enter to close...\'; read"'
     else:
         shell_cmd = f'bash -c "{cmd_str}"'
 
+    # Terminal‑specific arguments
     if term_name == "gnome-terminal":
         args = [term, "--title", title, "--", "bash", "-c", shell_cmd]
     elif term_name == "xfce4-terminal":
         args = [term, "--disable-server", "--title", title, "--command", shell_cmd]
     elif term_name == "xterm":
         args = [term, "-title", title, "-e", shell_cmd]
+    elif term_name == "konsole":
+        # --hold keeps window open after command finishes
+        args = [term, "--hold", "-e", shell_cmd]
     else:
         args = [term, "-e", shell_cmd]
 
@@ -101,7 +111,7 @@ def run_capture(cmd):
         return 1, "", ""
 
 # ============================================================
-# Package backends (for Software tab)
+# Package backends (same as before)
 # ============================================================
 class PacmanBackend:
     def search(self, query):
@@ -124,6 +134,7 @@ class PacmanBackend:
                     })
             i += 1
         return packages
+
     def get_installed(self):
         rc, out, _ = run_capture(["pacman", "-Q"])
         if rc != 0: return []
@@ -154,6 +165,7 @@ class YayBackend:
                     'source': 'aur', 'installed': 'Installed' in line
                 })
         return packages
+
     def get_installed(self):
         rc, out, _ = run_capture(["pacman", "-Qm"])
         if rc != 0: return []
@@ -167,13 +179,14 @@ class YayBackend:
                         'description': '', 'source': 'aur', 'installed': True
                     })
         return packages
+
     def install(self, pkg):
         run_command(["yay", "-S", "--noconfirm", pkg])
     def remove(self, pkg):
         run_command(["yay", "-Rns", pkg])
 
 # ============================================================
-# Main Window (tabs)
+# Main Window
 # ============================================================
 class StormWelcome(QMainWindow):
     def __init__(self):
@@ -202,10 +215,8 @@ class StormWelcome(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(20)
 
-        # Header
         layout.addWidget(self.create_header())
 
-        # Tabs
         self.tabs = QTabWidget()
         self.tabs.setObjectName("mainTabs")
         self.tabs.addTab(self.create_welcome_tab(), "🚀 Welcome")
@@ -219,7 +230,6 @@ class StormWelcome(QMainWindow):
         self.tabs.addTab(self.create_help_tab(), "❓ Help")
         layout.addWidget(self.tabs)
 
-        # Footer
         layout.addWidget(self.create_footer())
 
     # ------------------------------------------------------------------
@@ -363,7 +373,7 @@ class StormWelcome(QMainWindow):
             btn.setObjectName("actionButton")
             btn.clicked.connect(lambda _, c=cmd, t=text: run_command(c, t))
             card.layout().addWidget(btn)
-        note = QLabel("Note: commands open in gnome-terminal (or fallback).")
+        note = QLabel("Note: commands open in your default terminal (konsole on KDE).")
         note.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px; margin-top: 12px;")
         card.layout().addWidget(note)
         layout.addWidget(card)
@@ -371,7 +381,7 @@ class StormWelcome(QMainWindow):
         return tab
 
     # ------------------------------------------------------------------
-    # Software Tab
+    # Software Tab (unchanged)
     # ------------------------------------------------------------------
     def create_software_tab(self):
         tab = QWidget()
@@ -494,7 +504,7 @@ class StormWelcome(QMainWindow):
                 run_command(["yay", "-Rns", self.selected_package['name']])
 
     # ------------------------------------------------------------------
-    # Other tabs (shortened for readability – you can expand them)
+    # Other tabs (shortened – they work the same)
     # ------------------------------------------------------------------
     def create_maintenance_tab(self):
         tab = QWidget()
@@ -817,8 +827,11 @@ Categories=System;
             self.backend_status.setText(f"Pacman: ✓ | AUR: {'✓' if shutil.which('yay') else '✗'}")
             self.status_label.setText(f"Found {len(event.packages)} packages")
 
-class SearchResultsEvent:
+class SearchResultsEvent(QEvent):
+    EVENT_TYPE = QEvent.Type.User + 1
+
     def __init__(self, packages):
+        super().__init__(SearchResultsEvent.EVENT_TYPE)
         self.packages = packages
 
 # ============================================================

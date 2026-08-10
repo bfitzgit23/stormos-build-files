@@ -33,4 +33,5 @@ file_permissions=(
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
   ["/usr/local/bin/hyper8"]="0:0:755"
   ["/usr/local/bin/autoi"]="0:0:755"
+  ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
 )

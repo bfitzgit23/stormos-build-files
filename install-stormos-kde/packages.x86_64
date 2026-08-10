@@ -180,6 +180,7 @@ rclone
 expac
 plasma-login-manager
 htop
+lshw
 gvfs
 StormOS-conf
 stormos-grub-theme
