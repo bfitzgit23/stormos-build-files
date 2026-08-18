@@ -63,32 +63,25 @@ if [ "$IS_CALAMARES" = true ]; then
 
     chown -R "${USER_UID:-1000}:${USER_GID:-1000}" "$USER_HOME"
 
-    # =========================================================
-    # ✅ FIRST-RUN WELCOME SETUP (SHOW ONCE ONLY)
-    # =========================================================
-    show_progress "Configuring StormOS Welcome first-run..."
+    # LightDM autologin fix
+    sed -i '/^autologin-user=/d' "$TARGET_ROOT/etc/lightdm/lightdm.conf"
+    sed -i "/^autologin-guest=/a autologin-user=$USER_NAME" "$TARGET_ROOT/etc/lightdm/lightdm.conf"
+fi
 
-    AUTOSTART_DIR="$USER_HOME/.config/autostart"
-    mkdir -p "$AUTOSTART_DIR"
-
-    if [ -f "$TARGET_ROOT/etc/skel/.config/autostart/stormos-welcome.desktop" ]; then
-        cp "$TARGET_ROOT/etc/skel/.config/autostart/stormos-welcome.desktop" \
-           "$AUTOSTART_DIR/stormos-welcome.desktop"
+# === PLYMOUTH SETUP ===
+show_progress "Ensuring plymouth is configured for installed system..."
+if [ -f "$TARGET_ROOT/etc/mkinitcpio.conf" ]; then
+    if ! grep -q 'plymouth' "$TARGET_ROOT/etc/mkinitcpio.conf"; then
+        sed -i 's/^HOOKS=(base systemd/HOOKS=(base systemd plymouth/' "$TARGET_ROOT/etc/mkinitcpio.conf"
+        echo "✓ Added plymouth hook to mkinitcpio.conf"
     fi
+fi
 
-    touch "$USER_HOME/.storm-welcome-first-run"
-
-    chown -R "${USER_UID:-1000}:${USER_GID:-1000}" "$AUTOSTART_DIR"
-    chown "${USER_UID:-1000}:${USER_GID:-1000}" "$USER_HOME/.storm-welcome-first-run"
-
-    echo "✓ Welcome will run once after install"
-
-    # plasma-login-manager autologin fix
-    PLM_CONF="$TARGET_ROOT/etc/plasmalogin.conf.d/kde_settings.conf"
-    if [ -f "$PLM_CONF" ]; then
-        sed -i "s/^User=.*/User=$USER_NAME/" "$PLM_CONF"
-        grep -q '^Session=' "$PLM_CONF" || echo "Session=plasma" >> "$PLM_CONF"
-        sed -i "s/^Session=.*/Session=plasma/" "$PLM_CONF"
+# Ensure splash is in GRUB defaults
+if [ -f "$TARGET_ROOT/etc/default/grub" ]; then
+    if ! grep -q 'splash' "$TARGET_ROOT/etc/default/grub"; then
+        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/' "$TARGET_ROOT/etc/default/grub"
+        echo "✓ Added splash to GRUB defaults"
     fi
 fi
 

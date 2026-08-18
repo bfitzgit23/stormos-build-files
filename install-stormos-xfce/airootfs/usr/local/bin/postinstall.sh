@@ -63,29 +63,26 @@ if [ "$IS_CALAMARES" = true ]; then
 
     chown -R "${USER_UID:-1000}:${USER_GID:-1000}" "$USER_HOME"
 
-    # =========================================================
-    # ✅ FIRST-RUN WELCOME SETUP (SHOW ONCE ONLY)
-    # =========================================================
-    show_progress "Configuring StormOS Welcome first-run..."
-
-    AUTOSTART_DIR="$USER_HOME/.config/autostart"
-    mkdir -p "$AUTOSTART_DIR"
-
-    if [ -f "$TARGET_ROOT/etc/skel/.config/autostart/stormos-welcome.desktop" ]; then
-        cp "$TARGET_ROOT/etc/skel/.config/autostart/stormos-welcome.desktop" \
-           "$AUTOSTART_DIR/stormos-welcome.desktop"
-    fi
-
-    touch "$USER_HOME/.storm-welcome-first-run"
-
-    chown -R "${USER_UID:-1000}:${USER_GID:-1000}" "$AUTOSTART_DIR"
-    chown "${USER_UID:-1000}:${USER_GID:-1000}" "$USER_HOME/.storm-welcome-first-run"
-
-    echo "✓ Welcome will run once after install"
-
     # LightDM autologin fix
     sed -i '/^autologin-user=/d' "$TARGET_ROOT/etc/lightdm/lightdm.conf"
     sed -i "/^autologin-guest=/a autologin-user=$USER_NAME" "$TARGET_ROOT/etc/lightdm/lightdm.conf"
+fi
+
+# === PLYMOUTH SETUP ===
+show_progress "Ensuring plymouth is configured for installed system..."
+if [ -f "$TARGET_ROOT/etc/mkinitcpio.conf" ]; then
+    if ! grep -q 'plymouth' "$TARGET_ROOT/etc/mkinitcpio.conf"; then
+        sed -i 's/^HOOKS=(base systemd/HOOKS=(base systemd plymouth/' "$TARGET_ROOT/etc/mkinitcpio.conf"
+        echo "✓ Added plymouth hook to mkinitcpio.conf"
+    fi
+fi
+
+# Ensure splash is in GRUB defaults
+if [ -f "$TARGET_ROOT/etc/default/grub" ]; then
+    if ! grep -q 'splash' "$TARGET_ROOT/etc/default/grub"; then
+        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="quiet"/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"/' "$TARGET_ROOT/etc/default/grub"
+        echo "✓ Added splash to GRUB defaults"
+    fi
 fi
 
 # DNS

@@ -305,11 +305,24 @@ class StormWelcome(QMainWindow):
 
         # Installer card
         install_card = self.create_glass_card("💿 Install StormOS")
-        install_btn = QPushButton("Launch Installer (Calamares)")
-        install_btn.setObjectName("gradientButton")
-        install_btn.clicked.connect(self.launch_calamares)
-        install_card.layout().addWidget(install_btn)
-        hint = QLabel("Runs the graphical installer to install StormOS to disk." if self.is_live else "StormOS is already installed.")
+        if self.is_live:
+            btn_layout = QHBoxLayout()
+            calamares_btn = QPushButton("Launch Calamares Installer (GUI)")
+            calamares_btn.setObjectName("gradientButton")
+            calamares_btn.clicked.connect(self.launch_calamares)
+            btn_layout.addWidget(calamares_btn)
+            abif_btn = QPushButton("Launch ABIF Installer (CLI)")
+            abif_btn.setObjectName("gradientButton")
+            abif_btn.clicked.connect(self.launch_abif)
+            btn_layout.addWidget(abif_btn)
+            install_card.layout().addLayout(btn_layout)
+            hint = QLabel("Choose a graphical (Calamares) or command-line (ABIF) installer to install StormOS to disk.")
+        else:
+            install_btn = QPushButton("StormOS is already installed")
+            install_btn.setObjectName("glassButton")
+            install_btn.setEnabled(False)
+            install_card.layout().addWidget(install_btn)
+            hint = QLabel("StormOS is already installed on this system.")
         hint.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px; margin-top: 8px;")
         hint.setWordWrap(True)
         install_card.layout().addWidget(hint)
@@ -665,6 +678,13 @@ class StormWelcome(QMainWindow):
             QMessageBox.warning(self, "Installer not found", "Calamares not installed.")
             return
         run_command(["calamares"], "Calamares Installer", hold=False)
+
+    def launch_abif(self):
+        abif_path = "/abif-master/abif"
+        if not os.path.isfile(abif_path):
+            QMessageBox.warning(self, "Installer not found", "ABIF installer not installed.")
+            return
+        run_command([abif_path], "ABIF Installer", hold=True)
 
     def enable_autostart(self):
         AUTOSTART_FILE.parent.mkdir(parents=True, exist_ok=True)
