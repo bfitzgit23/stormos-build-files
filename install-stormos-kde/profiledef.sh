@@ -38,4 +38,5 @@ file_permissions=(
   ["/usr/local/bin/upgrade"]="0:0:755"
   ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
   ["/usr/share/libalpm/scripts/stormos-branding-restore"]="0:0:755"
+  ["/abif-master/abif"]="0:0:755"
 )
