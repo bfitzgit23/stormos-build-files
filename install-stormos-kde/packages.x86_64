@@ -258,7 +258,6 @@ vlc
 python-flask
 python-flask-cors
 clamav
-archcraft-installer
 alacritty
 dialog
 wipe
