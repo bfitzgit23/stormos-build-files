@@ -4,12 +4,7 @@
 #  PostInstall - StormOS setup script
 ##############################################################################
 
-USER_NAME=$(logname)
-
-rm -f "/home/$USER_NAME/Desktop/calamares.desktop" || true
-
-reflector --protocol https --latest 20 --sort rate --save /etc/pacman.d/mirrorlist && pacman -Syu --noconfirm
-
+# === PRE-FLIGHT CHECKS ===
 if [ "$(id -u)" -ne 0 ]; then
     echo "ERROR: This script must be run as root" >&2
     exit 1
@@ -47,6 +42,13 @@ if [ "$IS_CALAMARES" = true ]; then
 
     USER_HOME="$TARGET_ROOT/home/$USER_NAME"
     mkdir -p "$USER_HOME"
+
+    # Remove Calamares desktop shortcut from target user
+    rm -f "$USER_HOME/Desktop/calamares.desktop" 2>/dev/null || true
+else
+    # Outside chroot — get caller name safely
+    USER_NAME=$(logname 2>/dev/null || whoami 2>/dev/null || echo "root")
+    rm -f "/home/$USER_NAME/Desktop/calamares.desktop" 2>/dev/null || true
 fi
 
 # === USER SETUP ===
@@ -95,6 +97,13 @@ EOF
 # Permissions
 show_progress "Fixing binaries..."
 find "$TARGET_ROOT/usr/local/bin" -type f -exec chmod +x {} \; 2>/dev/null || true
+
+# NetworkManager
+show_progress "Enabling NetworkManager..."
+if [ -d "$TARGET_ROOT/etc/systemd/system/multi-user.target.wants" ] || [ -d "$TARGET_ROOT/usr/lib/systemd/system" ]; then
+    ln -sf /usr/lib/systemd/system/NetworkManager.service "$TARGET_ROOT/etc/systemd/system/multi-user.target.wants/NetworkManager.service" 2>/dev/null || true
+    echo "✓ NetworkManager enabled"
+fi
 
 echo ""
 echo "=================================================="

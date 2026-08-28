@@ -134,7 +134,6 @@ xfsprogs
 xl2tpd
 zsh
 os-prober
-ntfs-3g
 thermald
 pipewire
 pipewire-pulse
@@ -175,7 +174,6 @@ cups-pdf
 ghostscript
 gsfonts
 hplip
-unzip
 rclone
 expac
 plasma-login-manager
@@ -183,7 +181,6 @@ htop
 lshw
 gvfs
 StormOS-conf
-stormos-grub-theme
 fzf
 xdg-user-dirs
 plymouth
@@ -207,11 +204,8 @@ ttf-jetbrains-mono-nerd
 localsend
 brightnessctl
 kirigami
-mkinitcpio
 mkinitcpio-utils
-mkinitcpio-archiso
 mkinitcpio-openswap
-mkinitcpio-nfs-utils
 fwupd
 mesa
 autorandr
@@ -220,7 +214,6 @@ lib32-mesa
 xf86-video-qxl
 xf86-video-fbdev
 lib32-mesa-utils
-sof-firmware
 linux-firmware-amdgpu
 linux-firmware-atheros
 linux-firmware-broadcom
@@ -238,7 +231,6 @@ xf86-video-intel
 lib32-vulkan-radeon
 lib32-vulkan-intel
 vulkan-radeon
-lib32-mesa
 vulkan-intel
 ffmpeg
 yay-bin

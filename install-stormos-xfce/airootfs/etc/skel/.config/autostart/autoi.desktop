@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Exec=python /usr/local/bin/autoi
+Exec=python3 /usr/local/bin/autoi
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
