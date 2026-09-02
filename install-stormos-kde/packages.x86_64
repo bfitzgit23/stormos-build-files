@@ -231,7 +231,6 @@ linux-firmware-cirrus
 linux-firmware-intel
 linux-firmware-mediatek
 linux-firmware-nvidia
- nvidia-open
  nvidia-open-lts
  nvidia-utils
  lib32-nvidia-utils
