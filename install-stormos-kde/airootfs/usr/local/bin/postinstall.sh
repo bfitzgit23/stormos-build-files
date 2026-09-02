@@ -87,6 +87,21 @@ if [ -f "$TARGET_ROOT/etc/default/grub" ]; then
     fi
 fi
 
+# === STORMOS GRUB THEME SETUP ===
+show_progress "Configuring StormOS GRUB theme..."
+if [ -f "$TARGET_ROOT/etc/default/grub" ]; then
+    if ! grep -q 'GRUB_THEME=' "$TARGET_ROOT/etc/default/grub"; then
+        echo 'GRUB_THEME="/usr/share/grub/themes/stormos/theme.txt"' >> "$TARGET_ROOT/etc/default/grub"
+        echo "✓ Added StormOS GRUB theme to GRUB defaults"
+    fi
+fi
+
+# Ensure grub theme files are available in installed system
+if [ -d "/usr/share/grub/themes/stormos" ] && [ ! -d "$TARGET_ROOT/usr/share/grub/themes/stormos" ]; then
+    cp -r /usr/share/grub/themes/stormos "$TARGET_ROOT/usr/share/grub/themes/"
+    echo "✓ Copied StormOS GRUB theme to installed system"
+fi
+
 # DNS
 show_progress "Configuring DNS..."
 cat > "$TARGET_ROOT/etc/resolv.conf" << 'EOF'
