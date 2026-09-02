@@ -161,7 +161,8 @@ firefox
 wmctrl
 calamares-app
 pyqt5
-python-pyqt6
+ python-pyqt5
+ python-pyqt6
 qt5ct
 spice-vdagent
 spice-protocol
