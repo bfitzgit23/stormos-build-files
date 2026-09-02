@@ -132,6 +132,32 @@ sudo rm -rf install-stormos-kde/work install-stormos-xfce/work
 
 The message `cannot overwrite existing file` comes from Bash `noclobber`, not pacman. Edit the tracked files directly or use `tee` when intentionally replacing an existing file. Rebuild from the selected profile with `sudo ./build.sh -v`.
 
+## Calamares Configuration
+
+The Calamares configuration under `airootfs/etc/calamares` is profile-specific and must be rebuilt when its inputs change. The launcher must be a shell script, not a saved GitHub HTML page. The active settings use `users.conf`, `netinstall`, `packages`, `initcpio`, the profile's display manager, GRUB, and the StormOS post-install scripts.
+
+KDE uses Plasma Login Manager and XFCE uses LightDM. Both profiles install the rolling Arch `linux` mainline kernel (currently 7.x), `linux-lts`, and `linux-zen`, including matching headers and DKMS support. Calamares copies all three kernel images and generates each kernel's initramfs from its own preset: `linux`, `linux-lts`, and `linux-zen`. The mainline kernel is the default entry; LTS and Zen remain selectable fallbacks. Optional package groups contain repository packages only; AUR packages must be built separately and should not be listed in Calamares' pacman-backed `software.yaml`.
+
+The three Calamares kernel presets produce these target files:
+
+```text
+/boot/vmlinuz-linux                 /boot/initramfs-linux.img
+/boot/vmlinuz-linux-lts             /boot/initramfs-linux-lts.img
+/boot/vmlinuz-linux-zen             /boot/initramfs-linux-zen.img
+```
+
+The `linux`, `linux-lts`, and `linux-zen` package names are rolling aliases; do not hard-code a kernel version. After changing kernel packages or presets, remove `work` so mkarchiso rebuilds the ISO with the new live kernel files.
+
+After changing Calamares files, remove the profile work directory so mkarchiso copies the new files:
+
+```bash
+cd install-stormos-kde   # or install-stormos-xfce
+sudo rm -rf work
+sudo ./build.sh -v
+```
+
+The installer launcher supports both normal live media and `copytoram` mode. Its custom QML navigation is enabled and no longer contains the corrupted inherited patch fragment. Calamares passes `${ROOT}` to the post-install hook so setup runs against the target filesystem. Duplicate partition keys and stale backup configs were removed. Installer logs remain local; external log upload is disabled.
+
 ## Next Steps
 
 1. Enable the workflow in GitHub Actions tab

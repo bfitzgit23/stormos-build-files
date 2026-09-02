@@ -12,6 +12,7 @@ bind
 bolt
 brltty
 broadcom-wl-dkms
+dkms
 clonezilla
 cloud-init
 cryptsetup
@@ -54,8 +55,12 @@ less
 lftp
 libfido2
 libusb-compat
+linux
+linux-headers
 linux-lts
 linux-lts-headers
+linux-zen
+linux-zen-headers
 linux-atm
 linux-firmware
 linux-firmware-marvell
@@ -229,7 +234,7 @@ linux-firmware-cirrus
 linux-firmware-intel
 linux-firmware-mediatek
 linux-firmware-nvidia
-nvidia-open-lts
+nvidia-open-dkms
 nvidia-utils
 lib32-nvidia-utils
 opencl-nvidia

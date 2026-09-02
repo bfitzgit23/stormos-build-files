@@ -37,24 +37,21 @@
   selected: false
   expanded: false
   packages:
-   - obs-studio
-   - v4l2loopback-dkms
-   - v4l2loopback-utils
-   - vesktop
-   - discord
-   - libreoffice
-- name: "Browsers-vpn"
-  description: "Browsers-vpn"
+    - obs-studio
+    - v4l2loopback-dkms
+    - v4l2loopback-utils
+    - vesktop
+    - discord
+    - libreoffice
+- name: "Browsers"
+  description: "Additional repository browsers"
   critical: false
   hidden: false
   selected: false
   expanded: false
   packages:
-   - google-chrome
-   - brave-bin
-   - microsoft-edge-stable-bin
-   - torguard
-   - librewolf
+    - chromium
+    - librewolf
 - name: "VirtualBox"
   description: "Installs VirtualBox"
   critical: false

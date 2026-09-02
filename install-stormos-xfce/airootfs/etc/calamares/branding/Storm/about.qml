@@ -20,10 +20,10 @@ ApplicationWindow {
     visible: true
     width: 760
     height: 400
-    title: qsTr("About Calamares")
+    title: qsTr("About StormOS Installer")
 
-    property var appName: "Calamares"
-    property var appVersion: "3.3 RC"
+    property var appName: "StormOS Installer"
+    property var appVersion: "Familia"
 
     Rectangle {
         id: textArea
@@ -50,9 +50,7 @@ ApplicationWindow {
                         for %3</strong><br/><br/>
                         Copyright 2014-2017 Teo Mrnjavac &lt;teo@kde.org&gt;<br/>
                         Copyright 2017-2023 Adriaan de Groot &lt;groot@kde.org&gt;<br/>
-                        Thanks to <a href='https://calamares.io/team/'>the Calamares team</a>
-                        and the <a href=\"https://www.transifex.com/kaos/kaos/\">KaOS
-                        translators team</a>.<br/><br/>
+                        Thanks to <a href='https://calamares.io/team/'>the Calamares team</a>.<br/><br/>
                         <a href='https://calamares.io/'>Calamares</a>
                         development is sponsored by <br/>
                         <a href='http://www.blue-systems.com/'>Blue Systems</a> -

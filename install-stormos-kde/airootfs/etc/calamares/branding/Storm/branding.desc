@@ -15,8 +15,9 @@ windowExpanding:    noexpand
 windowSize: 1280px,720px
 windowPlacement: center
 
-# Sidebar position and style
+# Sidebar and navigation panels
 sidebar: qml,top
+navigation: qml,left
 
 # Text strings for the installer
 strings:
@@ -36,7 +37,7 @@ images:
 
 # Slideshow configuration
 slideshow:               "show.qml"
-slideshowAPI: 1
+slideshowAPI: 2
 
 # Style configuration - dark theme colors
 style:
@@ -54,8 +55,6 @@ style:
     SidebarButtonBackground: "#38383b"
     SidebarButtonText: "#ffffff"
 
-# Upload server (for support logs)
+# Do not upload installer logs to an external service.
 uploadServer:
-    type:    "fiche"
-    url:     "http://termbin.com:9999"
-    sizeLimit : -1
+    type:    "none"

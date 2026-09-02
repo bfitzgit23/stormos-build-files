@@ -21,14 +21,19 @@ show_progress() {
     echo "→ $1"
 }
 
-# Detect Calamares
+# Calamares expands ${ROOT} before running this command. In a normal
+# target chroot, ROOT is simply "/"; the mount-point fallback supports
+# older launch paths and the existing non-Calamares chroot caller.
 show_progress "Detecting installation context..."
-if mount | grep -q "on /tmp/calamares-root" && [ -d "/tmp/calamares-root" ]; then
+if [ -n "${CALAMARES_TARGET_ROOT:-}" ]; then
+    TARGET_ROOT="$CALAMARES_TARGET_ROOT"
+    IS_CALAMARES=true
+elif mount | grep -q "on /tmp/calamares-root" && [ -d "/tmp/calamares-root" ]; then
     TARGET_ROOT="/tmp/calamares-root"
     IS_CALAMARES=true
 else
-    TARGET_ROOT=""
-    IS_CALAMARES=false
+    TARGET_ROOT="/"
+    IS_CALAMARES=true
 fi
 
 # Find user
@@ -65,9 +70,6 @@ if [ "$IS_CALAMARES" = true ]; then
 
     chown -R "${USER_UID:-1000}:${USER_GID:-1000}" "$USER_HOME"
 
-    # LightDM autologin fix
-    sed -i '/^autologin-user=/d' "$TARGET_ROOT/etc/lightdm/lightdm.conf"
-    sed -i "/^autologin-guest=/a autologin-user=$USER_NAME" "$TARGET_ROOT/etc/lightdm/lightdm.conf"
 fi
 
 # === PLYMOUTH SETUP ===
@@ -103,11 +105,13 @@ if [ -d "/usr/share/grub/themes/stormos" ] && [ ! -d "$TARGET_ROOT/usr/share/gru
 fi
 
 # DNS
-show_progress "Configuring DNS..."
-cat > "$TARGET_ROOT/etc/resolv.conf" << 'EOF'
+if [ "$IS_CALAMARES" = true ]; then
+    show_progress "Configuring DNS..."
+    cat > "$TARGET_ROOT/etc/resolv.conf" << 'EOF'
 nameserver 8.8.8.8
 nameserver 1.1.1.1
 EOF
+fi
 
 # Permissions
 show_progress "Fixing binaries..."

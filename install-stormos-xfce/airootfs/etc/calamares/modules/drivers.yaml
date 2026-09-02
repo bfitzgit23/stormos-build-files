@@ -1,5 +1,6 @@
-- name: "NVIDIA Open Driver (Newer GPUs)"
-  description: "Open-source NVIDIA kernel module with DKMS support"
+---
+- name: NVIDIA Open Driver
+  description: Build the open NVIDIA driver for linux, linux-lts, and linux-zen.
   critical: false
   hidden: false
   selected: false
@@ -8,65 +9,62 @@
     - nvidia-open-dkms
     - nvidia-utils
     - nvidia-settings
+    - dkms
+    - opencl-nvidia
     - vulkan-icd-loader
     - lib32-nvidia-utils
-- name: "Nvidia Support Applications"
-  description: "Nvidia Support Applications"
-  critical: false
-  hidden: false
-  selected: false
-  expanded: false
-  packages:
-    - bumblebee
-    - disper
-    - nvidia-dkms
-    - nvidia-xrun
-    - optimus-manager
-    - optimus-manager-qt
-- name: "Intel Graphics Drivers"
-  description: "Installs Intel Graphics drivers"
+    - lib32-opencl-nvidia
+    - lib32-vulkan-icd-loader
+
+- name: Intel Graphics
+  description: Install Intel userspace graphics support.
   critical: false
   hidden: false
   selected: false
   expanded: false
   packages:
     - intel-media-driver
-    - intel-media-sdk
-    - lib32-mesa 
+    - lib32-mesa
+    - mesa
+    - mesa-utils
     - vulkan-intel
-    - vulkan-icd-loader
     - lib32-vulkan-icd-loader
-- name: "AMD Graphics Drivers"
-  description: "Installs AMD Graphics drivers"
+
+- name: AMD Graphics
+  description: Install AMD userspace graphics support.
   critical: false
   hidden: false
   selected: false
   expanded: false
   packages:
     - lib32-mesa
-    - vulkan-intel
+    - mesa
+    - mesa-utils
     - vulkan-radeon
     - lib32-vulkan-radeon
     - vulkan-icd-loader
     - lib32-vulkan-icd-loader
-- name: "Cuda Toolkit"
-  description: "Installs the Cuda Toolkit (support for Davinci Resolve, Blender)"
+
+- name: CUDA Toolkit
+  description: Install the CUDA toolkit for supported workloads.
   critical: false
   hidden: false
   selected: false
   expanded: false
   packages:
     - cuda
-- name: "Intel-ucode (microcode)"
-  description: "Installs the intel-ucode microcode"
+
+- name: Intel Microcode
+  description: Install Intel CPU microcode.
   critical: false
   hidden: false
   selected: false
   expanded: false
   packages:
     - intel-ucode
-- name: "Amd-ucode (microcode)"
-  description: "Installs the amd-ucode microcode"
+
+- name: AMD Microcode
+  description: Install AMD CPU microcode.
   critical: false
   hidden: false
   selected: false

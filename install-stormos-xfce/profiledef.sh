@@ -28,7 +28,6 @@ file_permissions=(
   ["/etc/gshadow"]="0:0:400"
   ["/etc/shadow"]="0:0:400"
   ["/usr/local/bin/trust.sh"]="0:0:755"
-  ["/etc/skel/.config/autostart/NetworkManager.desktop"]="0:0:755"
   ["/etc/skel/.config/autostart/autoi.desktop"]="0:0:755"
   ["/usr/bin/wifi-connection.sh"]="0:0:755"
   ["/usr/local/bin/hyper8"]="0:0:755"
