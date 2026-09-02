@@ -180,7 +180,6 @@ fzf
 
 xdg-user-dirs
  plymouth
- xorg
  xcursor-themes
 polkit
 polkit-gnome
@@ -248,7 +247,7 @@ yaml-cpp
 python-flask
 python-flask-cors
 clamav
-alacritty
-dialog
-wipe
-python-pyqt6
+ alacritty
+ dialog
+ wipe
+ python-pyqt5

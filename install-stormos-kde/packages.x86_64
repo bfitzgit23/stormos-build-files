@@ -161,7 +161,6 @@ firefox
 wmctrl
 calamares-app
 python-pyqt5
- python-pyqt6
 qt5ct
 spice-vdagent
 spice-protocol
@@ -184,7 +183,6 @@ StormOS-conf
 fzf
 xdg-user-dirs
  plymouth
- xorg
  xcursor-themes
 polkit
 polkit-gnome
