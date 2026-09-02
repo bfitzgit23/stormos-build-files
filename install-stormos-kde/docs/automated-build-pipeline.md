@@ -118,6 +118,20 @@ Set up GitHub Actions as primary, mirror to GitLab for additional CI minutes:
 
 ---
 
+## Build Troubleshooting
+
+If mkarchiso reports errors such as `target not found:  plymouth`, check `packages.x86_64` for package lines beginning with a space. Pacman treats the whitespace as part of the package name, so ` plymouth` is different from `plymouth`.
+
+The package lists now contain one package name per line with no leading whitespace. To recover an old checkout, run this from the repository root:
+
+```bash
+sed -i 's/^[[:space:]]\+//' install-stormos-kde/packages.x86_64
+sed -i 's/^[[:space:]]\+//' install-stormos-xfce/packages.x86_64
+sudo rm -rf install-stormos-kde/work install-stormos-xfce/work
+```
+
+The message `cannot overwrite existing file` comes from Bash `noclobber`, not pacman. Edit the tracked files directly or use `tee` when intentionally replacing an existing file. Rebuild from the selected profile with `sudo ./build.sh -v`.
+
 ## Next Steps
 
 1. Enable the workflow in GitHub Actions tab
