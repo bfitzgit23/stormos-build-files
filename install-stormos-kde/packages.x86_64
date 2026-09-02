@@ -160,8 +160,7 @@ phonon-qt6-vlc
 firefox
 wmctrl
 calamares-app
-pyqt5
- python-pyqt5
+python-pyqt5
  python-pyqt6
 qt5ct
 spice-vdagent

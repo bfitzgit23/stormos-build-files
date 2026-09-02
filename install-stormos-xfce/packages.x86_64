@@ -151,8 +151,7 @@ firefox
 wmctrl
 calamares-app
 #calamares-config-xfce
-pyqt5
- python-pyqt5
+python-pyqt5
  qt5ct
 spice-vdagent
 spice-protocol
