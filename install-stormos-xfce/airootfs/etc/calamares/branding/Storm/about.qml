@@ -28,7 +28,7 @@ ApplicationWindow {
     Rectangle {
         id: textArea
         anchors.fill: parent
-        color: "#f2f2f2"
+        color: "#181825"
 
         Column {
             id: column

@@ -5,193 +5,232 @@ import QtQuick 2.3
 import QtQuick.Controls 2.10
 import QtQuick.Layouts 1.3
 
-Rectangle {
+Item {
     id: navigationBar
-    color: Branding.styleString( Branding.SidebarBackground )
-    height: parent.height
-    width: 64
+    anchors.fill: parent
 
-    ColumnLayout {
+    // Bottom button bar
+    Rectangle {
         id: buttonBar
-        anchors.fill: parent
-        spacing: 1
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 56
+        color: Branding.styleString( Branding.SidebarBackground )
 
-        Image {
-            id: logo
-            Layout.topMargin: 1
-            Layout.bottomMargin: parent.height / 7
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
-            width: 62
-            height: width
-            source: "file:/" + Branding.imagePath( Branding.ProductLogo )
-            sourceSize.width: width
-            sourceSize.height: height
-        }
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 8
+            spacing: 12
 
-        Rectangle {
-            id: backArea
-            Layout.fillWidth: true
-            Layout.preferredHeight: parent.height / 7
-            color: mouseBack.containsMouse ? "#e6e9ea" : "#d9dcde"
-            enabled: ViewManager.backEnabled
-            visible: ViewManager.backAndNextVisible
+            // Back button
+            Rectangle {
+                id: backArea
+                Layout.fillWidth: true
+                Layout.preferredHeight: 36
+                radius: 6
+                color: mouseBack.containsMouse ? Branding.styleString( Branding.SidebarBackgroundCurrent ) : Branding.styleString( Branding.SidebarBackground )
+                enabled: ViewManager.backEnabled
+                visible: ViewManager.backAndNextVisible
 
-            MouseArea {
-                id: mouseBack
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
+                MouseArea {
+                    id: mouseBack
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    hoverEnabled: true
 
-                Text {
-                    anchors.centerIn: parent
-                    text: qsTr( "Back" )
-                    color: Branding.styleString( !backArea.enabled ? Branding.SidebarBackground : (mouseBack.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
-                    font.pointSize: 8
-                }
-                Image {
-                    source: "pan-start-symbolic.svg"
-                    anchors.centerIn: parent
-                    anchors.verticalCenterOffset: 18
-                    fillMode: Image.PreserveAspectFit
-                    height: 32
-                    opacity: backArea.enabled ? 1 : 0.2
-                }
-                onClicked: ViewManager.back()
-            }
-        }
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        spacing: 2
 
-        Rectangle {
-            id: nextArea
-            Layout.fillWidth: true
-            Layout.preferredHeight: parent.height / 7
-            color: mouseNext.containsMouse ? "#f4f5f6" : "#e6e9ea"
-            enabled: ViewManager.nextEnabled
-            visible: ViewManager.backAndNextVisible
+                        Image {
+                            source: "pan-start-symbolic.svg"
+                            Layout.alignment: Qt.AlignHCenter
+                            fillMode: Image.PreserveAspectFit
+                            height: 18
+                            opacity: backArea.enabled ? 1 : 0.3
+                        }
 
-            MouseArea {
-                id: mouseNext
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-
-                Text {
-                    anchors.centerIn: parent
-                    text: qsTr( "Next" )
-                    color: Branding.styleString( !nextArea.enabled ? Branding.SidebarBackground : (mouseNext.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
-                    font.pointSize: 8
-                }
-                Image {
-                    source: "pan-end-symbolic.svg"
-                    anchors.centerIn: parent
-                    anchors.verticalCenterOffset: 18
-                    fillMode: Image.PreserveAspectFit
-                    height: 32
-                    opacity: nextArea.enabled ? 1 : 0.2
-                }
-                onClicked: ViewManager.next()
-            }
-        }
-
-        Rectangle {
-            id: cancelArea
-            Layout.fillWidth: true
-            Layout.preferredHeight: parent.height / 7
-            color: mouseCancel.containsMouse ? "#e6e9ea" : "#d9dcde"
-            enabled: ViewManager.quitEnabled
-            visible: ViewManager.quitVisible && (ViewManager.currentStepIndex < ViewManager.rowCount() - 1)
-
-            ToolTip {
-                visible: mouseCancel.containsMouse
-                timeout: 5000
-                delay: 1000
-                text: ViewManager.quitTooltip
-            }
-
-            MouseArea {
-                id: mouseCancel
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-
-                Text {
-                    anchors.centerIn: parent
-                    text: qsTr( "Cancel" )
-                    color: Branding.styleString( !cancelArea.enabled ? Branding.SidebarBackground : (mouseCancel.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
-                    font.pointSize: 8
-                }
-                Image {
-                    source: "draw-rectangle.svg"
-                    anchors.centerIn: parent
-                    anchors.verticalCenterOffset: 18
-                    fillMode: Image.PreserveAspectFit
-                    height: 9
-                    opacity: cancelArea.enabled ? 1 : 0.2
-                }
-                onClicked: ViewManager.quit()
-            }
-        }
-
-        Item {
-            Layout.fillHeight: true
-        }
-
-        Rectangle {
-            id: debugArea
-            Layout.fillWidth: true
-            height: 35
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
-            color: Branding.styleString( mouseAreaDebug.containsMouse ? Branding.SidebarBackgroundCurrent : Branding.SidebarBackground )
-            visible: debug.enabled
-
-            MouseArea {
-                id: mouseAreaDebug
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-
-                Text {
-                    anchors.centerIn: parent
-                    text: qsTr( "Debug" )
-                    color: Branding.styleString( mouseAreaDebug.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarBackground )
-                    font.pointSize: 8
-                }
-                onClicked: debug.toggle()
-            }
-        }
-
-        Rectangle {
-            id: aboutArea
-            Layout.fillWidth: true
-            height: 35
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
-            color: Branding.styleString( mouseAreaAbout.containsMouse ? Branding.SidebarBackgroundCurrent : Branding.SidebarBackground )
-
-            MouseArea {
-                id: mouseAreaAbout
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                hoverEnabled: true
-
-                Text {
-                    anchors.centerIn: parent
-                    text: qsTr( "About" )
-                    color: Branding.styleString( mouseAreaAbout.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarBackgroundCurrent )
-                    font.pointSize: 8
-
-                    ToolTip {
-                        visible: mouseAreaAbout.containsMouse
-                        delay: 1000
-                        text: qsTr( "Info about Calamares" )
+                        Text {
+                            text: qsTr( "Back" )
+                            Layout.alignment: Qt.AlignHCenter
+                            color: Branding.styleString( !backArea.enabled ? Branding.SidebarBackground : (mouseBack.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
+                            font.pointSize: 10
+                            font.bold: true
+                        }
                     }
+
+                    onClicked: ViewManager.back()
+                }
+            }
+
+            // Next button
+            Rectangle {
+                id: nextArea
+                Layout.fillWidth: true
+                Layout.preferredHeight: 36
+                radius: 6
+                color: mouseNext.containsMouse ? Branding.styleString( Branding.SidebarBackgroundCurrent ) : Branding.styleString( Branding.SidebarBackground )
+                enabled: ViewManager.nextEnabled
+                visible: ViewManager.backAndNextVisible
+
+                MouseArea {
+                    id: mouseNext
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    hoverEnabled: true
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        spacing: 2
+
+                        Text {
+                            text: qsTr( "Next" )
+                            Layout.alignment: Qt.AlignHCenter
+                            color: Branding.styleString( !nextArea.enabled ? Branding.SidebarBackground : (mouseNext.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
+                            font.pointSize: 10
+                            font.bold: true
+                        }
+
+                        Image {
+                            source: "pan-end-symbolic.svg"
+                            Layout.alignment: Qt.AlignHCenter
+                            fillMode: Image.PreserveAspectFit
+                            height: 18
+                            opacity: nextArea.enabled ? 1 : 0.3
+                        }
+                    }
+
+                    onClicked: ViewManager.next()
+                }
+            }
+
+            // Cancel button
+            Rectangle {
+                id: cancelArea
+                Layout.fillWidth: true
+                Layout.preferredHeight: 36
+                radius: 6
+                color: mouseCancel.containsMouse ? Branding.styleString( Branding.SidebarBackgroundCurrent ) : Branding.styleString( Branding.SidebarBackground )
+                enabled: ViewManager.quitEnabled
+                visible: ViewManager.quitVisible && (ViewManager.currentStepIndex < ViewManager.rowCount() - 1)
+
+                ToolTip {
+                    visible: mouseCancel.containsMouse
+                    timeout: 5000
+                    delay: 1000
+                    text: ViewManager.quitTooltip
                 }
 
-                property var window
-                onClicked: {
-                    var component = Qt.createComponent( "about.qml" )
-                    window = component.createObject()
-                    if (window) {
-                        window.show()
+                MouseArea {
+                    id: mouseCancel
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    hoverEnabled: true
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        spacing: 2
+
+                        Image {
+                            source: "draw-rectangle.svg"
+                            Layout.alignment: Qt.AlignHCenter
+                            fillMode: Image.PreserveAspectFit
+                            height: 14
+                            opacity: cancelArea.enabled ? 1 : 0.3
+                        }
+
+                        Text {
+                            text: qsTr( "Cancel" )
+                            Layout.alignment: Qt.AlignHCenter
+                            color: Branding.styleString( !cancelArea.enabled ? Branding.SidebarBackground : (mouseCancel.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
+                            font.pointSize: 10
+                        }
                     }
+
+                    onClicked: ViewManager.quit()
+                }
+            }
+        }
+
+        // Install progress bar (thin line above buttons)
+        Rectangle {
+            id: progressBar
+            Layout.fillWidth: true
+            height: 3
+            radius: 1.5
+            color: Branding.styleString( Branding.SidebarBackground )
+            visible: ViewManager.jobQueue && ViewManager.jobQueue.length > 0
+        }
+    }
+
+    // Debug and About buttons at bottom-right corner
+    Rectangle {
+        id: debugArea
+        anchors.bottom: buttonBar.top
+        anchors.right: parent.right
+        anchors.margins: 4
+        width: 80
+        height: 28
+        radius: 4
+        color: Branding.styleString( mouseAreaDebug.containsMouse ? Branding.SidebarBackgroundCurrent : Branding.SidebarBackground )
+        visible: debug.enabled
+
+        MouseArea {
+            id: mouseAreaDebug
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+
+            Text {
+                anchors.centerIn: parent
+                text: qsTr( "Debug" )
+                color: Branding.styleString( mouseAreaDebug.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText )
+                font.pointSize: 8
+            }
+
+            onClicked: debug.toggle()
+        }
+    }
+
+    Rectangle {
+        id: aboutArea
+        anchors.bottom: buttonBar.top
+        anchors.right: debugArea.left
+        anchors.margins: 4
+        width: 80
+        height: 28
+        radius: 4
+        color: Branding.styleString( mouseAreaAbout.containsMouse ? Branding.SidebarBackgroundCurrent : Branding.SidebarBackground )
+
+        MouseArea {
+            id: mouseAreaAbout
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
+
+            Text {
+                anchors.centerIn: parent
+                text: qsTr( "About" )
+                color: Branding.styleString( mouseAreaAbout.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText )
+                font.pointSize: 8
+
+                ToolTip {
+                    visible: mouseAreaAbout.containsMouse
+                    delay: 1000
+                    text: qsTr( "Info about Calamares" )
+                }
+            }
+
+            property var window
+            onClicked: {
+                var component = Qt.createComponent( "about.qml" )
+                window = component.createObject()
+                if (window) {
+                    window.show()
                 }
             }
         }

@@ -47,11 +47,10 @@ Rectangle {
 
                 Rectangle {
                     height: 2
-                    width: 800
+                    width: parent.width
                     anchors.bottom: parent.bottom;
                     border.color: Branding.styleString(ViewManager.currentStepIndex === index ? Branding.SidebarTextCurrent : (ViewManager.currentStepIndex >= index ? Branding.SidebarTextCurrent : Branding.SidebarBackgroundCurrent))
                     border.width: 3
-
                 }
             }
         }

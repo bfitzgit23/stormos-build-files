@@ -17,7 +17,7 @@ windowPlacement: center
 
 # Sidebar and navigation panels
 sidebar: qml,top
-navigation: qml,left
+navigation: qml,bottom
 
 # Text strings for the installer
 strings:

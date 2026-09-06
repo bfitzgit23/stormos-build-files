@@ -1,398 +1,608 @@
 /*
+ * StormOS Calamares Dark Theme Stylesheet
+ * Honors adw-gtk3 / dark theme aesthetics
+ * Palette: Catppuccin Mocha-inspired with warm accent
+ */
 
-A branding component can ship a stylesheet (like this one)
-which is applied to parts of the Calamares user-interface.
-In principle, all parts can be styled through CSS.
-Missing parts should be filed as issues.
-
-The IDs are based on the object names in the C++ code.
-You can use the Debug Dialog to find out object names:
-  - Open the debug dialog
-  - Choose tab *Tools*
-  - Click *Widget Tree* button
-The list of object names is printed in the log.
-
-Documentation for styling Qt Widgets through a stylesheet
-can be found at
-    https://doc.qt.io/qt-5/stylesheet-examples.html
-    https://doc.qt.io/qt-5/stylesheet-reference.html
-In Calamares, styling widget classes is supported (e.g.
-using `QComboBox` as a selector).
-
-This example stylesheet has all the actual styling commented out.
-The examples are not exhaustive.
-
-Use gammaray
-
-*/
-
+/* ---- Color Palette ----
+ * Base:      #1a1b26   (deep navy-black)
+ * Surface:   #16161e   (panel background)
+ * Border:    #2a2d3a   (subtle borders)
+ * Text:      #e0e5f0   (primary text)
+ * Muted:     #9198b3   (secondary text)
+ * Accent:    #f07178   (warm red-pink, buttons/hover)
+ * Success:   #9ece6a   (green, progress bar)
+ * Warning:   #e0af68   (orange, errors)
+ * Scrollbar: #45475a   (scrollbar handle)
+ */
 
 /* ########## MAIN APPLICATION WINDOW ########## */
 
 #mainApp {
+    background-color: #1a1b26;
+    color: #e0e5f0;
 }
 
-#mainText{
-	font : bold 16px;
+#mainText {
+    font: bold 18px "Noto Sans";
+    color: #e0e5f0;
 }
 
 #sidebarApp {
-
+    background-color: #16161e;
 }
 
 #logoApp {
 }
 
 #sidebarMenuApp {
-	padding: 3px;
-	background-color: #353945;
+    padding: 4px;
+    background-color: #16161e;
 }
 
 QWidget {
-	font: 16px;
+    font: 13px "Noto Sans";
+    color: #e0e5f0;
+    background-color: #1a1b26;
 }
 
 QTextEdit, QListView {
-}
-QDialogButtonBox {
-}
-QAbstractSpinBox {
-}
-QListWidget::item:alternate {
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
 }
 
+QDialogButtonBox {
+    dialogbuttonbox-buttons-have-icons: 0;
+}
+
+QAbstractSpinBox {
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 4px;
+}
+
+QListWidget::item:alternate {
+    background-color: #16161e;
+}
+
+/* ---- Navigation Buttons (bottom bar) ---- */
+
+#view-button-back {
+    color: #9198b3;
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 6px;
+}
 #view-button-back:hover {
-	color: #58B2D7;
+    background-color: #2a2d3a;
+    color: #f07178;
+}
+#view-button-next {
+    color: #9198b3;
+    border: none;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 6px;
 }
 #view-button-next:hover {
-	color: #58B2D7;
+    background-color: #2a2d3a;
+    color: #f07178;
+}
+#view-button-cancel {
+    color: #9198b3;
+    border: 1px solid #2a2d3a;
+    background: transparent;
+    padding: 8px 16px;
+    border-radius: 6px;
 }
 #view-button-cancel:hover {
-	color: #58B2D7;
+    background-color: #2a2d3a;
+    color: #e0af68;
 }
 
 #debugButton {
-	font: bold 8px;
-	color: #FFFFFF;
+    font: bold 9px "Noto Sans";
+    color: #9198b3;
+    background-color: #1a1b26;
+    border: 1px solid #2a2d3a;
+    border-radius: 4px;
+    padding: 4px 8px;
 }
 #debugButton:hover {
-	color: #58B2D7;
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 #aboutButton:hover {
-	color: #58B2D7;
+    color: #f07178;
 }
 #donateButton:hover {
-	color: #58B2D7;
+    color: #f07178;
 }
 #supportButton:hover {
-	color: #58B2D7;
+    color: #f07178;
 }
 #knownIssuesButton:hover {
-	color: #58B2D7;
+    color: #f07178;
 }
 #releaseNotesButton:hover {
-	color: #58B2D7;
+    color: #f07178;
 }
 
 /* ########## TOOLTIP ########## */
 
 QToolTip {
-	background-color: #58B2D7;
-  font : 16px;
-	color: white;
-	padding: 3px;
-	border: none;
+    background-color: #2a2d3a;
+    color: #e0e5f0;
+    font: 12px "Noto Sans";
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
 }
 
 QPushButton {
-    font : 16px;
+    font: 13px "Noto Sans";
+    color: #e0e5f0;
+    background-color: #1a1b26;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px 16px;
 }
 
-QDialogButtonBox {
-	dialogbuttonbox-buttons-have-icons: 0;
+QPushButton:hover {
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 /* ########## SCROLL BAR ########## */
 
 QScrollBar:vertical {
-     background: #efefef;
-     width: 20px;
-     margin: 38px 0 20px 0;
+    background: #1a1b26;
+    width: 10px;
+    margin: 4px 0 4px 0;
+    border-radius: 5px;
 }
 
 QScrollBar::handle:vertical {
-     background: #58B2D7;
-     max-height: 25px;
+    background: #45475a;
+    max-height: 25px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: #585b70;
 }
 
 QScrollBar::sub-line:vertical {
-     border: none;
-     background: none;
-     height: 20px;
-     subcontrol-position: top;
-     subcontrol-origin: margin;
+    border: none;
+    background: none;
+    height: 10px;
+    subcontrol-position: top;
+    subcontrol-origin: margin;
 }
 
 QScrollBar::add-line:vertical {
-     border: none;
-     background: none;
-     height: 20px;
-     subcontrol-position: bottom;
-     subcontrol-origin: margin;
+    border: none;
+    background: none;
+    height: 10px;
+    subcontrol-position: bottom;
+    subcontrol-origin: margin;
 }
 
 /* ########## QLIST VIEW ########## */
 
 QListView {
-		font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
 }
 
 QListView::item:alternate {
-	color: #58B2D7;
-	color: white;
+    background-color: #16161e;
+    color: #e0e5f0;
 }
 
 QListView::item:!alternate:selected:active {
-	background: #58B2D7;
-	color: white;
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 QListView::item:selected:active {
-	background: #58B2D7;
-	color: white;
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 QListView::item:selected:!active {
-	background: #58B2D7;
-	color: white;
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 QListView::item:hover {
-	background: #58B2D7;
-	color: white;
+    background-color: #2a2d3a;
+    color: #e0e5f0;
 }
 
 QListView#listLayout::item:!alternate:selected:active {
-	background: #58B2D7;
-	color: white;
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 QListView#listVariant::item:!alternate:selected:active {
-	background: #58B2D7;
-	color: white;
+    background-color: #2a2d3a;
+    color: #f07178;
 }
-
-
 
 /* ########## QLINE EDIT ########## */
 
 QLineEdit#LE_TestKeyboard {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 QLineEdit#m_passphraseLineEdit, QLineEdit#vgName,
 QLineEdit#m_confirmLineEdit {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 QLineEdit#textBoxUserVerifiedPassword, QLineEdit#textBoxVerifiedRootPassword {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 QLineEdit#textBoxFullName, QLineEdit#textBoxLoginName, QLineEdit#textBoxHostName,
 QLineEdit#textBoxUserPassword, QLineEdit#textBoxRootPassword {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 #textBoxFullName, #textBoxLoginName, #textBoxHostName, #textBoxUserPassword,
 #textBoxRootPassword, #textBoxAutoLogin, #vgName {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 #textBoxUserVerifiedPassword, #textBoxVerifiedRootPassword,
 #LE_TestKeyboard, #m_confirmLineEdit, #m_passphraseLineEdit {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 /* ##########PARTITION ########## */
 
 #partitionLabel {
+    color: #9198b3;
 }
 
 #partitionLabelsView {
 }
 
 #CreatePartitionDialog {
+    background-color: #1a1b26;
 }
 
 #partResizerWidget {
-	font: 16px;
+    font: 13px "Noto Sans";
 }
 
 /* ########## PAGE_USERSETUP ########## */
 
- #labelWhatIsYourName {
-	font: 16px;
+#labelWhatIsYourName {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #textBoxFullName {
-	font: 16px;
+#textBoxFullName {
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
- #labelFullName {
-	font: 16px;
+#labelFullName {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #labelFullNameError {
-	font: 16px;
+#labelFullNameError {
+    font: 13px "Noto Sans";
+    color: #e0af68;
 }
- #username_label_2 {
-	font: 16px;
+#username_label_2 {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #textBoxLoginName {
-	font: 16px;
+#textBoxLoginName {
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
- #labelUsername {
-	font: 16px;
+#labelUsername {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #labelUsernameError {
-	font: 16px;
+#labelUsernameError {
+    font: 13px "Noto Sans";
+    color: #e0af68;
 }
- #hostname_label_2 {
-	font: 16px;
+#hostname_label_2 {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #textBoxHostName {
-	font: 16px;
+#textBoxHostName {
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
- #labelHostname {
-	font: 16px;
+#labelHostname {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #labelHostnameError {
-	font: 16px;
+#labelHostnameError {
+    font: 13px "Noto Sans";
+    color: #e0af68;
 }
- #password_label_2 {
-	font: 16px;
+#password_label_2 {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #textBoxUserPassword {
-	font: 16px;
+#textBoxUserPassword {
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
- #textBoxUserVerifiedPassword {
-	font: 16px;
+#labelUserPassword {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #labelUserPassword {
-	font: 16px;
+#labelUserPasswordError {
+    font: 13px "Noto Sans";
+    color: #e0af68;
 }
- #labelUserPasswordError {
-	font: 16px;
+#checkBoxRequireStrongPassword {
+    color: #e0e5f0;
 }
- #checkBoxRequireStrongPassword {
-	font: 16px;
+#checkBoxDoAutoLogin {
+    color: #e0e5f0;
 }
- #checkBoxDoAutoLogin {
-	font: 16px;
+#checkBoxReusePassword {
+    color: #e0e5f0;
 }
- #checkBoxReusePassword {
-	font: 16px;
+#labelChooseRootPassword {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #labelChooseRootPassword {
-	font: 16px;
+#textBoxRootPassword {
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
- #textBoxRootPassword {
-	font: 16px;
+#labelRootPassword {
+    font: 13px "Noto Sans";
+    color: #9198b3;
 }
- #textBoxVerifiedRootPassword {
-	font: 16px;
-}
- #labelRootPassword {
-	font: 16px;
-}
- #labelRootPasswordError {
-	font: 16px;
+#labelRootPasswordError {
+    font: 13px "Noto Sans";
+    color: #e0af68;
 }
 
 /* ########## COMBO BOX ########## */
 
 QComboBox {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
+}
+
+QComboBox:hover {
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 QComboBox::item:selected {
-	background: #58B2D7;
-	color: white;
+    background-color: #2a2d3a;
+    color: #f07178;
+}
+
+QComboBox::item {
+    padding: 6px;
+    color: #e0e5f0;
+}
+
+QComboBox::item:hover {
+    background-color: #2a2d3a;
+    color: #f07178;
 }
 
 #mountPointComboBox::drop-down {
-	font: 16px;
+    font: 13px "Noto Sans";
 }
 
 /* ########## SPIN BOX ########## */
 
 QSpinBox {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 QLineEdit {
-	font: 16px;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    padding: 6px;
 }
 
 /* ########## TREE VIEW ########## */
 
 QTreeView {
-	font: 16px;
-	show-decoration-selected: 0;
+    font: 13px "Noto Sans";
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    show-decoration-selected: 0;
 }
 
 QTreeView::item {
-	padding: 2px;
+    padding: 4px 8px;
+    color: #e0e5f0;
 }
 
 QTreeView::item:selected {
-	background: #58B2D7;
-	font: bold;
+    background-color: #2a2d3a;
+    color: #f07178;
+    font: bold;
+}
+
+QTreeView::item:hover {
+    background-color: #2a2d3a;
+    color: #e0e5f0;
 }
 
 QTreeView::branch:has-siblings:!adjoins-item {
+    border: none;
 }
 QTreeView::branch:has-siblings:adjoins-item {
+    border: none;
 }
 QTreeView::branch:!has-children:!has-siblings:adjoins-item {
+    border: none;
 }
 QTreeView::branch:has-children:!has-siblings:closed,
 QTreeView::branch:closed:has-children:has-siblings {
+    border: none;
 }
 QTreeView::branch:open:has-children:!has-siblings,
 QTreeView::branch:open:has-children:has-siblings  {
+    border: none;
 }
 
 /* ########## CHECK BOX ########## */
 
 QCheckBox {
+    color: #e0e5f0;
+    spacing: 8px;
 }
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+}
+
 QCheckBox::indicator:unchecked {
+    background-color: #1a1b26;
+    border: 1px solid #45475a;
+    border-radius: 4px;
 }
+
+QCheckBox::indicator:unchecked:hover {
+    border-color: #f07178;
+}
+
 QCheckBox::indicator:checked {
+    background-color: #f07178;
+    border: 1px solid #f07178;
+    border-radius: 4px;
 }
+
+QCheckBox::indicator:checked:hover {
+    background-color: #e0af68;
+}
+
 QItemSelectionModel::Select {
 }
 
 /* ########## HEADER VIEW ########## */
 
 QHeaderView::section {
-  font : 16px;
+    font: 13px "Noto Sans";
+    background-color: #16161e;
+    color: #9198b3;
+    padding: 8px;
+    border: none;
+    border-bottom: 1px solid #2a2d3a;
 }
 
 /* ########## PROGRESS BAR ########## */
 
 QProgressBar {
-	text-align: center;
+    text-align: center;
+    background-color: #1a1b26;
+    color: #e0e5f0;
+    border: 1px solid #2a2d3a;
+    border-radius: 6px;
+    height: 8px;
 }
 
 QProgressBar::chunk {
-	background-color: #58B2D7;
+    background-color: #9ece6a;
+    border-radius: 3px;
 }
 
-#debugButton {
-	font: bold 8px;
-	color: #353945;
+QProgressBar::text {
+    color: #e0e5f0;
 }
-#debugButton:hover {
-	color: #353945;
+
+/* ########## INSTALLER PROGRESS BAR (in bottom bar) ########## */
+
+#installProgressBar {
+    height: 4px;
+    background-color: #2a2d3a;
+    border-radius: 2px;
+}
+
+#installProgressBar::chunk {
+    background-color: #f07178;
+    border-radius: 2px;
 }
