@@ -69,52 +69,29 @@ QListWidget::item:alternate {
     background-color: #16161e;
 }
 
-/* ---- Navigation Buttons (bottom bar) ---- */
+/* ---- Navigation Buttons (bottom bar) ----
+ * Built-in Calamares widget buttons — keep styling minimal.
+ * Only change colors on hover for dark theme.
+ */
 
-#view-button-back {
-    color: #9198b3;
-    border: none;
-    background: transparent;
-    padding: 8px 16px;
-    border-radius: 6px;
-}
 #view-button-back:hover {
-    background-color: #2a2d3a;
     color: #f07178;
 }
-#view-button-next {
-    color: #9198b3;
-    border: none;
-    background: transparent;
-    padding: 8px 16px;
-    border-radius: 6px;
-}
 #view-button-next:hover {
-    background-color: #2a2d3a;
     color: #f07178;
 }
 #view-button-cancel {
     color: #9198b3;
-    border: 1px solid #2a2d3a;
-    background: transparent;
-    padding: 8px 16px;
-    border-radius: 6px;
 }
 #view-button-cancel:hover {
-    background-color: #2a2d3a;
     color: #e0af68;
 }
 
 #debugButton {
     font: bold 9px "Noto Sans";
     color: #9198b3;
-    background-color: #1a1b26;
-    border: 1px solid #2a2d3a;
-    border-radius: 4px;
-    padding: 4px 8px;
 }
 #debugButton:hover {
-    background-color: #2a2d3a;
     color: #f07178;
 }
 
@@ -146,12 +123,12 @@ QToolTip {
 }
 
 QPushButton {
-    font: 13px "Noto Sans";
+    font: 12px "Noto Sans";
     color: #e0e5f0;
     background-color: #1a1b26;
     border: 1px solid #2a2d3a;
     border-radius: 6px;
-    padding: 6px 16px;
+    padding: 4px 10px;
 }
 
 QPushButton:hover {
