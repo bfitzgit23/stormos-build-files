@@ -26,9 +26,10 @@ Item {
             // Back button
             Rectangle {
                 id: backArea
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                radius: 6
+                Layout.preferredWidth: 90
+                Layout.preferredHeight: 0
+                height: 32
+                radius: 4
                 color: mouseBack.containsMouse ? Branding.styleString( Branding.SidebarBackgroundCurrent ) : Branding.styleString( Branding.SidebarBackground )
                 enabled: ViewManager.backEnabled
                 visible: ViewManager.backAndNextVisible
@@ -41,14 +42,15 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 4
-                        spacing: 2
+                        anchors.margins: 0
+                        spacing: 0
+                        implicitHeight: parent.height
 
                         Image {
                             source: "pan-start-symbolic.svg"
                             Layout.alignment: Qt.AlignHCenter
                             fillMode: Image.PreserveAspectFit
-                            height: 18
+                            height: 14
                             opacity: backArea.enabled ? 1 : 0.3
                         }
 
@@ -56,7 +58,7 @@ Item {
                             text: qsTr( "Back" )
                             Layout.alignment: Qt.AlignHCenter
                             color: Branding.styleString( !backArea.enabled ? Branding.SidebarBackground : (mouseBack.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
-                            font.pointSize: 10
+                            font.pointSize: 9
                             font.bold: true
                         }
                     }
@@ -65,12 +67,13 @@ Item {
                 }
             }
 
-            // Next button
+            // Next button (wider — primary action)
             Rectangle {
                 id: nextArea
                 Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                radius: 6
+                Layout.preferredHeight: 0
+                height: 32
+                radius: 4
                 color: mouseNext.containsMouse ? Branding.styleString( Branding.SidebarBackgroundCurrent ) : Branding.styleString( Branding.SidebarBackground )
                 enabled: ViewManager.nextEnabled
                 visible: ViewManager.backAndNextVisible
@@ -83,14 +86,15 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 4
-                        spacing: 2
+                        anchors.margins: 0
+                        spacing: 0
+                        implicitHeight: parent.height
 
                         Text {
                             text: qsTr( "Next" )
                             Layout.alignment: Qt.AlignHCenter
                             color: Branding.styleString( !nextArea.enabled ? Branding.SidebarBackground : (mouseNext.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
-                            font.pointSize: 10
+                            font.pointSize: 9
                             font.bold: true
                         }
 
@@ -98,7 +102,7 @@ Item {
                             source: "pan-end-symbolic.svg"
                             Layout.alignment: Qt.AlignHCenter
                             fillMode: Image.PreserveAspectFit
-                            height: 18
+                            height: 14
                             opacity: nextArea.enabled ? 1 : 0.3
                         }
                     }
@@ -110,9 +114,10 @@ Item {
             // Cancel button
             Rectangle {
                 id: cancelArea
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                radius: 6
+                Layout.preferredWidth: 90
+                Layout.preferredHeight: 0
+                height: 32
+                radius: 4
                 color: mouseCancel.containsMouse ? Branding.styleString( Branding.SidebarBackgroundCurrent ) : Branding.styleString( Branding.SidebarBackground )
                 enabled: ViewManager.quitEnabled
                 visible: ViewManager.quitVisible && (ViewManager.currentStepIndex < ViewManager.rowCount() - 1)
@@ -132,14 +137,15 @@ Item {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 4
-                        spacing: 2
+                        anchors.margins: 0
+                        spacing: 0
+                        implicitHeight: parent.height
 
                         Image {
                             source: "draw-rectangle.svg"
                             Layout.alignment: Qt.AlignHCenter
                             fillMode: Image.PreserveAspectFit
-                            height: 14
+                            height: 11
                             opacity: cancelArea.enabled ? 1 : 0.3
                         }
 
@@ -147,7 +153,7 @@ Item {
                             text: qsTr( "Cancel" )
                             Layout.alignment: Qt.AlignHCenter
                             color: Branding.styleString( !cancelArea.enabled ? Branding.SidebarBackground : (mouseCancel.containsMouse ? Branding.SidebarTextCurrent : Branding.SidebarText) )
-                            font.pointSize: 10
+                            font.pointSize: 9
                         }
                     }
 
