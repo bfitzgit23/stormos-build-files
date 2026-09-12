@@ -89,7 +89,7 @@ systemctl disable --now systemd-userdb-load-credentials.service systemd-userdbd.
 systemctl mask systemd-userdb-load-credentials.service systemd-userdbd.service systemd-userdbd.socket
 
 # Apply theme to GRUB by default
-echo "set theme=/usr/share/grub/themes/stormos/theme.txt" > /etc/default/grub
+echo "GRUB_THEME=/usr/share/grub/themes/stormos/theme.txt" > /etc/default/grub
 
 # Fix libyaml-cpp version mismatch
 if [ -f /usr/lib/libyaml-cpp.so.0.8 ]; then
