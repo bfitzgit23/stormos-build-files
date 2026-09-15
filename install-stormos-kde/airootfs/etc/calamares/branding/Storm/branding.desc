@@ -58,3 +58,95 @@ style:
 # Do not upload installer logs to an external service.
 uploadServer:
     type:    "none"
+
+# Installer shortcut behavior notes
+# -----------------------------------
+# The live image and installed system are configured so the CLI installer
+# does not run automatically on every login.
+#
+# Autostart entries for the CLI installer are shipped disabled:
+#   /etc/xdg/autostart/abif.desktop  (Hidden=true)
+#   /etc/skel/.config/autostart/abif.desktop  (Hidden=true)
+#
+# A menu-only entry is shipped so the installer is visible in the
+# application menu even though autostart stays off:
+#   /usr/share/applications/stormos-installer-cli.desktop
+#
+# If the user wants to remove the installer desktop shortcuts from the
+# installed system, the postinstall flow can do that. Trigger it by
+# setting this environment variable before postinstall runs:
+#   CALAMARES_REMOVE_INSTALLER_DESKTOP=1
+#
+# Postinstall will then remove installer-related desktop entries from:
+#   /usr/share/applications/
+# including entries such as:
+#   stormos-installer-cli.desktop
+#   abif.desktop
+#   install-stormos-cli.desktop
+#   install-stormos-desktop.desktop
+#   welcome.desktop
+#
+# The installer binary and /abif-master are intentionally not removed
+# by this flag unless a separate uninstall step is implemented.
+#
+# The GUI utilities in sysconfig.py include a control surface for
+# requesting installer-shortcut removal from the installed system
+# without manually setting environment variables. See:
+#   /usr/local/bin/sysconfig.py
+# and the documentation in:
+#   /usr/share/doc/stormos-autostart-intent.txt
+#
+# Calamares module trigger path
+# -----------------------------
+# This same installer-shortcut removal request can also be triggered from
+# a Calamares module directly, not only from sysconfig.
+#
+# The current install flow runs:
+#   CALAMARES_TARGET_ROOT='${ROOT}' /usr/local/bin/postinstall.sh
+# from the shellprocess module (etc/calamares/modules/shellprocess.conf).
+#
+# If you want the installer-shortcut removal to be triggered during the
+# Calamares session itself (for example as a postcleanup-style step), add
+# a shellprocess entry near the end of the install pipeline that sets the
+# same flag before calling postinstall.sh, for example:
+#
+#   - type: shellprocess
+#     conditions:
+#         after: users
+#     commands:
+#         - CALAMARES_REMOVE_INSTALLER_DESKTOP=1
+#           CALAMARES_TARGET_ROOT='${ROOT}'
+#           /usr/local/bin/postinstall.sh
+#
+# Or, if you prefer a separate dedicated hook, create a small module such
+# as etc/calamares/modules/installer-shortcuts.conf with:
+#
+#   i18n:
+#       name: "Cleaning up installer shortcuts"
+#
+#   operations:
+#       - type: runtext
+#         content: |
+#             if [ "${CALAMARES_REMOVE_INSTALLER_DESKTOP:-}" = "1" ]; then
+#                 show_info "Removing installer desktop shortcuts..."
+#                 appdir="${ROOT}/usr/share/applications"
+#                 rm -f "$appdir/stormos-installer-cli.desktop" \
+#                       "$appdir/abif.desktop" \
+#                       "$appdir/install-stormos-cli.desktop" \
+#                       "$appdir/install-stormos-desktop.desktop" \
+#                       "$appdir/welcome.desktop"
+#                 find "$appdir" -maxdepth 1 -type f -name '*.desktop' 2>/dev/null | \
+#                     while IFS= read -r desktop; do
+#                         if grep -qiE 'Install StormOS|abif|stormos-installer|install-stormos' "$desktop" 2>/dev/null; then
+#                             rm -f "$desktop" 2>/dev/null || true
+#                         fi
+#                     done
+#             fi
+#
+# Then add that module to etc/calamares/settings.conf so it runs after the
+# main install step. This keeps the installer autostart/menu state consistent
+# with whatever the user chose during installation, without relying on the
+# sysconfig UI on the installed system.
+#
+# The sysconfig UI on the installed system remains the post-install path for
+# users who did not pick cleanup during the Calamares session.
