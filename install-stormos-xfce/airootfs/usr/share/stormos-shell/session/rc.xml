@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  StormOS labwc configuration.
+
+  The StormOS React shell (org.stormos.DesktopShell / stormos-shell-host) is
+  THE desktop: top bar, dock, launcher, desktop surface and system panel all
+  live inside that single fullscreen window. These rules pin it to the full
+  screen, strip the compositor titlebar, and keep it below everything else so
+  application windows draw on top of it.
+-->
+<labwc_config>
+  <core>
+    <decoration>server</decoration>
+    <gap>0</gap>
+    <allowTearing>no</allowTearing>
+  </core>
+
+  <theme>
+    <name>StormOS</name>
+    <cornerRadius>0</cornerRadius>
+    <keepBorder>no</keepBorder>
+    <titlebar>
+      <layout>icon:iconify,max,close</layout>
+      <showTitle>yes</showTitle>
+    </titlebar>
+    <font place="ActiveWindow">
+      <name>sans</name>
+      <size>10</size>
+    </font>
+    <font place="InactiveWindow">
+      <name>sans</name>
+      <size>10</size>
+    </font>
+  </theme>
+
+  <placement>
+    <policy>cascade</policy>
+  </placement>
+
+  <!-- One workspace per number key row shown in the shell's top bar. -->
+  <desktops number="4" popupTime="800" prefix="Workspace" />
+
+  <windowRules>
+    <!--
+      The shell surface itself. The host requests fullscreen at startup;
+      labwc keeps it undecorated, skips it in the task switcher, and keeps
+      it on the bottom of the stacking order (the same pattern labwc's own
+      docs use for pcmanfm desktop mode) so application windows sit above it.
+    -->
+    <windowRule identifier="org.stormos.DesktopShell">
+      <action name="ToggleAlwaysOnBottom" />
+      <skipTaskbar>yes</skipTaskbar>
+      <skipWindowSwitcher>yes</skipWindowSwitcher>
+      <serverDecoration>no</serverDecoration>
+    </windowRule>
+
+    <!-- The bridge's tiny localhost helper windows (if any) stay invisible. -->
+    <windowRule identifier="stormos-bridge">
+      <skipTaskbar>yes</skipTaskbar>
+      <skipWindowSwitcher>yes</skipWindowSwitcher>
+    </windowRule>
+  </windowRules>
+
+  <keyboard>
+    <default />
+
+    <!-- Session keys -->
+    <keybind key="W-Return">
+      <action name="Execute" command="stormos-foot" />
+    </keybind>
+    <keybind key="W-e">
+      <action name="Execute" command="thunar" />
+    </keybind>
+    <keybind key="W-l">
+      <action name="Execute" command="stormos-session-action lock" />
+    </keybind>
+    <keybind key="C-A-T">
+      <action name="Execute" command="stormos-foot" />
+    </keybind>
+
+    <!-- Workspaces: W-F1..W-F4 (matches the shell top bar) -->
+    <keybind key="W-F1"><action name="GoToDesktop" to="1" /></keybind>
+    <keybind key="W-F2"><action name="GoToDesktop" to="2" /></keybind>
+    <keybind key="W-F3"><action name="GoToDesktop" to="3" /></keybind>
+    <keybind key="W-F4"><action name="GoToDesktop" to="4" /></keybind>
+  </keyboard>
+
+  <mouse>
+    <default />
+  </mouse>
+</labwc_config>

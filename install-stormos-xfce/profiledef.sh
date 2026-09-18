@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS_XFCE_"
+iso_name="StormOS"
 iso_label="StormOS_Release"
 iso_publisher="StormOS_Dev"
 iso_application="StormOS Install Media"
@@ -36,5 +36,12 @@ file_permissions=(
   ["/usr/local/bin/sysconfig.py"]="0:0:755"
   ["/usr/local/bin/upgrade"]="0:0:755"
   ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
-  ["/abif-master/abif"]="0:0:755"
+  ["/usr/bin/stormos-bridge"]="0:0:755"
+  ["/usr/bin/stormos-shell-host"]="0:0:755"
+  ["/usr/bin/stormos-session"]="0:0:755"
+  ["/usr/bin/stormos-session-action"]="0:0:755"
+  ["/usr/bin/stormos-foot"]="0:0:755"
+  ["/usr/share/stormos-shell/session/stormos-session.sh"]="0:0:755"
+  ["/etc/xdg/labwc/autostart"]="0:0:755"
+  ["/usr/share/stormos-shell/session/autostart"]="0:0:755"
 )

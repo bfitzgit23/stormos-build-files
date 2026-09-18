@@ -1,0 +1,61 @@
+/* StormOS GTK theme */
+@define-color theme_bg_color #11131a;
+@define-color theme_fg_color #e9ecf2;
+@define-color theme_base_color #0b0d12;
+@define-color theme_text_color #e9ecf2;
+@define-color theme_selected_bg_color #7c3aed;
+@define-color theme_selected_fg_color #ffffff;
+@define-color theme_unfocused_selected_bg_color #4c1d95;
+@define-color borders #303545;
+@define-color accent #a855f7;
+
+* {
+  -GtkWidget-focus-padding: 2;
+  -GtkWidget-focus-line-width: 1;
+  -GtkWindow-resize-grip-width: 0;
+}
+window, .background, dialog {
+  background-color: @theme_bg_color;
+  color: @theme_fg_color;
+}
+headerbar, .titlebar {
+  background-image: linear-gradient(to right, #171321, #11131a);
+  color: @theme_fg_color;
+  border-bottom: 1px solid @borders;
+  box-shadow: none;
+}
+button, entry, spinbutton, combobox, scale trough, scrollbar trough {
+  background-color: #191d27;
+  color: @theme_fg_color;
+  border: 1px solid @borders;
+  border-radius: 7px;
+}
+button:hover, button:checked, button:active {
+  background-color: #4c1d95;
+  border-color: @accent;
+}
+entry:focus, button:focus, combobox:focus {
+  border-color: @accent;
+  box-shadow: 0 0 0 1px @accent;
+}
+treeview.view, list, row, .view {
+  background-color: @theme_base_color;
+  color: @theme_fg_color;
+}
+treeview.view:selected, row:selected, .view:selected {
+  background-color: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+menu, popover {
+  background-color: #151821;
+  color: @theme_fg_color;
+  border: 1px solid @borders;
+}
+tooltip {
+  background-color: #0b0d12;
+  color: @theme_fg_color;
+  border: 1px solid @accent;
+}
+separator {
+  background-color: @borders;
+}
