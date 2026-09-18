@@ -1,0 +1,7 @@
+# Build artifacts
+install-stormos-xfce.zip
+install-stormos-kde.zip
+# archiso output
+install-stormos-xfce/out/
+install-stormos-kde/out/
+work/
