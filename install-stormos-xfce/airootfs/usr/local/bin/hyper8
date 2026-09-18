@@ -8076,7 +8076,7 @@ class TokyoNightPanelBar(QMainWindow):
         power_menu = QMenu("󰐥 Power", self)
         power_menu.setStyleSheet(self.get_stylesheet())
         power_actions = [
-            ("󰗽 Log Out", "xfce4-session-logout"),
+            ("󰗽 Log Out", "stormos-session-action logout"),
             ("󰜉 Reboot", "systemctl reboot"),
             ("󰐥 Shutdown", "systemctl poweroff"),
             ("󰒲 Suspend", "systemctl suspend"),

@@ -225,7 +225,7 @@ class MainWindow(QMainWindow):
     
     def add_left_buttons(self, layout, start_index):
         buttons = [
-            ("Logout", "xfce4-session-logout", "system-log-out"),
+            ("Logout", "stormos-session-action logout", "system-log-out"),
             ("System Info", "xfce4-terminal -H -x sudo lshw -short", "system-help"),
             ("System Resources", "xfce4-terminal -H -x top", "utilities-system-monitor"),
             ("Update Utility", "utilityup", "view-refresh"),
