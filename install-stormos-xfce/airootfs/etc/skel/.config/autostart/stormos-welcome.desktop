@@ -1,14 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=StormOS Welcome
-Comment=StormOS welcome screen (first boot helper); honored by KDE, XFCE, and liveuser autostart
-Exec=/usr/local/bin/stormos-welcome
+Comment=StormOS welcome screen (first boot helper)
+Exec=stormos-welcome
 Icon=stormos-welcome
 Terminal=false
 Categories=System;
 X-GNOME-Autostart-enabled=true
 X-GNOME-Autostart-Phase=Application
-X-KDE-autostart=true
-Hidden=false
-NoDisplay=false
-StartupNotify=false

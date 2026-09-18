@@ -245,7 +245,6 @@ vulkan-intel
 ffmpeg
 yay
 #pamac-all
-xfce4-docklike-plugin
 eco_repo/eco-term2
 eco_repoeco-nexus
 eco_repo/eco-fm2
