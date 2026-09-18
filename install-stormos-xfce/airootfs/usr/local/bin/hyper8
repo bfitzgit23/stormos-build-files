@@ -5079,9 +5079,9 @@ class PanelConfig:
     file_manager_command: str = "thunar"
     browser_command: str = "firefox"
     text_editor_command: str = "mousepad"
-    settings_command: str = "xfce4-settings-manager"
+    settings_command: str = "stormos-settings"
     calculator_command: str = "gnome-calculator"
-    screenshot_command: str = "xfce4-screenshooter"
+    screenshot_command: str = "stormos-screenshot"  # wayland-native wrapper (grim/slurp)
     image_viewer_command: str = "ristretto"
     music_player_command: str = "vlc"
     music_player_args: str = ""
@@ -5625,9 +5625,9 @@ class SettingsDialog(QDialog):
             ("File Manager:", "file_manager_edit", self.config.file_manager_command, "thunar, nautilus, dolphin"),
             ("Web Browser:", "browser_edit", self.config.browser_command, "firefox, chromium, google-chrome"),
             ("Text Editor:", "text_editor_edit", self.config.text_editor_command, "mousepad, gedit, kate"),
-            ("Settings:", "settings_edit", self.config.settings_command, "xfce4-settings-manager, gnome-control-center"),
+            ("Settings:", "settings_edit", self.config.settings_command, "stormos-settings, gnome-control-center"),
             ("Calculator:", "calculator_edit", self.config.calculator_command, "gnome-calculator, kcalc"),
-            ("Screenshot:", "screenshot_edit", self.config.screenshot_command, "xfce4-screenshooter, gnome-screenshot"),
+            ("Screenshot:", "screenshot_edit", self.config.screenshot_command, "stormos-screenshot, gnome-screenshot"),
             ("Image Viewer:", "image_viewer_edit", self.config.image_viewer_command, "ristretto, eog, gwenview"),
             ("Music Player:", "music_player_edit", self.config.music_player_command, "vlc, mpv, audacious"),
         ]
@@ -9905,9 +9905,9 @@ class ConfigManager:
         config.file_manager_command = self.settings.value("file_manager_command", "thunar", type=str)
         config.browser_command = self.settings.value("browser_command", "firefox", type=str)
         config.text_editor_command = self.settings.value("text_editor_command", "mousepad", type=str)
-        config.settings_command = self.settings.value("settings_command", "xfce4-settings-manager", type=str)
+        config.settings_command = self.settings.value("settings_command", "stormos-settings", type=str)
         config.calculator_command = self.settings.value("calculator_command", "gnome-calculator", type=str)
-        config.screenshot_command = self.settings.value("screenshot_command", "xfce4-screenshooter", type=str)
+        config.screenshot_command = self.settings.value("screenshot_command", "stormos-screenshot", type=str)
         config.image_viewer_command = self.settings.value("image_viewer_command", "ristretto", type=str)
         config.music_player_command = self.settings.value("music_player_command", "vlc", type=str)
         config.music_player_args = self.settings.value("music_player_args", "", type=str)

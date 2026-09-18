@@ -1,0 +1,47 @@
+name: Build StormOS ISOs
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.profile }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [ install-stormos-xfce, install-stormos-kde ]
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm git archiso
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build ISO
+        run: |
+          cd "${{ matrix.profile }}"
+          ./build.sh -v
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd "${{ matrix.profile }}/out"
+          sha256sum *.iso > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.profile }}-iso
+          path: |
+            ${{ matrix.profile }}/out/*.iso
+            ${{ matrix.profile }}/out/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error

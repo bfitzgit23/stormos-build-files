@@ -1,0 +1,36 @@
+#!/bin/sh
+# Wayland-native screenshot helper (replaces xfce4-screenshooter).
+# Full-screen capture to ~/Pictures/Screenshots by default.
+#
+# Usage:
+#   stormos-screenshot              full screen -> ~/Pictures/Screenshots/shot_TIMESTAMP.png
+#   stormos-screenshot FILE         full screen -> FILE
+#   stormos-screenshot -s [FILE]    select region with slurp
+set -eu
+
+MODE=full
+case "${1:-}" in
+    -s|--select) MODE=sel; shift ;;
+esac
+OUT="${1:-}"
+
+if ! command -v grim >/dev/null 2>&1; then
+    printf '%s\n' "stormos-screenshot: grim is not installed" >&2
+    exit 127
+fi
+
+if [ -z "$OUT" ]; then
+    dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+    mkdir -p "$dir"
+    OUT="$dir/shot_$(date +%Y%m%d_%H%M%S).png"
+fi
+
+if [ "$MODE" = sel ]; then
+    if ! command -v slurp >/dev/null 2>&1; then
+        printf '%s\n' "stormos-screenshot: slurp is not installed" >&2
+        exit 127
+    fi
+    exec grim -g "$(slurp)" "$OUT"
+fi
+
+exec grim "$OUT"
