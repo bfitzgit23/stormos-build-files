@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Storm Welcome
-Comment=Get started with StormOS — Arch made calm
+Comment=Get started with StormOS — Arch made easy
 Exec=stormos-welcome
 Icon=system-software-install
 Terminal=false

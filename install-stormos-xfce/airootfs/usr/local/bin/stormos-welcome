@@ -240,7 +240,7 @@ class StormWelcome(QMainWindow):
         hlayout = QHBoxLayout(header)
         title = QLabel("🌩️ StormOS")
         title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
-        subtitle = QLabel("Arch Linux made calm")
+        subtitle = QLabel("Arch Linux made easy")
         subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
         hlayout.addWidget(title)
         hlayout.addWidget(subtitle)
@@ -258,7 +258,7 @@ class StormWelcome(QMainWindow):
         self.status_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
         flayout.addWidget(self.status_label)
         flayout.addStretch()
-        version = QLabel("v2.0 • Arch made calm")
+        version = QLabel("v2.0 • Arch made easy")
         version.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
         flayout.addWidget(version)
         return footer
@@ -299,7 +299,7 @@ class StormWelcome(QMainWindow):
         welcome.setWordWrap(True)
         layout.addWidget(welcome)
 
-        desc = QLabel("Your Arch Linux journey starts now — calm, powerful, and beginner-friendly")
+        desc = QLabel("Your Arch Linux journey starts now — easy, powerful, and beginner-friendly")
         desc.setStyleSheet(f"color: {STORM_GRAY}; font-size: 15px; margin-bottom: 20px;")
         layout.addWidget(desc)
 
