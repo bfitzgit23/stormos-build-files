@@ -10,6 +10,7 @@ b43-fwcutter
 base
 bind
 bolt
+btrfs-progs
 brltty
 broadcom-wl-dkms
 dkms
