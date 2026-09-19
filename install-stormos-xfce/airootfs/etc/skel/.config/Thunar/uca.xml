@@ -50,7 +50,7 @@
     <icon>default-user-desktop</icon>
     <name>Set as desktop background</name>
     <unique-id>1598703646338876-4</unique-id>
-    <command>stormos-session-action set-wallpaper %f</command>
+    <command>xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -s %f</command>
     <description></description>
     <patterns>*</patterns>
     <image-files/>

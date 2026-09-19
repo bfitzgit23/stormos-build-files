@@ -1,9 +1,0 @@
-gtk-theme-name="StormOS-GTK"
-gtk-icon-theme-name="StormOS-icons"
-style "stormos-default" {
-  fg[NORMAL] = "#e9ecf2"
-  bg[NORMAL] = "#11131a"
-  text[NORMAL] = "#e9ecf2"
-  base[NORMAL] = "#0b0d12"
-}
-class "*" style "stormos-default"

@@ -149,6 +149,8 @@ blueman
 networkmanager
 network-manager-applet
 #pamac
+xfce4
+xfce4-goodies
 xfce4-terminal
 firefox
 wmctrl
@@ -243,6 +245,7 @@ vulkan-intel
 ffmpeg
 yay-bin
 pamac-all
+xfce4-docklike-plugin
 vlc
 yaml-cpp
 python-flask
@@ -251,18 +254,3 @@ clamav
 alacritty
 dialog
 wipe
-
-# StormOS shell (labwc Wayland session) - default session
-labwc
-swaybg
-foot
-dex
-gtk4
-webkitgtk-6.0
-python-gobject
-wlr-randr
-xorg-xwayland
-qt5-wayland
-qt6-wayland
-thunar
-mousepad

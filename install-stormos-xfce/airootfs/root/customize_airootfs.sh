@@ -73,6 +73,9 @@ chage -E -1 lightdm
 xdg-user-dirs-update --force
 
 
+mkdir -p /usr/share/backgrounds/xfce
+cp -af /usr/share/backgrounds/*.* /usr/share/backgrounds/xfce
+
 ####
 
 chown -R liveuser:liveuser /tmp
