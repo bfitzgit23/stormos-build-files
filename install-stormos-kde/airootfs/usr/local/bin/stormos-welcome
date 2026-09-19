@@ -12,9 +12,9 @@ import webbrowser
 import threading
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QEvent
-from PyQt6.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
-from PyQt6.QtWidgets import (
+from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QEvent
+from PyQt5.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
+from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QPushButton, QLabel, QLineEdit, QTextEdit,
     QGroupBox, QMessageBox, QTreeWidget, QTreeWidgetItem,
@@ -651,7 +651,7 @@ class StormWelcome(QMainWindow):
             help_card.layout().addWidget(btn)
         about_btn = QPushButton("About StormOS")
         about_btn.setObjectName("linkButton")
-        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS", "StormOS Welcome v2.0\n\nBuilt with PyQt6"))
+        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS", "StormOS Welcome v2.0\n\nBuilt with PyQt5"))
         help_card.layout().addWidget(about_btn)
         layout.addWidget(help_card)
         layout.addStretch()
@@ -807,13 +807,17 @@ Categories=System;
         """)
 
     def animate_window(self):
+        # Keep a reference on self: a parentless QPropertyAnimation is owned
+        # by Python refcount and would be garbage-collected the moment this
+        # method returns, freezing the window at opacity 0 (visible in the
+        # taskbar, invisible on screen).
         self.setWindowOpacity(0)
-        anim = QPropertyAnimation(self, b"windowOpacity")
-        anim.setDuration(400)
-        anim.setStartValue(0)
-        anim.setEndValue(1)
-        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        anim.start()
+        self.anim = QPropertyAnimation(self, b"windowOpacity")
+        self.anim.setDuration(400)
+        self.anim.setStartValue(0)
+        self.anim.setEndValue(1)
+        self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.anim.start()
 
     def customEvent(self, event):
         if isinstance(event, SearchResultsEvent):
