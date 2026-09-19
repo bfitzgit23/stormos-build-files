@@ -664,7 +664,18 @@ class StormWelcome(QMainWindow):
         if not shutil.which("calamares"):
             QMessageBox.warning(self, "Installer not found", "Calamares not installed.")
             return
-        run_command(["calamares"], "Calamares Installer", hold=False)
+        # Calamares needs root to write to disk; sudo prompts in the terminal
+        # that run_command() opens (pkexec has no reliable auth agent here).
+        # sudo resets the environment, so explicitly pass the session's
+        # X/Wayland credentials through "sudo env" -- without them the
+        # calamares GUI could not connect to the display as root.
+        env_cmd = ["sudo", "env"]
+        for var in ("DISPLAY", "XAUTHORITY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR"):
+            value = os.environ.get(var)
+            if value:
+                env_cmd.append(f"{var}={value}")
+        env_cmd.append("calamares")
+        run_command(env_cmd, "Calamares Installer", hold=False)
 
     def enable_autostart(self):
         AUTOSTART_FILE.parent.mkdir(parents=True, exist_ok=True)
