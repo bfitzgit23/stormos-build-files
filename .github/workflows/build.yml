@@ -11,24 +11,29 @@ jobs:
   build:
     name: ${{ matrix.profile }}
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         profile: [ install-stormos-xfce, install-stormos-kde ]
-    container:
-      image: archlinux:base-devel
     steps:
-      - name: Install build dependencies
-        run: |
-          pacman -Syu --noconfirm git archiso grub syslinux
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build ISO
+      - name: Build ISO in privileged Arch container
+        # mkarchiso must mount /proc inside the airootfs while installing
+        # packages, which GitHub's unprivileged `container:` jobs cannot do.
+        # Run it inside a privileged docker container from the VM host instead.
         run: |
-          cd "${{ matrix.profile }}"
-          ./build.sh -v
+          docker run --rm --privileged \
+            -v "${{ github.workspace }}":/repo -w /repo \
+            archlinux:base-devel \
+            bash -ec '
+              pacman -Sy --noconfirm archlinux-keyring
+              pacman -Syu --noconfirm archiso grub syslinux
+              cd "${{ matrix.profile }}"
+              ./build.sh -v
+            '
 
       - name: Generate SHA256SUMS
         run: |
