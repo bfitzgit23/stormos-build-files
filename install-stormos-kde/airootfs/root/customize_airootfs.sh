@@ -4,6 +4,10 @@ set -e -u
 
 umask 022
 
+# calamares-app ships its own XDG autostart entry (and a liveuser desktop
+# icon); pacman's NoExtract keeps them out, this is just insurance.
+rm -f /etc/xdg/autostart/calamares.desktop /home/liveuser/Desktop/calamares.desktop
+
 sed -i 's/#\(en_US\.UTF-8\)/\1/' /etc/locale.gen
 locale-gen
 
