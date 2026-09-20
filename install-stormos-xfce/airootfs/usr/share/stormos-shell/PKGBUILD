@@ -58,7 +58,7 @@ source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 prepare() {
-    cd "$srcdir/$pkgname"
+    cd "$srcdir/$pkgname-$pkgver"
 
     # If the source tarball ships a prebuilt dist/, skip npm entirely
     if [ -f dist/index.html ]; then
@@ -71,7 +71,7 @@ prepare() {
 }
 
 build() {
-    cd "$srcdir/$pkgname"
+    cd "$srcdir/$pkgname-$pkgver"
 
     # Skip build if dist/ already exists (prebuilt tarball)
     if [ -f dist/index.html ]; then
@@ -84,7 +84,7 @@ build() {
 }
 
 package() {
-    cd "$srcdir/$pkgname"
+    cd "$srcdir/$pkgname-$pkgver"
 
     # --- Sanity check ---
     if [ ! -f dist/index.html ]; then
@@ -127,15 +127,15 @@ package() {
 
     # === Fastfetch config ===
     install -dm755 "$pkgdir/etc/fastfetch"
-    if [ -f "$srcdir/$pkgname/etc/fastfetch/config.jsonc" ]; then
-        install -m644 "$srcdir/$pkgname/etc/fastfetch/config.jsonc" \
+    if [ -f "$srcdir/$pkgname-$pkgver/etc/fastfetch/config.jsonc" ]; then
+        install -m644 "$srcdir/$pkgname-$pkgver/etc/fastfetch/config.jsonc" \
             "$pkgdir/etc/fastfetch/config.jsonc"
     fi
 
     # === Wallpaper ===
     install -dm755 "$pkgdir/usr/share/backgrounds"
-    if [ -f "$srcdir/$pkgname/session/stormos-wallpaper.png" ]; then
-        install -m644 "$srcdir/$pkgname/session/stormos-wallpaper.png" \
+    if [ -f "$srcdir/$pkgname-$pkgver/session/stormos-wallpaper.png" ]; then
+        install -m644 "$srcdir/$pkgname-$pkgver/session/stormos-wallpaper.png" \
             "$pkgdir/usr/share/backgrounds/stormos-wallpaper.png"
     elif [ -f public/stormos-wallpaper.svg ]; then
         install -m644 public/stormos-wallpaper.svg \
@@ -144,19 +144,19 @@ package() {
 
     # === Logo ===
     install -dm755 "$pkgdir/usr/share/pixmaps"
-    if [ -f "$srcdir/$pkgname/session/stormos-logo.png" ]; then
-        install -m644 "$srcdir/$pkgname/session/stormos-logo.png" \
+    if [ -f "$srcdir/$pkgname-$pkgver/session/stormos-logo.png" ]; then
+        install -m644 "$srcdir/$pkgname-$pkgver/session/stormos-logo.png" \
             "$pkgdir/usr/share/pixmaps/stormos-logo.png"
     fi
 
     # === GTK theme ===
-    if [ -d "$srcdir/$pkgname/themes/StormOS-GTK" ]; then
-        cp -a "$srcdir/$pkgname/themes/StormOS-GTK" "$pkgdir/usr/share/themes/"
+    if [ -d "$srcdir/$pkgname-$pkgver/themes/StormOS-GTK" ]; then
+        cp -a "$srcdir/$pkgname-$pkgver/themes/StormOS-GTK" "$pkgdir/usr/share/themes/"
     fi
 
     # === Icon theme ===
-    if [ -d "$srcdir/$pkgname/themes/StormOS-icons" ]; then
-        cp -a "$srcdir/$pkgname/themes/StormOS-icons" "$pkgdir/usr/share/icons/"
+    if [ -d "$srcdir/$pkgname-$pkgver/themes/StormOS-icons" ]; then
+        cp -a "$srcdir/$pkgname-$pkgver/themes/StormOS-icons" "$pkgdir/usr/share/icons/"
     fi
 
     # === Foot terminal config ===
@@ -171,8 +171,8 @@ package() {
 
     # === Desktop entries ===
     install -dm755 "$pkgdir/usr/share/applications"
-    if [ -f "$srcdir/$pkgname/usr/share/applications/stormos-settings.desktop" ]; then
-        install -m644 "$srcdir/$pkgname/usr/share/applications/stormos-settings.desktop" \
+    if [ -f "$srcdir/$pkgname-$pkgver/usr/share/applications/stormos-settings.desktop" ]; then
+        install -m644 "$srcdir/$pkgname-$pkgver/usr/share/applications/stormos-settings.desktop" \
             "$pkgdir/usr/share/applications/"
     fi
 }
