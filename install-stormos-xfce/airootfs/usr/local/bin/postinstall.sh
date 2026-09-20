@@ -124,6 +124,32 @@ if [ -d "$TARGET_ROOT/etc/systemd/system/multi-user.target.wants" ] || [ -d "$TA
     echo "✓ NetworkManager enabled"
 fi
 
+# === LIGHTDM SESSION CONFIGURATION ===
+show_progress "Configuring LightDM session..."
+LIGHTDM_CONF="$TARGET_ROOT/etc/lightdm/lightdm.conf"
+if [ -f "$LIGHTDM_CONF" ]; then
+    # Set StormOS Desktop as the default session
+    sed -i 's/^user-session=.*/user-session=stormos-desktop/' "$LIGHTDM_CONF"
+    sed -i 's/^autologin-session=.*/autologin-session=stormos-desktop/' "$LIGHTDM_CONF"
+
+    # If no user-session line exists, add it under [Seat:*]
+    if ! grep -q '^user-session=' "$LIGHTDM_CONF"; then
+        sed -i '/\[Seat:\*\]/a user-session=stormos-desktop' "$LIGHTDM_CONF"
+    fi
+    if ! grep -q '^autologin-session=' "$LIGHTDM_CONF"; then
+        sed -i '/\[Seat:\*\]/a autologin-session=stormos-desktop' "$LIGHTDM_CONF"
+    fi
+
+    # Set autologin to the user created by Calamares
+    if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "root" ]; then
+        sed -i "s/^#*autologin-user=.*/autologin-user=$USER_NAME/" "$LIGHTDM_CONF"
+        sed -i 's/^#*autologin-user-timeout=.*/autologin-user-timeout=0/' "$LIGHTDM_CONF"
+        echo "✓ Autologin configured for $USER_NAME"
+    fi
+
+    echo "✓ LightDM session set to stormos-desktop"
+fi
+
 echo ""
 echo "=================================================="
 echo "StormOS setup COMPLETE"

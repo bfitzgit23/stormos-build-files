@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=StormOS Desktop
+Comment=StormOS React desktop shell (Electron + openbox)
+Exec=/usr/local/bin/stormos-desktop
+TryExec=/usr/local/bin/stormos-desktop
+Type=Application
+DesktopNames=StormOS
