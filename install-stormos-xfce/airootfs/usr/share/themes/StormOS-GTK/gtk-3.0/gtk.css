@@ -1,4 +1,4 @@
 /* StormOS GTK3 Theme — Dark with Electric Blue Accents */
-/* Inherits from Arc-BLACK-ICE, overrides with StormOS colors */
+/* Inherits from Arc-Dark for stability, overrides color palette only */
 
 @import url("gtk-dark.css");

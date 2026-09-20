@@ -1,7 +1,32 @@
-# StormOS GTK2 Theme — Dark with Electric Blue Accents
-# Inherits from Murrine engine for modern rendering
+# StormOS GTK2 Theme — Color Palette Only
+# DO NOT override widget styling — only color definitions
 
-gtk-color-scheme = "bg_color:#0a1628\nfg_color:#e8f2ff\nbase_color:#0f1f35\ntext_color:#e8f2ff\nselected_bg_color:#19a9ff\nselected_fg_color:#ffffff\ntooltip_bg_color:#142a42\ntooltip_fg_color:#e8f2ff\nlink_color:#19a9ff\nvisited_link_color:#9b59b6\nwarning_color:#f39c12\nerror_color:#e74c3c\nsuccess_color:#2ecc71"
+gtk-color-scheme = "bg_color:#0a1628\nfg_color:#e8f2ff\nbase_color:#0f1f35\ntext_color:#e8f2ff\nselected_bg_color:#19a9ff\nselected_fg_color:#ffffff\ntooltip_bg_color:#142a42\ntooltip_fg_color:#e8f2ff\nlink_color:#19a9ff\nvisited_link_color:#9b59b6\nwarning_color:#f39c12\nerror_color:#e74c3c\nsuccess_color:#2ecc71\ninsensitive_bg_color:#0a1628\ninsensitive_fg_color:#4a6a8a\nbackdrop_bg_color:#0a1628\nbackdrop_fg_color:#7a9bb5"
 
-include "main.rc"
-include "apps.rc"
+style "default" {
+    bg[NORMAL] = @bg_color
+    bg[PRELIGHT] = shade(1.04, @bg_color)
+    bg[SELECTED] = @selected_bg_color
+    bg[INSENSITIVE] = @insensitive_bg_color
+
+    fg[NORMAL] = @fg_color
+    fg[PRELIGHT] = @fg_color
+    fg[SELECTED] = @selected_fg_color
+    fg[INSENSITIVE] = @insensitive_fg_color
+
+    text[NORMAL] = @text_color
+    text[PRELIGHT] = @text_color
+    text[SELECTED] = @selected_fg_color
+    text[INSENSITIVE] = @insensitive_fg_color
+
+    base[NORMAL] = @base_color
+    base[PRELIGHT] = shade(1.04, @base_color)
+    base[SELECTED] = @selected_bg_color
+    base[INSENSITIVE] = @insensitive_bg_color
+}
+
+class "GtkWidget" style "default"
+class "GtkEntry" style "default"
+class "GtkTreeView" style "default"
+class "GtkTextView" style "default"
+class "GtkIconView" style "default"

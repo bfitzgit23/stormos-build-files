@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=X-GNOME-Metatheme
 Name=StormOS-GTK
-Comment=StormOS dark theme with electric blue accents
+Comment=StormOS dark theme with electric blue accents (inherits Arc-Dark)
 Encoding=UTF-8
 
 [X-GNOME-Metatheme]
