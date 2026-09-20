@@ -111,28 +111,14 @@ package() {
     install -dm755 "$pkgdir/usr/bin"
 
     # Main launcher
-    cat > "$pkgdir/usr/bin/stormos-desktop" << 'LAUNCHER'
-#!/usr/bin/env bash
-# StormOS Desktop launcher — called by LightDM or .xinitrc
-export STORMOS_DESKTOP_DIR="/usr/share/stormos-shell"
-exec bash "/usr/share/stormos-shell/bin/stormos-desktop" "$@"
-LAUNCHER
-    chmod 755 "$pkgdir/usr/bin/stormos-desktop"
+    install -m755 bin/stormos-desktop "$pkgdir/usr/bin/stormos-desktop"
 
     # Python bridge
     install -m755 native/stormos-bridge.py "$pkgdir/usr/bin/stormos-bridge"
 
     # === Session files (LightDM) ===
     install -dm755 "$pkgdir/usr/share/xsessions"
-    cat > "$pkgdir/usr/share/xsessions/stormos-desktop.desktop" << 'XS'
-[Desktop Entry]
-Name=StormOS Desktop
-Comment=StormOS React desktop shell (Electron + openbox)
-Exec=/usr/local/bin/stormos-desktop
-TryExec=/usr/local/bin/stormos-desktop
-Type=Application
-DesktopNames=StormOS
-XS
+    install -m644 session/stormos-desktop.desktop "$pkgdir/usr/share/xsessions/stormos-desktop.desktop"
 
     # === LightDM slick-greeter config ===
     install -dm755 "$pkgdir/etc/lightdm"
