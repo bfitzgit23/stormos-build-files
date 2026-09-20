@@ -56,13 +56,21 @@ npm run build
 # ---- Install session files ----
 info "Installing session files to $INSTALL_PREFIX/share/stormos-desktop/..."
 sudo mkdir -p "$INSTALL_PREFIX/share/stormos-desktop"
-sudo cp -r session/* "$INSTALL_PREFIX/share/stormos-desktop/"
-sudo cp -r native "$INSTALL_PREFIX/share/stormos-desktop/"
-sudo cp -r config "$INSTALL_PREFIX/share/stormos-desktop/"
-sudo cp -r dist "$INSTALL_PREFIX/share/stormos-desktop/"
-sudo cp -r node_modules "$INSTALL_PREFIX/share/stormos-desktop/"
-sudo cp package.json package-lock.json "$INSTALL_PREFIX/share/stormos-desktop/"
-sudo cp main.js preload.js vite.config.js "$INSTALL_PREFIX/share/stormos-desktop/"
+
+# Copy source files
+for f in main.js preload.js vite.config.js package.json package-lock.json index.html; do
+    [ -f "$SCRIPT_DIR/$f" ] && sudo cp "$SCRIPT_DIR/$f" "$INSTALL_PREFIX/share/stormos-desktop/"
+done
+
+# Copy directories (skip if not present)
+for d in session native bin dist src; do
+    [ -d "$SCRIPT_DIR/$d" ] && sudo cp -r "$SCRIPT_DIR/$d" "$INSTALL_PREFIX/share/stormos-desktop/"
+done
+
+# Copy config if it exists (foot.ini, picom.conf, etc.)
+if [ -d "$SCRIPT_DIR/config" ]; then
+    sudo cp -r "$SCRIPT_DIR/config" "$INSTALL_PREFIX/share/stormos-desktop/"
+fi
 
 # ---- Install the launcher binary ----
 info "Installing stormos-desktop launcher..."
