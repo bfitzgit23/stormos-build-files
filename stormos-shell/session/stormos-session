@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# StormOS Wayland session entry point.
+#
+# This is what the display manager (SDDM/LightDM/greetd) execs for the
+# "StormOS" session. It exports the session environment and then execs labwc,
+# which becomes the session leader. Everything else (bridge, wallpaper,
+# shell host) is started by labwc's autostart hook so that the compositor is
+# fully up before the shell draws.
+#
+# Session startup order:
+#   1. display manager -> stormos-session (this file)
+#   2. stormos-session execs labwc with the session environment
+#   3. labwc sources /etc/xdg/labwc/environment (StormOS defaults)
+#   4. labwc runs /etc/xdg/labwc/autostart (bridge, wallpaper, shell host)
+
+set -u
+
+# One variable per export. A previous revision collapsed these into a single
+# "export A=x B=y" line, which only sets A=x and leaves the shell to try to
+# execute "B=y" as a command after the file is sourced by labwc.
+export XDG_CURRENT_DESKTOP=StormOS
+export XDG_SESSION_DESKTOP=stormos
+export XDG_SESSION_TYPE=wayland
+export DESKTOP_SESSION=stormos
+export GDK_BACKEND=wayland,x11
+export GTK_USE_PORTAL=1
+export GTK_THEME=StormOS-GTK
+export GTK4_THEME=StormOS-GTK
+export XCURSOR_THEME=StormOS-icons
+export XCURSOR_SIZE=24
+export GIO_USE_VFS=gvfs
+export XDG_DATA_DIRS="/usr/share:/usr/local/share:${HOME}/.local/share:${XDG_DATA_DIRS:-}"
+export QT_QPA_PLATFORMTHEME=gnome
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+
+# Publish the session environment on the D-Bus session bus and into the
+# systemd user manager so launched apps and user services inherit it.
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd \
+        DISPLAY WAYLAND_DISPLAY \
+        XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DESKTOP_SESSION \
+        GDK_BACKEND GTK_USE_PORTAL GTK_THEME GTK4_THEME \
+        XCURSOR_THEME XCURSOR_SIZE XDG_DATA_DIRS GIO_USE_VFS \
+        >/dev/null 2>&1 || true
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user import-environment \
+        DISPLAY WAYLAND_DISPLAY \
+        XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DESKTOP_SESSION \
+        GDK_BACKEND GTK_USE_PORTAL GTK_THEME GTK4_THEME \
+        XCURSOR_THEME XCURSOR_SIZE XDG_DATA_DIRS GIO_USE_VFS \
+        >/dev/null 2>&1 || true
+fi
+
+# Start a D-Bus session bus if the display manager did not provide one.
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
+    exec dbus-run-session -- /usr/bin/labwc "$@"
+fi
+
+# labwc must be exec'd (not backgrounded): it becomes the session leader and
+# the display manager tracks it for logout/switch-session support.
+exec /usr/bin/labwc "$@"

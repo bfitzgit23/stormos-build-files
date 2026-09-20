@@ -1,0 +1,20 @@
+#!/bin/sh
+# StormOS .xinitrc — boots the React desktop shell on top of openbox.
+#
+# Copy to ~/.xinitrc or use via:  startx /path/to/xinitrc-stormos
+#
+# Architecture:
+#   1. openbox-session runs invisibly (no decorations, no panels) — its only
+#      job is to let native apps (foot, thunar, firefox) open X windows.
+#   2. The Electron desktop shell launches in fullscreen transparent kiosk
+#      mode and renders the StormOS UI on top.
+
+# Prevent screen blanking and DPMS
+xset s off -dpms &
+xset s noblank &
+
+# Start the invisible window manager (background)
+openbox-session &
+
+# Launch the StormOS desktop shell (foreground — session ends when this exits)
+exec /usr/bin/stormos-desktop
