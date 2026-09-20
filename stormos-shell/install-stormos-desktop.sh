@@ -135,7 +135,7 @@ sudo tee /etc/lightdm/slick-greeter.conf >/dev/null <<'GREETER'
 background=/usr/share/backgrounds/stormos-wallpaper.png
 logo=/usr/share/pixmaps/stormos-logo.png
 theme-name=StormOS-GTK
-icon-theme-name=Qogir
+icon-theme-name=StormOS-icons
 font-name=Inter 11
 enable-hidpi=auto
 draw-user-background=false

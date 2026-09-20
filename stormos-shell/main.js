@@ -181,10 +181,43 @@ function createWindow() {
 
   mainWindow.setIgnoreMouseEvents(false);
 
-  // Allow click-through on the transparent wallpaper background by detecting
-  // clicks on the #root element itself (the wallpaper layer). We use a CSS
-  // pointer-events trick in the React layer instead of Electron-level
-  // setIgnoreMouseEvents to avoid complexity.
+  // Log crashes for debugging
+  mainWindow.webContents.on('crashed', (event, code) => {
+    console.error(`[StormOS] Renderer crashed with code ${code}`);
+  });
+  mainWindow.webContents.on('unresponsive', () => {
+    console.error('[StormOS] Renderer became unresponsive');
+  });
+  mainWindow.on('unresponsive', () => {
+    console.error('[StormOS] Window became unresponsive');
+  });
+  mainWindow.on('render-process-gone', (event, details) => {
+    console.error(`[StormOS] Render process gone: ${details.reason}`);
+  });
+
+  // Fallback: if window fails to show in 5 seconds, recreate with opaque background
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      console.warn('[StormOS] Window not visible after 5s — transparency may not be supported');
+      console.warn('[StormOS] Falling back to opaque mode');
+      mainWindow.destroy();
+      // Recreate without transparency
+      mainWindow = new BrowserWindow({
+        x: 0, y: 0, width, height,
+        fullscreen: true, frame: false,
+        transparent: false,
+        backgroundColor: '#050c15',
+        alwaysOnTop: false, skipTaskbar: true,
+        webPreferences: {
+          nodeIntegration: false, contextIsolation: true,
+          preload: path.join(__dirname, 'preload.js'),
+          offscreen: false, backgroundThrottling: false
+        }
+      });
+      if (isDev) mainWindow.loadURL('http://localhost:5173');
+      else mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    }
+  }, 5000);
 }
 
 app.whenReady().then(createWindow);
@@ -196,3 +229,6 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+
+// Log startup
+console.log('[StormOS] main.js loaded, creating window...');

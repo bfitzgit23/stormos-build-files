@@ -155,8 +155,8 @@ package() {
     fi
 
     # === Icon theme ===
-    if [ -d "$srcdir/$pkgname-$pkgver/themes/Qogir" ]; then
-        cp -a "$srcdir/$pkgname-$pkgver/themes/Qogir" "$pkgdir/usr/share/icons/"
+    if [ -d "$srcdir/$pkgname-$pkgver/themes/StormOS-icons" ]; then
+        cp -a "$srcdir/$pkgname-$pkgver/themes/StormOS-icons" "$pkgdir/usr/share/icons/"
     fi
 
     # === Foot terminal config ===

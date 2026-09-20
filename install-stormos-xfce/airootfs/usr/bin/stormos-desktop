@@ -3,8 +3,9 @@
 #
 # Startup order:
 #   1. Python system bridge (background)
-#   2. Electron desktop shell (background)
-#   3. exec openbox-session (foreground — keeps session alive)
+#   2. picom compositor (background — required for transparent Electron windows)
+#   3. Electron desktop shell (background)
+#   4. exec openbox-session (foreground — keeps session alive)
 #
 # openbox is the session leader. If electron crashes, openbox keeps
 # running so the user still has a working WM + taskbar.
@@ -12,8 +13,8 @@
 set -uo pipefail
 
 LOG="$HOME/.stormos-desktop.log"
-log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
-
+log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }# Reset log on each start so it doesn't grow forever
+: > "$LOG"
 log "=== stormos-desktop starting (pid $$) ==="
 log "HOME=$HOME USER=$(whoami) DISPLAY=$DISPLAY"
 
@@ -21,14 +22,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
 
 [ -f "$PROJECT_DIR/main.js" ] || PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-log "PROJECT_DIR=$PROJECT_DIR"
+log "PROJECT_DIR=$PROJECT_DIR SCRIPT_DIR=$SCRIPT_DIR"
 
-export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 export STORMOS_BRIDGE_PORT="${STORMOS_BRIDGE_PORT:-47821}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-StormOS}"
 export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-stormos}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-x11}"
 
+# Disable screen blanking
 xset s off -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
 
@@ -39,36 +41,77 @@ if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
         >"$HOME/.stormos-bridge.log" 2>&1 &
     BRIDGE_PID=$!
     log "Bridge PID=$BRIDGE_PID"
+    # Wait up to 6 seconds for bridge to become ready
     for i in $(seq 1 30); do
-        curl -sf "http://127.0.0.1:$STORMOS_BRIDGE_PORT/api/health" >/dev/null 2>&1 && break
+        curl -sf "http://127.0.0.1:$STORMOS_BRIDGE_PORT/api/health" >/dev/null 2>&1 && { log "Bridge ready"; break; }
         sleep 0.2
     done
+else
+    log "WARNING: Bridge script not found at $PROJECT_DIR/native/stormos-bridge.py"
 fi
 
-# --- 2. Electron desktop shell (background) ---
-# Find electron binary — check common locations
+# --- 2. picom compositor (background) ---
+# Required for Electron transparent windows to render on X11.
+# Without picom, transparent windows are invisible.
+if command -v picom >/dev/null 2>&1; then
+    log "Starting picom compositor..."
+    picom --daemon --config /dev/null \
+        --backend glx \
+        --vsync \
+        --use-damage \
+        --no-fading-openclose \
+        --shadow-exclude "class_g = 'Electron'" \
+        >"$HOME/.stormos-picom.log" 2>&1 &
+    log "picom PID=$!"
+    sleep 0.5
+elif command -v compton >/dev/null 2>&1; then
+    log "Starting compton compositor (fallback)..."
+    compton --daemon -b >"$HOME/.stormos-picom.log" 2>&1 &
+    log "compton PID=$!"
+    sleep 0.5
+else
+    log "WARNING: Neither picom nor compton found — transparent windows will be INVISIBLE"
+    log "Install picom: sudo pacman -S picom"
+fi
+
+# --- 3. Electron desktop shell (background) ---
 ELECTRON_BIN=""
-for candidate in electron /usr/lib/electron/electron /opt/Electron/electron; do
-    if command -v "$candidate" >/dev/null 2>&1 || [ -x "$candidate" ]; then
+for candidate in /usr/bin/electron /usr/lib/electron/electron /usr/local/bin/electron /opt/Electron/electron; do
+    if [ -x "$candidate" ] || command -v "$candidate" >/dev/null 2>&1; then
         ELECTRON_BIN="$candidate"
         break
     fi
 done
+# Fallback to PATH lookup
+[ -z "$ELECTRON_BIN" ] && command -v electron >/dev/null 2>&1 && ELECTRON_BIN="$(command -v electron)"
 
 if [ -n "$ELECTRON_BIN" ]; then
+    log "Electron found at: $ELECTRON_BIN"
     if [ -d "$PROJECT_DIR/dist" ]; then
-        log "Launching Electron (production) at $ELECTRON_BIN..."
-        "$ELECTRON_BIN" "$PROJECT_DIR" --no-sandbox --ozone-platform=x11 --disable-gpu >"$HOME/.stormos-electron.log" 2>&1 &
+        log "dist/ exists: YES"
+        log "Launching Electron (production)..."
+        "$ELECTRON_BIN" "$PROJECT_DIR" \
+            --no-sandbox \
+            --ozone-platform=x11 \
+            --disable-software-rasterizer \
+            >"$HOME/.stormos-electron.log" 2>&1 &
+        ELECTRON_PID=$!
+        log "Electron PID=$ELECTRON_PID"
+        # Give electron a few seconds to create the window
+        sleep 2
+        if ! kill -0 "$ELECTRON_PID" 2>/dev/null; then
+            log "ERROR: Electron crashed immediately (exit code $?)"
+            log "Check $HOME/.stormos-electron.log for details"
+        fi
     else
-        log "No dist/, launching dev mode..."
-        cd "$PROJECT_DIR" && npm run dev >"$HOME/.stormos-electron.log" 2>&1 &
+        log "ERROR: dist/ not found at $PROJECT_DIR/dist — cannot launch Electron"
     fi
-    log "Electron PID=$!"
 else
-    log "WARNING: electron not found in PATH or common locations"
+    log "ERROR: electron binary not found in PATH or common locations"
+    log "Install electron: sudo pacman -S electron"
 fi
 
-# --- 3. openbox-session (foreground — session leader) ---
+# --- 4. openbox-session (foreground — session leader) ---
 # This MUST be the last line. exec replaces the shell so LightDM
 # tracks openbox as the session. When openbox exits, the session ends.
 log "Starting openbox-session (foreground)..."
