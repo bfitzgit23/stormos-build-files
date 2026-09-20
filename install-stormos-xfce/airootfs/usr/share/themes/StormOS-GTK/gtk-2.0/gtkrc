@@ -1,0 +1,7 @@
+# StormOS GTK2 Theme — Dark with Electric Blue Accents
+# Inherits from Murrine engine for modern rendering
+
+gtk-color-scheme = "bg_color:#0a1628\nfg_color:#e8f2ff\nbase_color:#0f1f35\ntext_color:#e8f2ff\nselected_bg_color:#19a9ff\nselected_fg_color:#ffffff\ntooltip_bg_color:#142a42\ntooltip_fg_color:#e8f2ff\nlink_color:#19a9ff\nvisited_link_color:#9b59b6\nwarning_color:#f39c12\nerror_color:#e74c3c\nsuccess_color:#2ecc71"
+
+include "main.rc"
+include "apps.rc"
