@@ -1,1 +1,76 @@
-@import 'colors.css';
+/* StormOS accent colors overlaid on Arc-BLACK-ICE */
+@define-color accent_color #19a9ff;
+@define-color accent_bg_color #0876c9;
+@define-color accent_fg_color #ffffff;
+@define-color headerbar_bg_color #0a1628;
+@define-color window_bg_color #0d1a2e;
+@define-color window_fg_color #e8f2ff;
+@define-color view_bg_color #0a1628;
+@define-color view_fg_color #e8f2ff;
+@define-color card_bg_color #111d33;
+@define-color card_fg_color #e8f2ff;
+@define-color dialog_bg_color #0a1628;
+@define-color dialog_fg_color #e8f2ff;
+@define-color popover_bg_color #0d1a2e;
+@define-color popover_fg_color #e8f2ff;
+@define-color shade_color rgba(0, 0, 0, 0.36);
+@define-color scrollbar_outline_color rgba(255, 255, 255, 0.1);
+
+/* Blue selection highlights */
+selection, selection:focus {
+  background-color: @accent_color;
+  color: @accent_fg_color;
+}
+
+/* Blue focus rings */
+:focus {
+  outline-color: @accent_color;
+}
+
+/* Blue headerbar buttons */
+headerbar button:hover, .titlebar button:hover {
+  background-color: rgba(25, 169, 255, 0.15);
+  color: @accent_color;
+}
+
+/* Blue scrollbars */
+scrollbar slider {
+  background-color: rgba(25, 169, 255, 0.4);
+  border-radius: 99px;
+}
+
+scrollbar slider:hover {
+  background-color: rgba(25, 169, 255, 0.6);
+}
+
+/* Blue switches and toggles */
+switch:checked {
+  background-color: @accent_color;
+  color: @accent_fg_color;
+}
+
+/* Blue notebook tabs */
+notebook > header > tabs > tab:checked {
+  color: @accent_color;
+  border-bottom-color: @accent_color;
+}
+
+/* Blue progress bars */
+progressbar progress {
+  background-color: @accent_color;
+}
+
+/* Blue scales/sliders */
+scale trough highlight {
+  background-color: @accent_color;
+}
+
+/* Links */
+a, button.link {
+  color: @accent_color;
+}
+
+/* Blue sidebars */
+.sidebar, paned > separator {
+  border-color: rgba(25, 169, 255, 0.15);
+}

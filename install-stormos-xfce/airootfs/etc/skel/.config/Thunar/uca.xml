@@ -22,7 +22,7 @@
     <icon>gksu-root-terminal</icon>
     <name>Open a root terminal here</name>
     <unique-id>1598703540615476-2</unique-id>
-    <command>pkexec  xfce4-terminal --default-working-directory=%f</command>
+    <command>pkexec xfce4-terminal --default-working-directory=%f</command>
     <description></description>
     <patterns>*</patterns>
     <directories/>
@@ -40,7 +40,7 @@
     <icon>emblem-symbolic-link</icon>
     <name>Create symlink</name>
     <unique-id>1598703611380362-3</unique-id>
-    <command>ln -s %f %n&quot; (symlink)&quot;</command>
+    <command>ln -s %f %n" (symlink)"</command>
     <description></description>
     <patterns>*</patterns>
     <directories/>
@@ -73,27 +73,5 @@
     <description></description>
     <patterns>*</patterns>
     <other-files/>
-</action>
-<action>
-    <icon>folder-cd</icon>
-    <name>Mount iso</name>
-    <unique-id>1598704203521603-7</unique-id>
-    <command>pkexec mount -o loop -t iso9660 %f /mnt</command>
-    <description></description>
-    <patterns>*iso</patterns>
-    <other-files/>
-</action>
-<action>
-    <icon>vcs-normal</icon>
-    <name>Checksum</name>
-    <unique-id>1564041061059083-1</unique-id>
-    <command>gtkhash %f</command>
-    <description>Calculate checksums using GTKHash</description>
-    <patterns>*</patterns>
-    <audio-files/>
-    <image-files/>
-    <other-files/>
-    <text-files/>
-    <video-files/>
 </action>
 </actions>

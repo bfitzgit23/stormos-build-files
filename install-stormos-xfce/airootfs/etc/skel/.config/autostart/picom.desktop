@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Picom Compositor
+Comment=StormOS compositor for transparency and shadows
+Exec=picom --config /home/$USER/.config/picom/picom.conf
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+X-XFCE-Autostart-Override=true
