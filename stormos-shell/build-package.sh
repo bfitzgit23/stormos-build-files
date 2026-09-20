@@ -4,9 +4,9 @@
 # Creates a source tarball with the correct directory name, then runs makepkg.
 #
 # Usage:
-#   ./build-package.sh            # build + install
+#   ./build-package.sh            # build tarball + makepkg -scf
 #   ./build-package.sh --src-only # just create the tarball
-#   ./build-package.sh -i         # build + install with pacman
+#   ./build-package.sh -i         # build tarball + makepkg -sci (install)
 
 set -euo pipefail
 
@@ -39,18 +39,29 @@ fi
 echo "==> dist/ ready ($(du -sh dist/ | cut -f1))"
 
 # --- Step 2: Create source tarball ---
-# makepkg expects the tarball to contain a directory named $PKGNAME-$PKGVER/
-# We create a temp dir with that name and copy everything in.
+echo "==> Creating source tarball..."
+rm -f "$TARBALL"
+
 TMPTAR=$(mktemp -d)
 TMPSRC="${TMPTAR}/${PKGNAME}-${PKGVER}"
 mkdir -p "$TMPSRC"
 
-# Copy all source files (excluding node_modules, .git, dist is included)
-rsync -a --exclude='node_modules' --exclude='.git' --exclude='*.tar.gz' \
-    --exclude='__pycache__' --exclude='*.pyc' \
-    ./ "$TMPSRC/"
+# Copy everything except node_modules, .git, and __pycache__
+find . -mindepth 1 -maxdepth 1 \
+    ! -name 'node_modules' \
+    ! -name '.git' \
+    ! -name '*.tar.gz' \
+    ! -name '__pycache__' \
+    ! -name 'dist' \
+    -exec cp -a {} "$TMPSRC/" \;
 
-echo "==> Creating source tarball..."
+# Copy dist/ separately (it's needed)
+cp -a dist "$TMPSRC/dist"
+
+# Clean any .pyc files that snuck in
+find "$TMPSRC" -name '*.pyc' -delete
+find "$TMPSRC" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
+
 tar -czf "$TARBALL" -C "$TMPTAR" "${PKGNAME}-${PKGVER}"
 rm -rf "$TMPTAR"
 
