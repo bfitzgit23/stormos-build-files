@@ -269,3 +269,9 @@ clamav
 alacritty
 dialog
 wipe
+
+# StormOS React Desktop Shell
+electron
+nodejs
+npm
+openbox

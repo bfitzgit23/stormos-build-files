@@ -5,19 +5,23 @@
 #   - A LightDM session (Exec= in .desktop file)
 #   - An .xinitrc target (exec stormos-desktop)
 #   - A manual launcher from a TTY
-#
-# Startup order:
-#   1. Python system bridge (app launcher, system stats for internal API)
-#   2. Optional: openbox (invisible WM for native window management)
-#   3. Electron desktop shell (React UI in fullscreen transparent kiosk mode)
 
-set -euo pipefail
+set -uo pipefail
+
+LOG="$HOME/.stormos-desktop.log"
+log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
+
+log "=== stormos-desktop starting (pid $$) ==="
+log "HOME=$HOME USER=$(whoami) DISPLAY=$DISPLAY"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
 
 # Fallback: if installed via the project dir, use that
 [ -f "$PROJECT_DIR/main.js" ] || PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+log "PROJECT_DIR=$PROJECT_DIR SCRIPT_DIR=$SCRIPT_DIR"
+log "main.js exists: $(test -f "$PROJECT_DIR/main.js" && echo YES || echo NO)"
 
 export STORMOS_BRIDGE_PORT="${STORMOS_BRIDGE_PORT:-47821}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-StormOS}"
@@ -30,6 +34,7 @@ xset s noblank 2>/dev/null || true
 
 PIDS=()
 cleanup() {
+    log "=== cleaning up ==="
     for pid in "${PIDS[@]:-}"; do
         kill "$pid" 2>/dev/null || true
     done
@@ -38,37 +43,54 @@ trap cleanup EXIT INT TERM
 
 # --- 1. Python system bridge ---
 if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
+    log "Starting bridge..."
     python3 "$PROJECT_DIR/native/stormos-bridge.py" \
         >"$HOME/.stormos-bridge.log" 2>&1 &
     PIDS+=($!)
     # Wait for the bridge to be ready
     for i in $(seq 1 30); do
         if curl -sf "http://127.0.0.1:$STORMOS_BRIDGE_PORT/api/health" >/dev/null 2>&1; then
+            log "Bridge ready"
             break
         fi
         sleep 0.2
     done
+else
+    log "No bridge found at $PROJECT_DIR/native/stormos-bridge.py"
 fi
 
 # --- 2. Optional: invisible openbox ---
-# openbox runs without decorations; its only job is to let foot/thunar/etc
-# open windows that the Electron shell sees via the compositor.
 if command -v openbox-session >/dev/null 2>&1 && [ "${STORMOS_USE_OPENBOX:-1}" = "1" ]; then
+    log "Starting openbox..."
     openbox-session >/dev/null 2>&1 &
     PIDS+=($!)
     sleep 0.5
+else
+    log "openbox not available, skipping"
 fi
 
 # --- 3. Electron desktop shell ---
+if ! command -v electron >/dev/null 2>&1; then
+    log "ERROR: electron not found in PATH"
+    log "Install with: sudo pacman -S electron"
+    exit 1
+fi
+
+log "Electron found at: $(which electron)"
+
 # Build the React frontend if dist/ doesn't exist or source changed
 if [ ! -d "$PROJECT_DIR/dist" ] || [ "$PROJECT_DIR/src/main.jsx" -nt "$PROJECT_DIR/dist/index.html" ] 2>/dev/null; then
+    log "Building React frontend..."
     cd "$PROJECT_DIR" && npm run build 2>/dev/null || true
 fi
 
+log "dist/ exists: $(test -d "$PROJECT_DIR/dist" && echo YES || echo NO)"
+
 # Production mode: load dist/index.html via file://
-# Dev mode: load from Vite dev server
 if [ -d "$PROJECT_DIR/dist" ]; then
+    log "Launching Electron (production)..."
     exec electron "$PROJECT_DIR" --no-sandbox "$@"
 else
+    log "Launching Electron (dev mode)..."
     cd "$PROJECT_DIR" && exec npm run dev "$@"
 fi
