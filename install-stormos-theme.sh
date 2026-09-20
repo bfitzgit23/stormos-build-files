@@ -29,22 +29,51 @@ echo ""
 # ─── 1. Install missing packages ─────────────────────────────────────────────
 info "Checking packages..."
 
-NEED_PKGS=()
-for pkg in picom conky ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin \
-           arc-black-ice-theme qogir-dark-icons dmz-cursor-theme inter-font \
-           foot alacritty fastfetch; do
+# Official repo packages (pacman)
+OFFICIAL_PKGS=(picom conky dmz-cursor-theme foot alacritty fastfetch
+               xfce4-goodies xfce4-terminal xorg-server)
+
+# AUR packages (yay)
+AUR_PKGS=(arc-black-ice-theme qogir-dark-icons ttf-inter
+           ttf-jetbrains-mono-nerd xfce4-docklike-plugin)
+
+# Check and install official packages
+NEED_OFFICIAL=()
+for pkg in "${OFFICIAL_PKGS[@]}"; do
     if ! pacman -Qi "$pkg" &>/dev/null; then
-        NEED_PKGS+=("$pkg")
+        NEED_OFFICIAL+=("$pkg")
     fi
 done
 
-if [ ${#NEED_PKGS[@]} -gt 0 ]; then
-    info "Installing: ${NEED_PKGS[*]}"
-    sudo pacman -S --needed --noconfirm "${NEED_PKGS[@]}"
-    ok "Packages installed"
-else
-    ok "All packages already installed"
+if [ ${#NEED_OFFICIAL[@]} -gt 0 ]; then
+    info "Installing (pacman): ${NEED_OFFICIAL[*]}"
+    sudo pacman -S --needed --noconfirm "${NEED_OFFICIAL[@]}"
+    ok "Official packages installed"
 fi
+
+# Check and install AUR packages via yay
+if ! command -v yay &>/dev/null; then
+    err "yay not found — install it first: https://aur.archlinux.org/packages/yay-bin"
+    err "Then re-run this script."
+    exit 1
+fi
+
+NEED_AUR=()
+for pkg in "${AUR_PKGS[@]}"; do
+    if ! yay -Qi "$pkg" &>/dev/null; then
+        NEED_AUR+=("$pkg")
+    fi
+done
+
+if [ ${#NEED_AUR[@]} -gt 0 ]; then
+    info "Installing (yay): ${NEED_AUR[*]}"
+    yay -S --needed --noconfirm "${NEED_AUR[@]}"
+    ok "AUR packages installed"
+else
+    ok "All AUR packages already installed"
+fi
+
+ok "All packages ready"
 
 # ─── 2. Backup existing configs ──────────────────────────────────────────────
 BACKUP="$HOME/.stormos-backup-$(date +%Y%m%d-%H%M%S)"
