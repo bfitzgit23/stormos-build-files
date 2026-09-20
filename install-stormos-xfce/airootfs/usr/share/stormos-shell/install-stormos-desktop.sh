@@ -11,7 +11,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_PREFIX="${INSTALL_PREFIX:-/usr/local}"
+INSTALL_PREFIX="${INSTALL_PREFIX:-/usr}"
 SKIP_SYSTEM_PKGS=0
 
 for arg in "$@"; do
@@ -98,8 +98,8 @@ sudo tee /usr/share/xsessions/stormos-desktop.desktop >/dev/null <<'XS'
 [Desktop Entry]
 Name=StormOS Desktop
 Comment=StormOS React desktop shell (Electron + openbox)
-Exec=/usr/local/bin/stormos-desktop
-TryExec=/usr/local/bin/stormos-desktop
+Exec=/usr/bin/stormos-desktop
+TryExec=/usr/bin/stormos-desktop
 Type=Application
 DesktopNames=StormOS
 XS
