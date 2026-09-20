@@ -23,6 +23,7 @@ PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
 [ -f "$PROJECT_DIR/main.js" ] || PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 log "PROJECT_DIR=$PROJECT_DIR"
 
+export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
 export STORMOS_BRIDGE_PORT="${STORMOS_BRIDGE_PORT:-47821}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-StormOS}"
 export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-stormos}"
@@ -45,17 +46,26 @@ if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
 fi
 
 # --- 2. Electron desktop shell (background) ---
-if command -v electron >/dev/null 2>&1; then
+# Find electron binary — check common locations
+ELECTRON_BIN=""
+for candidate in electron /usr/lib/electron/electron /opt/Electron/electron; do
+    if command -v "$candidate" >/dev/null 2>&1 || [ -x "$candidate" ]; then
+        ELECTRON_BIN="$candidate"
+        break
+    fi
+done
+
+if [ -n "$ELECTRON_BIN" ]; then
     if [ -d "$PROJECT_DIR/dist" ]; then
-        log "Launching Electron (production)..."
-        electron "$PROJECT_DIR" --no-sandbox >/dev/null 2>&1 &
+        log "Launching Electron (production) at $ELECTRON_BIN..."
+        "$ELECTRON_BIN" "$PROJECT_DIR" --no-sandbox --ozone-platform=x11 --disable-gpu >"$HOME/.stormos-electron.log" 2>&1 &
     else
         log "No dist/, launching dev mode..."
-        cd "$PROJECT_DIR" && npm run dev >/dev/null 2>&1 &
+        cd "$PROJECT_DIR" && npm run dev >"$HOME/.stormos-electron.log" 2>&1 &
     fi
     log "Electron PID=$!"
 else
-    log "WARNING: electron not found in PATH"
+    log "WARNING: electron not found in PATH or common locations"
 fi
 
 # --- 3. openbox-session (foreground — session leader) ---
