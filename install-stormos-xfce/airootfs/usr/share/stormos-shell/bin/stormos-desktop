@@ -5,6 +5,11 @@
 #   - A LightDM session (Exec= in .desktop file)
 #   - An .xinitrc target (exec stormos-desktop)
 #   - A manual launcher from a TTY
+#
+# IMPORTANT: This script MUST stay alive as the foreground process.
+# LightDM kills everything when the session script exits.
+# We do NOT use 'exec' for electron — if it crashes, we show an
+# error in xterm and wait so openbox stays alive.
 
 set -uo pipefail
 
@@ -21,7 +26,6 @@ PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
 [ -f "$PROJECT_DIR/main.js" ] || PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 log "PROJECT_DIR=$PROJECT_DIR SCRIPT_DIR=$SCRIPT_DIR"
-log "main.js exists: $(test -f "$PROJECT_DIR/main.js" && echo YES || echo NO)"
 
 export STORMOS_BRIDGE_PORT="${STORMOS_BRIDGE_PORT:-47821}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-StormOS}"
@@ -47,7 +51,6 @@ if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
     python3 "$PROJECT_DIR/native/stormos-bridge.py" \
         >"$HOME/.stormos-bridge.log" 2>&1 &
     PIDS+=($!)
-    # Wait for the bridge to be ready
     for i in $(seq 1 30); do
         if curl -sf "http://127.0.0.1:$STORMOS_BRIDGE_PORT/api/health" >/dev/null 2>&1; then
             log "Bridge ready"
@@ -70,9 +73,20 @@ else
 fi
 
 # --- 3. Electron desktop shell ---
+show_error() {
+    # Show an error dialog so the user knows what went wrong
+    if command -v zenity >/dev/null 2>&1; then
+        zenity --error --title="StormOS Desktop" --text="$1" --width=400 2>/dev/null &
+    elif command -v xterm >/dev/null 2>&1; then
+        xterm -title "StormOS Desktop Error" -e "echo '$1'; sleep 10" &
+    fi
+    log "ERROR: $1"
+}
+
 if ! command -v electron >/dev/null 2>&1; then
-    log "ERROR: electron not found in PATH"
-    log "Install with: sudo pacman -S electron"
+    show_error "electron not found. Install with: sudo pacman -S electron"
+    # Keep the script alive so openbox stays running
+    wait
     exit 1
 fi
 
@@ -86,11 +100,23 @@ fi
 
 log "dist/ exists: $(test -d "$PROJECT_DIR/dist" && echo YES || echo NO)"
 
-# Production mode: load dist/index.html via file://
+# Run electron in the foreground — but do NOT use 'exec'.
+# If electron crashes, we fall through to the error handler below.
 if [ -d "$PROJECT_DIR/dist" ]; then
     log "Launching Electron (production)..."
-    exec electron "$PROJECT_DIR" --no-sandbox "$@"
+    electron "$PROJECT_DIR" --no-sandbox "$@"
+    EXIT_CODE=$?
 else
     log "Launching Electron (dev mode)..."
-    cd "$PROJECT_DIR" && exec npm run dev "$@"
+    cd "$PROJECT_DIR" && npm run dev "$@"
+    EXIT_CODE=$?
 fi
+
+# If we get here, electron exited (crash or clean exit)
+if [ "$EXIT_CODE" -ne 0 ]; then
+    show_error "Electron exited with code $EXIT_CODE. Check ~/.stormos-desktop.log"
+fi
+
+log "Electron exited with code $EXIT_CODE"
+# Keep alive so openbox doesn't get killed by LightDM
+wait
