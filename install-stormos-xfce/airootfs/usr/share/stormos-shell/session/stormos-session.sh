@@ -23,14 +23,14 @@ export XDG_SESSION_TYPE=wayland
 export DESKTOP_SESSION=stormos
 export GDK_BACKEND=wayland,x11
 export GTK_USE_PORTAL=1
-export GTK_THEME=Arc-BLACK-ICE
-export GTK4_THEME=Arc-BLACK-ICE
-export XCURSOR_THEME=Qogir
+export GTK_THEME=StormOS-GTK
+export GTK4_THEME=StormOS-GTK
+export XCURSOR_THEME=StormOS-icons
 export XCURSOR_SIZE=24
 export GIO_USE_VFS=gvfs
 export GIO_USE_VOLUME_MONITOR=GProxyVolumeMonitorUDisks2
 export XDG_DATA_DIRS="/usr/share:/usr/local/share:${HOME}/.local/share:${XDG_DATA_DIRS:-}"
-export GTK2_RC_FILES="/usr/share/themes/Arc-BLACK-ICE/gtk-2.0/gtkrc"
+export GTK2_RC_FILES="/usr/share/themes/StormOS-GTK/gtk-2.0/gtkrc"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus}"
 
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then

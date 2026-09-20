@@ -1,8 +1,8 @@
 [Plymouth Theme]
-Name=StormOS Plymouth
-Description=Sleek boot up progress bar
+Name=StormOS
+Description=StormOS boot splash
 ModuleName=script
 
 [script]
-ImageDir=/usr/share/plymouth/themes/stormos/assets
-ScriptFile=/usr/share/plymouth/themes/stormos/assets/stormos.script
+ImageDir=/usr/share/plymouth/themes/stormos
+ScriptFile=/usr/share/plymouth/themes/stormos/stormos.script

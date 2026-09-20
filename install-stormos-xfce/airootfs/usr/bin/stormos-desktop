@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-desktop}"
+PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
 
 # Fallback: if installed via the project dir, use that
 [ -f "$PROJECT_DIR/main.js" ] || PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

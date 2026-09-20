@@ -115,6 +115,8 @@ def run_capture(cmd):
 # ============================================================
 class PacmanBackend:
     def search(self, query):
+        # Sync database before search so results are current
+        run_capture(["pacman", "-Sy", "--noconfirm"])
         rc, out, _ = run_capture(["pacman", "-Ss", query])
         if rc != 0: return []
         packages = []

@@ -150,8 +150,8 @@ package() {
     fi
 
     # === GTK theme ===
-    if [ -d "$srcdir/$pkgname-$pkgver/themes/Arc-BLACK-ICE" ]; then
-        cp -a "$srcdir/$pkgname-$pkgver/themes/Arc-BLACK-ICE" "$pkgdir/usr/share/themes/"
+    if [ -d "$srcdir/$pkgname-$pkgver/themes/StormOS-GTK" ]; then
+        cp -a "$srcdir/$pkgname-$pkgver/themes/StormOS-GTK" "$pkgdir/usr/share/themes/"
     fi
 
     # === Icon theme ===

@@ -101,6 +101,12 @@ fi
 # Ensure grub theme files are available in installed system
 if [ -d "/usr/share/grub/themes/stormos" ] && [ ! -d "$TARGET_ROOT/usr/share/grub/themes/stormos" ]; then
     cp -r /usr/share/grub/themes/stormos "$TARGET_ROOT/usr/share/grub/themes/"
+n# === PLYMOUTH THEME SETUP ===
+show_progress "Setting StormOS plymouth theme..."
+if [ -d "/usr/share/plymouth/themes/stormos" ]; then
+    chroot "$TARGET_ROOT" plymouth-set-default-theme stormos 2>/dev/null || true
+    echo "✓ Plymouth theme set to StormOS"
+fi
     echo "✓ Copied StormOS GRUB theme to installed system"
 fi
 
