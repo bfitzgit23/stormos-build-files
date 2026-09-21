@@ -3,7 +3,7 @@
         type="text/css"
         id="current-color-scheme">
         .ColorScheme-NeutralText {
-            color:#f67400;
+            color:#19A9FF;
         }
         .ColorScheme-Text {
             color:#232629;

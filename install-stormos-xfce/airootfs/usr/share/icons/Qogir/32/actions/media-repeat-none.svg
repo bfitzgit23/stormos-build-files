@@ -5,10 +5,10 @@
        type="text/css"
        id="current-color-scheme">
       .ColorScheme-Text {
-        color:#5d656b;
+        color:#4FC3F7;
       }
       .ColorScheme-NegativeText {
-        color:#da4453;
+        color:#19A9FF;
       }
       </style>
   </defs>

@@ -3,102 +3,43 @@
     "logo": {
         "type": "builtin",
         "source": "StormOS",
+        "color": {
+            "1": "blue",
+            "2": "light_blue"
+        },
         "padding": {
-            "top": 0,
-            "right": 2
+            "top": 1,
+            "right": 3
         }
     },
     "display": {
-        "separator": " → ",
+        "separator": " ",
         "color": {
             "keys": "blue",
-            "title": "blue"
+            "title": "default"
         }
     },
     "modules": [
         "title",
-        "separator",
         {
-            "type": "os",
-            "key": "  OS",
-            "format": "{2} {12} {1}"
+            "type": "separator",
+            "string": "─────────────────────"
         },
-        {
-            "type": "kernel",
-            "key": "  Kernel"
-        },
-        {
-            "type": "uptime",
-            "key": "  Uptime"
-        },
-        {
-            "type": "packages",
-            "key": "  Packages",
-            "format": "{2} (pacman)"
-        },
-        {
-            "type": "shell",
-            "key": "  Shell"
-        },
-        {
-            "type": "de",
-            "key": "  DE"
-        },
-        {
-            "type": "wm",
-            "key": "  WM"
-        },
-        {
-            "type": "wmtheme",
-            "key": "  Theme"
-        },
-        {
-            "type": "icons",
-            "key": "  Icons"
-        },
-        {
-            "type": "terminal",
-            "key": "  Terminal"
-        },
-        {
-            "type": "terminalfont",
-            "key": "  Terminal Font"
-        },
+        { "type": "os",       "key": "  OS ",     "format": "{2} {10}" },
+        { "type": "kernel",   "key": "Kernel",    "keyColor": "blue" },
+        { "type": "uptime",   "key": "Uptime",    "keyColor": "blue" },
+        { "type": "packages", "key": "Packages",  "keyColor": "blue" },
+        { "type": "shell",    "key": "Shell",     "keyColor": "blue" },
+        { "type": "terminal", "key": "Terminal",  "keyColor": "blue" },
+        { "type": "de",       "key": "DE",        "keyColor": "blue" },
+        { "type": "wm",       "key": "WM",        "keyColor": "blue" },
+        { "type": "theme",    "key": "Theme",     "keyColor": "blue" },
+        { "type": "icons",    "key": "Icons",     "keyColor": "blue" },
+        { "type": "terminalfont", "key": "Font",  "keyColor": "blue" },
         "break",
-        {
-            "type": "cpu",
-            "key": "  CPU",
-            "showCount": true
-        },
-        {
-            "type": "gpu",
-            "key": "  GPU"
-        },
-        {
-            "type": "memory",
-            "key": "  Memory"
-        },
-        {
-            "type": "disk",
-            "key": "  Disk",
-            "format": "{1} / {2} ({3})"
-        },
-        "break",
-        {
-            "type": "localip",
-            "key": "  Local IP"
-        },
-        {
-            "type": "battery",
-            "key": "  Battery"
-        },
-        {
-            "type": "break"
-        },
-        {
-            "type": "colors",
-            "paddingLeft": 2,
-            "symbol": "circle"
-        }
+        { "type": "cpu",      "key": "CPU",       "keyColor": "blue" },
+        { "type": "gpu",      "key": "GPU",       "keyColor": "blue" },
+        { "type": "memory",   "key": "Memory",    "keyColor": "blue" },
+        { "type": "disk",     "key": "Disk",      "keyColor": "blue" }
     ]
 }

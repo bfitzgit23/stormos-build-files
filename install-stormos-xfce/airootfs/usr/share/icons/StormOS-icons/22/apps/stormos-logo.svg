@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0A1628"/>
-  <path d="M36 6 L22 32 L30 32 L26 58 L44 28 L36 28 Z" fill="#19A9FF"/>
-  <path d="M36 6 L22 32 L30 32 L26 58 L44 28 L36 28 Z" fill="none" stroke="#2CB5FF" stroke-width="1" opacity="0.4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="22" height="22">
+  <!-- StormOS ring logo: dark disc, glowing blue ring, lightning bolt center -->
+  <circle cx="24" cy="24" r="22" fill="#0A1628"/>
+  <circle cx="24" cy="24" r="19" fill="none" stroke="#19A9FF" stroke-width="2.5"/>
+  <path d="M26 12 L17 26 h5 l-2 10 L31 22 h-6 z" fill="#19A9FF"/>
 </svg>

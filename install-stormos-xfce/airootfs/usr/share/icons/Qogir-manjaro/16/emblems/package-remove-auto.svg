@@ -3,7 +3,7 @@
         type="text/css"
         id="current-color-scheme">
         .ColorScheme-NegativeText {
-            color:#da4453;
+            color:#19A9FF;
         }
         .ColorScheme-Text {
             color:#232629;

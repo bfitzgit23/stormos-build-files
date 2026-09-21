@@ -5,7 +5,7 @@
         "source": "StormOS",
         "color": {
             "1": "blue",
-            "2": "cyan"
+            "2": "light_blue"
         },
         "padding": {
             "top": 1,
@@ -13,34 +13,33 @@
         }
     },
     "display": {
-        "separator": " -> ",
+        "separator": " ",
         "color": {
             "keys": "blue",
-            "title": "cyan"
+            "title": "default"
         }
     },
     "modules": [
         "title",
         {
             "type": "separator",
-            "string": "--------------------"
+            "string": "─────────────────────"
         },
-        { "type": "os", "key": "  OS ", "format": "{2} {10}" },
-        { "type": "host", "key": " Host" },
-        { "type": "kernel", "key": " Kern" },
-        { "type": "uptime", "key": "   Up" },
-        { "type": "packages", "key": "Pkgs" },
-        { "type": "shell", "key": "Shell" },
-        { "type": "terminal", "key": " Term" },
-        { "type": "de", "key": "  DE " },
-        { "type": "wm", "key": "  WM " },
-        { "type": "terminalfont", "key": " Font" },
+        { "type": "os",       "key": "  OS ",     "format": "{2} {10}" },
+        { "type": "kernel",   "key": "Kernel",    "keyColor": "blue" },
+        { "type": "uptime",   "key": "Uptime",    "keyColor": "blue" },
+        { "type": "packages", "key": "Packages",  "keyColor": "blue" },
+        { "type": "shell",    "key": "Shell",     "keyColor": "blue" },
+        { "type": "terminal", "key": "Terminal",  "keyColor": "blue" },
+        { "type": "de",       "key": "DE",        "keyColor": "blue" },
+        { "type": "wm",       "key": "WM",        "keyColor": "blue" },
+        { "type": "theme",    "key": "Theme",     "keyColor": "blue" },
+        { "type": "icons",    "key": "Icons",     "keyColor": "blue" },
+        { "type": "terminalfont", "key": "Font",  "keyColor": "blue" },
         "break",
-        { "type": "cpu", "key": "  CPU" },
-        { "type": "gpu", "key": "  GPU" },
-        { "type": "memory", "key": "  RAM" },
-        { "type": "disk", "key": " Disk" },
-        { "type": "battery", "key": "Batt" },
-        { "type": "localip", "key": "  IP " }
+        { "type": "cpu",      "key": "CPU",       "keyColor": "blue" },
+        { "type": "gpu",      "key": "GPU",       "keyColor": "blue" },
+        { "type": "memory",   "key": "Memory",    "keyColor": "blue" },
+        { "type": "disk",     "key": "Disk",      "keyColor": "blue" }
     ]
 }

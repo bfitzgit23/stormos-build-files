@@ -3,7 +3,7 @@
         type="text/css"
         id="current-color-scheme">
         .ColorScheme-PositiveText {
-            color:#27ae60;
+            color:#19A9FF;
         }
         .ColorScheme-Text {
             color:#232629;

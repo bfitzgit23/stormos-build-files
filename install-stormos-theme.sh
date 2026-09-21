@@ -155,20 +155,41 @@ if [ -d "$THEMES_SRC/Xfce-Purp" ]; then
     ok "Xfce-Purp theme installed"
 fi
 
-# Copy Qogir-dark icons (blue icon set)
-if [ -d "$ICONS_SRC/Qogir-dark" ]; then
-    sudo cp -r "$ICONS_SRC/Qogir-dark" /usr/share/icons/
-    ok "Qogir-dark icons installed"
-else
-    info "Qogir-dark already present or not in build files"
+# Copy Qogir icons (now pre-recolored to StormOS blue)
+for qtheme in Qogir Qogir-dark Qogir-manjaro Qogir-manjaro-dark; do
+    if [ -d "$ICONS_SRC/$qtheme" ]; then
+        sudo rm -rf "/usr/share/icons/$qtheme"
+        sudo cp -r "$ICONS_SRC/$qtheme" /usr/share/icons/
+        ok "$qtheme icons installed (StormOS recolor)"
+    fi
+done
+# Safety net: if a stock (non-recolored) Qogir slipped in via pacman, retint it
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/recolor-qogir.sh" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/recolor-qogir.sh" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/recolor-qogir.sh
+    sudo sed -i 's/\r$//' /usr/local/bin/recolor-qogir.sh
+    sudo bash /usr/local/bin/recolor-qogir.sh || true
 fi
 
 # Copy StormOS-icons (blue icon overrides)
 if [ -d "$ICONS_SRC/StormOS-icons" ]; then
+    sudo rm -rf /usr/share/icons/StormOS-icons
     sudo cp -r "$ICONS_SRC/StormOS-icons" /usr/share/icons/
     ok "StormOS-icons installed"
 else
     err "StormOS-icons not found in build files"
+fi
+
+# Fastfetch config + StormOS logo
+if [ -d "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/fastfetch/logo" ]; then
+    sudo mkdir -p /usr/share/fastfetch/logo
+    sudo cp -r "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/fastfetch/logo/." /usr/share/fastfetch/logo/
+    ok "Fastfetch StormOS logo installed"
+fi
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/fastfetch/config.jsonc" ]; then
+    sudo mkdir -p /etc/fastfetch
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/fastfetch/config.jsonc" /etc/fastfetch/
+    ok "Fastfetch config installed"
 fi
 
 # Remove stock XFCE backgrounds

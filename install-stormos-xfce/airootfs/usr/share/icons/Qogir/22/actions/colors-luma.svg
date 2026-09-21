@@ -4,7 +4,7 @@
   <defs id="defs4357">
     <style type="text/css" id="current-color-scheme">
       .ColorScheme-Text {
-        color:#5d656b;
+        color:#4FC3F7;
       }
       .ColorScheme-Background {
         color:#eff0f1;
@@ -38,7 +38,7 @@
       }
       </style>
     <linearGradient id="linearGradient4012" inkscape:collect="always">
-      <stop id="stop4014" offset="0" style="stop-color:#1d99f3;stop-opacity:1"/>
+      <stop id="stop4014" offset="0" style="stop-color:#19A9FF;stop-opacity:1"/>
       <stop style="stop-color:#48acf5;stop-opacity:0.76119405" offset="0.41666669" id="stop4016"/>
       <stop style="stop-color:#73c0f7;stop-opacity:0" offset="0.66666329" id="stop4018"/>
       <stop id="stop4020" offset="1" style="stop-color:#cae7fc;stop-opacity:0"/>
