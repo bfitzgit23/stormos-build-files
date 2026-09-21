@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=StormOS Wallpaper
-Comment=Set StormOS wallpaper on first login
-Exec=stormos-set-wallpaper
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true
-X-XFCE-Autostart-Override=true

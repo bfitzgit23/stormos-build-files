@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Conky System Monitor
-Comment=StormOS system overview sidebar
-Exec=stormos-conky
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true
-X-XFCE-Autostart-Override=true
