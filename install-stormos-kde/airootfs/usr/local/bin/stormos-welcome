@@ -17,7 +17,7 @@ from PyQt5.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTabWidget, QPushButton, QLabel, QLineEdit, QTextEdit,
-    QGroupBox, QMessageBox, QTreeWidget, QTreeWidgetItem,
+    QGroupBox, QMessageBox, QTreeWidget, QTreeWidgetItem, QScrollArea,
     QComboBox, QSplitter
 )
 
@@ -280,6 +280,15 @@ class StormWelcome(QMainWindow):
         layout.addWidget(title_lbl)
         return card
 
+
+    def _wrap_scroll(self, widget):
+        """Wrap a widget in a QScrollArea for tabs with many cards."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(widget)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        return scroll
     # ------------------------------------------------------------------
     # Welcome Tab
     # ------------------------------------------------------------------
@@ -359,7 +368,7 @@ class StormWelcome(QMainWindow):
         layout.addWidget(links_card)
 
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     # ------------------------------------------------------------------
     # System Tab
@@ -386,7 +395,7 @@ class StormWelcome(QMainWindow):
         card.layout().addWidget(note)
         layout.addWidget(card)
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     # ------------------------------------------------------------------
     # Software Tab (unchanged)
@@ -533,7 +542,7 @@ class StormWelcome(QMainWindow):
             cache_card.layout().addWidget(btn)
         layout.addWidget(cache_card)
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     def create_drivers_tab(self):
         tab = QWidget()
@@ -563,7 +572,7 @@ class StormWelcome(QMainWindow):
         intel_card.layout().addWidget(btn)
         layout.addWidget(intel_card)
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     def create_tweaks_tab(self):
         tab = QWidget()
@@ -591,7 +600,7 @@ class StormWelcome(QMainWindow):
             plymouth_card.layout().addWidget(btn)
         layout.addWidget(plymouth_card)
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     def create_gaming_tab(self):
         tab = QWidget()
@@ -615,7 +624,7 @@ class StormWelcome(QMainWindow):
         wine_card.layout().addWidget(btn)
         layout.addWidget(wine_card)
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     def create_settings_tab(self):
         tab = QWidget()
@@ -644,7 +653,7 @@ class StormWelcome(QMainWindow):
             tools_card.layout().addWidget(btn)
         layout.addWidget(tools_card)
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     def create_help_tab(self):
         tab = QWidget()
@@ -663,7 +672,7 @@ class StormWelcome(QMainWindow):
         help_card.layout().addWidget(about_btn)
         layout.addWidget(help_card)
         layout.addStretch()
-        return tab
+        return self._wrap_scroll(tab)
 
     # ------------------------------------------------------------------
     # Actions
