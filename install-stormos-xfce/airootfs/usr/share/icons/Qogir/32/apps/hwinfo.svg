@@ -1,17 +1,17 @@
 <svg width="32" height="32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
- <path d="m13 26v1.5c0 0.277 0.223 0.5 0.5 0.5h13c0.277 0 0.5136-0.22333 0.5-0.5v-1.5h-13.5zm-8 0v1.5c0 0.277 0.223 0.5 0.5 0.5h5c0.277 0 0.47772-0.2239 0.5-0.5v-1.5h-5.5z" fill="#fbc02d" stroke="#ba8708" stroke-width="2"/>
- <path d="m13 26v1.5c0 0.277 0.223 0.5 0.5 0.5h13c0.277 0 0.5136-0.22333 0.5-0.5v-1.5h-13.5zm-8 0v1.5c0 0.277 0.223 0.5 0.5 0.5h5c0.277 0 0.47772-0.2239 0.5-0.5v-1.5h-5.5z" fill="#fbc02d" stroke-width=".5"/>
+ <path d="m13 26v1.5c0 0.277 0.223 0.5 0.5 0.5h13c0.277 0 0.5136-0.22333 0.5-0.5v-1.5h-13.5zm-8 0v1.5c0 0.277 0.223 0.5 0.5 0.5h5c0.277 0 0.47772-0.2239 0.5-0.5v-1.5h-5.5z" fill="#19a9ff" stroke="#ba8708" stroke-width="2"/>
+ <path d="m13 26v1.5c0 0.277 0.223 0.5 0.5 0.5h13c0.277 0 0.5136-0.22333 0.5-0.5v-1.5h-13.5zm-8 0v1.5c0 0.277 0.223 0.5 0.5 0.5h5c0.277 0 0.47772-0.2239 0.5-0.5v-1.5h-5.5z" fill="#19a9ff" stroke-width=".5"/>
  <rect x="1" y="3" width="30" height="23" rx="2" ry="2" fill="#29702c" stroke-width=".54163"/>
  <g stroke-width=".5">
   <rect x="2" y="4" width="28" height="21" rx="1" ry="1" fill="#388e3c"/>
   <path d="m9 17.5-5 4v1.5l3-2v1l-3 2h2l0.5 1h2.5v-2.5l3-2.5h1.5l-3 2.5v2.5h19c0.277 0 0.5-0.223 0.5-0.5v-1.546l-3.5-4.454h-1l-1-1z" fill="#43a047" fill-rule="evenodd"/>
-  <circle cx="29.25" cy="24.25" r=".75" fill="#fbc02d"/>
+  <circle cx="29.25" cy="24.25" r=".75" fill="#19a9ff"/>
   <circle cx="29.25" cy="24.25" r=".25" fill="#263238"/>
-  <circle cx="29.25" cy="4.75" r=".75" fill="#fbc02d"/>
+  <circle cx="29.25" cy="4.75" r=".75" fill="#19a9ff"/>
   <circle cx="29.25" cy="4.75" r=".25" fill="#263238"/>
-  <circle cx="2.75" cy="24.25" r=".75" fill="#fbc02d"/>
+  <circle cx="2.75" cy="24.25" r=".75" fill="#19a9ff"/>
   <circle cx="2.75" cy="24.25" r=".25" fill="#263238"/>
-  <circle cx="2.75" cy="4.75" r=".75" fill="#fbc02d"/>
+  <circle cx="2.75" cy="4.75" r=".75" fill="#19a9ff"/>
   <circle cx="2.75" cy="4.75" r=".25" fill="#263238"/>
   <path d="m5 4v4l-1 1v1l1.5 1.5h19l3.5-4h2v-0.5h-2v-2l-4 4.5h-1.5l4-4.5-1-1z" fill="#43a047" fill-rule="evenodd"/>
  </g>

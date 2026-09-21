@@ -2,7 +2,7 @@
  <rect x="1.0582" y="4.7623" width="31.75" height="24.341" ry=".52999" fill="none" stroke="#262a2f" stroke-opacity=".784" stroke-width=".529" style="paint-order:markers stroke fill"/>
  <g>
   <rect x="1.0583" y="4.7624" width="31.749" height="24.341" ry=".52998" fill="#637378" style="paint-order:markers stroke fill"/>
-  <path d="m1.5883 4.7624a0.52799 0.52816 0 0 0-0.52999 0.53016v1.5865h31.749v-1.5865a0.52799 0.52816 0 0 0-0.52799-0.53016z" fill="#4a4f59" style="paint-order:stroke markers fill"/>
+  <path d="m1.5883 4.7624a0.52799 0.52816 0 0 0-0.52999 0.53016v1.5865h31.749v-1.5865a0.52799 0.52816 0 0 0-0.52799-0.53016z" fill="#4fc3f7" style="paint-order:stroke markers fill"/>
   <rect x="3.1749" y="5.2916" width="2.1166" height="1.0583" ry=".53016" opacity=".35" style="paint-order:stroke markers fill"/>
   <rect x="14.287" y="5.2916" width="5.2916" height="1.0583" ry=".53016" opacity=".35" style="paint-order:stroke markers fill"/>
   <rect x="30.162" y="5.2916" width="1.0583" height="1.0583" ry=".53016" fill="#fff" opacity=".8" style="paint-order:stroke markers fill"/>

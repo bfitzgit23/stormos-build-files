@@ -4,6 +4,6 @@
  <path d="m17 3v12h14v-11c0-0.554-0.446-1-1-1h-13zm-16 14v11c0 0.554 0.446 1 1 1h13v-12h-14zm16 0v12h13c0.554 0 1-0.446 1-1v-11h-14z" fill="#fff" opacity=".15"/>
  <path d="M4 6h8v6H4z" fill="#67aace" fill-rule="evenodd"/>
  <path d="M4 6v6h8V6zm1 1h6v4H5z" fill="#85c9ec" fill-rule="evenodd"/>
- <path d="m20 20h8v6h-8z" fill="#636367"/>
+ <path d="m20 20h8v6h-8z" fill="#4fc3f7"/>
  <path d="m20 20v6h8v-6zm1 1h6v4h-6z" fill="#9a9b9d"/>
 </svg>

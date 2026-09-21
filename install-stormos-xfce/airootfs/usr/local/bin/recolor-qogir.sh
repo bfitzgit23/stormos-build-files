@@ -3,12 +3,11 @@
 # recolor-qogir.sh — bake the StormOS blue accent into the bundled Qogir
 # icon themes, in-place and idempotently.
 #
-# Qogir line-art icons draw in #5d656b (gray) with colored accents (red
-# #da4453 etc). This script retints:
-#   - gray strokes/fills  -> StormOS light blue #4FC3F7
-#   - accent colors       -> StormOS blue #19A9FF
-# so every icon system-wide (panel applets, menus, actions) inherits the
-# StormOS dark-blue accent instead of stock gray/red.
+# Qogir line-art icons use various accent colors (red, green, yellow, orange,
+# various blues). This script retints ALL of them to the StormOS palette:
+#   - Gray strokes/fills   -> StormOS light blue  #4FC3F7
+#   - All accent colors    -> StormOS primary     #19A9FF
+#   - Brown/dark accents   -> StormOS pale        #7FDBFF
 #
 # Run once at install time; safe to re-run.
 
@@ -32,6 +31,10 @@ for theme in Qogir Qogir-dark Qogir-manjaro Qogir-manjaro-dark; do
     while IFS= read -r -d '' svg; do
         sed -i \
             -e 's/#5d656b/#4FC3F7/gI' \
+            -e 's/#4d4d4d/#4FC3F7/gI' \
+            -e 's/#3e4245/#4FC3F7/gI' \
+            -e 's/#37474f/#4FC3F7/gI' \
+            -e 's/#263238/#4FC3F7/gI' \
             -e 's/#52952e/#19A9FF/gI' \
             -e 's/#da4453/#19A9FF/gI' \
             -e 's/#f67400/#19A9FF/gI' \
@@ -42,6 +45,31 @@ for theme in Qogir Qogir-dark Qogir-manjaro Qogir-manjaro-dark; do
             -e 's/#f44336/#19A9FF/gI' \
             -e 's/#2ecc71/#19A9FF/gI' \
             -e 's/#e67e22/#19A9FF/gI' \
+            -e 's/#72d406/#19A9FF/gI' \
+            -e 's/#fbc02d/#19A9FF/gI' \
+            -e 's/#e5a50a/#19A9FF/gI' \
+            -e 's/#ffe600/#19A9FF/gI' \
+            -e 's/#ffbd55/#19A9FF/gI' \
+            -e 's/#ff5474/#19A9FF/gI' \
+            -e 's/#fa7c1a/#19A9FF/gI' \
+            -e 's/#ff5722/#19A9FF/gI' \
+            -e 's/#cc3333/#19A9FF/gI' \
+            -e 's/#1c99e0/#19A9FF/gI' \
+            -e 's/#4f6698/#19A9FF/gI' \
+            -e 's/#003579/#19A9FF/gI' \
+            -e 's/#037ad9/#19A9FF/gI' \
+            -e 's/#5c9ee0/#19A9FF/gI' \
+            -e 's/#638df5/#19A9FF/gI' \
+            -e 's/#6ba4e7/#19A9FF/gI' \
+            -e 's/#82b6ea/#19A9FF/gI' \
+            -e 's/#90a9ff/#4FC3F7/gI' \
+            -e 's/#bad5ff/#4FC3F7/gI' \
+            -e 's/#ccdfff/#4FC3F7/gI' \
+            -e 's/#b4bfd8/#4FC3F7/gI' \
+            -e 's/#a2703c/#7FDBFF/gI' \
+            -e 's/#5294e2/#19A9FF/gI' \
+            -e 's/#2196f3/#19A9FF/gI' \
+            -e 's/#3889e9/#19A9FF/gI' \
             "$svg" 2>/dev/null || true
     done
     echo "  $theme: done"

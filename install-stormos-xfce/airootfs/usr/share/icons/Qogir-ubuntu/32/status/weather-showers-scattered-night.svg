@@ -407,7 +407,7 @@
    <circle cx="17.5" cy="1041.9" r="1.5"/>
    <circle cx="21.5" cy="1028.9" r=".5"/>
   </g>
-  <rect x="9" y="1047.4" width="2" height="2.9999" ry="1" fill="#2196f3"/>
+  <rect x="9" y="1047.4" width="2" height="2.9999" ry="1" fill="#19a9ff"/>
   <path d="m8 1034.4v12h6a6 6 0 0 0 6-6 6 6 0 0 0-6-6z" fill="#bdbdbd"/>
   <circle cx="8" cy="1038.4" r="8" fill="#bdbdbd"/>
   <path d="m8 1035.4v10h6c2.7614 0 5-2.2386 5-5s-2.2386-5-5-5z" fill="#f5f5f5"/>

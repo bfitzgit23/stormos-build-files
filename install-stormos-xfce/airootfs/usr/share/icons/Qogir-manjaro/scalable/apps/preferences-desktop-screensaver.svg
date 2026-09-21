@@ -7,7 +7,7 @@
  <rect x="14.023" y="2.645" width=".794" height=".529" ry=".265" opacity=".35" style="paint-order:stroke markers fill"/>
  <rect x="13.229" y="2.645" width=".529" height=".529" ry=".265" opacity=".35" style="paint-order:stroke markers fill"/>
  <path transform="scale(.26458)" d="m15.002 50.998c-1.1077 0-2 0.89233-2 2v2.002h38v-2.002c0-1.1077-0.89233-2-2-2h-34z" fill="#fff" opacity=".35" stroke-width="3.7796" style="paint-order:stroke markers fill"/>
- <g fill="#ccdfff">
+ <g fill="#4fc3f7">
   <rect x="4.498" y="12.7" width="1.323" height="1.323" ry=".132" style="paint-order:stroke markers fill"/>
   <rect x="6.703" y="12.7" width="1.323" height="1.323" ry=".132" style="paint-order:stroke markers fill"/>
   <rect x="8.908" y="12.7" width="1.323" height="1.323" ry=".132" style="paint-order:stroke markers fill"/>

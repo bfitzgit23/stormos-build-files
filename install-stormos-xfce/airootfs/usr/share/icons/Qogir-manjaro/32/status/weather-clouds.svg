@@ -1,7 +1,7 @@
 <svg width="32" height="32" version="1.1" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
  <defs>
   <style id="current-color-scheme" type="text/css">.ColorScheme-Text {
-        color:#4d4d4d;
+        color:#4fc3f7;
       }
       .ColorScheme-Background {
         color:#eff0f1;
@@ -34,7 +34,7 @@
         color:#3daee9;
       }</style>
   <style type="text/css">.ColorScheme-Text {
-        color:#4d4d4d;
+        color:#4fc3f7;
       }
       .ColorScheme-Background {
         color:#eff0f1;
@@ -67,7 +67,7 @@
         color:#3daee9;
       }</style>
   <style type="text/css">.ColorScheme-Text {
-        color:#4d4d4d;
+        color:#4fc3f7;
       }
       .ColorScheme-Background {
         color:#eff0f1;
@@ -100,7 +100,7 @@
         color:#3daee9;
       }</style>
   <style type="text/css">.ColorScheme-Text {
-        color:#4d4d4d;
+        color:#4fc3f7;
       }
       .ColorScheme-Background {
         color:#eff0f1;

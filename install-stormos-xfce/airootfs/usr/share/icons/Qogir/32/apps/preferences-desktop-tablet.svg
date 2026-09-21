@@ -12,16 +12,16 @@
  <g>
   <rect x="1.165e-5" y="1" width="32" height="30" rx="2" ry="2" opacity=".25" stroke-width="1.0351"/>
   <rect x="1" y="2" width="30" height="28" rx="1" ry="1" fill="#eee" stroke-width=".96825"/>
-  <path d="m2 2c-0.55402 0-1 0.44599-1 1v6h30v-6c0-0.55401-0.44599-1-1-1z" fill="#4d4d4d" stroke-width="1.1859"/>
+  <path d="m2 2c-0.55402 0-1 0.44599-1 1v6h30v-6c0-0.55401-0.44599-1-1-1z" fill="#4fc3f7" stroke-width="1.1859"/>
   <rect x="27" y="4" width="2" height="2" rx="1" fill="#3995ed"/>
   <rect x="1" y="8" width="30" height="1" ry="0" opacity=".25"/>
  </g>
  <g stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></g>
  <g transform="translate(-.76921 1.537)">
-  <path d="m22.769 10.463h2v7.3846h-2z" fill="#808080"/>
+  <path d="m22.769 10.463h2v7.3846h-2z" fill="#4fc3f7"/>
   <path d="m22.769 17.848h2v5.3038h-2z" fill="#b3b3b3"/>
   <path d="m22.769 22.467h2v0.99612h-2z" fill="#999"/>
-  <path d="m22.769 23.463v0.32024l0.99998 1.6798 0.99998-1.6798v-0.32024z" fill="#808080" fill-rule="evenodd"/>
+  <path d="m22.769 23.463v0.32024l0.99998 1.6798 0.99998-1.6798v-0.32024z" fill="#4fc3f7" fill-rule="evenodd"/>
  </g>
  <rect x="3" y="4" width="2" height="2" rx="1" fill="#ccc"/>
 </svg>

@@ -10,7 +10,7 @@
   <linearGradient id="e" x1="4.49" x2="47.5" y1="23" y2="23" gradientTransform="matrix(.91422 0 0 -.91422 .704 45.027)" gradientUnits="userSpaceOnUse" xlink:href="#a"/>
  </defs>
  <path d="m8.467 1.3229a7.1483 7.1483 0 0 0-7.1441 7.1441 7.1483 7.1483 0 0 0 7.1441 7.1431 7.1483 7.1483 0 0 0 7.1431-7.1441 7.1483 7.1483 0 0 0-7.1441-7.1431z" color="#000000" fill="#2f74c7" overflow="visible" stroke-width="1.0384"/>
- <path d="m8.467 1.587a6.884 6.884 0 0 0-6.88 6.88 6.884 6.884 0 0 0 6.88 6.879 6.884 6.884 0 0 0 6.879-6.88 6.884 6.884 0 0 0-6.88-6.879z" fill="#5294e2" overflow="visible"/>
+ <path d="m8.467 1.587a6.884 6.884 0 0 0-6.88 6.88 6.884 6.884 0 0 0 6.88 6.879 6.884 6.884 0 0 0 6.879-6.88 6.884 6.884 0 0 0-6.88-6.879z" fill="#19a9ff" overflow="visible"/>
  <path transform="matrix(.32911 0 0 .32912 .568 .568)" d="m27.695 41.805a8.685 19.656 0 0 0-3.7-37.46" fill="none" opacity=".8" stroke="url(#b)" stroke-linecap="round" stroke-linejoin="round" stroke-width=".804"/>
  <path d="M9.15 14.137a.602.602 0 0 0 1.203 0 .602.602 0 1 0-1.204 0z" fill="#fff" overflow="visible"/>
  <path transform="matrix(.32911 0 0 .32912 .568 .568)" d="M37.915 37.899A19.656 8.685 45 0 1 8.841 13.213" fill="none" opacity=".8" stroke="url(#c)" stroke-linecap="round" stroke-linejoin="round" stroke-width=".804"/>

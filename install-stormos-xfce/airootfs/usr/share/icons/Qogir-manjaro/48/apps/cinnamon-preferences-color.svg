@@ -28,7 +28,7 @@
   </metadata>
   <sodipodi:namedview
      pagecolor="#ffffff"
-     bordercolor="#666666"
+     bordercolor="#4fc3f7"
      borderopacity="1"
      objecttolerance="10"
      gridtolerance="10"
@@ -95,7 +95,7 @@
      cy="24"
      r="21" />
   <circle
-     style="fill:none;stroke:#4f6698;stroke-opacity:0.26700003"
+     style="fill:none;stroke:#19a9ff;stroke-opacity:0.26700003"
      id="circle54"
      cx="24"
      cy="24"
@@ -126,7 +126,7 @@
     <path
        id="path38-3"
        d="M 14.371094,6.2890625 8,8 14.371094,9.7109375 C 14.51629,9.164772 14.599609,8.5931644 14.599609,8 c 0,-0.5931644 -0.08332,-1.164772 -0.228515,-1.7109375 z"
-       style="fill:#ffe600;fill-rule:evenodd;stroke-width:0.30011499"
+       style="fill:#19a9ff;fill-rule:evenodd;stroke-width:0.30011499"
        inkscape:connector-curvature="0" />
     <path
        id="path40-5"
@@ -136,7 +136,7 @@
     <path
        id="path42-6"
        d="M 9.7089844,1.625 8,8 12.671875,3.3261719 C 11.865509,2.5191873 10.846883,1.9278275 9.7089844,1.625 Z"
-       style="fill:#fa7c1a;fill-rule:evenodd;stroke-width:0.30011499"
+       style="fill:#19a9ff;fill-rule:evenodd;stroke-width:0.30011499"
        inkscape:connector-curvature="0" />
     <path
        id="path44"
@@ -156,7 +156,7 @@
     <path
        id="path50"
        d="M 6.2910156,1.625 C 5.1531173,1.9278275 4.1344913,2.5191873 3.328125,3.3261719 L 8,8 Z"
-       style="fill:#ff5474;fill-rule:evenodd;stroke-width:0.30011499"
+       style="fill:#19a9ff;fill-rule:evenodd;stroke-width:0.30011499"
        inkscape:connector-curvature="0" />
     <path
        id="path52"
@@ -165,7 +165,7 @@
        inkscape:connector-curvature="0" />
   </g>
   <circle
-     style="fill:none;stroke:#4f6698;stroke-opacity:0.26700003"
+     style="fill:none;stroke:#19a9ff;stroke-opacity:0.26700003"
      id="circle58"
      cx="24"
      cy="24"

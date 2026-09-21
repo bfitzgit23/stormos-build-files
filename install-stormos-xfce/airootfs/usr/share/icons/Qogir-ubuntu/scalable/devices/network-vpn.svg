@@ -11,7 +11,7 @@
  </defs>
  <path d="m30 4a27.018 27.018 0 0 0-27.002 27.002 27.018 27.018 0 0 0 27.002 26.998 27.018 27.018 0 0 0 26.998-27.002 27.018 27.018 0 0 0-27.002-26.998z" color="#000000" fill="#2f74c7" overflow="visible" stroke-width="3.9247"/>
  <g transform="translate(.5)">
-  <path d="m29.5 5c-14.346 0-26 11.654-26 26s11.654 26 26 26 26-11.654 26-26-11.654-26-26-26z" color="#000000" fill="#5294e2" overflow="visible"/>
+  <path d="m29.5 5c-14.346 0-26 11.654-26 26s11.654 26 26 26 26-11.654 26-26-11.654-26-26-26z" color="#000000" fill="#19a9ff" overflow="visible"/>
   <path transform="matrix(1.2439 0 0 1.2439 -.353 1.146)" d="m27.695 41.805a8.685 19.656 0 0 0-3.7-37.46" fill="none" opacity=".8" stroke="url(#b)" stroke-linecap="round" stroke-linejoin="round" stroke-width=".804"/>
   <path d="m32.08 52.43a2.274 2.274 0 0 0 4.548 0 2.2745 2.2745 0 1 0-4.549 0z" color="#000000" fill="#fff" overflow="visible"/>
   <path transform="matrix(1.2439 0 0 1.2439 -.353 1.146)" d="m37.915 37.899a19.656 8.685 45 0 1-29.074-24.686" fill="none" opacity=".8" stroke="url(#c)" stroke-linecap="round" stroke-linejoin="round" stroke-width=".804"/>
