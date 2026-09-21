@@ -36,7 +36,7 @@ OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch
                xfce4-pulseaudio-plugin)
 
 # AUR packages (yay)
-AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin)
+AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins)
 
 # Check and install official packages
 NEED_OFFICIAL=()
@@ -139,12 +139,42 @@ else
     err "StormOS-icons not found in build files"
 fi
 
+# Remove stock XFCE backgrounds
+info "Removing stock XFCE backgrounds..."
+sudo rm -f /usr/share/backgrounds/xfce/* 2>/dev/null || true
+sudo rm -f /usr/share/backgrounds/xfce-*.svg 2>/dev/null || true
+ok "Stock backgrounds removed"
+
 # Copy StormOS wallpaper
 WALLPAPER_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/backgrounds"
 if [ -f "$WALLPAPER_SRC/stormos-wallpaper.png" ]; then
     sudo cp "$WALLPAPER_SRC/stormos-wallpaper.png" /usr/share/backgrounds/
     ok "StormOS wallpaper installed"
 fi
+
+# Install wallpaper setter script
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-set-wallpaper" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-set-wallpaper" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-set-wallpaper
+    sudo sed -i 's/\r$//' /usr/local/bin/stormos-set-wallpaper
+    ok "Wallpaper setter installed"
+fi
+
+# Install wallpaper autostart
+mkdir -p "$HOME/.config/autostart"
+cp "$SKEL/.config/autostart/stormos-wallpaper.desktop" "$HOME/.config/autostart/" 2>/dev/null || true
+
+# Force wallpaper via xfconf-query
+WALLPAPER="/usr/share/backgrounds/stormos-wallpaper.png"
+for ws in 0 1 2 3; do
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
+done
+ok "Wallpaper set"
 
 ok "Themes installed"
 
@@ -262,22 +292,12 @@ mkdir -p "$HOME/.config/Thunar"
 cp "$SKEL/.config/Thunar/uca.xml" "$HOME/.config/Thunar/"
 cp "$SKEL/.config/Thunar/gtk.xml" "$HOME/.config/Thunar/" 2>/dev/null || true
 
-# Autostart entries (wallpaper, welcome, switcheroo)
+# Autostart entries (welcome, switcheroo)
 mkdir -p "$HOME/.config/autostart"
-if [ -f "$SKEL/.config/autostart/stormos-wallpaper.desktop" ]; then
-    cp "$SKEL/.config/autostart/stormos-wallpaper.desktop" "$HOME/.config/autostart/"
-fi
 [ -f "$SKEL/.config/autostart/stormos-welcome.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-welcome.desktop" "$HOME/.config/autostart/"
 [ -f "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" "$HOME/.config/autostart/"
-
-# StormOS wallpaper setter
-if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-set-wallpaper" ]; then
-    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-set-wallpaper" /usr/local/bin/
-    sudo chmod +x /usr/local/bin/stormos-set-wallpaper
-    ok "Wallpaper setter installed"
-fi
 
 # Bookmarks
 cp "$SKEL/.gtk-bookmarks" "$HOME/" 2>/dev/null || true

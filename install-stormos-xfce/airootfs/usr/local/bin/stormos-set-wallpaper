@@ -6,12 +6,22 @@ WALLPAPER="/usr/share/backgrounds/stormos-wallpaper.png"
 
 [ -f "$WALLPAPER" ] || exit 0
 
+# Wait for xfconfd to be ready (up to 10 seconds)
+for i in $(seq 1 20); do
+    if xfconf-query -c xfce4-desktop -l &>/dev/null; then
+        break
+    fi
+    sleep 0.5
+done
+
 # Set all 4 workspaces via xfconf-query (both with and without monitor0)
 for ws in 0 1 2 3; do
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
 done
 
 # Reload xfdesktop
