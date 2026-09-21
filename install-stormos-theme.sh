@@ -199,6 +199,23 @@ for f in .config/xfce4 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc-2.0 \
 done
 ok "Backup complete"
 
+# ─── 2b. Clean stale XFCE state (prevents blank screen / login loop) ─────
+info "Cleaning stale XFCE state..."
+
+# Remove saved session state — forces fresh session start
+rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
+
+# Remove stale panel RC files (leftover from old plugin IDs)
+rm -f "$HOME/.config/xfce4/panel/"*.rc 2>/dev/null || true
+rm -rf "$HOME/.config/xfce4/panel/launcher-"* 2>/dev/null || true
+
+# Remove stale autostart entries that might block session startup
+rm -f "$HOME/.config/autostart/autoi.desktop" 2>/dev/null || true
+rm -f "$HOME/.config/autostart/trust-launch.desktop" 2>/dev/null || true
+rm -f "$HOME/.config/autostart/picom.desktop" 2>/dev/null || true
+
+ok "Stale state cleaned"
+
 # ─── 3. Copy XFCE theme settings ONLY (do NOT overwrite panel config!) ───────
 info "Installing StormOS theme settings..."
 

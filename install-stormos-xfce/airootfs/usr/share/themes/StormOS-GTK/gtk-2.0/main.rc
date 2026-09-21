@@ -2221,13 +2221,7 @@ style "xfwm-tabwin" {
 
 	fg[NORMAL] = @fg_color
 
-  engine "murrine" {
-    contrast = 0.7
-    glazestyle = 0
-    glowstyle = 0
-    highlight_shade = 1.0
-    gradient_shades = {1.0,1.0,1.0,1.0}
-    border_shades = { 0.8, 0.8 }
+  engine "pixmap" {
   }
 }
 
@@ -2246,11 +2240,13 @@ style "chrome_menu_item" {
 
 # Text Style
 style "text" = "default" {
-  engine "murrine" { textstyle = 0 }
+  engine "pixmap" {
+  }
 }
 
 style "menu_text" = "menu_item" {
-  engine "murrine" { textstyle = 0 }
+  engine "pixmap" {
+  }
 }
 
 
