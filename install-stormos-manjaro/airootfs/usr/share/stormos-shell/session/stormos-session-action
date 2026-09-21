@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+case "${1:-}" in
+ lock) loginctl lock-session ;;
+ logout) command -v labwc >/dev/null 2>&1 && labwc --exit || loginctl terminate-user "$USER" ;;
+ suspend) loginctl suspend ;;
+ hibernate) loginctl hibernate ;;
+ restart|reboot) loginctl reboot ;;
+ shutdown|poweroff) loginctl poweroff ;;
+ *) echo "Usage: $0 {lock|logout|suspend|hibernate|restart|shutdown}" >&2; exit 1 ;;
+esac

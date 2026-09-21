@@ -1,0 +1,10 @@
+## StormOS Manjaro Live CD Packages
+mhwd
+mhwd-db
+mhwd-nvidia
+mhwd-nvidia-390xx
+manjaro-settings-manager
+manjaro-tools-iso
+calamares
+calamares-git
+python-pyqt5

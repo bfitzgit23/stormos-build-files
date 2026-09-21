@@ -1,0 +1,179 @@
+<?xml version="1.1" encoding="UTF-8"?>
+
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+    <value type="int" value="2"/>
+    <property name="dark-mode" type="bool" value="true"/>
+    <property name="panel-1" type="empty">
+      <property name="position" type="string" value="p=11;x=984;y=18"/>
+      <property name="length" type="double" value="100"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="icon-size" type="uint" value="0"/>
+      <property name="size" type="uint" value="34"/>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="1"/>
+        <value type="int" value="12"/>
+        <value type="int" value="20"/>
+        <value type="int" value="3"/>
+        <value type="int" value="2"/>
+        <value type="int" value="5"/>
+        <value type="int" value="6"/>
+        <value type="int" value="8"/>
+        <value type="int" value="9"/>
+        <value type="int" value="10"/>
+        <value type="int" value="14"/>
+        <value type="int" value="15"/>
+      </property>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="background-rgba" type="array">
+        <value type="double" value="0.04"/>
+        <value type="double" value="0.09"/>
+        <value type="double" value="0.16"/>
+        <value type="double" value="0.88"/>
+      </property>
+      <property name="length-adjust" type="bool" value="true"/>
+      <property name="autohide-behavior" type="uint" value="0"/>
+      <property name="enter-opacity" type="uint" value="100"/>
+      <property name="leave-opacity" type="uint" value="100"/>
+    </property>
+    <property name="panel-2" type="empty">
+      <property name="position" type="string" value="p=12;x=910;y=1055"/>
+      <property name="size" type="uint" value="48"/>
+      <property name="length" type="double" value="100"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="background-rgba" type="array">
+        <value type="double" value="0.04"/>
+        <value type="double" value="0.09"/>
+        <value type="double" value="0.16"/>
+        <value type="double" value="0.88"/>
+      </property>
+      <property name="autohide-behavior" type="uint" value="0"/>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="11"/>
+        <value type="int" value="21"/>
+      </property>
+    </property>
+  </property>
+  <property name="plugins" type="empty">
+    <property name="plugin-1" type="string" value="whiskermenu">
+      <property name="hover-switch-category" type="bool" value="true"/>
+      <property name="position-search-alternate" type="bool" value="true"/>
+      <property name="button-icon" type="string" value="Lightning_Logo1"/>
+      <property name="button-title" type="string" value="StormOS"/>
+      <property name="show-button-title" type="bool" value="true"/>
+      <property name="show-generics" type="bool" value="true"/>
+      <property name="recent" type="array">
+        <value type="string" value="thunar.desktop"/>
+        <value type="string" value="foot.desktop"/>
+        <value type="string" value="firefox.desktop"/>
+        <value type="string" value="org.gnome.Settings.desktop"/>
+        <value type="string" value="pamac-manager.desktop"/>
+        <value type="string" value="libreoffice-startcenter.desktop"/>
+        <value type="string" value="steam.desktop"/>
+      </property>
+      <property name="favorites" type="array">
+        <value type="string" value="thunar.desktop"/>
+        <value type="string" value="foot.desktop"/>
+        <value type="string" value="firefox.desktop"/>
+        <value type="string" value="org.gnome.Settings.desktop"/>
+        <value type="string" value="pamac-manager.desktop"/>
+        <value type="string" value="libreoffice-startcenter.desktop"/>
+        <value type="string" value="steam.desktop"/>
+      </property>
+      <property name="expand" type="bool" value="false"/>
+    </property>
+    <property name="plugin-2" type="string" value="tasklist">
+      <property name="grouping" type="uint" value="1"/>
+      <property name="show-labels" type="bool" value="false"/>
+      <property name="show-handle" type="bool" value="false"/>
+      <property name="show-tooltips" type="bool" value="true"/>
+      <property name="flat-buttons" type="bool" value="true"/>
+    </property>
+    <property name="plugin-3" type="string" value="separator">
+      <property name="expand" type="bool" value="true"/>
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-5" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+      <property name="expand" type="bool" value="false"/>
+    </property>
+    <property name="plugin-6" type="string" value="systray">
+      <property name="square-icons" type="bool" value="true"/>
+      <property name="show-frame" type="bool" value="false"/>
+      <property name="icon-size" type="int" value="0"/>
+    </property>
+    <property name="plugin-8" type="string" value="pulseaudio">
+      <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
+      <property name="show-notifications" type="bool" value="true"/>
+      <property name="known-players" type="string" value="Brave;Chromium;firefox;spotify;Thorium;Vivaldi;vlc"/>
+    </property>
+    <property name="plugin-9" type="string" value="power-manager-plugin"/>
+    <property name="plugin-10" type="string" value="notification-plugin"/>
+    <property name="plugin-11" type="string" value="docklike"/>
+    <property name="plugin-12" type="string" value="clock">
+      <property name="digital-format" type="string" value="%T"/>
+      <property name="digital-time-format" type="string" value="%I:%M %p"/>
+      <property name="digital-layout" type="uint" value="3"/>
+      <property name="digital-time-font" type="string" value="Inter 11"/>
+    </property>
+    <property name="plugin-14" type="string" value="actions">
+      <property name="appearance" type="uint" value="0"/>
+      <property name="items" type="array">
+        <value type="string" value="-lock-screen"/>
+        <value type="string" value="-switch-user"/>
+        <value type="string" value="-separator"/>
+        <value type="string" value="-suspend"/>
+        <value type="string" value="-hibernate"/>
+        <value type="string" value="-hybrid-sleep"/>
+        <value type="string" value="-separator"/>
+        <value type="string" value="-shutdown"/>
+        <value type="string" value="-restart"/>
+        <value type="string" value="-separator"/>
+        <value type="string" value="+logout"/>
+        <value type="string" value="-logout-dialog"/>
+      </property>
+    </property>
+    <property name="plugin-15" type="string" value="screenshooter"/>
+    <property name="plugin-18" type="string" value="weather">
+      <property name="location" type="empty">
+        <property name="name" type="string" value="Louisville, Jefferson County"/>
+        <property name="latitude" type="string" value="38.254238"/>
+        <property name="longitude" type="string" value="-85.759407"/>
+      </property>
+      <property name="msl" type="int" value="143"/>
+      <property name="timezone" type="string" value="America/Kentucky/Louisville"/>
+      <property name="offset" type="string" value="-04:00"/>
+      <property name="cache-max-age" type="int" value="172800"/>
+      <property name="power-saving" type="bool" value="true"/>
+      <property name="round" type="bool" value="true"/>
+      <property name="single-row" type="bool" value="true"/>
+      <property name="tooltip-style" type="int" value="1"/>
+      <property name="theme-dir" type="string" value="/usr/share/xfce4/weather/icons/simplistic"/>
+      <property name="scrollbox" type="empty">
+        <property name="show" type="bool" value="true"/>
+        <property name="animate" type="bool" value="true"/>
+        <property name="lines" type="int" value="1"/>
+      </property>
+      <property name="labels" type="empty">
+        <property name="label0" type="int" value="3"/>
+        <property name="label1" type="int" value="9"/>
+      </property>
+    </property>
+    <property name="plugin-20" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+      <property name="expand" type="bool" value="false"/>
+    </property>
+    <property name="plugin-21" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+      <property name="expand" type="bool" value="true"/>
+    </property>
+    <property name="notes" type="empty">
+      <property name="global" type="empty">
+        <property name="version" type="string" value="1.12.0"/>
+      </property>
+    </property>
+  </property>
+</channel>

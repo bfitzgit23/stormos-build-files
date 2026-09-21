@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# stormos-desktop — StormOS React desktop shell launcher.
+# Everything runs in background. The script stays alive as the session leader.
+
+set -uo pipefail
+
+LOG="$HOME/.stormos-desktop.log"
+log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
+
+# Truncate log each start
+> "$LOG"
+log "=== stormos-desktop starting (pid $$) ==="
+log "HOME=$HOME USER=$(whoami) DISPLAY=$DISPLAY"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
+[ -f "$PROJECT_DIR/main.js" ] || PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+log "PROJECT_DIR=$PROJECT_DIR"
+
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+export STORMOS_BRIDGE_PORT="${STORMOS_BRIDGE_PORT:-47821}"
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-StormOS}"
+export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-stormos}"
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-x11}"
+
+xset s off -dpms 2>/dev/null || true
+xset s noblank 2>/dev/null || true
+
+# Cleanup function
+cleanup() {
+    log "=== Cleaning up ==="
+    [ -n "${ELECTRON_PID:-}" ] && kill "$ELECTRON_PID" 2>/dev/null
+    [ -n "${BRIDGE_PID:-}" ] && kill "$BRIDGE_PID" 2>/dev/null
+    [ -n "${OB_PID:-}" ] && kill "$OB_PID" 2>/dev/null
+    wait 2>/dev/null
+}
+trap cleanup EXIT INT TERM
+
+# --- 1. picom (background, non-blocking) ---
+if command -v picom >/dev/null 2>&1; then
+    log "Starting picom..."
+    picom --daemon 2>>"$LOG" &
+    log "picom PID=$!"
+    sleep 0.5
+else
+    log "WARNING: picom not found"
+fi
+
+# --- 2. Bridge (background) ---
+BRIDGE_PID=""
+if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
+    log "Starting bridge..."
+    python3 "$PROJECT_DIR/native/stormos-bridge.py" >>"$HOME/.stormos-bridge.log" 2>&1 &
+    BRIDGE_PID=$!
+    log "Bridge PID=$BRIDGE_PID"
+    for i in $(seq 1 15); do
+        curl -sf "http://127.0.0.1:$STORMOS_BRIDGE_PORT/api/health" >/dev/null 2>&1 && break
+        sleep 0.3
+    done
+    log "Bridge check done"
+fi
+
+# --- 3. Electron (background) ---
+ELECTRON_BIN=""
+for candidate in /usr/bin/electron /usr/lib/electron/electron /usr/local/bin/electron; do
+    [ -x "$candidate" ] && ELECTRON_BIN="$candidate" && break
+done
+[ -z "$ELECTRON_BIN" ] && ELECTRON_BIN="$(command -v electron 2>/dev/null)"
+
+ELECTRON_PID=""
+if [ -n "$ELECTRON_BIN" ] && [ -d "$PROJECT_DIR/dist" ]; then
+    log "Launching Electron at $ELECTRON_BIN (dir=$PROJECT_DIR)..."
+    "$ELECTRON_BIN" "$PROJECT_DIR" --no-sandbox >>"$HOME/.stormos-electron.log" 2>&1 &
+    ELECTRON_PID=$!
+    log "Electron PID=$ELECTRON_PID"
+    sleep 2
+    if ! kill -0 "$ELECTRON_PID" 2>/dev/null; then
+        log "ERROR: Electron died immediately! Check ~/.stormos-electron.log"
+    else
+        log "Electron is running"
+    fi
+else
+    log "ERROR: electron=$ELECTRON_BIN dist=$PROJECT_DIR/dist"
+fi
+
+# --- 4. openbox (background) ---
+openbox-session >>"$HOME/.stormos-openbox.log" 2>&1 &
+OB_PID=$!
+log "Openbox PID=$OB_PID"
+
+# --- 5. Wait on Electron ---
+if [ -n "$ELECTRON_PID" ]; then
+    log "Waiting for Electron..."
+    wait "$ELECTRON_PID" 2>/dev/null
+    log "Electron exited (code=$?)"
+else
+    log "ERROR: No Electron — waiting on openbox"
+    wait "$OB_PID" 2>/dev/null
+fi
+log "=== Session ended ==="

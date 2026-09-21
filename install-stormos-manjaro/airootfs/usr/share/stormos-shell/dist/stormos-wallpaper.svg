@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 1920 1080">
+<defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#020712"/><stop offset=".6" stop-color="#061a31"/><stop offset="1" stop-color="#020810"/></linearGradient><radialGradient id="glow"><stop stop-color="#168dff" stop-opacity=".65"/><stop offset="1" stop-color="#00101f" stop-opacity="0"/></radialGradient></defs>
+<rect width="1920" height="1080" fill="url(#sky)"/><ellipse cx="980" cy="440" rx="850" ry="460" fill="url(#glow)"/>
+<path d="M0 650 L180 470 300 610 450 390 610 600 790 350 980 610 1170 380 1350 610 1540 430 1740 620 1920 470 V1080 H0Z" fill="#061221" stroke="#147fc6" stroke-opacity=".55"/>
+<path d="M0 730 L240 560 390 690 580 480 760 690 950 430 1140 690 1310 500 1510 700 1690 520 1920 700 V1080 H0Z" fill="#030a13"/>
+<path d="M240 260 C520 110 680 300 940 170 S1370 240 1690 100" fill="none" stroke="#18aaff" stroke-width="5" opacity=".75"/>
+<text x="960" y="500" text-anchor="middle" font-family="sans-serif" font-size="106" font-weight="700" letter-spacing="25" fill="#edf7ff">STORM<tspan fill="#29baff">O</tspan>S</text>
+<text x="960" y="575" text-anchor="middle" font-family="sans-serif" font-size="22" letter-spacing="13" fill="#42bfff">POWER • PERFORMANCE • FREEDOM</text>
+</svg>
