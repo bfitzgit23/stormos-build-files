@@ -124,16 +124,22 @@ else
     err "Arc-BLACK-ICE not found in build files"
 fi
 
-# Copy StormOS-GTK theme (GTK theme with blue accents)
-if [ -d "$THEMES_SRC/StormOS-GTK" ]; then
-    sudo cp -r "$THEMES_SRC/StormOS-GTK" /usr/share/themes/
-    # Fix CRLF in text files (may come from Windows)
-    sudo find /usr/share/themes/StormOS-GTK -type f \
+# Copy BleuFear theme (dark blue accent theme)
+if [ -d "$THEMES_SRC/BleuFear" ]; then
+    sudo cp -r "$THEMES_SRC/BleuFear" /usr/share/themes/
+    sudo find /usr/share/themes/BleuFear -type f \
         \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
         -exec sed -i 's/\r$//' {} + 2>/dev/null || true
-    ok "StormOS-GTK theme installed"
-else
-    err "StormOS-GTK not found in build files"
+    ok "BleuFear theme installed"
+fi
+
+# Copy Xfce-Purp theme (dark purple accent theme)
+if [ -d "$THEMES_SRC/Xfce-Purp" ]; then
+    sudo cp -r "$THEMES_SRC/Xfce-Purp" /usr/share/themes/
+    sudo find /usr/share/themes/Xfce-Purp -type f \
+        \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
+        -exec sed -i 's/\r$//' {} + 2>/dev/null || true
+    ok "Xfce-Purp theme installed"
 fi
 
 # Copy Qogir-dark icons (blue icon set)
@@ -347,7 +353,7 @@ ok "All configs installed"
 info "Setting XFCE theme via xfconf..."
 
 # Set theme (don't kill xfconfd — it will pick up new XML configs on restart)
-xfconf-query -c xsettings -p /Net/ThemeName -s "StormOS-GTK" 2>/dev/null || true
+xfconf-query -c xsettings -p /Net/ThemeName -s "Arc-BLACK-ICE" 2>/dev/null || true
 xfconf-query -c xsettings -p /Net/IconThemeName -s "Qogir-dark" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 11" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 14" 2>/dev/null || true
