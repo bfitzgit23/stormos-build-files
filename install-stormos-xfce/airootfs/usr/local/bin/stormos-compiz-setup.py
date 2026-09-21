@@ -44,7 +44,7 @@ def main():
         core = ctx.Plugins["core"]
         as_opt = core.Screen["as"]
         wanted = [
-            "ccp", "decoration", "wobbly", "animation", "place",
+            "ccp", "decor", "wobbly", "animation", "place",
             "move", "resize", "cube", "rotate", "wallpaper", "regex", "mousepoll"
         ]
         current = list(as_opt.Value)
