@@ -41,7 +41,7 @@
     <property name="panel-2" type="empty">
       <property name="position" type="string" value="p=12;x=910;y=1055"/>
       <property name="size" type="uint" value="48"/>
-      <property name="length" type="double" value="100"/>
+      <property name="length" type="double" value="0"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="background-style" type="uint" value="1"/>
       <property name="background-rgba" type="array">
@@ -117,7 +117,7 @@
       <property name="digital-format" type="string" value="%T"/>
       <property name="digital-time-format" type="string" value="%I:%M %p"/>
       <property name="digital-layout" type="uint" value="3"/>
-      <property name="digital-time-font" type="string" value="Inter 11"/>
+      <property name="digital-time-font" type="string" value="Sans 11"/>
     </property>
     <property name="plugin-14" type="string" value="actions">
       <property name="appearance" type="uint" value="0"/>
