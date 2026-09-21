@@ -30,7 +30,7 @@ echo ""
 info "Checking packages..."
 
 # Official repo packages (pacman)
-OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch
+OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
                xfce4-goodies xorg-server switcheroo-control
                xfce4-notifyd xfce4-power-manager xfce4-screenshooter
                xfce4-pulseaudio-plugin)
@@ -116,25 +116,25 @@ info "Installing StormOS themes..."
 THEMES_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes"
 ICONS_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/icons"
 
-# Copy Arc-BLACK-ICE theme (base WM theme)
-if [ -d "$THEMES_SRC/Arc-BLACK-ICE" ]; then
-    sudo cp -r "$THEMES_SRC/Arc-BLACK-ICE" /usr/share/themes/
+# Copy Arc-StormOS theme (base WM theme)
+if [ -d "$THEMES_SRC/Arc-StormOS" ]; then
+    sudo cp -r "$THEMES_SRC/Arc-StormOS" /usr/share/themes/
     # Fix CRLF in text files (may come from Windows)
-    sudo find /usr/share/themes/Arc-BLACK-ICE -type f \
+    sudo find /usr/share/themes/Arc-StormOS -type f \
         \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
         -exec sed -i 's/\r$//' {} + 2>/dev/null || true
-    ok "Arc-BLACK-ICE theme installed"
+    ok "Arc-StormOS theme installed"
 else
-    err "Arc-BLACK-ICE not found in build files"
+    err "Arc-StormOS not found in build files"
 fi
 
-# Copy Arc-BLACK-ICE theme (Arc-BLACK-ICE colors + BleuFear window borders)
-if [ -d "$THEMES_SRC/Arc-BLACK-ICE" ]; then
-    sudo cp -r "$THEMES_SRC/Arc-BLACK-ICE" /usr/share/themes/
-    sudo find /usr/share/themes/Arc-BLACK-ICE -type f \
+# Copy Arc-StormOS theme (Arc-StormOS colors + BleuFear window borders)
+if [ -d "$THEMES_SRC/Arc-StormOS" ]; then
+    sudo cp -r "$THEMES_SRC/Arc-StormOS" /usr/share/themes/
+    sudo find /usr/share/themes/Arc-StormOS -type f \
         \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
         -exec sed -i 's/\r$//' {} + 2>/dev/null || true
-    ok "Arc-BLACK-ICE theme installed"
+    ok "Arc-StormOS theme installed"
 fi
 
 # Copy BleuFear theme (dark blue accent theme)
@@ -329,12 +329,16 @@ mkdir -p "$HOME/.config/Thunar"
 cp "$SKEL/.config/Thunar/uca.xml" "$HOME/.config/Thunar/"
 cp "$SKEL/.config/Thunar/gtk.xml" "$HOME/.config/Thunar/" 2>/dev/null || true
 
-# Autostart entries (welcome, switcheroo)
+# Autostart entries (welcome, switcheroo, conky)
 mkdir -p "$HOME/.config/autostart"
-[ -f "$SKEL/.config/autostart/stormos-welcome.desktop" ] && \
-    cp "$SKEL/.config/autostart/stormos-welcome.desktop" "$HOME/.config/autostart/"
-[ -f "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" ] && \
-    cp "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" "$HOME/.config/autostart/"
+for auto in stormos-welcome.desktop stormos-switcheroo-applet.desktop stormos-conky.desktop; do
+    [ -f "$SKEL/.config/autostart/$auto" ] && cp "$SKEL/.config/autostart/$auto" "$HOME/.config/autostart/"
+done
+
+# Conky config (system overview panel)
+mkdir -p "$HOME/.config/conky"
+cp "$SKEL/.config/conky/conky.conf" "$HOME/.config/conky/" 2>/dev/null || true
+cp "$SKEL/.config/conky/stormos-rings.lua" "$HOME/.config/conky/" 2>/dev/null || true
 
 # Bookmarks
 cp "$SKEL/.gtk-bookmarks" "$HOME/" 2>/dev/null || true
@@ -366,7 +370,7 @@ ok "All configs installed"
 info "Setting XFCE theme via xfconf..."
 
 # Set theme (don't kill xfconfd — it will pick up new XML configs on restart)
-xfconf-query -c xsettings -p /Net/ThemeName -s "Arc-BLACK-ICE" 2>/dev/null || true
+xfconf-query -c xsettings -p /Net/ThemeName -s "Arc-StormOS" 2>/dev/null || true
 xfconf-query -c xsettings -p /Net/IconThemeName -s "StormOS-icons" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 11" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 14" 2>/dev/null || true
