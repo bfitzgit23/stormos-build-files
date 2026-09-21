@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=StormOS GPU Switcher
+Comment=System tray applet for GPU switching via switcheroo-control
+Exec=/usr/local/bin/stormos-switcheroo-applet
+Icon=video-display
+Terminal=false
+Type=Application
+Categories=System;Utility;
+X-GNOME-Autostart-enabled=true

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=StormOS Desktop
-Comment=StormOS React desktop shell (Electron + openbox)
-Exec=/usr/bin/stormos-desktop
-TryExec=/usr/bin/stormos-desktop
+Comment=StormOS XFCE desktop session
+Exec=/usr/bin/startxfce4
 Type=Application
-DesktopNames=StormOS
+DesktopNames[0]=XFCE
+Terminal=false

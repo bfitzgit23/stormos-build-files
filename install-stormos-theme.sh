@@ -31,7 +31,7 @@ info "Checking packages..."
 
 # Official repo packages (pacman)
 OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz foot alacritty fastfetch
-               xfce4-goodies xfce4-terminal xorg-server)
+               xfce4-goodies xfce4-terminal xorg-server switcheroo-control)
 
 # AUR packages (yay)
 AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin)
@@ -165,18 +165,27 @@ mkdir -p "$HOME/.config/Thunar"
 cp "$SKEL/.config/Thunar/uca.xml" "$HOME/.config/Thunar/"
 cp "$SKEL/.config/Thunar/gtk.xml" "$HOME/.config/Thunar/" 2>/dev/null || true
 
-# Autostart entries (picom, conky, welcome)
+# Autostart entries (picom, conky, welcome, switcheroo)
 mkdir -p "$HOME/.config/autostart"
 cp "$SKEL/.config/autostart/picom.desktop" "$HOME/.config/autostart/"
 cp "$SKEL/.config/autostart/conky.desktop" "$HOME/.config/autostart/"
 [ -f "$SKEL/.config/autostart/stormos-welcome.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-welcome.desktop" "$HOME/.config/autostart/"
+[ -f "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" ] && \
+    cp "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" "$HOME/.config/autostart/"
 
 # Bookmarks
 cp "$SKEL/.gtk-bookmarks" "$HOME/" 2>/dev/null || true
 
 # StormOS environment
 sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/environment" /etc/environment
+
+# Switcheroo-control applet
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switcheroo-applet" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switcheroo-applet" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-switcheroo-applet
+    ok "Switcheroo applet installed"
+fi
 
 ok "All configs installed"
 

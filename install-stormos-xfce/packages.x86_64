@@ -199,6 +199,7 @@ sof-firmware
 spice-protocol
 spice-vdagent
 squashfs-tools
+switcheroo-control
 stormos-grub-theme
 sudo
 syslinux
