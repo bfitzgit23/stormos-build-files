@@ -1,7 +1,7 @@
 [Icon Theme]
 Name=StormOS-icons
 Comment=StormOS blue colored icon theme
-Inherits=hicolor
+Inherits=Qogir-dark,hicolor
 FollowsColorScheme=false
 
 Example=folder
