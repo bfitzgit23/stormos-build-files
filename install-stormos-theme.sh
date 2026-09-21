@@ -39,12 +39,18 @@ OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
 AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
 
 # Check and install official packages
+# NOTE: xfce4-goodies is skipped entirely if already installed — reinstalling
+# it pulls back unwanted deps (parole, xfburn, ristretto…) we explicitly block.
 NEED_OFFICIAL=()
 for pkg in "${OFFICIAL_PKGS[@]}"; do
     if ! pacman -Qi "$pkg" &>/dev/null; then
         NEED_OFFICIAL+=("$pkg")
     fi
 done
+# Drop goodies from the install set entirely if it's already present
+if pacman -Qi xfce4-goodies &>/dev/null; then
+    NEED_OFFICIAL=("${NEED_OFFICIAL[@]/xfce4-goodies}")
+fi
 
 if [ ${#NEED_OFFICIAL[@]} -gt 0 ]; then
     info "Installing (pacman): ${NEED_OFFICIAL[*]}"
@@ -268,6 +274,15 @@ for settings_desk in stormos-welcome-settings.desktop stormos-toolkit-settings.d
 done
 ok "Welcome + Toolkit added to XFCE Settings Manager"
 
+# Deploy Compiz desktop entries (ccsm + theme selector)
+for compiz_desk in ccsm.desktop compiz-theme-selector.desktop; do
+    if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/$compiz_desk" ]; then
+        sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/$compiz_desk" /usr/share/applications/
+        sudo sed -i 's/\r$//' "/usr/share/applications/$compiz_desk" 2>/dev/null || true
+    fi
+done
+ok "Compiz settings + theme selector added"
+
 # Install Compiz toggle (xfwm4 <-> compiz switcher)
 if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-toggle" ]; then
     sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-toggle" /usr/local/bin/
@@ -363,11 +378,11 @@ rm -rf "$HOME/.config/xfce4/panel/launcher-"* 2>/dev/null || true
 # (ristretto replaced by StormOS Gallery; parole unwanted)
 if grep -q "^IgnorePkg" /etc/pacman.conf 2>/dev/null; then
     # Merge into existing IgnorePkg line instead of clobbering
-    for pkg in ristretto parole; do
+    for pkg in ristretto parole xfburn; do
         grep -q "^IgnorePkg.*\b$pkg\b" /etc/pacman.conf || sudo sed -i "s/^IgnorePkg.*/& $pkg/" /etc/pacman.conf
     done
 else
-    sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto parole/' /etc/pacman.conf 2>/dev/null || true
+    sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto parole xfburn/' /etc/pacman.conf 2>/dev/null || true
 fi
 if pacman -Qi ristretto &>/dev/null; then
     sudo pacman -Rns --noconfirm ristretto 2>/dev/null || true
@@ -376,6 +391,10 @@ fi
 if pacman -Qi parole &>/dev/null; then
     sudo pacman -Rns --noconfirm parole 2>/dev/null || true
     info "Parole removed (blocked from reinstall)"
+fi
+if pacman -Qi xfburn &>/dev/null; then
+    sudo pacman -Rns --noconfirm xfburn 2>/dev/null || true
+    info "Xfburn removed (blocked from reinstall)"
 fi
 
 # Compiz: install pre-applied profile (wobbly windows + desktop cube)
@@ -423,6 +442,11 @@ done
 # Clear any saved session state that might reference broken components
 rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
 ok "XFCE session configs installed"
+
+# Fix bottom panel to full-width at bottom (restore original position)
+xfconf-query -c xfce4-panel -p /panels/panel-2/length -s 100 2>/dev/null || true
+xfconf-query -c xfce4-panel -p /panels/panel-2/length-adjust -s true 2>/dev/null || true
+xfconf-query -c xfce4-panel -p /panels/panel-2/position -s "p=12;x=0;y=0" 2>/dev/null || true
 
 # Restart xfce4-panel to pick up new config (dock pins etc.)
 if pgrep -x xfce4-panel >/dev/null 2>&1; then

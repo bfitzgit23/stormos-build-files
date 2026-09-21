@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Compiz Theme Selector
+GenericName=Window Decoration Theme
+Comment=Select and customize Compiz window decoration themes
+Exec=gtk-window-decorator --replace --gtk --theme=Arc-StormOS
+Icon=stormos-compiz
+Terminal=false
+Categories=Settings;DesktopSettings;
+Keywords=compiz;theme;decoration;window;manager;
+StartupNotify=true
+X-StormOS-App=true
