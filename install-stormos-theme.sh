@@ -318,6 +318,12 @@ done
 rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
 ok "XFCE session configs installed"
 
+# Restart xfce4-panel to pick up new config (dock pins etc.)
+if pgrep -x xfce4-panel >/dev/null 2>&1; then
+    xfce4-panel -r 2>/dev/null || true
+    info "Panel restarted to apply dock pins"
+fi
+
 # Terminal config
 mkdir -p "$HOME/.config/xfce4/terminal"
 cp "$SKEL/.config/xfce4/terminal/terminalrc" "$HOME/.config/xfce4/terminal/" 2>/dev/null || true
