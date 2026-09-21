@@ -177,8 +177,8 @@ sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt5ct/colors/stormos.conf
 sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt6ct/colors/stormos.conf" /etc/qt6ct/colors/ 2>/dev/null || true
 
 # Ensure environment variables are set for Qt theming
-if ! grep -q 'QT_QPA_PLATFORMTHEME=qt5ct' /etc/environment 2>/dev/null; then
-    echo 'QT_QPA_PLATFORMTHEME=qt5ct' | sudo tee -a /etc/environment >/dev/null
+if ! grep -q 'QT_QPA_PLATFORMTHEME=gtk2' /etc/environment 2>/dev/null; then
+    echo 'QT_QPA_PLATFORMTHEME=gtk2' | sudo tee -a /etc/environment >/dev/null
     echo 'QT_STYLE_OVERRIDE=gtk3' | sudo tee -a /etc/environment >/dev/null
 fi
 
