@@ -1,5 +1,5 @@
 #!/bin/bash
-# StormOS wallpaper setter — multiple methods to ensure wallpaper loads
+# StormOS wallpaper setter — runs on every login to ensure wallpaper loads
 WALLPAPER="/usr/share/backgrounds/stormos-wallpaper.png"
 
 if [ ! -f "$WALLPAPER" ]; then
@@ -7,42 +7,45 @@ if [ ! -f "$WALLPAPER" ]; then
     exit 1
 fi
 
-# Wait for xfce settings daemon
-sleep 1
+# Wait for desktop to initialize
+sleep 2
 
 # Method 1: xfconf-query (works if xfconfd is running)
 if command -v xfconf-query >/dev/null 2>&1; then
-    # Set for all existing backdrop properties
-    for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E "(image-path|last-image)$"); do
-        xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null
-    done
+    # Set for all backdrop properties
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace0/image-path -s "$WALLPAPER" 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace1/image-path -s "$WALLPAPER" 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace2/image-path -s "$WALLPAPER" 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace3/image-path -s "$WALLPAPER" 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace0/last-image -s "$WALLPAPER" 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace1/last-image -s "$WALLPAPER" 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace2/last-image -s "$WALLPAPER" 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace3/last-image -s "$WALLPAPER" 2>/dev/null
     # Set image-style to 5 (zoomed) for all
-    for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-style$"); do
-        xfconf-query -c xfce4-desktop -p "$prop" -n -t int -s 5 2>/dev/null
-    done
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace0/image-style -n -t int -s 5 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace1/image-style -n -t int -s 5 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace2/image-style -n -t int -s 5 2>/dev/null
+    xfconf-query -c xfce4-desktop -p /backdrop/screen0/workspace3/image-style -n -t int -s 5 2>/dev/null
 fi
 
-# Method 2: Direct xfce4 config file edit (works even if xfconfd isn't running)
+# Method 2: Direct config file edit
 XFCE_CONF="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
 if [ -f "$XFCE_CONF" ]; then
-    # Replace all image-path values
-    sed -i "s|<property name=\"image-path\" type=\"string\" value=\"[^\"]*\"/>|<property name=\"image-path\" type=\"string\" value=\"$WALLPAPER\"/>|g" "$XFCE_CONF" 2>/dev/null
-    sed -i "s|<property name=\"last-image\" type=\"string\" value=\"[^\"]*\"/>|<property name=\"last-image\" type=\"string\" value=\"$WALLPAPER\"/>|g" "$XFCE_CONF" 2>/dev/null
+    sed -i "s|<property name=\"image-path\" type=\"string\" value=\"[^\"]*\"/>|<property name=\"image-path\" type=\"string\" value=\"$WALLPAPER\"/>|g" "$XFCE_CONF"
+    sed -i "s|<property name=\"last-image\" type=\"string\" value=\"[^\"]*\"/>|<property name=\"last-image\" type=\"string\" value=\"$WALLPAPER\"/>|g" "$XFCE_CONF"
 fi
 
-# Method 3: nitrogen fallback (if installed)
+# Method 3: nitrogen fallback
 if command -v nitrogen >/dev/null 2>&1; then
     nitrogen --set-zoom-fill "$WALLPAPER" 2>/dev/null
 fi
 
-# Method 4: feh fallback (if installed)
+# Method 4: feh fallback
 if command -v feh >/dev/null 2>&1; then
     feh --bg-fill "$WALLPAPER" 2>/dev/null
 fi
 
 # Force xfdesktop reload
 killall xfdesktop 2>/dev/null
-sleep 0.5
+sleep 1
 xfdesktop --reload 2>/dev/null &
-
-echo "StormOS wallpaper set to $WALLPAPER"
