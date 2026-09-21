@@ -30,4 +30,14 @@ python3 /usr/local/bin/stormos-compiz-setup.py >/dev/null 2>&1 || true
 # Replace xfwm4 with Compiz
 killall xfwm4 2>/dev/null || true
 sleep 0.5
-exec compiz --replace ccp
+compiz --replace ccp &
+sleep 1
+
+# Start the window decorator (compiz does not draw its own borders)
+# using the Arc-StormOS metacity theme
+gsettings set org.gnome.desktop.wm.preferences theme "Arc-StormOS" 2>/dev/null || true
+if command -v gtk-window-decorator >/dev/null 2>&1; then
+    killall gtk-window-decorator 2>/dev/null || true
+    nohup gtk-window-decorator --replace \
+        --metacity-theme "Arc-StormOS" >/dev/null 2>&1 &
+fi

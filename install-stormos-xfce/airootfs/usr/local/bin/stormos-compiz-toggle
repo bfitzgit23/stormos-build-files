@@ -33,10 +33,21 @@ if [ "$want" = "on" ]; then
     sleep 0.5
     killall xfwm4 2>/dev/null || true
     nohup compiz --replace ccp >/dev/null 2>&1 &
+    sleep 1
+    # Start the window decorator (compiz does not draw its own borders)
+    # using the Arc-StormOS metacity theme
+    gsettings set org.gnome.desktop.wm.preferences theme "Arc-StormOS" 2>/dev/null || true
+    killall gtk-window-decorator 2>/dev/null || true
+    if command -v gtk-window-decorator >/dev/null 2>&1; then
+        nohup gtk-window-decorator --replace \
+            --metacity-theme "Arc-StormOS" >/dev/null 2>&1 &
+    fi
     notify-send "StormOS" "Compiz enabled — wobbly windows + cube (Ctrl+Alt+←/→)" -i stormos-logo 2>/dev/null || true
 else
     echo "xfwm4" > "$state_file"
+    killall compoz 2>/dev/null || true
     killall compiz 2>/dev/null || true
+    killall gtk-window-decorator 2>/dev/null || true
     sleep 0.3
     nohup xfwm4 --replace >/dev/null 2>&1 &
     notify-send "StormOS" "xfwm4 enabled" -i stormos-logo 2>/dev/null || true
