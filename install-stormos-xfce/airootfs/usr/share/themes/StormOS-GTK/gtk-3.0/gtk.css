@@ -79,13 +79,13 @@ notebook tab:checked {
 }
 
 /* ── Rounded Corners ──────────────────────────────────────────────────────── */
-window,
+application.window,
 dialog,
 messagedialog,
 tooltip,
 
 /* Rounded Corners */
-window, dialog, messagedialog, tooltip, popover, .background {
+application.window, dialog, messagedialog, tooltip, popover {
     border-radius: 12px;
 }
 decoration {

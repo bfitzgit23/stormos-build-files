@@ -49,21 +49,58 @@ class GPUSwitcher(QThread):
 
 class GPUBackend:
     @staticmethod
+    def _ensure_switcheroo_service():
+        """Try to start switcheroo-control if it's not running."""
+        try:
+            r = subprocess.run(["systemctl", "is-active", "switcheroo-control.service"],
+                               capture_output=True, text=True, timeout=5)
+            if r.stdout.strip() != "active":
+                subprocess.run(["systemctl", "start", "switcheroo-control.service"],
+                               capture_output=True, timeout=5)
+        except Exception:
+            pass
+
+    @staticmethod
     def get_gpu_info():
+        # Try switcherooctl first (with service start)
+        GPUBackend._ensure_switcheroo_service()
         try:
             r = subprocess.run(["switcherooctl", "list"],
                                capture_output=True, text=True, timeout=10)
-            if r.returncode == 0:
+            if r.returncode == 0 and r.stdout.strip():
                 return r.stdout.strip()
         except Exception:
             pass
+        # Fallback: lspci
         try:
             r = subprocess.run(["lspci"], capture_output=True, text=True, timeout=5)
             lines = [l for l in r.stdout.splitlines()
                      if any(k in l.lower() for k in ("vga", "3d", "display"))]
-            return "\n".join(lines) if lines else "No GPU info available"
+            if lines:
+                info = "\n".join(lines)
+                # Check for multiple GPUs (switchable graphics)
+                if len(lines) > 1:
+                    info += "\n\nSwitchable graphics detected."
+                    info += "\nDRI_PRIME=0 for integrated, DRI_PRIME=1 for discrete."
+                return info
         except Exception:
-            return "No GPU info available"
+            pass
+        # Fallback: check /sys/class/drm
+        try:
+            import glob as g
+            cards = g.glob("/sys/class/drm/card*")
+            gpu_cards = [c for c in cards if os.path.exists(f"{c}/device/vendor")]
+            if gpu_cards:
+                vendors = []
+                for c in gpu_cards:
+                    with open(f"{c}/device/vendor") as f:
+                        v = f.read().strip()
+                    name = os.path.basename(c)
+                    vendors.append(f"{name}: vendor {v}")
+                return "GPU devices:\n" + "\n".join(vendors)
+        except Exception:
+            pass
+        return "No GPU info available"
 
     @staticmethod
     def switch_gpu(gpu_type):
@@ -200,10 +237,9 @@ class SwitcherooWindow(QMainWindow):
 
     def refresh_gpu(self):
         self.gpu_info.setText("Detecting...")
-        self._worker = GPUSwitcher()
-        self._worker.finished.connect(lambda info: self.gpu_info.setText(info[:300]))
-        self._worker.error.connect(lambda e: self.gpu_info.setText(f"Error: {e}"))
-        self._worker.start()
+        # Use GPUBackend which has improved detection with service start
+        info = GPUBackend.get_gpu_info()
+        self.gpu_info.setText(info[:500])
 
     def do_switch(self, gpu_type):
         msg = GPUBackend.switch_gpu(gpu_type)
@@ -225,9 +261,9 @@ class SwitcherooWindow(QMainWindow):
 class SwitcherooTray(QSystemTrayIcon):
     def __init__(self, parent=None):
         super().__init__(parent)
-        icon_path = "/usr/share/icons/stormos/switcheroo.png"
+        icon_path = "/usr/share/icons/StormOS-icons/scalable/apps/utilities-terminal.svg"
         if not os.path.exists(icon_path):
-            icon_path = "/usr/share/pixmaps/stormos.png"
+            icon_path = "/usr/share/pixmaps/stormos-logo.png"
         self.setIcon(QIcon(icon_path))
         self.setToolTip("StormOS GPU Switcher")
 
