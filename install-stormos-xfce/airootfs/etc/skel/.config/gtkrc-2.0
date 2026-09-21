@@ -1,12 +1,11 @@
 # StormOS GTK2 theme settings
-# Matches Arc-BLACK-ICE dark theme with StormOS color palette
 
 gtk-alternative-button-order = 1
-gtk-theme-name = "Arc-BLACK-ICE"
-gtk-icon-theme-name = "StormOS-icons"
+gtk-theme-name = "StormOS-GTK"
+gtk-icon-theme-name = "Qogir-dark"
 gtk-cursor-theme-name = "DMZ-Black"
 gtk-cursor-theme-size = 24
-gtk-font-name = "Inter 10"
+gtk-font-name = "Inter 11"
 gtk-toolbar-style = 3
 gtk-button-images = 0
 gtk-menu-images = 0

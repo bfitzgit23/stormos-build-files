@@ -148,12 +148,12 @@ cp -r "$SKEL/.config/xfce4/panel/"* "$HOME/.config/xfce4/panel/" 2>/dev/null || 
 # GTK themes
 mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
 cp "$SKEL/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/"
-cp "$SKEL/.config/gtk-3.0/gtk.css" "$HOME/.config/gtk-3.0/"
-cp "$SKEL/.config/gtk-4.0/gtk.css" "$HOME/.config/gtk-4.0/"
+[ -f "$SKEL/.config/gtk-3.0/gtk.css" ] && cp "$SKEL/.config/gtk-3.0/gtk.css" "$HOME/.config/gtk-3.0/"
+[ -f "$SKEL/.config/gtk-4.0/gtk.css" ] && cp "$SKEL/.config/gtk-4.0/gtk.css" "$HOME/.config/gtk-4.0/"
 cp "$SKEL/.config/gtkrc-2.0" "$HOME/.config/"
 
 # GTK2 Murrine overrides
-cp "$SKEL/.config/gtk-2.0/main.rc" "$HOME/.config/gtk-2.0/" 2>/dev/null || true
+[ -f "$SKEL/.config/gtk-2.0/main.rc" ] && cp "$SKEL/.config/gtk-2.0/main.rc" "$HOME/.config/gtk-2.0/" 2>/dev/null || true
 
 # xfce4-terminal is the default terminal — no additional terminals installed
 
