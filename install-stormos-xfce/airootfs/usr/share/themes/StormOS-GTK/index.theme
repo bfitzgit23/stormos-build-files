@@ -6,7 +6,7 @@ Encoding=UTF-8
 
 [X-GNOME-Metatheme]
 GtkTheme=Arc-BLACK-ICE
-MetacityTheme=Arc-Dark
+MetacityTheme=Arc-BLACK-ICE
 IconTheme=Qogir-dark
 CursorTheme=DMZ-Black
 ButtonLayout=close,minimize,maximize:menu
