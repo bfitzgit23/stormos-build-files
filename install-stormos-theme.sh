@@ -36,7 +36,7 @@ OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
                xfce4-pulseaudio-plugin)
 
 # AUR packages (yay)
-AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins)
+AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
 
 # Check and install official packages
 NEED_OFFICIAL=()
@@ -316,6 +316,26 @@ sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto/' /etc/pacman.
 if pacman -Qi ristretto &>/dev/null; then
     sudo pacman -Rns --noconfirm ristretto 2>/dev/null || true
     info "Ristretto removed (replaced by StormOS Gallery)"
+fi
+
+# Compiz: install pre-applied profile (wobbly windows + desktop cube)
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/stormos/compiz/stormos.profile" ]; then
+    sudo mkdir -p /usr/share/stormos/compiz
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/stormos/compiz/stormos.profile" \
+        /usr/share/stormos/compiz/
+    ok "Compiz StormOS profile deployed"
+fi
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-setup.py" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-setup.py" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-compiz-setup.py
+    sudo sed -i 's/\r$//' /usr/local/bin/stormos-compiz-setup.py
+    ok "Compiz setup script installed"
+fi
+if command -v compiz >/dev/null 2>&1; then
+    python3 /usr/local/bin/stormos-compiz-setup.py || true
+    info "Compiz pre-configured: wobbly windows + desktop cube (Ctrl+Alt+Left/Right to rotate)"
+else
+    info "Compiz not installed — skipping profile pre-apply (install compiz-easy-patch and re-run)"
 fi
 
 # Remove stale autostart entries that might block session startup
