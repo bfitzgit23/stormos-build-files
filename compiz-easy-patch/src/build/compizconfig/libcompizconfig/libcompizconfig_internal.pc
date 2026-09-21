@@ -1,0 +1,12 @@
+prefix=/home/bennji/Desktop/stormos-build-files/compiz-easy-patch/src/build/compizconfig/libcompizconfig/src/
+exec_prefix=/home/bennji/Desktop/stormos-build-files/compiz-easy-patch/src/build/compizconfig/libcompizconfig/src/
+libdir=/home/bennji/Desktop/stormos-build-files/compiz-easy-patch/src/build/compizconfig/libcompizconfig/src/
+includedir=/home/bennji/Desktop/stormos-build-files/compiz-easy-patch/src/compiz-0.9.14.2/compizconfig/libcompizconfig/include
+
+Name: libcompizconfig_internal
+Description: Compiz configuration system (internal)
+Version: 0.9.14.2
+
+Libs: -L/home/bennji/Desktop/stormos-build-files/compiz-easy-patch/src/build/compizconfig/libcompizconfig/src/ -lcompizconfig
+Cflags: -I/home/bennji/Desktop/stormos-build-files/compiz-easy-patch/src/compiz-0.9.14.2/compizconfig/libcompizconfig/include
+

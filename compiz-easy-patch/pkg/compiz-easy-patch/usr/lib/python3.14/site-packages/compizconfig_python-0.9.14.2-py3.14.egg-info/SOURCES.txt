@@ -1,0 +1,5 @@
+compizconfig.c
+compizconfig_python.egg-info/PKG-INFO
+compizconfig_python.egg-info/SOURCES.txt
+compizconfig_python.egg-info/dependency_links.txt
+compizconfig_python.egg-info/top_level.txt
