@@ -97,6 +97,19 @@ for cfg_dir in ~/.config/openbox ~/.config/labwc /etc/xdg/openbox /etc/xdg/labwc
     [ -d "$cfg_dir" ] && sudo rm -rf "$cfg_dir" && info "Removed $cfg_dir"
 done
 
+# ─── 1e. Rename CyberXero toolkit → StormOS toolkit ─────────────────────────
+if [ -d /opt/cyberxero-toolkit ]; then
+    info "Renaming CyberXero toolkit → StormOS toolkit..."
+    sudo mv /opt/cyberxero-toolkit /opt/stormos-toolkit 2>/dev/null || true
+    sudo rm -f /opt/cyberxero-toolkit-src 2>/dev/null || true
+    sudo ln -sf /opt/stormos-toolkit/cyberxero-toolkit /usr/bin/stormos-toolkit 2>/dev/null || true
+    [ -f /usr/share/applications/cyberxero-toolkit.desktop ] && \
+        sudo mv /usr/share/applications/cyberxero-toolkit.desktop /usr/share/applications/stormos-toolkit.desktop 2>/dev/null || true
+    sudo rm -f /usr/local/bin/cyberxero-postinstall.sh 2>/dev/null || true
+    sudo rm -f /etc/calamares/modules/shellprocess-cyberxero.conf 2>/dev/null || true
+    ok "CyberXero toolkit renamed to StormOS toolkit"
+fi
+
 # ─── 1b. Install StormOS themes from build files ────────────────────────────
 info "Installing StormOS themes..."
 
