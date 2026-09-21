@@ -26,10 +26,31 @@ echo -e "${CYAN}║       StormOS Theme Installer        ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
 echo ""
 
+# ─── 0. Block unwanted packages FIRST (before any installs) ──────────────────
+# Block ristretto, parole, xfburn from pacman — do this BEFORE package
+# installation so xfce4-goodies (if present) can't pull them back as deps.
+info "Blocking unwanted packages..."
+if grep -q "^IgnorePkg" /etc/pacman.conf 2>/dev/null; then
+    for pkg in ristretto parole xfburn; do
+        grep -q "^IgnorePkg.*\b$pkg\b" /etc/pacman.conf || sudo sed -i "s/^IgnorePkg.*/& $pkg/" /etc/pacman.conf
+    done
+else
+    sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto parole xfburn/' /etc/pacman.conf 2>/dev/null || true
+fi
+# Remove if already installed
+for pkg in ristretto parole xfburn; do
+    if pacman -Qi "$pkg" &>/dev/null; then
+        sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null && info "$pkg removed" || true
+    fi
+done
+ok "Unwanted packages blocked"
+
 # ─── 1. Install missing packages (only if needed) ────────────────────────────
 # Official repo packages (pacman)
+# NOTE: We install individual xfce4-* packages instead of xfce4-goodies
+# because xfce4-goodies pulls in parole and xfburn which we block.
 OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
-               xfce4-goodies xorg-server switcheroo-control
+               xorg-server switcheroo-control
                xfce4-notifyd xfce4-power-manager xfce4-screenshooter
                xfce4-pulseaudio-plugin mpv)
 
@@ -52,18 +73,12 @@ if $ALL_INSTALLED; then
 else
     info "Checking packages..."
     # Check and install official packages
-    # NOTE: xfce4-goodies is skipped entirely if already installed — reinstalling
-    # it pulls back unwanted deps (parole, xfburn, ristretto…) we explicitly block.
     NEED_OFFICIAL=()
     for pkg in "${OFFICIAL_PKGS[@]}"; do
         if ! pacman -Qi "$pkg" &>/dev/null; then
             NEED_OFFICIAL+=("$pkg")
         fi
     done
-    # Drop goodies from the install set entirely if it's already present
-    if pacman -Qi xfce4-goodies &>/dev/null; then
-        NEED_OFFICIAL=("${NEED_OFFICIAL[@]/xfce4-goodies}")
-    fi
 
     if [ ${#NEED_OFFICIAL[@]} -gt 0 ]; then
         info "Installing (pacman): ${NEED_OFFICIAL[*]}"
@@ -387,29 +402,6 @@ rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
 # Remove stale panel RC files (leftover from old plugin IDs)
 rm -f "$HOME/.config/xfce4/panel/"*.rc 2>/dev/null || true
 rm -rf "$HOME/.config/xfce4/panel/launcher-"* 2>/dev/null || true
-
-# Block ristretto and parole from being installed/updated
-# (ristretto replaced by StormOS Gallery; parole unwanted)
-if grep -q "^IgnorePkg" /etc/pacman.conf 2>/dev/null; then
-    # Merge into existing IgnorePkg line instead of clobbering
-    for pkg in ristretto parole xfburn; do
-        grep -q "^IgnorePkg.*\b$pkg\b" /etc/pacman.conf || sudo sed -i "s/^IgnorePkg.*/& $pkg/" /etc/pacman.conf
-    done
-else
-    sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto parole xfburn/' /etc/pacman.conf 2>/dev/null || true
-fi
-if pacman -Qi ristretto &>/dev/null; then
-    sudo pacman -Rns --noconfirm ristretto 2>/dev/null || true
-    info "Ristretto removed (replaced by StormOS Gallery)"
-fi
-if pacman -Qi parole &>/dev/null; then
-    sudo pacman -Rns --noconfirm parole 2>/dev/null || true
-    info "Parole removed (blocked from reinstall)"
-fi
-if pacman -Qi xfburn &>/dev/null; then
-    sudo pacman -Rns --noconfirm xfburn 2>/dev/null || true
-    info "Xfburn removed (blocked from reinstall)"
-fi
 
 # Compiz: install pre-applied profile (wobbly windows + desktop cube)
 if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/stormos/compiz/stormos.profile" ]; then
