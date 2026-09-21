@@ -1,6 +1,6 @@
 [Icon Theme]
 Name=StormOS-icons
-Comment=StormOS blue icon theme (Qogir-dark based)
+Comment=StormOS blue icon theme
 Inherits=Qogir-dark,hicolor
 FollowsColorScheme=true
 
@@ -19,3 +19,26 @@ PanelDefault=48
 PanelSizes=16,22,24,32,48,64
 DialogDefault=48
 DialogSizes=16,22,24,32,48,64
+
+Directories=scalable/places,scalable/apps,scalable/mimetypes
+
+[scalable/places]
+Context=Places
+Size=64
+MinSize=16
+MaxSize=512
+Type=Scalable
+
+[scalable/apps]
+Context=Applications
+Size=64
+MinSize=16
+MaxSize=512
+Type=Scalable
+
+[scalable/mimetypes]
+Context=MimeTypes
+Size=64
+MinSize=16
+MaxSize=512
+Type=Scalable

@@ -30,7 +30,7 @@ echo ""
 info "Checking packages..."
 
 # Official repo packages (pacman)
-OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz foot alacritty kitty fastfetch
+OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz alacritty kitty fastfetch
                xfce4-goodies xorg-server switcheroo-control)
 
 # AUR packages (yay)
@@ -210,15 +210,17 @@ xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 10" 2>/dev/null || t
 
 ok "XFCE theme set"
 
-# ─── 5. Remove xfce4-terminal (replaced by kitty) ───────────────────────────
-info "Removing xfce4-terminal..."
-if pacman -Qi xfce4-terminal &>/dev/null 2>&1; then
-    sudo pacman -Rns --noconfirm xfce4-terminal 2>/dev/null && ok "xfce4-terminal removed" || warn "Could not remove xfce4-terminal"
-elif dpkg -s xfce4-terminal &>/dev/null 2>&1; then
-    sudo apt-get remove -y xfce4-terminal 2>/dev/null && ok "xfce4-terminal removed" || warn "Could not remove xfce4-terminal"
-else
-    ok "xfce4-terminal not installed"
-fi
+# ─── 5. Remove replaced terminals (kitty is primary) ────────────────────────
+info "Removing replaced terminals..."
+for terminal in xfce4-terminal foot; do
+    if pacman -Qi "$terminal" &>/dev/null 2>&1; then
+        sudo pacman -Rns --noconfirm "$terminal" 2>/dev/null && ok "$terminal removed" || warn "Could not remove $terminal"
+    elif dpkg -s "$terminal" &>/dev/null 2>&1; then
+        sudo apt-get remove -y "$terminal" 2>/dev/null && ok "$terminal removed" || warn "Could not remove $terminal"
+    else
+        ok "$terminal not installed"
+    fi
+done
 
 # ─── 6. Enable services ──────────────────────────────────────────────────────
 info "Enabling services..."

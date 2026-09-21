@@ -3,7 +3,7 @@
 #
 # Syntax: simple "KEY=VAL" pairs on separate lines
 #
-QT_QPA_PLATFORMTHEME=gtk2
+QT_QPA_PLATFORMTHEME=qt5ct
 GTK_THEME=Arc-BLACK-ICE
 GTK_CURSOR_THEME=DMZ-Black
 GTK_CURSOR_SIZE=24
