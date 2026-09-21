@@ -36,17 +36,24 @@ cleanup() {
     log "=== Cleaning up ==="
     [ -n "${ELECTRON_PID:-}" ] && kill "$ELECTRON_PID" 2>/dev/null
     [ -n "${BRIDGE_PID:-}" ] && kill "$BRIDGE_PID" 2>/dev/null
-    [ -n "${WM_PID:-}" ] && kill "$WM_PID" 2>/dev/null
     wait 2>/dev/null
 }
 trap cleanup EXIT INT TERM
 
 # --- 1. Window manager: xfwm4 (from XFCE) ---
 log "Starting xfwm4..."
-xfwm4 --daemon 2>>"$LOG"
-WM_PID=$!
-log "xfwm4 PID=$WM_PID"
-sleep 0.3
+# xfwm4 --daemon forks, so we start it in background and track via pidfile
+rm -f /tmp/xfwm4-stormos.pid
+xfwm4 2>>"$LOG" &
+sleep 1
+# Get the actual xfwm4 PID
+XFWM_PID=$(pgrep -n xfwm4 2>/dev/null || echo "")
+log "xfwm4 PID=$XFWM_PID"
+
+if [ -z "$XFWM_PID" ]; then
+    log "ERROR: xfwm4 failed to start! Session cannot continue."
+    exit 1
+fi
 
 # --- 2. Compositor: picom (optional) ---
 if command -v picom >/dev/null 2>&1; then
@@ -89,21 +96,24 @@ if [ -n "$ELECTRON_BIN" ] && [ -d "$PROJECT_DIR/dist" ]; then
     log "Electron PID=$ELECTRON_PID"
     sleep 2
     if ! kill -0 "$ELECTRON_PID" 2>/dev/null; then
-        log "ERROR: Electron died immediately! Check ~/.stormos-electron.log"
+        log "WARNING: Electron died — falling back to xfwm4-only mode"
+        ELECTRON_PID=""
     else
         log "Electron is running"
     fi
 else
-    log "ERROR: electron=$ELECTRON_BIN dist=$PROJECT_DIR/dist"
+    log "WARNING: electron=$ELECTRON_BIN dist=$PROJECT_DIR/dist — running xfwm4-only"
 fi
 
-# --- 5. Wait on Electron (session leader) ---
+# --- 5. Keep session alive ---
+# If Electron is running, wait on it (it's the session leader)
+# If not, wait on xfwm4 — session stays alive as long as WM is up
 if [ -n "$ELECTRON_PID" ]; then
     log "Waiting for Electron..."
     wait "$ELECTRON_PID" 2>/dev/null
     log "Electron exited (code=$?)"
 else
-    log "ERROR: No Electron — waiting on xfwm4"
-    wait "$WM_PID" 2>/dev/null
+    log "No Electron — waiting on xfwm4 (wm-only mode)"
+    wait "$XFWM_PID" 2>/dev/null
 fi
 log "=== Session ended ==="
