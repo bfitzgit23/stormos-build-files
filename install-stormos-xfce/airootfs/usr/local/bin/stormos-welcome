@@ -115,8 +115,6 @@ def run_capture(cmd):
 # ============================================================
 class PacmanBackend:
     def search(self, query):
-        # Sync database before search so results are current
-        run_capture(["pacman", "-Sy", "--noconfirm"])
         rc, out, _ = run_capture(["pacman", "-Ss", query])
         if rc != 0: return []
         packages = []
@@ -242,7 +240,7 @@ class StormWelcome(QMainWindow):
         hlayout = QHBoxLayout(header)
         title = QLabel("🌩️ StormOS")
         title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
-        subtitle = QLabel("Arch Linux made easy")
+        subtitle = QLabel("Arch Linux made calm")
         subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
         hlayout.addWidget(title)
         hlayout.addWidget(subtitle)
@@ -260,7 +258,7 @@ class StormWelcome(QMainWindow):
         self.status_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
         flayout.addWidget(self.status_label)
         flayout.addStretch()
-        version = QLabel("v2.0 • Arch made easy")
+        version = QLabel("v2.0 • Arch made calm")
         version.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
         flayout.addWidget(version)
         return footer
@@ -301,7 +299,7 @@ class StormWelcome(QMainWindow):
         welcome.setWordWrap(True)
         layout.addWidget(welcome)
 
-        desc = QLabel("Your Arch Linux journey starts now — easy, powerful, and beginner-friendly")
+        desc = QLabel("Your Arch Linux journey starts now — calm, powerful, and beginner-friendly")
         desc.setStyleSheet(f"color: {STORM_GRAY}; font-size: 15px; margin-bottom: 20px;")
         layout.addWidget(desc)
 
@@ -666,18 +664,7 @@ class StormWelcome(QMainWindow):
         if not shutil.which("calamares"):
             QMessageBox.warning(self, "Installer not found", "Calamares not installed.")
             return
-        # Calamares needs root to write to disk; sudo prompts in the terminal
-        # that run_command() opens (pkexec has no reliable auth agent here).
-        # sudo resets the environment, so explicitly pass the session's
-        # X/Wayland credentials through "sudo env" -- without them the
-        # calamares GUI could not connect to the display as root.
-        env_cmd = ["sudo", "env"]
-        for var in ("DISPLAY", "XAUTHORITY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR"):
-            value = os.environ.get(var)
-            if value:
-                env_cmd.append(f"{var}={value}")
-        env_cmd.append("calamares")
-        run_command(env_cmd, "Calamares Installer", hold=False)
+        run_command(["calamares"], "Calamares Installer", hold=False)
 
     def enable_autostart(self):
         AUTOSTART_FILE.parent.mkdir(parents=True, exist_ok=True)
