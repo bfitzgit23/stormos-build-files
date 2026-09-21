@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# stormos-toolkit — launcher for the StormOS Toolkit on Xfce.
+# Based on CyberXero Toolkit by XeroLinux and DarkXero (credit:
+# github.com/MurderFromMars). On Xfce the full toolkit build is done at
+# install time; this launcher runs the installed binary or, if absent,
+# offers to fetch it.
+#
+set -uo pipefail
+
+BIN=""
+for c in /opt/stormos-toolkit/stormos-toolkit /usr/bin/stormos-toolkit; do
+    [ -x "$c" ] && BIN="$c" && break
+done
+
+if [ -z "$BIN" ]; then
+    # Not built yet — offer quick install
+    if command -v zenity >/dev/null 2>&1; then
+        if zenity --question --title="StormOS Toolkit" \
+            --text="The StormOS Toolkit is not installed yet.\nInstall it now? (downloads and builds from source)" 2>/dev/null; then
+            term=$(command -v xfce4-terminal || command -v xterm)
+            [ -n "$term" ] && exec "$term" -e bash -c '
+                set -e
+                sudo pacman -S --needed --noconfirm rust git >/dev/null 2>&1 || true
+                rm -rf /tmp/stormos-toolkit-src
+                git clone --depth 1 https://github.com/MurderFromMars/CyberXero-Toolkit /tmp/stormos-toolkit-src
+                cd /tmp/stormos-toolkit-src
+                cargo build --release
+                sudo mkdir -p /opt/stormos-toolkit
+                sudo cp target/release/* /opt/stormos-toolkit/ 2>/dev/null || true
+                sudo ln -sf /opt/stormos-toolkit/* /usr/local/bin/ 2>/dev/null || true
+                echo "Done. You can close this window."
+                read -r'
+        fi
+        exit 0
+    fi
+    echo "StormOS Toolkit is not installed." >&2
+    exit 1
+fi
+
+exec "$BIN" "$@"

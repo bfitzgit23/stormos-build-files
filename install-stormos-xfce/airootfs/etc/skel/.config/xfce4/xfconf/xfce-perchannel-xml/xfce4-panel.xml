@@ -74,7 +74,7 @@
         <value type="string" value="thunar.desktop"/>
         <value type="string" value="xfce4-terminal.desktop"/>
         <value type="string" value="firefox.desktop"/>
-        <value type="string" value="org.gnome.Settings.desktop"/>
+        <value type="string" value="xfce4-settings-manager.desktop"/>
         <value type="string" value="pamac-manager.desktop"/>
         <value type="string" value="libreoffice-startcenter.desktop"/>
         <value type="string" value="steam.desktop"/>
@@ -83,7 +83,7 @@
         <value type="string" value="thunar.desktop"/>
         <value type="string" value="xfce4-terminal.desktop"/>
         <value type="string" value="firefox.desktop"/>
-        <value type="string" value="org.gnome.Settings.desktop"/>
+        <value type="string" value="xfce4-settings-manager.desktop"/>
         <value type="string" value="pamac-manager.desktop"/>
         <value type="string" value="libreoffice-startcenter.desktop"/>
         <value type="string" value="steam.desktop"/>
@@ -118,7 +118,7 @@
     <property name="plugin-9" type="string" value="power-manager-plugin"/>
     <property name="plugin-10" type="string" value="notification-plugin"/>
     <property name="plugin-11" type="string" value="docklike">
-      <property name="pinned" type="string" value="thunar;firefox;xfce4-terminal;stormos-gallery;stormos-media;org.gnome.Settings;pamac-manager;stormos-compiz;libreoffice-startcenter;steam;"/>
+      <property name="pinned" type="string" value="thunar;firefox;xfce4-terminal;stormos-gallery;stormos-media;xfce4-settings-manager;pamac-manager;stormos-compiz;libreoffice-startcenter;steam;"/>
       <property name="show-launchers" type="bool" value="true"/>
       <property name="icon-size" type="uint" value="48"/>
     </property>

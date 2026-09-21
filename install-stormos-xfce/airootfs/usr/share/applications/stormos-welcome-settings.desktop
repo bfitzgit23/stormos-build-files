@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=StormOS Welcome
+Comment=Get started with StormOS — setup, updates and tour
+Exec=stormos-welcome
+Icon=stormos-logo
+Terminal=false
+NotShowIn=GNOME;KDE;
+Categories=X-XFCE;Settings;DesktopSettings;X-XfceSettingsDialog;
+StartupNotify=true
+X-XfceSettingsName=Welcome
+X-XfceSettingsIcon=stormos-logo
+X-StormOS-App=true

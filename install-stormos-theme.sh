@@ -251,6 +251,23 @@ if command -v xdg-mime >/dev/null 2>&1; then
     ok "StormOS Media set as default media player"
 fi
 
+# Install StormOS Toolkit launcher (system tool, credits XeroLinux/DarkXero)
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-toolkit" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-toolkit" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-toolkit
+    sudo sed -i 's/\r$//' /usr/local/bin/stormos-toolkit
+    ok "StormOS Toolkit launcher installed"
+fi
+
+# Deploy XFCE Settings dialog entries: Welcome + Toolkit inside Settings Manager
+for settings_desk in stormos-welcome-settings.desktop stormos-toolkit-settings.desktop; do
+    if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/$settings_desk" ]; then
+        sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/$settings_desk" /usr/share/applications/
+        sudo sed -i 's/\r$//' "/usr/share/applications/$settings_desk" 2>/dev/null || true
+    fi
+done
+ok "Welcome + Toolkit added to XFCE Settings Manager"
+
 # Install Compiz toggle (xfwm4 <-> compiz switcher)
 if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-toggle" ]; then
     sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-toggle" /usr/local/bin/

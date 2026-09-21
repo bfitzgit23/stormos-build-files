@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=StormOS Toolkit
+Comment=System toolkit — tweaks, maintenance and fixes
+Exec=stormos-toolkit
+Icon=stormos-compiz
+Terminal=false
+NotShowIn=GNOME;KDE;
+Categories=X-XFCE;Settings;DesktopSettings;X-XfceSettingsDialog;System;
+StartupNotify=true
+X-XfceSettingsName=Toolkit
+X-XfceSettingsIcon=stormos-compiz
+X-StormOS-App=true
