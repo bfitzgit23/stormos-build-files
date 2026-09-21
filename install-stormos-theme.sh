@@ -218,17 +218,29 @@ else
 fi
 
 # ─── 6. Start picom now ──────────────────────────────────────────────────────
-info "Starting picom compositor..."
-killall picom 2>/dev/null || true
-sleep 0.5
-picom --daemon 2>/dev/null && ok "Picom running" || err "Picom failed to start"
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    info "Starting picom compositor..."
+    killall picom 2>/dev/null || true
+    sleep 0.5
+    if picom --daemon 2>/dev/null; then
+        ok "Picom running"
+    else
+        err "Picom failed to start (may need a display server)"
+    fi
+else
+    info "No display server detected — picom will start on next login"
+fi
 
 # ─── 7. Start conky now ──────────────────────────────────────────────────────
-info "Starting conky..."
-killall conky 2>/dev/null || true
-sleep 0.5
-conky -c "$HOME/.config/conky/conky.conf" &>/dev/null &
-ok "Conky started"
+if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
+    info "Starting conky..."
+    killall conky 2>/dev/null || true
+    sleep 0.5
+    conky -c "$HOME/.config/conky/conky.conf" &>/dev/null &
+    ok "Conky started"
+else
+    info "Conky will start on next login"
+fi
 
 # ─── Done ─────────────────────────────────────────────────────────────────────
 echo ""
