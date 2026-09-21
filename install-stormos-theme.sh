@@ -133,35 +133,31 @@ for f in .config/xfce4 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc-2.0 \
 done
 ok "Backup complete"
 
-# ─── 3. Copy XFCE skel configs ───────────────────────────────────────────────
-info "Installing StormOS XFCE configs..."
+# ─── 3. Copy XFCE theme settings ONLY (do NOT overwrite panel config!) ───────
+info "Installing StormOS theme settings..."
 
-# XFCE panel + window manager + settings
+# XFCE theme settings only — xsettings (themes, icons, fonts) + xfwm4 (WM theme)
 mkdir -p "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
-cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/"*.xml \
-   "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/"
+cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml" \
+   "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
+cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml" \
+   "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
+cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml" \
+   "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
 
-# Panel launchers and docklike
-mkdir -p "$HOME/.config/xfce4/panel"
-cp -r "$SKEL/.config/xfce4/panel/"* "$HOME/.config/xfce4/panel/" 2>/dev/null || true
+# Terminal config
+mkdir -p "$HOME/.config/xfce4/terminal"
+cp "$SKEL/.config/xfce4/terminal/terminalrc" "$HOME/.config/xfce4/terminal/" 2>/dev/null || true
 
 # GTK themes
 mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
 cp "$SKEL/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/"
 [ -f "$SKEL/.config/gtk-3.0/gtk.css" ] && cp "$SKEL/.config/gtk-3.0/gtk.css" "$HOME/.config/gtk-3.0/"
 [ -f "$SKEL/.config/gtk-4.0/gtk.css" ] && cp "$SKEL/.config/gtk-4.0/gtk.css" "$HOME/.config/gtk-4.0/"
-cp "$SKEL/.config/gtkrc-2.0" "$HOME/.config/"
+cp "$SKEL/.config/gtkrc-2.0" "$HOME/"
 
 # GTK2 Murrine overrides
-[ -f "$SKEL/.config/gtk-2.0/main.rc" ] && cp "$SKEL/.config/gtk-2.0/main.rc" "$HOME/.config/gtk-2.0/" 2>/dev/null || true
-
-# xfce4-terminal is the default terminal — no additional terminals installed
-
-# Picom compositor
-mkdir -p "$HOME/.config/picom"
-cp "$SKEL/.config/picom/picom.conf" "$HOME/.config/picom/"
-
-# Conky system monitor
+[ -f "$SKEL/.config/gtk-2.0/main.rc" ] && mkdir -p "$HOME/.config/gtk-2.0" && cp "$SKEL/.config/gtk-2.0/main.rc" "$HOME/.config/gtk-2.0/" 2>/dev/null || true
 
 # Qt themes
 mkdir -p "$HOME/.config/qt5ct" "$HOME/.config/qt6ct" "$HOME/.config/Kvantum"
@@ -175,17 +171,6 @@ cp "$SKEL/.config/Kvantum/kvantum.kvconfig" "$HOME/.config/Kvantum/"
 sudo mkdir -p /etc/qt5ct/colors /etc/qt6ct/colors
 sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt5ct/colors/stormos.conf" /etc/qt5ct/colors/ 2>/dev/null || true
 sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt6ct/colors/stormos.conf" /etc/qt6ct/colors/ 2>/dev/null || true
-
-# Ensure environment variables are set for Qt theming
-if ! grep -q 'QT_QPA_PLATFORMTHEME=gtk2' /etc/environment 2>/dev/null; then
-    echo 'QT_QPA_PLATFORMTHEME=gtk2' | sudo tee -a /etc/environment >/dev/null
-    echo 'QT_STYLE_OVERRIDE=gtk3' | sudo tee -a /etc/environment >/dev/null
-fi
-
-# Remove GTK_THEME from /etc/environment (LightDM reads it and crashes)
-# XFCE reads theme from xfconf instead
-sudo sed -i '/^GTK_THEME=/d' /etc/environment 2>/dev/null || true
-sudo sed -i 's/^GTK_ICON_THEME=.*/GTK_ICON_THEME=Qogir-dark/' /etc/environment 2>/dev/null || true
 
 # Thunar file manager
 mkdir -p "$HOME/.config/Thunar"
@@ -215,6 +200,17 @@ cp "$SKEL/.gtk-bookmarks" "$HOME/" 2>/dev/null || true
 # StormOS environment
 sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/environment" /etc/environment
 
+# Remove GTK_THEME from /etc/environment (LightDM reads it and crashes)
+# XFCE reads theme from xfconf instead
+sudo sed -i '/^GTK_THEME=/d' /etc/environment 2>/dev/null || true
+sudo sed -i 's/^GTK_ICON_THEME=.*/GTK_ICON_THEME=Qogir-dark/' /etc/environment 2>/dev/null || true
+
+# Ensure environment variables are set for Qt theming
+if ! grep -q 'QT_QPA_PLATFORMTHEME=gtk2' /etc/environment 2>/dev/null; then
+    echo 'QT_QPA_PLATFORMTHEME=gtk2' | sudo tee -a /etc/environment >/dev/null
+    echo 'QT_STYLE_OVERRIDE=gtk3' | sudo tee -a /etc/environment >/dev/null
+fi
+
 # Switcheroo-control applet
 if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switcheroo-applet" ]; then
     sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switcheroo-applet" /usr/local/bin/
@@ -242,18 +238,14 @@ xfconf-query -c xsettings -p /Net/ThemeName -s "StormOS-GTK" 2>/dev/null || true
 xfconf-query -c xsettings -p /Net/IconThemeName -s "Qogir-dark" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 11" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 14" 2>/dev/null || true
-xfconf-query -c xsettings -p /Gtk/CursorThemeName -s "DMZ-Black" 2>/dev/null || true
 
 # WM theme
 xfconf-query -c xfwm4 -p /general/theme -s "Arc-BLACK-ICE" 2>/dev/null || true
-xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 14" 2>/dev/null || true
 
 # Set wallpaper for all workspaces (XFCE 4.20 uses monitor0 nesting)
 for ws in 0 1 2 3; do
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/last-image" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
-    # Also try without monitor0 (older XFCE)
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
 done
@@ -265,10 +257,7 @@ fi
 
 ok "XFCE theme set"
 
-# ─── 5. Terminal setup ────────────────────────
-# xfce4-terminal is the default — no terminals to remove
-
-# ─── 6. Enable services ──────────────────────────────────────────────────────
+# ─── 5. Enable services ──────────────────────────────────────────────────────
 info "Enabling services..."
 
 # LightDM
@@ -285,5 +274,7 @@ else
     sudo systemctl enable NetworkManager 2>/dev/null && ok "NetworkManager enabled" || true
 fi
 
-
-ok "All configs installed"
+echo ""
+echo -e "${GREEN}✓ StormOS theme installed!${NC}"
+echo -e "  Log out and back in to see changes."
+echo ""
