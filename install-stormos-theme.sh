@@ -182,8 +182,9 @@ if ! grep -q 'QT_QPA_PLATFORMTHEME=qt5ct' /etc/environment 2>/dev/null; then
     echo 'QT_STYLE_OVERRIDE=gtk3' | sudo tee -a /etc/environment >/dev/null
 fi
 
-# Set GTK_THEME in /etc/environment
-sudo sed -i 's/^GTK_THEME=.*/GTK_THEME=StormOS-GTK/' /etc/environment 2>/dev/null || true
+# Remove GTK_THEME from /etc/environment (LightDM reads it and crashes)
+# XFCE reads theme from xfconf instead
+sudo sed -i '/^GTK_THEME=/d' /etc/environment 2>/dev/null || true
 sudo sed -i 's/^GTK_ICON_THEME=.*/GTK_ICON_THEME=Qogir-dark/' /etc/environment 2>/dev/null || true
 
 # Thunar file manager
