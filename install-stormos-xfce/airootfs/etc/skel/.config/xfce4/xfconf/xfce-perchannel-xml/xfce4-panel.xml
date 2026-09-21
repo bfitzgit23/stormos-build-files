@@ -42,8 +42,8 @@
     </property>
     <property name="panel-2" type="empty">
       <property name="position" type="string" value="p=12;x=480;y=1060"/>
-      <property name="size" type="uint" value="48"/>
-      <property name="length" type="double" value="0"/>
+      <property name="size" type="uint" value="52"/>
+      <property name="length" type="double" value="30"/>
       <property name="length-adjust" type="bool" value="false"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="background-style" type="uint" value="1"/>
@@ -117,7 +117,11 @@
     </property>
     <property name="plugin-9" type="string" value="power-manager-plugin"/>
     <property name="plugin-10" type="string" value="notification-plugin"/>
-    <property name="plugin-11" type="string" value="docklike"/>
+    <property name="plugin-11" type="string" value="docklike">
+      <property name="pinned" type="string" value="thunar;firefox;xfce4-terminal;stormos-gallery;stormos-media;org.gnome.Settings;pamac-manager;stormos-compiz;libreoffice-startcenter;steam;"/>
+      <property name="show-launchers" type="bool" value="true"/>
+      <property name="icon-size" type="uint" value="48"/>
+    </property>
     <property name="plugin-12" type="string" value="clock">
       <property name="digital-format" type="string" value="%T"/>
       <property name="digital-time-format" type="string" value="%I:%M %p"/>

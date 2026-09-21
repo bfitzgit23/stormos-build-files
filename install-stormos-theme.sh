@@ -33,7 +33,7 @@ info "Checking packages..."
 OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
                xfce4-goodies xorg-server switcheroo-control
                xfce4-notifyd xfce4-power-manager xfce4-screenshooter
-               xfce4-pulseaudio-plugin)
+               xfce4-pulseaudio-plugin mpv libmpv)
 
 # AUR packages (yay)
 AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
@@ -230,6 +230,37 @@ if command -v xdg-mime >/dev/null 2>&1; then
         xdg-mime default stormos-gallery.desktop "$mime" 2>/dev/null || true
     done
     ok "StormOS Gallery set as default image viewer"
+fi
+
+# Install StormOS Media (custom media player, replaces parole)
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-media" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-media" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-media
+    sudo sed -i 's/\r$//' /usr/local/bin/stormos-media
+    ok "StormOS Media installed"
+fi
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/stormos-media.desktop" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/stormos-media.desktop" /usr/share/applications/
+    ok "StormOS Media desktop entry installed"
+fi
+# Make StormOS Media the default video/audio handler
+if command -v xdg-mime >/dev/null 2>&1; then
+    for mime in video/mp4 video/x-matroska video/webm video/x-msvideo video/quicktime audio/mpeg audio/flac audio/ogg audio/x-wav audio/mp4; do
+        xdg-mime default stormos-media.desktop "$mime" 2>/dev/null || true
+    done
+    ok "StormOS Media set as default media player"
+fi
+
+# Install Compiz toggle (xfwm4 <-> compiz switcher)
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-toggle" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-toggle" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-compiz-toggle
+    sudo sed -i 's/\r$//' /usr/local/bin/stormos-compiz-toggle
+    ok "Compiz toggle installed"
+fi
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/stormos-compiz-toggle.desktop" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/stormos-compiz-toggle.desktop" /usr/share/applications/
+    ok "Compiz toggle desktop entry installed"
 fi
 
 # Install wallpaper autostart

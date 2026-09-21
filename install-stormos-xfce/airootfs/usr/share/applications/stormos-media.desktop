@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=StormOS Media
+GenericName=Media Player
+Comment=Play videos and music
+Exec=stormos-media %F
+Icon=stormos-media
+Terminal=false
+Categories=AudioVideo;Video;Player;Audio;TV;Music;
+MimeType=video/mp4;video/x-matroska;video/webm;video/x-msvideo;video/quicktime;video/x-flv;audio/mpeg;audio/flac;audio/ogg;audio/x-wav;audio/mp4;audio/x-opus+ogg;
+Keywords=video;movie;film;music;audio;player;media;
+StartupNotify=true
+X-StormOS-App=true

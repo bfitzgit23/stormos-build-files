@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- StormOS Media: play button in glowing ring, StormOS blue -->
+  <circle cx="24" cy="24" r="21" fill="#0A1628" stroke="#19A9FF" stroke-width="2.5"/>
+  <circle cx="24" cy="24" r="17" fill="none" stroke="#19A9FF" stroke-width="1" opacity="0.4"/>
+  <path d="M19 15 L34 24 L19 33 Z" fill="#19A9FF"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- StormOS Compiz toggle: isometric cube in StormOS blue -->
+  <circle cx="24" cy="24" r="21" fill="#0A1628" stroke="#19A9FF" stroke-width="2"/>
+  <g stroke="#19A9FF" stroke-width="2" fill="none" stroke-linejoin="round">
+    <path d="M24 10 L36 17 L36 31 L24 38 L12 31 L12 17 Z" fill="#19A9FF" fill-opacity="0.15"/>
+    <path d="M24 10 L24 24 L36 31"/>
+    <path d="M24 24 L12 31"/>
+    <path d="M12 17 L24 24 L36 17" fill="#19A9FF" fill-opacity="0.25"/>
+  </g>
+</svg>

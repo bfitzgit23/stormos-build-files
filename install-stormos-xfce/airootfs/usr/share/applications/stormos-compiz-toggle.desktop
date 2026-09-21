@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Compiz Toggle
+GenericName=Window Manager Switch
+Comment=Switch between xfwm4 and Compiz (wobbly windows + cube)
+Exec=stormos-compiz-toggle
+Icon=stormos-compiz
+Terminal=false
+Categories=System;DesktopSettings;Utility;
+Keywords=compiz;wobbly;cube;window;manager;effects;
+StartupNotify=false
+X-StormOS-App=true
