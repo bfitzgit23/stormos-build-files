@@ -118,7 +118,7 @@
     <property name="plugin-9" type="string" value="power-manager-plugin"/>
     <property name="plugin-10" type="string" value="notification-plugin"/>
     <property name="plugin-11" type="string" value="docklike">
-      <property name="pinned" type="string" value="thunar;firefox;xfce4-terminal;stormos-gallery;stormos-media;xfce4-settings-manager;pamac-manager;stormos-compiz;ccsm;compiz-theme-selector;libreoffice-startcenter;steam;"/>
+      <property name="pinned" type="string" value="thunar;firefox;xfce4-terminal;stormos-gallery;stormos-media;xfce4-settings-manager;pamac-manager;libreoffice-startcenter;steam;"/>
       <property name="show-launchers" type="bool" value="true"/>
       <property name="icon-size" type="uint" value="40"/>
     </property>
