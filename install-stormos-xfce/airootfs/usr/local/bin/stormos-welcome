@@ -859,6 +859,51 @@ Categories=System;
                 color: {STORM_BLUE};
                 background: transparent;
             }}
+            QGroupBox {{
+                background-color: {GLASS_DARK};
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 12px;
+                margin-top: 12px;
+                padding-top: 16px;
+                color: {STORM_BLUE};
+                font-weight: bold;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 6px;
+                color: {STORM_BLUE};
+            }}
+            QMessageBox {{
+                background-color: {STORM_NAVY};
+            }}
+            QMessageBox QLabel {{
+                color: {STORM_BLUE};
+            }}
+            QMenu {{
+                background-color: {STORM_DARK};
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 8px;
+                padding: 4px;
+            }}
+            QMenu::item {{
+                color: {STORM_BLUE};
+                padding: 6px 20px;
+                border-radius: 4px;
+            }}
+            QMenu::item:selected {{
+                background-color: rgba(100, 255, 218, 0.15);
+            }}
+            QMenuBar {{
+                background-color: {STORM_DARK};
+                color: {STORM_BLUE};
+            }}
+            QMenuBar::item:selected {{
+                background-color: rgba(100, 255, 218, 0.15);
+            }}
+            * {{
+                font-family: 'JetBrains Mono', 'Noto Sans', sans-serif;
+            }}
             QToolTip {{
                 background-color: {STORM_NAVY};
                 color: {STORM_BLUE};
