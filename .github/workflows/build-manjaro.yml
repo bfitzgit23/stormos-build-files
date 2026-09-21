@@ -1,0 +1,88 @@
+name: Build StormOS Manjaro ISO
+
+on:
+  push:
+    branches: [manjaro]
+    paths:
+      - 'install-stormos-manjaro/**'
+      - '.github/workflows/build-manjaro.yml'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create GitHub release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: manjarolinux/base:latest
+      options: --privileged
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          pacman-mirrors --geoip
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm manjaro-tools-iso git
+
+      - name: Prepare profile
+        run: |
+          # Create profile directory structure
+          mkdir -p /var/lib/manjaro-tools/iso-profiles/stormos
+          # Copy our profile
+          cp -r install-stormos-manjaro/manjaro-tools-profile/xfce/* \
+            /var/lib/manjaro-tools/iso-profiles/stormos/ 2>/dev/null || true
+          # Copy overlay
+          cp -r install-stormos-manjaro/manjaro-tools-profile/xfce/overlay/* \
+            /var/lib/manjaro-tools/iso-profiles/stormos/overlay/ 2>/dev/null || true
+          # Copy themes into overlay
+          mkdir -p /var/lib/manjaro-tools/iso-profiles/stormos/overlay/usr/share/themes
+          for theme in Arc-BLACK-ICE StormOS-Green StormOS-LightBlue; do
+            if [ -d "install-stormos-manjaro/airootfs/usr/share/themes/$theme" ]; then
+              cp -r "install-stormos-manjaro/airootfs/usr/share/themes/$theme" \
+                /var/lib/manjaro-tools/iso-profiles/stormos/overlay/usr/share/themes/
+            fi
+          done
+
+      - name: Build ISO
+        run: |
+          cd /var/lib/manjaro-tools/iso-profiles
+          buildiso -p stormos -k linux612 -b stable -t /tmp/build
+
+      - name: Rename ISO
+        run: |
+          cd /tmp/build
+          ISO=$(ls -1 *.iso 2>/dev/null | head -1)
+          if [ -n "$ISO" ]; then
+            VERSION=$(date +%Y%m%d)
+            mv "$ISO" "StormOS-Manjaro-${VERSION}.iso"
+            echo "ISO_PATH=/tmp/build/StormOS-Manjaro-${VERSION}.iso" >> $GITHUB_ENV
+          else
+            echo "No ISO found, checking build logs..."
+            ls -la /var/log/manjaro-tools/ 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StormOS-Manjaro-ISO
+          path: /tmp/build/*.iso
+          retention-days: 30
+
+      - name: Create release
+        if: github.event.inputs.release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: manjaro-${{ github.run_number }}
+          name: StormOS Manjaro ${{ github.run_number }}
+          files: /tmp/build/*.iso
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

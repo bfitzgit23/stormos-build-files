@@ -1,0 +1,56 @@
+name: Build All StormOS ISOs
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create GitHub releases'
+        required: false
+        default: false
+        type: boolean
+      branch:
+        description: 'Branch to build from'
+        required: false
+        default: 'main'
+        type: choice
+        options:
+          - main
+          - manjaro
+          - debian
+          - all
+
+jobs:
+  build-arch:
+    uses: ./.github/workflows/build-arch.yml
+    if: github.event.inputs.branch == 'main' || github.event.inputs.branch == 'all'
+    with:
+      release: ${{ github.event.inputs.release }}
+
+  build-manjaro:
+    uses: ./.github/workflows/build-manjaro.yml
+    if: github.event.inputs.branch == 'manjaro' || github.event.inputs.branch == 'all'
+    with:
+      release: ${{ github.event.inputs.release }}
+
+  build-debian:
+    uses: ./.github/workflows/build-debian.yml
+    if: github.event.inputs.branch == 'debian' || github.event.inputs.branch == 'all'
+    with:
+      release: ${{ github.event.inputs.release }}
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [build-arch, build-manjaro, build-debian]
+    if: always()
+    steps:
+      - name: Build Summary
+        run: |
+          echo "## StormOS Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Distro | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Arch | ${{ needs.build-arch.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Manjaro | ${{ needs.build-manjaro.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Debian | ${{ needs.build-debian.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ISOs are available in the workflow artifacts." >> $GITHUB_STEP_SUMMARY

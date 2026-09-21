@@ -1,0 +1,104 @@
+name: Build StormD Debian ISO
+
+on:
+  push:
+    branches: [debian]
+    paths:
+      - 'install-stormd/**'
+      - '.github/workflows/build-debian.yml'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create GitHub release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bookworm
+      options: --privileged
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git live-build debootstrap squashfs-tools \
+            xorriso isolinux syslinux-efi grub-efi-amd64-bin \
+            dosfstools mtools dosfstools parted
+
+      - name: Prepare live-build config
+        run: |
+          lb config \
+            --architectures amd64 \
+            --distribution bookworm \
+            --archive-areas "main contrib non-free non-free-firmware" \
+            --bootappend-live "boot=live components username=stormd hostname=stormd" \
+            --memtest memtest86+ \
+            --iso-application "StormD Linux" \
+            --iso-publisher "StormD Project" \
+            --iso-volume "StormD 13X"
+
+          # Copy our package list
+          if [ -f "install-stormd/stormd13X/packages" ]; then
+            cp install-stormd/stormd13X/packages config/package-lists/stormd.list.chroot
+          fi
+
+          # Copy overlay files
+          if [ -d "install-stormd/stormd13X/overlay" ]; then
+            cp -r install-stormd/stormd13X/overlay/* config/includes.chroot/ 2>/dev/null || true
+          fi
+
+          # Copy Calamares config
+          if [ -d "install-stormd/stormd13X/calamares" ]; then
+            mkdir -p config/includes.chroot/etc/calamares
+            cp -r install-stormd/stormd13X/calamares/* config/includes.chroot/etc/calamares/ 2>/dev/null || true
+          fi
+
+          # Copy scripts
+          if [ -d "install-stormd/stormd13X/scripts" ]; then
+            mkdir -p config/includes.chroot/usr/local/bin
+            cp install-stormd/stormd13X/scripts/* config/includes.chroot/usr/local/bin/ 2>/dev/null || true
+            chmod +x config/includes.chroot/usr/local/bin/* 2>/dev/null || true
+          fi
+
+      - name: Build ISO
+        run: |
+          lb build 2>&1 | tail -50
+
+      - name: Rename ISO
+        run: |
+          VERSION=$(date +%Y%m%d)
+          ISO=$(ls -1 *.iso 2>/dev/null | head -1)
+          if [ -n "$ISO" ]; then
+            mv "$ISO" "StormD-Debian-${VERSION}.iso"
+            echo "ISO_PATH=StormD-Debian-${VERSION}.iso" >> $GITHUB_ENV
+          else
+            echo "No ISO found. Checking for image files..."
+            ls -la live-image* binary* 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StormD-Debian-ISO
+          path: "*.iso"
+          retention-days: 30
+
+      - name: Create release
+        if: github.event.inputs.release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: debian-${{ github.run_number }}
+          name: StormD Debian ${{ github.run_number }}
+          files: "*.iso"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,77 @@
+name: Build StormOS Arch ISO
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'install-stormos-xfce/**'
+      - 'profiles/arch/**'
+      - '.github/workflows/build-arch.yml'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create GitHub release'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm archiso git
+          # Copy the archiso releng profile as base
+          cp -r /usr/share/archiso/configs/releng profiles/arch || true
+
+      - name: Prepare profile
+        run: |
+          mkdir -p profiles/arch/airootfs
+          # Copy our XFCE overlay into the profile
+          cp -r install-stormos-xfce/airootfs/* profiles/arch/airootfs/ 2>/dev/null || true
+          # Copy package list
+          cp install-stormos-xfce/packages.x86_64 profiles/arch/packages.x86_64 2>/dev/null || true
+          # Set hostname
+          echo "stormos" > profiles/arch/airootfs/etc/hostname
+          # Set locale
+          echo "en_US.UTF-8 UTF-8" > profiles/arch/airootfs/etc/locale.gen
+
+      - name: Build ISO
+        run: |
+          cd profiles/arch
+          mkarchiso -v -w /var/cache/archiso -o /tmp/output .
+
+      - name: Rename ISO
+        run: |
+          cd /tmp/output
+          ISO=$(ls -1 *.iso | head -1)
+          VERSION=$(date +%Y%m%d)
+          mv "$ISO" "StormOS-Arch-${VERSION}.iso"
+          echo "ISO_PATH=/tmp/output/StormOS-Arch-${VERSION}.iso" >> $GITHUB_ENV
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StormOS-Arch-ISO
+          path: /tmp/output/*.iso
+          retention-days: 30
+
+      - name: Create release
+        if: github.event.inputs.release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: arch-${{ github.run_number }}
+          name: StormOS Arch ${{ github.run_number }}
+          files: /tmp/output/*.iso
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
