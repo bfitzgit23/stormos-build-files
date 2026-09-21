@@ -63,7 +63,7 @@
     <property name="plugin-1" type="string" value="whiskermenu">
       <property name="hover-switch-category" type="bool" value="true"/>
       <property name="position-search-alternate" type="bool" value="true"/>
-      <property name="button-icon" type="string" value="Lightning_Logo1"/>
+      <property name="button-icon" type="string" value="stormos-logo"/>
       <property name="button-title" type="string" value="StormOS"/>
       <property name="show-button-title" type="bool" value="true"/>
       <property name="show-generics" type="bool" value="true"/>

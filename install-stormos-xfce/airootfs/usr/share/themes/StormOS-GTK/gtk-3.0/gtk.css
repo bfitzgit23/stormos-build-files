@@ -6,86 +6,57 @@
 @define-color theme_selected_fg_color #0A1628;
 @define-color theme_base_color #020c1b;
 @define-color theme_text_color #E8F2FF;
-
 @define-color theme_link_color #19A9FF;
 @define-color theme_warning_color #FFD93D;
 @define-color theme_error_color #FF6B6B;
 @define-color theme_success_color #4ADE80;
-
-@define-color theme_button_background #1a3a5c;
 @define-color borders #19A9FF;
 
 /* Selection highlight */
-*:selected,:selected:focus {
+*:selected, *:selected:focus {
     background-color: #19A9FF;
     color: #0A1628;
 }
 
 /* Links */
-a, .link {
-    color: #19A9FF;
-}
+a, .link { color: #19A9FF; }
 
-/* Scrollbar styling */
+/* Scrollbar */
 scrollbar slider {
     background-color: rgba(25, 169, 255, 0.4);
     border-radius: 10px;
     min-width: 6px;
     min-height: 6px;
 }
-
-scrollbar slider:hover {
-    background-color: rgba(25, 169, 255, 0.6);
-}
+scrollbar slider:hover { background-color: rgba(25, 169, 255, 0.6); }
 
 /* Progress bars */
-progressbar progress,
-levelbar block.filled {
-    background-color: #19A9FF;
-}
+progressbar progress, levelbar block.filled { background-color: #19A9FF; }
 
 /* Switches */
-switch:checked {
-    background-color: #19A9FF;
-    border-color: #19A9FF;
-}
+switch:checked { background-color: #19A9FF; border-color: #19A9FF; }
 
 /* Checkbuttons and Radios */
-check:checked, radio:checked {
-    background-color: #19A9FF;
-    border-color: #19A9FF;
-}
+check:checked, radio:checked { background-color: #19A9FF; border-color: #19A9FF; }
 
 /* Sidebar */
-.sidebar, .navigation-sidebar {
-    background-color: #0A1628;
-}
+.sidebar, .navigation-sidebar { background-color: #0A1628; }
 
 /* Headerbar */
 headerbar, .titlebar {
     background-color: #0A1628;
     color: #E8F2FF;
 }
-
 headerbar:selected, .titlebar:selected {
     background-color: #19A9FF;
     color: #0A1628;
 }
 
 /* Notebook tabs */
-notebook tab:checked {
-    background-color: #19A9FF;
-    color: #0A1628;
-}
+notebook tab:checked { background-color: #19A9FF; color: #0A1628; }
 
-/* ── Rounded Corners ──────────────────────────────────────────────────────── */
-application.window,
-dialog,
-messagedialog,
-tooltip,
-
-/* Rounded Corners */
-application.window, dialog, messagedialog, tooltip, popover {
+/* Rounded corners — only for application windows, NOT desktop menu */
+dialog, messagedialog, tooltip, popover {
     border-radius: 12px;
 }
 decoration {
@@ -95,7 +66,5 @@ decoration {
 headerbar { border-radius: 12px 12px 0 0; }
 button { border-radius: 8px; }
 entry { border-radius: 8px; }
-scrollbar slider { border-radius: 10px; }
 notebook { border-radius: 8px; }
-treeview, list { border-radius: 8px; }
-menu, context-menu { border-radius: 10px; }
+menu, .context-menu { border-radius: 10px; }
