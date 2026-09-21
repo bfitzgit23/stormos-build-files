@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# stormos-desktop — StormOS React desktop shell launcher.
-# Everything runs in background. The script stays alive as the session leader.
+# stormos-desktop — StormOS session: xfwm4 + React shell (20% XFCE).
+#
+# Session startup order:
+#   1. xfwm4 — window manager (from XFCE, provides decorations/compositing)
+#   2. picom — optional compositor for transparency/shadows
+#   3. bridge — Python IPC bridge for React shell
+#   4. Electron — StormOS React shell (the desktop UI)
+#
+# This session uses ONLY xfwm4 from XFCE — no xfce4-panel, no xfdesktop,
+# no xfce4-session. The React shell IS the desktop.
 
 set -uo pipefail
 
@@ -10,43 +18,49 @@ log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
 # Truncate log each start
 > "$LOG"
 log "=== stormos-desktop starting (pid $$) ==="
-log "HOME=$HOME USER=$(whoami) DISPLAY=$DISPLAY"
+log "HOME=$HOME USER=$(whoami) DISPLAY=${DISPLAY:-unset}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
-[ -f "$PROJECT_DIR/main.js" ] || PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-log "PROJECT_DIR=$PROJECT_DIR"
 
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
-export STORMOS_BRIDGE_PORT="${STORMOS_BRIDGE_PORT:-47821}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-StormOS}"
 export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-stormos}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-x11}"
 
+# Disable screen blanking
 xset s off -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
 
-# Cleanup function
+# Cleanup on exit
 cleanup() {
     log "=== Cleaning up ==="
     [ -n "${ELECTRON_PID:-}" ] && kill "$ELECTRON_PID" 2>/dev/null
     [ -n "${BRIDGE_PID:-}" ] && kill "$BRIDGE_PID" 2>/dev/null
-    [ -n "${OB_PID:-}" ] && kill "$OB_PID" 2>/dev/null
+    [ -n "${WM_PID:-}" ] && kill "$WM_PID" 2>/dev/null
     wait 2>/dev/null
 }
 trap cleanup EXIT INT TERM
 
-# --- 1. picom (background, non-blocking) ---
+# --- 1. Window manager: xfwm4 (from XFCE) ---
+log "Starting xfwm4..."
+xfwm4 --daemon 2>>"$LOG"
+WM_PID=$!
+log "xfwm4 PID=$WM_PID"
+sleep 0.3
+
+# --- 2. Compositor: picom (optional) ---
 if command -v picom >/dev/null 2>&1; then
-    log "Starting picom..."
-    picom --daemon 2>>"$LOG" &
-    log "picom PID=$!"
-    sleep 0.5
-else
-    log "WARNING: picom not found"
+    if ! pgrep -x picom >/dev/null 2>&1; then
+        log "Starting picom..."
+        picom --daemon 2>>"$LOG" &
+        log "picom PID=$!"
+        sleep 0.3
+    else
+        log "picom already running"
+    fi
 fi
 
-# --- 2. Bridge (background) ---
+# --- 3. Bridge (background, optional) ---
 BRIDGE_PID=""
 if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
     log "Starting bridge..."
@@ -54,13 +68,13 @@ if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
     BRIDGE_PID=$!
     log "Bridge PID=$BRIDGE_PID"
     for i in $(seq 1 15); do
-        curl -sf "http://127.0.0.1:$STORMOS_BRIDGE_PORT/api/health" >/dev/null 2>&1 && break
+        curl -sf "http://127.0.0.1:${STORMOS_BRIDGE_PORT:-47821}/api/health" >/dev/null 2>&1 && break
         sleep 0.3
     done
     log "Bridge check done"
 fi
 
-# --- 3. Electron (background) ---
+# --- 4. Electron shell (the desktop) ---
 ELECTRON_BIN=""
 for candidate in /usr/bin/electron /usr/lib/electron/electron /usr/local/bin/electron; do
     [ -x "$candidate" ] && ELECTRON_BIN="$candidate" && break
@@ -83,18 +97,13 @@ else
     log "ERROR: electron=$ELECTRON_BIN dist=$PROJECT_DIR/dist"
 fi
 
-# --- 4. openbox (background) ---
-openbox-session >>"$HOME/.stormos-openbox.log" 2>&1 &
-OB_PID=$!
-log "Openbox PID=$OB_PID"
-
-# --- 5. Wait on Electron ---
+# --- 5. Wait on Electron (session leader) ---
 if [ -n "$ELECTRON_PID" ]; then
     log "Waiting for Electron..."
     wait "$ELECTRON_PID" 2>/dev/null
     log "Electron exited (code=$?)"
 else
-    log "ERROR: No Electron — waiting on openbox"
-    wait "$OB_PID" 2>/dev/null
+    log "ERROR: No Electron — waiting on xfwm4"
+    wait "$WM_PID" 2>/dev/null
 fi
 log "=== Session ended ==="

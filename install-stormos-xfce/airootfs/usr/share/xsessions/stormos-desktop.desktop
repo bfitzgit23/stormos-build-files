@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=StormOS
+Comment=StormOS desktop (xfwm4 + React shell)
+Exec=/usr/bin/stormos-desktop
+Type=Application
+DesktopNames[0]=StormOS
+Terminal=false
