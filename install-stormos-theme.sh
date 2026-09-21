@@ -191,9 +191,8 @@ mkdir -p "$HOME/.config/Thunar"
 cp "$SKEL/.config/Thunar/uca.xml" "$HOME/.config/Thunar/"
 cp "$SKEL/.config/Thunar/gtk.xml" "$HOME/.config/Thunar/" 2>/dev/null || true
 
-# Autostart entries (picom, welcome, switcheroo)
+# Autostart entries (welcome, switcheroo)
 mkdir -p "$HOME/.config/autostart"
-cp "$SKEL/.config/autostart/picom.desktop" "$HOME/.config/autostart/"
 [ -f "$SKEL/.config/autostart/stormos-welcome.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-welcome.desktop" "$HOME/.config/autostart/"
 [ -f "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" ] && \
@@ -265,19 +264,5 @@ else
     sudo systemctl enable NetworkManager 2>/dev/null && ok "NetworkManager enabled" || true
 fi
 
-# ─── 7. Start picom now (only if not already running) ─────────────────────────
-if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-    if pgrep -x picom >/dev/null 2>&1; then
-        ok "Picom already running"
-    else
-        info "Starting picom compositor..."
-        if picom --daemon 2>/dev/null; then
-            ok "Picom running"
-        else
-            err "Picom failed to start (will auto-start on next login)"
-        fi
-    fi
-else
-    info "No display server detected — picom will start on next login"
-fi
 
+ok "All configs installed"
