@@ -42,7 +42,7 @@
     </property>
     <property name="panel-2" type="empty">
       <property name="position" type="string" value="p=12;x=672;y=0"/>
-      <property name="size" type="uint" value="40"/>
+      <property name="size" type="uint" value="48"/>
       <property name="length" type="double" value="30"/>
       <property name="length-adjust" type="bool" value="true"/>
       <property name="position-locked" type="bool" value="true"/>
@@ -53,10 +53,10 @@
         <value type="double" value="0.16"/>
         <value type="double" value="0.88"/>
       </property>
-      <property name="autohide-behavior" type="uint" value="0"/>
+      <property name="autohide-behavior" type="uint" value="1"/>
       <property name="enter-opacity" type="uint" value="100"/>
       <property name="leave-opacity" type="uint" value="100"/>
-      <property name="icon-size" type="uint" value="40"/>
+      <property name="icon-size" type="uint" value="48"/>
       <property name="plugin-ids" type="array">
         <value type="int" value="11"/>
       </property>

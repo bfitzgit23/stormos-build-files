@@ -453,7 +453,10 @@ done
 rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
 ok "XFCE session configs installed"
 
-# Fix bottom panel: centered floating dock that shrinks to fit its icons
+# Fix bottom panel: original position/size + always autohide
+xfconf-query -c xfce4-panel -p /panels/panel-2/size -s 48 2>/dev/null || true
+xfconf-query -c xfce4-panel -p /panels/panel-2/icon-size -s 48 2>/dev/null || true
+xfconf-query -c xfce4-panel -p /panels/panel-2/autohide-behavior -s 1 2>/dev/null || true
 xfconf-query -c xfce4-panel -p /panels/panel-2/length -s 30 2>/dev/null || true
 xfconf-query -c xfce4-panel -p /panels/panel-2/length-adjust -s true 2>/dev/null || true
 xfconf-query -c xfce4-panel -p /panels/panel-2/position -s "p=12;x=672;y=0" 2>/dev/null || true
