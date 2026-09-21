@@ -139,31 +139,7 @@
       </property>
     </property>
     <property name="plugin-15" type="string" value="screenshooter"/>
-    <property name="plugin-18" type="string" value="weather">
-      <property name="location" type="empty">
-        <property name="name" type="string" value="Louisville, Jefferson County"/>
-        <property name="latitude" type="string" value="38.254238"/>
-        <property name="longitude" type="string" value="-85.759407"/>
-      </property>
-      <property name="msl" type="int" value="143"/>
-      <property name="timezone" type="string" value="America/Kentucky/Louisville"/>
-      <property name="offset" type="string" value="-04:00"/>
-      <property name="cache-max-age" type="int" value="172800"/>
-      <property name="power-saving" type="bool" value="true"/>
-      <property name="round" type="bool" value="true"/>
-      <property name="single-row" type="bool" value="true"/>
-      <property name="tooltip-style" type="int" value="1"/>
-      <property name="theme-dir" type="string" value="/usr/share/xfce4/weather/icons/simplistic"/>
-      <property name="scrollbox" type="empty">
-        <property name="show" type="bool" value="true"/>
-        <property name="animate" type="bool" value="true"/>
-        <property name="lines" type="int" value="1"/>
-      </property>
-      <property name="labels" type="empty">
-        <property name="label0" type="int" value="3"/>
-        <property name="label1" type="int" value="9"/>
-      </property>
-    </property>
+
     <property name="plugin-22" type="string" value="separator">
       <property name="style" type="uint" value="0"/>
       <property name="expand" type="bool" value="false"/>

@@ -1,27 +1,12 @@
-/* StormOS-GTK — blue accent overrides on top of Arc-BLACK-ICE */
-
-@define-color theme_bg_color #0A1628;
-@define-color theme_fg_color #E8F2FF;
-@define-color theme_selected_bg_color #19A9FF;
-@define-color theme_selected_fg_color #0A1628;
-@define-color theme_base_color #020c1b;
-@define-color theme_text_color #E8F2FF;
-@define-color theme_link_color #19A9FF;
-@define-color theme_warning_color #FFD93D;
-@define-color theme_error_color #FF6B6B;
-@define-color theme_success_color #4ADE80;
-@define-color borders #19A9FF;
+/* StormOS-GTK — minimal blue accent overrides on Arc-BLACK-ICE base */
 
 /* Selection highlight */
-:selected,:selected:focus {
+:selected, :selected:focus {
     background-color: #19A9FF;
     color: #0A1628;
 }
 
-/* Links */
-a, .link { color: #19A9FF; }
-
-/* Scrollbar */
+/* Blue scrollbars */
 scrollbar slider {
     background-color: rgba(25, 169, 255, 0.4);
     border-radius: 10px;
@@ -30,27 +15,23 @@ scrollbar slider {
 }
 scrollbar slider:hover { background-color: rgba(25, 169, 255, 0.6); }
 
-/* Progress bars */
-progressbar progress, levelbar block.filled { background-color: #19A9FF; }
+/* Blue progress bars */
+progressbar progress { background-color: #19A9FF; }
 
-/* Switches */
+/* Blue switches */
 switch:checked { background-color: #19A9FF; border-color: #19A9FF; }
 
-/* Checkbuttons and Radios */
+/* Blue check/radio */
 check:checked, radio:checked { background-color: #19A9FF; border-color: #19A9FF; }
 
-/* Sidebar */
-.sidebar, .navigation-sidebar { background-color: #0A1628; }
+/* Links */
+a { color: #19A9FF; }
 
-/* Headerbar */
-headerbar, .titlebar {
-    background-color: #0A1628;
-    color: #E8F2FF;
-}
-headerbar:selected, .titlebar:selected {
-    background-color: #19A9FF;
-    color: #0A1628;
+/* Blue notebook tabs */
+notebook > header > tabs > tab:checked {
+    color: #19A9FF;
+    border-bottom-color: #19A9FF;
 }
 
-/* Notebook tabs */
-notebook tab:checked { background-color: #19A9FF; color: #0A1628; }
+/* Blue scales */
+scale trough highlight { background-color: #19A9FF; }
