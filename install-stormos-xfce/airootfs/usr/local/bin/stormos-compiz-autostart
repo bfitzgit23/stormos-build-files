@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# stormos-compiz-autostart — session autostart wrapper for Compiz.
+#
+# Runs at login (via stormos-compiz.desktop). Only launches Compiz when the
+# saved WM mode says so (~/.config/stormos/wm-mode = "compiz", written by
+# stormos-compiz-toggle). Otherwise exits silently and xfwm4 stays in charge.
+#
+set -u
+
+MODE_FILE="$HOME/.config/stormos/wm-mode"
+
+# No saved mode, or mode is xfwm4 -> nothing to do
+[ -f "$MODE_FILE" ] || exit 0
+[ "$(cat "$MODE_FILE" 2>/dev/null || echo xfwm4)" = "compiz" ] || exit 0
+
+# Compiz must be installed
+command -v compiz >/dev/null 2>&1 || exit 0
+
+# Wait (up to 10s) for the XFCE session and xfwm4 to be fully up
+for i in $(seq 1 20); do
+    pgrep -x xfwm4 >/dev/null 2>&1 && break
+    sleep 0.5
+done
+sleep 1
+
+# Apply the StormOS profile (wobbly + cube) before taking over
+python3 /usr/local/bin/stormos-compiz-setup.py >/dev/null 2>&1 || true
+
+# Replace xfwm4 with Compiz
+killall xfwm4 2>/dev/null || true
+sleep 0.5
+exec compiz --replace ccp

@@ -3,7 +3,7 @@ Version=1.0
 Type=Application
 Name=Compiz (StormOS session)
 Comment=Restore Compiz window manager if it was the last active WM
-Exec=sh -c '[ -f "$HOME/.config/stormos/wm-mode" ] && [ "$(cat $HOME/.config/stormos/wm-mode)" = "compiz" ] && (sleep 3 && python3 /usr/local/bin/stormos-compiz-setup.py >/dev/null 2>&1; killall xfwm4 2>/dev/null; compiz --replace ccp) || true'
+Exec=/usr/local/bin/stormos-compiz-autostart
 Icon=stormos-compiz
 Terminal=false
 NoDisplay=false

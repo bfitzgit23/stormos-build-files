@@ -501,11 +501,17 @@ mkdir -p "$HOME/.config/autostart"
 for auto in stormos-welcome.desktop stormos-switcheroo-applet.desktop stormos-conky.desktop; do
     [ -f "$SKEL/.config/autostart/$auto" ] && cp "$SKEL/.config/autostart/$auto" "$HOME/.config/autostart/"
 done
-# Compiz session restore: only deployed when compiz is actually installed.
-# The entry checks the saved wm-mode and no-ops if xfwm4 is active.
-if command -v compiz >/dev/null 2>&1 && [ -f "$SKEL/.config/autostart/stormos-compiz.desktop" ]; then
+# Compiz session restore: deploy the autostart wrapper script + entry.
+# The wrapper no-ops unless wm-mode says compiz, so it's safe to always install.
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-autostart" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-autostart" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-compiz-autostart
+    sudo sed -i 's/\r$//' /usr/local/bin/stormos-compiz-autostart
+fi
+[ -f "$SKEL/.config/autostart/stormos-compiz.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-compiz.desktop" "$HOME/.config/autostart/"
-    ok "Compiz session autostart enabled (restores Compiz if it was last active)"
+if command -v compiz >/dev/null 2>&1; then
+    ok "Compiz autostart enabled (restores Compiz when wm-mode=compiz)"
 fi
 
 # Conky config (system overview panel)
