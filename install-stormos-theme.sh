@@ -408,6 +408,18 @@ if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/stormos/compiz/stor
         /usr/share/stormos/compiz/
     ok "Compiz StormOS profile deployed"
 fi
+# Copy the pre-applied compizconfig from skel into the user's .config
+if [ -d "$SKEL/.config/compiz-1" ]; then
+    mkdir -p "$HOME/.config/compiz-1/compizconfig"
+    cp "$SKEL/.config/compiz-1/compizconfig/Default.ini" \
+       "$SKEL/.config/compiz-1/compizconfig/config" \
+       "$HOME/.config/compiz-1/compizconfig/" 2>/dev/null || true
+    [ -f "$SKEL/.config/compiz-1/compizconfig/done_upgrades" ] && \
+        cp "$SKEL/.config/compiz-1/compizconfig/done_upgrades" "$HOME/.config/compiz-1/compizconfig/" 2>/dev/null || true
+    [ -f "$SKEL/.config/compiz-1/compizconfig/firstrun" ] && \
+        cp "$SKEL/.config/compiz-1/compizconfig/firstrun" "$HOME/.config/compiz-1/compizconfig/" 2>/dev/null || true
+    ok "Compiz settings copied to ~/.config/compiz-1"
+fi
 if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-setup.py" ]; then
     sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-setup.py" /usr/local/bin/
     sudo chmod +x /usr/local/bin/stormos-compiz-setup.py
