@@ -42,7 +42,7 @@
     </property>
     <property name="panel-2" type="empty">
       <property name="position" type="string" value="p=12;x=0;y=0"/>
-      <property name="size" type="uint" value="48"/>
+      <property name="size" type="uint" value="40"/>
       <property name="length" type="double" value="100"/>
       <property name="length-adjust" type="bool" value="true"/>
       <property name="position-locked" type="bool" value="true"/>
@@ -56,7 +56,7 @@
       <property name="autohide-behavior" type="uint" value="0"/>
       <property name="enter-opacity" type="uint" value="100"/>
       <property name="leave-opacity" type="uint" value="100"/>
-      <property name="icon-size" type="uint" value="48"/>
+      <property name="icon-size" type="uint" value="40"/>
       <property name="plugin-ids" type="array">
         <value type="int" value="11"/>
       </property>
@@ -120,7 +120,7 @@
     <property name="plugin-11" type="string" value="docklike">
       <property name="pinned" type="string" value="thunar;firefox;xfce4-terminal;stormos-gallery;stormos-media;xfce4-settings-manager;pamac-manager;stormos-compiz;ccsm;compiz-theme-selector;libreoffice-startcenter;steam;"/>
       <property name="show-launchers" type="bool" value="true"/>
-      <property name="icon-size" type="uint" value="48"/>
+      <property name="icon-size" type="uint" value="40"/>
     </property>
     <property name="plugin-12" type="string" value="clock">
       <property name="digital-format" type="string" value="%T"/>
