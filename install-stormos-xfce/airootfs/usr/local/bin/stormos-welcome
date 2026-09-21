@@ -264,30 +264,20 @@ class StormWelcome(QMainWindow):
         return footer
 
     def create_glass_card(self, title):
-        card = QGroupBox(title)
+        card = QWidget()
         card.setStyleSheet(f"""
-            QGroupBox {{
+            QWidget {{
                 background-color: {GLASS_DARK};
                 border: 1px solid rgba(100, 255, 218, 0.2);
                 border-radius: 16px;
-                margin-top: 24px;
-                padding-top: 8px;
-                font-weight: bold;
-                color: {STORM_BLUE};
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 16px;
-                top: -12px;
-                padding: 2px 8px;
-                background-color: {GLASS_DARK};
-                border-radius: 8px;
             }}
         """)
         layout = QVBoxLayout(card)
-        layout.setSpacing(12)
-        layout.setContentsMargins(12, 4, 12, 12)
+        layout.setContentsMargins(16, 12, 16, 16)
+        layout.setSpacing(10)
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet(f"color: {STORM_BLUE}; font-weight: bold; font-size: 14px; background: transparent; border: none; padding: 0;")
+        layout.addWidget(title_lbl)
         return card
 
     # ------------------------------------------------------------------
