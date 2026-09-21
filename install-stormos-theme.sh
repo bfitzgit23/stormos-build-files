@@ -408,6 +408,11 @@ xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 14" 2>/de
 
 # WM theme
 xfconf-query -c xfwm4 -p /general/theme -s "Arc-StormOS" 2>/dev/null || true
+# Also copy the themerc directly as a fallback
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes/Arc-StormOS/xfwm4/themerc" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes/Arc-StormOS/xfwm4/themerc" \
+        /usr/share/themes/Arc-StormOS/xfwm4/themerc 2>/dev/null || true
+fi
 
 # Set wallpaper for all workspaces (XFCE 4.20 uses monitor0 nesting)
 for ws in 0 1 2 3; do
