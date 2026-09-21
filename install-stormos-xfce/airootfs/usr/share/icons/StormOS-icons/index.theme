@@ -1,8 +1,8 @@
 [Icon Theme]
 Name=StormOS-icons
-Comment=StormOS blue icon theme
-Inherits=Qogir-dark,hicolor
-FollowsColorScheme=true
+Comment=StormOS blue colored icon theme
+Inherits=hicolor
+FollowsColorScheme=false
 
 Example=folder
 DisplayDepth=32
@@ -20,7 +20,7 @@ PanelSizes=16,22,24,32,48,64
 DialogDefault=48
 DialogSizes=16,22,24,32,48,64
 
-Directories=scalable/places,scalable/apps,scalable/mimetypes
+Directories=scalable/places,scalable/apps,scalable/mimetypes,scalable/devices,scalable/status,scalable/actions
 
 [scalable/places]
 Context=Places
@@ -38,6 +38,27 @@ Type=Scalable
 
 [scalable/mimetypes]
 Context=MimeTypes
+Size=64
+MinSize=16
+MaxSize=512
+Type=Scalable
+
+[scalable/devices]
+Context=Devices
+Size=64
+MinSize=16
+MaxSize=512
+Type=Scalable
+
+[scalable/status]
+Context=Status
+Size=64
+MinSize=16
+MaxSize=512
+Type=Scalable
+
+[scalable/actions]
+Context=Actions
 Size=64
 MinSize=16
 MaxSize=512

@@ -1,0 +1,4 @@
+#!/bin/bash
+# StormOS conky launcher — resolves the user's home directory reliably
+# so the autostart .desktop doesn't need to guess.
+exec conky -c "$HOME/.config/conky/conky.conf"

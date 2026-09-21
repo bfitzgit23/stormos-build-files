@@ -77,3 +77,25 @@ notebook tab:checked {
     background-color: #19A9FF;
     color: #0A1628;
 }
+
+/* ── Rounded Corners ──────────────────────────────────────────────────────── */
+window,
+dialog,
+messagedialog,
+tooltip,
+
+/* Rounded Corners */
+window, dialog, messagedialog, tooltip, popover, .background {
+    border-radius: 12px;
+}
+decoration {
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+headerbar { border-radius: 12px 12px 0 0; }
+button { border-radius: 8px; }
+entry { border-radius: 8px; }
+scrollbar slider { border-radius: 10px; }
+notebook { border-radius: 8px; }
+treeview, list { border-radius: 8px; }
+menu, context-menu { border-radius: 10px; }

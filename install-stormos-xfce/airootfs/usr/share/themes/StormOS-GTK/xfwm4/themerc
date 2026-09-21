@@ -1,2 +1,13 @@
 [xfwm4]
-theme=Arc-BLACK-ICE
+active_text=#E8F2FF
+inactive_text=#4B5563
+active_bg=#0A1628
+inactive_bg=#020c1b
+active_border=#19A9FF
+inactive_border=#1a3a5c
+title_alignment=center
+title_font=JetBrains Mono Nerd Font Bold 10
+button_layout=HMAX|C
+button_offset=4
+button_spacing=6
+corner_radius=12
