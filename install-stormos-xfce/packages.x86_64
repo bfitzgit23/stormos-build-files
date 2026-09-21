@@ -27,6 +27,7 @@ calamares-app
 clamav
 clonezilla
 cloud-init
+conky
 cryptsetup
 cups
 cups-pdf
@@ -166,6 +167,7 @@ parted
 partimage
 pavucontrol
 pcsclite
+picom
 pipewire
 pipewire-alsa
 pipewire-pulse
@@ -207,6 +209,7 @@ thermald
 tmux
 tpm2-tools
 tpm2-tss
+ttf-inter
 ttf-jetbrains-mono
 ttf-jetbrains-mono-nerd
 ttf-ubuntu-font-family
