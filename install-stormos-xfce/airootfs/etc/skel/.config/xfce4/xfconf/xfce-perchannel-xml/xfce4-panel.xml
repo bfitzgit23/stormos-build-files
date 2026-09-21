@@ -41,7 +41,7 @@
       <property name="leave-opacity" type="uint" value="100"/>
     </property>
     <property name="panel-2" type="empty">
-      <property name="position" type="string" value="p=12;x=672;y=0"/>
+      <property name="position" type="string" value="p=12;x=275;y=48"/>
       <property name="size" type="uint" value="48"/>
       <property name="length" type="double" value="30"/>
       <property name="length-adjust" type="bool" value="true"/>
