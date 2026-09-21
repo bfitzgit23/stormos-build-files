@@ -410,6 +410,13 @@ if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/stormos/compiz/stor
         /usr/share/stormos/compiz/
     ok "Compiz StormOS profile deployed"
 fi
+
+# Remove AUR compiz autostart entries (StormOS manages compiz via wm-mode)
+rm -f "$HOME/.config/autostart/compiz-xfce-autostart-setup.desktop" 2>/dev/null || true
+rm -f "$HOME/.config/autostart/compiz-xfce-uninstall-helper.desktop" 2>/dev/null || true
+rm -f /etc/xdg/autostart/compiz-xfce-autostart-setup.desktop 2>/dev/null || true
+rm -f /etc/xdg/autostart/compiz-xfce-uninstall-helper.desktop 2>/dev/null || true
+ok "AUR compiz autostart entries removed (StormOS uses its own)"
 if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-setup.py" ]; then
     sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-compiz-setup.py" /usr/local/bin/
     sudo chmod +x /usr/local/bin/stormos-compiz-setup.py
