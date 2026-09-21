@@ -181,6 +181,7 @@ python-flask-cors
 python-pyqt5
 qemu-guest-agent
 qt5ct
+qt6ct
 rclone
 refind
 reflector

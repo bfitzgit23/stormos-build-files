@@ -166,8 +166,25 @@ cp "$SKEL/.config/picom/picom.conf" "$HOME/.config/picom/"
 # Qt themes
 mkdir -p "$HOME/.config/qt5ct" "$HOME/.config/qt6ct" "$HOME/.config/Kvantum"
 cp "$SKEL/.config/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/"
+cp "$SKEL/.config/qt5ct/style-colors.conf" "$HOME/.config/qt5ct/" 2>/dev/null || true
 cp "$SKEL/.config/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/"
+cp "$SKEL/.config/qt6ct/style-colors.conf" "$HOME/.config/qt6ct/" 2>/dev/null || true
 cp "$SKEL/.config/Kvantum/kvantum.kvconfig" "$HOME/.config/Kvantum/"
+
+# System-wide Qt color schemes
+sudo mkdir -p /etc/qt5ct/colors /etc/qt6ct/colors
+sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt5ct/colors/stormos.conf" /etc/qt5ct/colors/ 2>/dev/null || true
+sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt6ct/colors/stormos.conf" /etc/qt6ct/colors/ 2>/dev/null || true
+
+# Ensure environment variables are set for Qt theming
+if ! grep -q 'QT_QPA_PLATFORMTHEME=qt5ct' /etc/environment 2>/dev/null; then
+    echo 'QT_QPA_PLATFORMTHEME=qt5ct' | sudo tee -a /etc/environment >/dev/null
+    echo 'QT_STYLE_OVERRIDE=gtk3' | sudo tee -a /etc/environment >/dev/null
+fi
+
+# Set GTK_THEME in /etc/environment
+sudo sed -i 's/^GTK_THEME=.*/GTK_THEME=StormOS-GTK/' /etc/environment 2>/dev/null || true
+sudo sed -i 's/^GTK_ICON_THEME=.*/GTK_ICON_THEME=Qogir-dark/' /etc/environment 2>/dev/null || true
 
 # Thunar file manager
 mkdir -p "$HOME/.config/Thunar"
