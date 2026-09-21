@@ -26,9 +26,7 @@ echo -e "${CYAN}║       StormOS Theme Installer        ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
 echo ""
 
-# ─── 1. Install missing packages ─────────────────────────────────────────────
-info "Checking packages..."
-
+# ─── 1. Install missing packages (only if needed) ────────────────────────────
 # Official repo packages (pacman)
 OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
                xfce4-goodies xorg-server switcheroo-control
@@ -38,49 +36,65 @@ OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
 # AUR packages (yay)
 AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
 
-# Check and install official packages
-# NOTE: xfce4-goodies is skipped entirely if already installed — reinstalling
-# it pulls back unwanted deps (parole, xfburn, ristretto…) we explicitly block.
-NEED_OFFICIAL=()
+# Quick check: are all packages already installed?
+ALL_INSTALLED=true
 for pkg in "${OFFICIAL_PKGS[@]}"; do
-    if ! pacman -Qi "$pkg" &>/dev/null; then
-        NEED_OFFICIAL+=("$pkg")
-    fi
+    if ! pacman -Qi "$pkg" &>/dev/null; then ALL_INSTALLED=false; break; fi
 done
-# Drop goodies from the install set entirely if it's already present
-if pacman -Qi xfce4-goodies &>/dev/null; then
-    NEED_OFFICIAL=("${NEED_OFFICIAL[@]/xfce4-goodies}")
+if $ALL_INSTALLED; then
+    for pkg in "${AUR_PKGS[@]}"; do
+        if ! yay -Qi "$pkg" &>/dev/null 2>&1; then ALL_INSTALLED=false; break; fi
+    done
 fi
 
-if [ ${#NEED_OFFICIAL[@]} -gt 0 ]; then
-    info "Installing (pacman): ${NEED_OFFICIAL[*]}"
-    sudo pacman -S --needed --noconfirm "${NEED_OFFICIAL[@]}"
-    ok "Official packages installed"
-fi
-
-# Check and install AUR packages via yay
-if ! command -v yay &>/dev/null; then
-    err "yay not found — install it first: https://aur.archlinux.org/packages/yay-bin"
-    err "Then re-run this script."
-    exit 1
-fi
-
-NEED_AUR=()
-for pkg in "${AUR_PKGS[@]}"; do
-    if ! yay -Qi "$pkg" &>/dev/null; then
-        NEED_AUR+=("$pkg")
-    fi
-done
-
-if [ ${#NEED_AUR[@]} -gt 0 ]; then
-    info "Installing (yay): ${NEED_AUR[*]}"
-    yay -S --needed --noconfirm "${NEED_AUR[@]}"
-    ok "AUR packages installed"
+if $ALL_INSTALLED; then
+    ok "All packages already installed — skipping package check"
 else
-    ok "All AUR packages already installed"
-fi
+    info "Checking packages..."
+    # Check and install official packages
+    # NOTE: xfce4-goodies is skipped entirely if already installed — reinstalling
+    # it pulls back unwanted deps (parole, xfburn, ristretto…) we explicitly block.
+    NEED_OFFICIAL=()
+    for pkg in "${OFFICIAL_PKGS[@]}"; do
+        if ! pacman -Qi "$pkg" &>/dev/null; then
+            NEED_OFFICIAL+=("$pkg")
+        fi
+    done
+    # Drop goodies from the install set entirely if it's already present
+    if pacman -Qi xfce4-goodies &>/dev/null; then
+        NEED_OFFICIAL=("${NEED_OFFICIAL[@]/xfce4-goodies}")
+    fi
 
-ok "All packages ready"
+    if [ ${#NEED_OFFICIAL[@]} -gt 0 ]; then
+        info "Installing (pacman): ${NEED_OFFICIAL[*]}"
+        sudo pacman -S --needed --noconfirm "${NEED_OFFICIAL[@]}"
+        ok "Official packages installed"
+    fi
+
+    # Check and install AUR packages via yay
+    if ! command -v yay &>/dev/null; then
+        err "yay not found — install it first: https://aur.archlinux.org/packages/yay-bin"
+        err "Then re-run this script."
+        exit 1
+    fi
+
+    NEED_AUR=()
+    for pkg in "${AUR_PKGS[@]}"; do
+        if ! yay -Qi "$pkg" &>/dev/null; then
+            NEED_AUR+=("$pkg")
+        fi
+    done
+
+    if [ ${#NEED_AUR[@]} -gt 0 ]; then
+        info "Installing (yay): ${NEED_AUR[*]}"
+        yay -S --needed --noconfirm "${NEED_AUR[@]}"
+        ok "AUR packages installed"
+    else
+        ok "All AUR packages already installed"
+    fi
+
+    ok "All packages ready"
+fi
 
 # ─── 1c. Remove labwc and openbox (StormOS uses xfwm4 now) ────────────────
 REMOVE_PKGS=(labwc openbox)
