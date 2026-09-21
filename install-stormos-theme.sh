@@ -80,18 +80,18 @@ info "Installing StormOS themes..."
 THEMES_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes"
 ICONS_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/icons"
 
-# Copy Arc-BLACK-ICE theme
-if [ -d "$THEMES_SRC/Arc-BLACK-ICE" ]; then
-    sudo cp -r "$THEMES_SRC/Arc-BLACK-ICE" /usr/share/themes/
-    ok "Arc-BLACK-ICE theme installed"
+# Copy StormOS-GTK theme
+if [ -d "$THEMES_SRC/StormOS-GTK" ]; then
+    sudo cp -r "$THEMES_SRC/StormOS-GTK" /usr/share/themes/
+    ok "StormOS-GTK theme installed"
 else
-    err "Arc-BLACK-ICE not found in build files"
+    err "StormOS-GTK not found in build files"
 fi
 
 # Copy Qogir icons
-if [ -d "$ICONS_SRC/Qogir" ]; then
-    sudo cp -r "$ICONS_SRC/Qogir" /usr/share/icons/
-    sudo cp -r "$ICONS_SRC/Qogir-dark" /usr/share/icons/ 2>/dev/null || true
+if [ -d "$ICONS_SRC/StormOS-icons" ]; then
+    sudo cp -r "$ICONS_SRC/StormOS-icons" /usr/share/icons/
+    sudo cp -r "$ICONS_SRC/StormOS-icons" /usr/share/icons/ 2>/dev/null || true
     ok "Qogir icons installed"
 else
     err "Qogir icons not found in build files"
@@ -188,14 +188,14 @@ killall xfconfd 2>/dev/null || true
 sleep 1
 
 # Set theme
-xfconf-query -c xsettings -p /Net/ThemeName -s "Arc-BLACK-ICE" 2>/dev/null || true
-xfconf-query -c xsettings -p /Net/IconThemeName -s "Qogir-dark" 2>/dev/null || true
+xfconf-query -c xsettings -p /Net/ThemeName -s "StormOS-GTK" 2>/dev/null || true
+xfconf-query -c xsettings -p /Net/IconThemeName -s "StormOS-icons" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 10" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 10" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/CursorThemeName -s "DMZ-Black" 2>/dev/null || true
 
 # WM theme
-xfconf-query -c xfwm4 -p /general/theme -s "Arc-BLACK-ICE" 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/theme -s "StormOS-GTK" 2>/dev/null || true
 xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 10" 2>/dev/null || true
 
 ok "XFCE theme set"
@@ -236,8 +236,8 @@ echo -e "${GREEN}╔════════════════════
 echo -e "${GREEN}║   StormOS theme applied!             ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
 echo ""
-echo "  Theme:    Arc-BLACK-ICE + StormOS blue accents"
-echo "  Icons:    Qogir-dark"
+echo "  Theme:    StormOS-GTK + StormOS blue accents"
+echo "  Icons:    StormOS-icons"
 echo "  Cursor:   DMZ-Black"
 echo "  Font:     Inter (UI), JetBrains Mono (terminal)"
 echo "  Compositor: picom (GLX, blur, shadows, rounded corners)"
