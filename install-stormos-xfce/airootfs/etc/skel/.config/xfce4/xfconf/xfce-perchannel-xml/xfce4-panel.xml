@@ -53,7 +53,7 @@
         <value type="double" value="0.16"/>
         <value type="double" value="0.88"/>
       </property>
-      <property name="autohide-behavior" type="uint" value="1"/>
+      <property name="autohide-behavior" type="uint" value="2"/>
       <property name="enter-opacity" type="uint" value="100"/>
       <property name="leave-opacity" type="uint" value="100"/>
       <property name="icon-size" type="uint" value="48"/>
