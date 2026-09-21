@@ -191,12 +191,22 @@ mkdir -p "$HOME/.config/Thunar"
 cp "$SKEL/.config/Thunar/uca.xml" "$HOME/.config/Thunar/"
 cp "$SKEL/.config/Thunar/gtk.xml" "$HOME/.config/Thunar/" 2>/dev/null || true
 
-# Autostart entries (welcome, switcheroo)
+# Autostart entries (wallpaper, welcome, switcheroo)
 mkdir -p "$HOME/.config/autostart"
+if [ -f "$SKEL/.config/autostart/stormos-wallpaper.desktop" ]; then
+    cp "$SKEL/.config/autostart/stormos-wallpaper.desktop" "$HOME/.config/autostart/"
+fi
 [ -f "$SKEL/.config/autostart/stormos-welcome.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-welcome.desktop" "$HOME/.config/autostart/"
 [ -f "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" "$HOME/.config/autostart/"
+
+# StormOS wallpaper setter
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-set-wallpaper" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-set-wallpaper" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-set-wallpaper
+    ok "Wallpaper setter installed"
+fi
 
 # Bookmarks
 cp "$SKEL/.gtk-bookmarks" "$HOME/" 2>/dev/null || true

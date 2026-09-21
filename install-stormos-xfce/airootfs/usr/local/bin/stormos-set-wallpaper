@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# stormos-set-wallpaper — Force StormOS wallpaper on all workspaces.
+# Runs on every login via autostart.
+
+WALLPAPER="/usr/share/backgrounds/stormos-wallpaper.png"
+
+[ -f "$WALLPAPER" ] || exit 0
+
+# Set all 4 workspaces via xfconf-query (both with and without monitor0)
+for ws in 0 1 2 3; do
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
+done
+
+# Reload xfdesktop
+xfdesktop --reload 2>/dev/null || true

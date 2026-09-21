@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=StormOS Wallpaper
+Comment=Set StormOS wallpaper on all workspaces
+Exec=/usr/local/bin/stormos-set-wallpaper
+Terminal=false
+OnlyShowIn=XFCE;
+StartupNotify=false
