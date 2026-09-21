@@ -1,1 +1,37 @@
-/* StormOS user overrides — theme handles blue accents via /usr/share/themes/StormOS-GTK */
+/* StormOS blue accent overrides — applied on top of Arc-BLACK-ICE base */
+
+/* Selection highlight */
+:selected, :selected:focus {
+    background-color: #19A9FF;
+    color: #0A1628;
+}
+
+/* Blue scrollbars */
+scrollbar slider {
+    background-color: rgba(25, 169, 255, 0.4);
+    border-radius: 10px;
+    min-width: 6px;
+    min-height: 6px;
+}
+scrollbar slider:hover { background-color: rgba(25, 169, 255, 0.6); }
+
+/* Blue progress bars */
+progressbar progress { background-color: #19A9FF; }
+
+/* Blue switches */
+switch:checked { background-color: #19A9FF; border-color: #19A9FF; }
+
+/* Blue check/radio */
+check:checked, radio:checked { background-color: #19A9FF; border-color: #19A9FF; }
+
+/* Links */
+a { color: #19A9FF; }
+
+/* Blue notebook tabs */
+notebook > header > tabs > tab:checked {
+    color: #19A9FF;
+    border-bottom-color: #19A9FF;
+}
+
+/* Blue scales */
+scale trough highlight { background-color: #19A9FF; }
