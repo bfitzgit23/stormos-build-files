@@ -74,6 +74,19 @@ fi
 
 ok "All packages ready"
 
+# ─── 1c. Remove labwc and openbox (StormOS uses xfwm4 now) ────────────────
+REMOVE_PKGS=(labwc openbox)
+NEED_REMOVE=()
+for pkg in "${REMOVE_PKGS[@]}"; do
+    if pacman -Qi "$pkg" &>/dev/null 2>&1; then
+        NEED_REMOVE+=("$pkg")
+    fi
+done
+if [ ${#NEED_REMOVE[@]} -gt 0 ]; then
+    info "Removing old packages: ${NEED_REMOVE[*]}"
+    sudo pacman -Rns --noconfirm "${NEED_REMOVE[@]}" 2>/dev/null && ok "Removed ${NEED_REMOVE[*]}" || true
+fi
+
 # ─── 1b. Install StormOS themes from build files ────────────────────────────
 info "Installing StormOS themes..."
 
