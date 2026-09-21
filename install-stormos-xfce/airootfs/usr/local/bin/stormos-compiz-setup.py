@@ -2,60 +2,98 @@
 """
 stormos-compiz-setup.py — pre-apply StormOS Compiz settings.
 
-Loads the Compiz profile shipped in /usr/share/stormos/compiz/stormos.profile
+Installs the Compiz profile shipped in /usr/share/stormos/compiz/stormos.profile
 into the user's compizconfig backend, enabling:
   - Wobbly Windows
-  - Desktop Cube (+ Rotate Cube, on Ctrl+Alt+Left/Right and Super+Left/Right)
-  - Window decoration, animations,-place
+  - Desktop Cube (+ Rotate Cube on Ctrl+Alt+Left/Right)
+  - Window decoration (decor), animations, place
+
+Primary method: write ~/.config/compiz-1/compizconfig/Default.ini directly.
+This is exactly what compiz (via the ccp plugin) reads at startup, needs no
+Python bindings, and works on any Python version.
+
+Best-effort extra: if the compizconfig Python module imports cleanly AND
+compiz is currently running, also live-apply the plugin list via the API.
+All API failures are silently ignored — the ini write is what matters.
 
 Run as the user (no sudo). Idempotent — safe to re-run.
-Requires: compizconfig-python (ships with compiz-easy-patch) OR falls back to
-merging into ~/.config/compiz-1/compizconfig/Default.ini directly.
 """
 
 import os
 import sys
+import shutil
+import subprocess
 from pathlib import Path
 
 PROFILE_SRC = "/usr/share/stormos/compiz/stormos.profile"
 CC_DIR = Path.home() / ".config" / "compiz-1" / "compizconfig"
 CC_INI = CC_DIR / "Default.ini"
 
+WANTED_PLUGINS = [
+    "core", "composite", "opengl", "ccp", "mousepoll", "regex", "place",
+    "move", "resize", "decor", "animation", "wobbly", "cube", "rotate",
+    "wallpaper",
+]
 
-def write_profile():
-    CC_DIR.mkdir(parents=True, exist_ok=True)
+
+def write_profile() -> bool:
+    """Copy the shipped profile into the user's compizconfig dir."""
     src = Path(PROFILE_SRC)
     if not src.exists():
         print(f"ERROR: profile not found at {src}", file=sys.stderr)
         return False
-    # Direct ini write: compizconfig picks this up on next compiz start
-    CC_INI.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    CC_DIR.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, CC_INI)
+    # compizconfig refuses profiles with group/world write permissions
+    os.chmod(CC_INI, 0o600)
     print(f"Compiz profile installed: {CC_INI}")
     return True
 
 
-def main():
-    # Try the python-config API first (safe live-apply when compiz runs)
+def ensure_config_file() -> None:
+    """Make sure the compizconfig 'config' file exists with a profile set."""
+    cfg = CC_DIR / "config"
+    if not cfg.exists():
+        CC_DIR.mkdir(parents=True, exist_ok=True)
+        cfg.write_text("[general]\nprofile = Default\nintegration = true\n",
+                       encoding="utf-8")
+
+
+def try_live_apply() -> None:
+    """Best-effort live-apply via the compizconfig Python API.
+
+    Never raises: any failure just means compiz will pick the settings up
+    from the ini at next start instead.
+    """
+    if shutil.which("compiz") is None:
+        return
     try:
-        import compizconfig  # noqa
+        import compizconfig  # type: ignore
+    except Exception:
+        return  # module not importable on this python — fine, ini is written
+
+    try:
         ctx = compizconfig.Context()
         ctx.Profile = "Default"
         ctx.Read()
         core = ctx.Plugins["core"]
-        as_opt = core.Screen["as"]
-        wanted = [
-            "ccp", "decor", "wobbly", "animation", "place",
-            "move", "resize", "cube", "rotate", "wallpaper", "regex", "mousepoll"
-        ]
-        current = list(as_opt.Value)
-        merged = list(dict.fromkeys(current + wanted))
-        as_opt.Value = merged
-        ctx.Write()
-        print("Live-applied via compizconfig API:", ", ".join(merged))
-    except Exception as e:
-        print(f"compizconfig API unavailable ({e}); writing ini directly")
-        if not write_profile():
-            sys.exit(1)
+        # active_plugins is the display option as_active_plugins in 0.9.x
+        opt = core.Display["as_active_plugins"]
+        current = list(opt.Value)
+        merged = list(dict.fromkeys(current + WANTED_PLUGINS))
+        if merged != current:
+            opt.Value = merged
+            ctx.Write()
+            print("Live-applied plugin list via compizconfig API")
+    except Exception:
+        pass  # non-fatal
+
+
+def main() -> None:
+    ensure_config_file()
+    if not write_profile():
+        sys.exit(1)
+    try_live_apply()
     print("Done. Restart Compiz (or log out/in) to see wobbly windows + cube.")
 
 
