@@ -41,9 +41,10 @@
       <property name="leave-opacity" type="uint" value="100"/>
     </property>
     <property name="panel-2" type="empty">
-      <property name="position" type="string" value="p=12;x=910;y=1055"/>
+      <property name="position" type="string" value="p=12;x=480;y=1060"/>
       <property name="size" type="uint" value="48"/>
       <property name="length" type="double" value="0"/>
+      <property name="length-adjust" type="bool" value="false"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="background-style" type="uint" value="1"/>
       <property name="background-rgba" type="array">
@@ -53,9 +54,11 @@
         <value type="double" value="0.88"/>
       </property>
       <property name="autohide-behavior" type="uint" value="0"/>
+      <property name="enter-opacity" type="uint" value="100"/>
+      <property name="leave-opacity" type="uint" value="100"/>
+      <property name="icon-size" type="uint" value="48"/>
       <property name="plugin-ids" type="array">
         <value type="int" value="11"/>
-        <value type="int" value="21"/>
       </property>
     </property>
   </property>
