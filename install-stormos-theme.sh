@@ -328,14 +328,12 @@ fi
 mkdir -p "$HOME/.config/autostart"
 cp "$SKEL/.config/autostart/stormos-wallpaper.desktop" "$HOME/.config/autostart/" 2>/dev/null || true
 
-# Force wallpaper via xfconf-query
+# Force wallpaper via xfconf-query (last-image is the property XFCE reads)
 WALLPAPER="/usr/share/backgrounds/stormos-wallpaper.png"
 for ws in 0 1 2 3; do
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
 done
 ok "Wallpaper set"
@@ -564,30 +562,23 @@ if pgrep -x xfwm4 >/dev/null 2>&1; then
 fi
 
 # Set wallpaper for all workspaces (XFCE 4.20 uses monitor0 nesting)
+# NOTE: image-path is legacy; last-image is what XFCE actually reads/writes.
 for ws in 0 1 2 3; do
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/last-image" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/last-image" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
 done
 
-# Force xfdesktop to reload wallpaper and disable desktop icons
+# Disable desktop icons FIRST (before touching xfdesktop)
+xfconf-query -c xfce4-desktop -p /icons/icon-theme -n -t string -s "StormOS-icons" 2>/dev/null || true
+for prop in show show-home show-filesystem show-removable show-trash; do
+    xfconf-query -c xfce4-desktop -p "/icons/default/$prop" -n -t bool -s false 2>/dev/null || true
+done
+
+# Reload xfdesktop (do NOT kill/restart it — that resets icon + backdrop state)
 if pgrep -x xfdesktop >/dev/null 2>&1; then
     xfdesktop --reload 2>/dev/null || true
-    # Kill and restart xfdesktop to ensure icons are disabled
-    killall xfdesktop 2>/dev/null || true
-    sleep 1
-    xfdesktop --disable-desktop 2>/dev/null &
-    sleep 1
-    xfdesktop --reload 2>/dev/null || true
 fi
-
-# Also set desktop icons via xfconf to be absolutely sure
-xfconf-query -c xfce4-desktop -p /icons/default/show -s false 2>/dev/null || true
-xfconf-query -c xfce4-desktop -p /icons/default/show-home -s false 2>/dev/null || true
-xfconf-query -c xfce4-desktop -p /icons/default/show-filesystem -s false 2>/dev/null || true
-xfconf-query -c xfce4-desktop -p /icons/default/show-removable -s false 2>/dev/null || true
-xfconf-query -c xfce4-desktop -p /icons/default/show-trash -s false 2>/dev/null || true
 
 ok "XFCE theme set"
 

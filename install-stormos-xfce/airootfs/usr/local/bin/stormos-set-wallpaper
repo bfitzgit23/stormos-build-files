@@ -14,15 +14,18 @@ for i in $(seq 1 20); do
     sleep 0.5
 done
 
-# Set all 4 workspaces via xfconf-query (both with and without monitor0)
+# Set all 4 workspaces via xfconf-query (last-image is what XFCE reads)
 for ws in 0 1 2 3; do
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
-    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "$WALLPAPER" 2>/dev/null || true
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/last-image" -s "$WALLPAPER" 2>/dev/null || true
 done
 
-# Reload xfdesktop
+# Keep desktop icons off (do not re-enable them)
+for prop in show show-home show-filesystem show-removable show-trash; do
+    xfconf-query -c xfce4-desktop -p "/icons/default/$prop" -n -t bool -s false 2>/dev/null || true
+done
+
+# Reload xfdesktop (never kill/restart — that resets backdrop state)
 xfdesktop --reload 2>/dev/null || true
