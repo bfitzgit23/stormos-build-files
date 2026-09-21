@@ -84,6 +84,7 @@ iw
 iwd
 jfsutils
 kirigami
+kitty
 kitty-terminfo
 ldns
 less
@@ -256,7 +257,7 @@ xfce4
 xfce4-docklike-plugin
 xfce4-goodies
 xfce4-pulseaudio-plugin
-xfce4-terminal
+
 xfsprogs
 xl2tpd
 xorg-server

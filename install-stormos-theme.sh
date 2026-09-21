@@ -30,8 +30,8 @@ echo ""
 info "Checking packages..."
 
 # Official repo packages (pacman)
-OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz foot alacritty fastfetch
-               xfce4-goodies xfce4-terminal xorg-server switcheroo-control)
+OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz foot alacritty kitty fastfetch
+               xfce4-goodies xorg-server switcheroo-control)
 
 # AUR packages (yay)
 AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin)
@@ -142,9 +142,10 @@ cp "$SKEL/.config/gtkrc-2.0" "$HOME/.config/"
 cp "$SKEL/.config/gtk-2.0/main.rc" "$HOME/.config/gtk-2.0/" 2>/dev/null || true
 
 # Terminals
-mkdir -p "$HOME/.config/alacritty" "$HOME/.config/foot"
+mkdir -p "$HOME/.config/alacritty" "$HOME/.config/foot" "$HOME/.config/kitty"
 cp "$SKEL/.config/alacritty/alacritty.toml" "$HOME/.config/alacritty/"
 cp "$SKEL/.config/foot/foot.ini" "$HOME/.config/foot/"
+cp "$SKEL/.config/kitty/kitty.conf" "$HOME/.config/kitty/"
 
 # Picom compositor
 mkdir -p "$HOME/.config/picom"
@@ -209,7 +210,17 @@ xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 10" 2>/dev/null || t
 
 ok "XFCE theme set"
 
-# ─── 5. Enable services ──────────────────────────────────────────────────────
+# ─── 5. Remove xfce4-terminal (replaced by kitty) ───────────────────────────
+info "Removing xfce4-terminal..."
+if pacman -Qi xfce4-terminal &>/dev/null 2>&1; then
+    sudo pacman -Rns --noconfirm xfce4-terminal 2>/dev/null && ok "xfce4-terminal removed" || warn "Could not remove xfce4-terminal"
+elif dpkg -s xfce4-terminal &>/dev/null 2>&1; then
+    sudo apt-get remove -y xfce4-terminal 2>/dev/null && ok "xfce4-terminal removed" || warn "Could not remove xfce4-terminal"
+else
+    ok "xfce4-terminal not installed"
+fi
+
+# ─── 6. Enable services ──────────────────────────────────────────────────────
 info "Enabling services..."
 
 # LightDM
