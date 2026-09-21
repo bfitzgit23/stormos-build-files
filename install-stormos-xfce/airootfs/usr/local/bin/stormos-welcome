@@ -270,19 +270,24 @@ class StormWelcome(QMainWindow):
                 background-color: {GLASS_DARK};
                 border: 1px solid rgba(100, 255, 218, 0.2);
                 border-radius: 16px;
-                margin-top: 12px;
-                padding-top: 12px;
+                margin-top: 24px;
+                padding-top: 8px;
                 font-weight: bold;
                 color: {STORM_BLUE};
             }}
             QGroupBox::title {{
                 subcontrol-origin: margin;
+                subcontrol-position: top left;
                 left: 16px;
-                padding: 0 8px;
+                top: -12px;
+                padding: 2px 8px;
+                background-color: {GLASS_DARK};
+                border-radius: 8px;
             }}
         """)
         layout = QVBoxLayout(card)
         layout.setSpacing(12)
+        layout.setContentsMargins(12, 4, 12, 12)
         return card
 
     # ------------------------------------------------------------------
