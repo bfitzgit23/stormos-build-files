@@ -1,2 +1,26 @@
-# StormOS-GTK — blue accent color scheme on Arc-BLACK-ICE base
-gtk-color-scheme="bg_color:#0A1628\nfg_color:#E8F2FF\nbase_color:#020c1b\ntext_color:#E8F2FF\nselected_bg_color:#19A9FF\nselected_fg_color:#0A1628\nlink_color:#19A9FF"
+# StormOS-GTK — Arc-BLACK-ICE base with blue accent color overrides
+
+gtk-color-scheme = "base_color: #020c1b"
+gtk-color-scheme = "text_color: #E8F2FF"
+gtk-color-scheme = "bg_color: #0A1628"
+gtk-color-scheme = "fg_color: #E8F2FF"
+gtk-color-scheme = "tooltip_bg_color: #19A9FF"
+gtk-color-scheme = "tooltip_fg_color: #0A1628"
+gtk-color-scheme = "selected_bg_color: #19A9FF"
+gtk-color-scheme = "selected_fg_color: #0A1628"
+gtk-color-scheme = "insensitive_bg_color: #0D1A2E"
+gtk-color-scheme = "insensitive_fg_color: #4B5563"
+gtk-color-scheme = "notebook_bg: #0A1628"
+gtk-color-scheme = "dark_sidebar_bg: #0A1628"
+gtk-color-scheme = "link_color: #19A9FF"
+gtk-color-scheme = "menu_bg: #0A1628"
+
+gtk-icon-sizes = "gtk-button=16,16"
+gtk-auto-mnemonics = 1
+gtk-primary-button-warps-slider = 1
+
+include "main.rc"
+include "apps.rc"
+include "panel.rc"
+include "xfce-notify.rc"
+include "menubar-toolbar/menubar-toolbar-dark.rc"
