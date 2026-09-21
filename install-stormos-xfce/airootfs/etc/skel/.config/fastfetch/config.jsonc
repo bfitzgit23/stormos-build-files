@@ -1,35 +1,46 @@
 {
     "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
-        "source": "arch",
+        "type": "builtin",
+        "source": "StormOS",
         "color": {
-            "1": "cyan",  // Primary logo color
-            "2": "blue"    // Logo accent color
+            "1": "blue",
+            "2": "cyan"
         },
         "padding": {
-            "top": 2,
-            "right": 4
+            "top": 1,
+            "right": 3
         }
     },
     "display": {
-        "separator": " ⚡ ",
+        "separator": " -> ",
         "color": {
-            "keys": "cyan",    // Left side text
-            "title": "blue"    // User@Host text
+            "keys": "blue",
+            "title": "cyan"
         }
     },
     "modules": [
         "title",
         {
             "type": "separator",
-            "string": "───────────"
+            "string": "--------------------"
         },
-        { "type": "os", "key": "OS   ", "format": "StormOS (Arch)" },
-        { "type": "host", "key": "Host " },
-        { "type": "kernel", "key": "Kern " },
-        { "type": "uptime", "key": "Up   " },
+        { "type": "os", "key": "  OS ", "format": "{2} {10}" },
+        { "type": "host", "key": " Host" },
+        { "type": "kernel", "key": " Kern" },
+        { "type": "uptime", "key": "   Up" },
+        { "type": "packages", "key": "Pkgs" },
         { "type": "shell", "key": "Shell" },
-        { "type": "terminal", "key": "Term " },
-        "break"
+        { "type": "terminal", "key": " Term" },
+        { "type": "de", "key": "  DE " },
+        { "type": "wm", "key": "  WM " },
+        { "type": "terminalfont", "key": " Font" },
+        "break",
+        { "type": "cpu", "key": "  CPU" },
+        { "type": "gpu", "key": "  GPU" },
+        { "type": "memory", "key": "  RAM" },
+        { "type": "disk", "key": " Disk" },
+        { "type": "battery", "key": "Batt" },
+        { "type": "localip", "key": "  IP " }
     ]
 }

@@ -1,20 +1,9 @@
-              .-/+oossssoo+/-.              
-          `:+ssssssssssssssssss+:`          
-        -+ssssssssssssssssssyyssss+-        
-      .ossssssssssssssssssdMMMNysssso.      
-     /sssssssssshdmmNNmmyNMMMMhssssss/     
-    +ssssssssshmydMMMMMMMNddddyssssssss+   
-   /sssssssshNMMMyhhyyyyhmNMMMNhssssssss/  
-  .ssssssssdMMMNhsssssssssshNMMMdssssssss. 
-  +sssshhhyNMMNyssssssssssssyNMMMysssssss+ 
-  ossyNMMMNyMMhsssssssssssssshmmmhssssssso 
-  ossyNMMMNyMMhsssssssssssssshmmmhssssssso 
-  +sssshhhyNMMNyssssssssssssyNMMMysssssss+ 
-  .ssssssssdMMMNhsssssssssshNMMMdssssssss. 
-   /sssssssshNMMMyhhyyyyhdNMMMNhssssssss/  
-    +sssssssssdmydMMMMMMMMddddyssssssss+   
-     /ssssssssssshdmNNNNmyNMMMMhssssss/    
-      .ossssssssssssssssssdMMMNysssso.      
-        -+sssssssssssssssyyyssss+-          
-          `:+ssssssssssssssssss+:`          
-              .-/+oossssoo+/-.
+       _____
+      /          / / | \     / /  |  \    / /   |   \   / /    |    \  / /_____|_____\  \ \_____|_____/ /
+  \       ^     /
+   \     / \   /
+    \   /   \ /
+     \ /  |  /
+      \  | /
+       \|/
+    StormOS
