@@ -13,7 +13,7 @@
 @define-color borders #19A9FF;
 
 /* Selection highlight */
-*:selected, *:selected:focus {
+:selected,:selected:focus {
     background-color: #19A9FF;
     color: #0A1628;
 }
@@ -54,17 +54,3 @@ headerbar:selected, .titlebar:selected {
 
 /* Notebook tabs */
 notebook tab:checked { background-color: #19A9FF; color: #0A1628; }
-
-/* Rounded corners — only for application windows, NOT desktop menu */
-dialog, messagedialog, tooltip, popover {
-    border-radius: 12px;
-}
-decoration {
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-headerbar { border-radius: 12px 12px 0 0; }
-button { border-radius: 8px; }
-entry { border-radius: 8px; }
-notebook { border-radius: 8px; }
-menu, .context-menu { border-radius: 10px; }
