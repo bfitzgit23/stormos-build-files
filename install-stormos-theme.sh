@@ -459,7 +459,7 @@ xfconf-query -c xfce4-panel -p /panels/panel-2/icon-size -s 48 2>/dev/null || tr
 xfconf-query -c xfce4-panel -p /panels/panel-2/autohide-behavior -s 1 2>/dev/null || true
 xfconf-query -c xfce4-panel -p /panels/panel-2/length -s 30 2>/dev/null || true
 xfconf-query -c xfce4-panel -p /panels/panel-2/length-adjust -s true 2>/dev/null || true
-xfconf-query -c xfce4-panel -p /panels/panel-2/position -s "p=12;x=275;y=48" 2>/dev/null || true
+xfconf-query -c xfce4-panel -p /panels/panel-2/position -s "p=12;x=960;y=48" 2>/dev/null || true
 
 # Restart xfce4-panel to pick up new config (dock pins etc.)
 if pgrep -x xfce4-panel >/dev/null 2>&1; then
