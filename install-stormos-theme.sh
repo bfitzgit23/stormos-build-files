@@ -80,7 +80,7 @@ info "Installing StormOS themes..."
 THEMES_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes"
 ICONS_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/icons"
 
-# Copy Arc-BLACK-ICE theme
+# Copy Arc-BLACK-ICE theme (base WM theme)
 if [ -d "$THEMES_SRC/Arc-BLACK-ICE" ]; then
     sudo cp -r "$THEMES_SRC/Arc-BLACK-ICE" /usr/share/themes/
     ok "Arc-BLACK-ICE theme installed"
@@ -88,13 +88,28 @@ else
     err "Arc-BLACK-ICE not found in build files"
 fi
 
-# Copy Qogir icons
+# Copy StormOS-GTK theme (GTK theme with blue accents)
+if [ -d "$THEMES_SRC/StormOS-GTK" ]; then
+    sudo cp -r "$THEMES_SRC/StormOS-GTK" /usr/share/themes/
+    ok "StormOS-GTK theme installed"
+else
+    err "StormOS-GTK not found in build files"
+fi
+
+# Copy Qogir-dark icons (blue icon set)
+if [ -d "$ICONS_SRC/Qogir-dark" ]; then
+    sudo cp -r "$ICONS_SRC/Qogir-dark" /usr/share/icons/
+    ok "Qogir-dark icons installed"
+else
+    info "Qogir-dark already present or not in build files"
+fi
+
+# Copy StormOS-icons (blue icon overrides)
 if [ -d "$ICONS_SRC/StormOS-icons" ]; then
     sudo cp -r "$ICONS_SRC/StormOS-icons" /usr/share/icons/
-    sudo cp -r "$ICONS_SRC/StormOS-icons" /usr/share/icons/ 2>/dev/null || true
-    ok "Qogir icons installed"
+    ok "StormOS-icons installed"
 else
-    err "Qogir icons not found in build files"
+    err "StormOS-icons not found in build files"
 fi
 
 # Copy StormOS wallpaper
@@ -185,20 +200,31 @@ ok "All configs installed"
 # ─── 4. Set GTK theme via xfconf ─────────────────────────────────────────────
 info "Setting XFCE theme via xfconf..."
 
-# Kill xfconfd if running so it picks up new configs
-killall xfconfd 2>/dev/null || true
-sleep 1
-
-# Set theme
-xfconf-query -c xsettings -p /Net/ThemeName -s "Arc-BLACK-ICE" 2>/dev/null || true
-xfconf-query -c xsettings -p /Net/IconThemeName -s "StormOS-icons" 2>/dev/null || true
-xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 10" 2>/dev/null || true
-xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 10" 2>/dev/null || true
+# Set theme (don't kill xfconfd — it will pick up new XML configs on restart)
+xfconf-query -c xsettings -p /Net/ThemeName -s "StormOS-GTK" 2>/dev/null || true
+xfconf-query -c xsettings -p /Net/IconThemeName -s "Qogir-dark" 2>/dev/null || true
+xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 14" 2>/dev/null || true
+xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 14" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/CursorThemeName -s "DMZ-Black" 2>/dev/null || true
 
 # WM theme
 xfconf-query -c xfwm4 -p /general/theme -s "Arc-BLACK-ICE" 2>/dev/null || true
-xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 10" 2>/dev/null || true
+xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 14" 2>/dev/null || true
+
+# Set wallpaper for all workspaces (XFCE 4.20 uses monitor0 nesting)
+for ws in 0 1 2 3; do
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-style" -s 5 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/image-path" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/monitor0/workspace${ws}/last-image" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
+    # Also try without monitor0 (older XFCE)
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-style" -s 5 2>/dev/null || true
+    xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
+done
+
+# Force xfdesktop to reload wallpaper
+if pgrep -x xfdesktop >/dev/null 2>&1; then
+    xfdesktop --reload 2>/dev/null || true
+fi
 
 ok "XFCE theme set"
 
@@ -222,15 +248,17 @@ else
     sudo systemctl enable NetworkManager 2>/dev/null && ok "NetworkManager enabled" || true
 fi
 
-# ─── 6. Start picom now ──────────────────────────────────────────────────────
-if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-    info "Starting picom compositor..."
-    killall picom 2>/dev/null || true
-    sleep 0.5
-    if picom --daemon 2>/dev/null; then
-        ok "Picom running"
+# ─── 7. Start picom now (only if not already running) ─────────────────────────
+if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    if pgrep -x picom >/dev/null 2>&1; then
+        ok "Picom already running"
     else
-        err "Picom failed to start (may need a display server)"
+        info "Starting picom compositor..."
+        if picom --daemon 2>/dev/null; then
+            ok "Picom running"
+        else
+            err "Picom failed to start (will auto-start on next login)"
+        fi
     fi
 else
     info "No display server detected — picom will start on next login"

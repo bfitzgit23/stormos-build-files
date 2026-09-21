@@ -58,16 +58,12 @@ style "stormos-default" {
     }
 }
 
-class "GtkWidget" style "stormos-default"
 class "GtkButton" style "stormos-default"
 class "GtkEntry" style "stormos-default"
 class "GtkTreeView" style "stormos-default"
 class "GtkTreeView.Header" style "stormos-default"
 class "GtkList" style "stormos-default"
 class "GtkListItem" style "stormos-default"
-class "GtkMenu" style "stormos-default"
-class "GtkMenuBar" style "stormos-default"
-class "GtkMenuItem" style "stormos-default"
 class "GtkNotebook" style "stormos-default"
 class "GtkNotebook.Tab" style "stormos-default"
 class "GtkPaned" style "stormos-default"
@@ -80,4 +76,3 @@ class "GtkSpinButton" style "stormos-default"
 class "GtkStatusBar" style "stormos-default"
 class "GtkToolbar" style "stormos-default"
 class "GtkToolItem" style "stormos-default"
-class "GtkTreeView" style "stormos-default"
