@@ -311,11 +311,23 @@ rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
 rm -f "$HOME/.config/xfce4/panel/"*.rc 2>/dev/null || true
 rm -rf "$HOME/.config/xfce4/panel/launcher-"* 2>/dev/null || true
 
-# Remove ristretto and block it from coming back (replaced by StormOS Gallery)
-sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto/' /etc/pacman.conf 2>/dev/null || true
+# Block ristretto and parole from being installed/updated
+# (ristretto replaced by StormOS Gallery; parole unwanted)
+if grep -q "^IgnorePkg" /etc/pacman.conf 2>/dev/null; then
+    # Merge into existing IgnorePkg line instead of clobbering
+    for pkg in ristretto parole; do
+        grep -q "^IgnorePkg.*\b$pkg\b" /etc/pacman.conf || sudo sed -i "s/^IgnorePkg.*/& $pkg/" /etc/pacman.conf
+    done
+else
+    sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto parole/' /etc/pacman.conf 2>/dev/null || true
+fi
 if pacman -Qi ristretto &>/dev/null; then
     sudo pacman -Rns --noconfirm ristretto 2>/dev/null || true
     info "Ristretto removed (replaced by StormOS Gallery)"
+fi
+if pacman -Qi parole &>/dev/null; then
+    sudo pacman -Rns --noconfirm parole 2>/dev/null || true
+    info "Parole removed (blocked from reinstall)"
 fi
 
 # Compiz: install pre-applied profile (wobbly windows + desktop cube)
