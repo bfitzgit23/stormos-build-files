@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=StormOS
-Description=StormOS boot splash
+Description=StormOS lightning bolt boot splash
 ModuleName=script
 
 [script]

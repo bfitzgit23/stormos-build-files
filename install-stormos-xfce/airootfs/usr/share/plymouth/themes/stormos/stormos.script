@@ -1,79 +1,153 @@
-# StormOS Plymouth Theme — Boot Splash
-# Dark background with animated loading indicator
+# StormOS Plymouth Boot Splash
+# Lightning bolt branding with animated progress bar
 
-# Colors
-_define_color BG       0x0a1628;
-_define_color BLUE     0x19a9ff;
-_define_color BLUE2    0x0876c9;
-_define_color WHITE    0xe8f2ff;
-_define_color MUTED    0x7a9bb5;
+# ─── Colors ──────────────────────────────────────────────────────────────────
+BG_COLOR = (0.04, 0.086, 0.157);        # #0A1628 dark navy
+BOLT_COLOR = (0.098, 0.663, 1.0);       # #19A9FF electric blue
+BOLT_GLOW = (0.098, 0.663, 1.0, 0.3);   # glow alpha
+BAR_BG = (0.067, 0.102, 0.165, 0.6);    # progress bar track
+BAR_FG = (0.098, 0.663, 1.0);           # progress bar fill
+TEXT_COLOR = (0.91, 0.949, 1.0);        # #E8F2FF light text
 
-# Boot message
-boot_message = "StormOS";
+# ─── Window setup ────────────────────────────────────────────────────────────
+window.background_color = BG_COLOR;
 
-# Progress bar dimensions
-bar_x = (window_width - 300) / 2;
-bar_y = window_height - 120;
-bar_width = 300;
-bar_height = 4;
-bar_radius = 2;
+# ─── Logo (lightning bolt PNG) ───────────────────────────────────────────────
+logo.image = "bolt.png";
+logo.position = (0.5, 0.35);
+logo.anchor = (0.5, 0.5);
+logo.scaling = 0.15;
 
-# Logo position
-logo_x = (window_width - 200) / 2;
-logo_y = (window_height - 80) / 2 - 40;
+# ─── Brand text ──────────────────────────────────────────────────────────────
+brand.text = "StormOS";
+brand.font = "Inter Bold 32";
+brand.color = TEXT_COLOR;
+brand.position = (0.5, 0.55);
+brand.anchor = (0.5, 0.5);
 
-# Text position
-text_y = logo_y + 160;
+# ─── Progress bar ────────────────────────────────────────────────────────────
+bar.size = (0.35, 0.004);
+bar.position = (0.5, 0.65);
+bar.anchor = (0.5, 0.5);
+bar.background_color = BAR_BG;
+bar.foreground_color = BAR_FG;
+bar.border_color = BAR_FG;
 
-# Animation
-progress = 0;
-progress_steps = 0;
+# ─── Status text ─────────────────────────────────────────────────────────────
+status.text = "";
+status.font = "Inter 12";
+status.color = (0.6, 0.7, 0.8);
+status.position = (0.5, 0.72);
+status.anchor = (0.5, 0.5);
 
-# Animation state
-angle = 0;
+# ─── Spinner (pulsing glow around bolt) ──────────────────────────────────────
+spinner.image = "glow.png";
+spinner.position = (0.5, 0.35);
+spinner.anchor = (0.5, 0.5);
+spinner.scaling = 0.2;
 
-fun refresh() {
-    # Background
-    window_draw_box(window_root, 0, 0, window_width, window_height, BG);
+# ─── Boot messages ───────────────────────────────────────────────────────────
+boot_message.text = "";
+boot_message.font = "Inter 11";
+boot_message.color = (0.5, 0.6, 0.7);
+boot_message.position = (0.5, 0.80);
+boot_message.anchor = (0.5, 0.5);
 
-    # StormOS text
-    window_draw_text(window_root, window_width/2, logo_y, 28, boot_message,
-                     WHITE, WINDOW_TEXT_ALIGN_CENTER);
+# ═══════════════════════════════════════════════════════════════════════════════
+# Animation callbacks
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    # Subtitle
-    window_draw_text(window_root, window_width/2, logo_y + 40, 12,
-                     "POWER  •  PERFORMANCE  •  FREEDOM",
-                     MUTED, WINDOW_TEXT_ALIGN_CENTER);
+# Pulse animation for the glow
+pulse_progress = 0.0;
+pulse_speed = 2.0;
 
-    # Progress bar background
-    window_draw_box(window_root, bar_x, bar_y, bar_width, bar_height, 0x1e4a6e);
+fun pulse_callback () {
+    global pulse_progress;
+    pulse_progress = pulse_progress + (1.0 / 60.0) * pulse_speed;
+    if (pulse_progress > 3.14159):
+        pulse_progress = pulse_progress - 6.28318;
+    end;
 
-    # Progress bar fill
-    fill_width = bar_width * progress;
-    if (fill_width > 0) {
-        window_draw_box(window_root, bar_x, bar_y, fill_width, bar_height, BLUE);
-    }
+    # Pulse the glow opacity between 0.1 and 0.5
+    glow_alpha = 0.3 + 0.2 * Math.Cos(pulse_progress);
+    spinner.opacity = glow_alpha;
 
-    # Spinning indicator (simple rotating dot)
-    dot_angle = angle * 0.1;
-    dot_x = window_width/2 + 50 * cos(dot_angle);
-    dot_y = text_y + 20 * sin(dot_angle);
-    window_draw_box(window_root, dot_x - 3, dot_y - 3, 6, 6, BLUE);
+    # Pulse the logo scaling slightly
+    logo.scaling = 0.15 + 0.005 * Math.Cos(pulse_progress * 1.5);
+
+    # Keep animating
+    Plymouth.SetTimerFunction(pulse_callback, 1.0 / 60.0);
 }
 
-fun progress_callback(progress_pct) {
-    progress = progress_pct;
-    refresh();
+# Start pulse on display
+fun on_display_ready () {
+    Plymouth.SetTimerFunction(pulse_callback, 1.0 / 60.0);
 }
 
-fun update() {
-    angle = angle + 5;
-    refresh();
-    return 0;  # continue animating
+# ═══════════════════════════════════════════════════════════════════════════════
+# Progress updates
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Normal boot progress (0.0 to 1.0)
+fun update_progress (progress) {
+    bar.value = progress;
+
+    # Update status text based on progress
+    if (progress < 0.1):
+        status.text = "Initializing...";
+    elif (progress < 0.3):
+        status.text = "Loading kernel modules...";
+    elif (progress < 0.5):
+        status.text = "Starting services...";
+    elif (progress < 0.7):
+        status.text = "Mounting filesystems...";
+    elif (progress < 0.9):
+        status.text = "Starting display manager...";
+    else:
+        status.text = "Almost ready...";
+    end;
 }
 
-# Start the animation loop
-main_loop = window_main_loop();
-window_loop_add_timeout(main_loop, 30, update);
-window_set_background_color(window_root, BG);
-refresh();
+# Boot finished — fade out
+fun on_boot_progress (progress) {
+    update_progress(progress);
+
+    if (progress >= 1.0):
+        # Quick fade out
+        logo.opacity = 0.0;
+        brand.opacity = 0.0;
+        bar.opacity = 0.0;
+        status.opacity = 0.0;
+        spinner.opacity = 0.0;
+        boot_message.opacity = 0.0;
+    end;
+}
+
+# Message during boot (e.g. "fsck", "resume")
+fun on_boot_message (message) {
+    if (message != ""):
+        boot_message.text = message;
+    end;
+}
+
+# Quit — clean up
+fun on_quit () {
+    logo.opacity = 0.0;
+    brand.opacity = 0.0;
+    bar.opacity = 0.0;
+    status.opacity = 0.0;
+    spinner.opacity = 0.0;
+    boot_message.opacity = 0.0;
+}
+
+# Password prompt (for encrypted disks)
+fun on_password_prompt (prompt) {
+    status.text = prompt;
+    bar.opacity = 0.0;
+    spinner.opacity = 0.0;
+}
+
+fun on_password_response () {
+    bar.opacity = 1.0;
+    spinner.opacity = 1.0;
+}

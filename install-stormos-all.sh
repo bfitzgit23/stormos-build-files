@@ -492,18 +492,43 @@ case "$DISTRO" in
         exit 1 ;;
 esac
 
+# ── Plymouth boot splash ──
+info "Setting up Plymouth boot splash..."
+if command -v plymouth-set-default-theme &>/dev/null; then
+    if [[ -d /usr/share/plymouth/themes/stormos ]]; then
+        run sudo plymouth-set-default-theme stormos
+        ok "Plymouth theme set to stormos"
+        # Rebuild initramfs
+        if command -v mkinitcpio &>/dev/null; then
+            if ! grep -q "plymouth" /etc/mkinitcpio.conf 2>/dev/null; then
+                run sudo sed -i 's/^HOOKS=(/HOOKS=(base udev plymouth /' /etc/mkinitcpio.conf
+            fi
+            run mkinitcpio -P 2>/dev/null || true
+            ok "initramfs rebuilt"
+        elif command -v update-initramfs &>/dev/null; then
+            run sudo update-initramfs -u 2>/dev/null || true
+            ok "initramfs rebuilt"
+        fi
+    else
+        warn "StormOS plymouth theme not found — skipping"
+    fi
+else
+    warn "plymouth not installed — skipping boot splash"
+fi
+
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║        StormOS theme applied successfully!       ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
-echo "  Distro:  $DISTRO"
-echo "  Theme:   Arc-BLACK-ICE + StormOS blue accents"
-echo "  Icons:   Qogir"
-echo "  Cursor:  DMZ-Black"
-echo "  Font:    Inter (UI), JetBrains Mono (terminal)"
+echo "  Distro:   $DISTRO"
+echo "  Theme:    Arc-BLACK-ICE + StormOS blue accents"
+echo "  Icons:    Qogir"
+echo "  Cursor:   DMZ-Black"
+echo "  Font:     Inter (UI), JetBrains Mono (terminal)"
 echo "  Compositor: picom (GLX, blur, shadows)"
-echo "  System:  Conky sidebar (CPU, GPU, RAM, Disk, Network)"
+echo "  System:   Conky sidebar (CPU, GPU, RAM, Disk, Network)"
+echo "  Boot:     Plymouth stormos splash (reboot to see)"
 echo ""
 echo "  To reload panel:  xfce4-panel -r"
 echo "  To restart WM:    xfwm4 --replace"

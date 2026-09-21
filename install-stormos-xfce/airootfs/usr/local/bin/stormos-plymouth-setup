@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+#
+# stormos-plymouth-setup — Configure StormOS Plymouth boot splash.
+#
+# Run once after install (already configured in the ISO).
+# Usage:  sudo bash stormos-plymouth-setup
+#
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+ok()   { echo -e "${GREEN}✓${NC} $*"; }
+info() { echo -e "${CYAN}→${NC} $*"; }
+err()  { echo -e "${RED}✗${NC} $*"; }
+
+echo ""
+echo -e "${CYAN}╔══════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║   StormOS Plymouth Theme Setup       ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
+echo ""
+
+# ─── Check plymouth is installed ─────────────────────────────────────────────
+if ! command -v plymouth-set-default-theme &>/dev/null; then
+    err "plymouth not found — install it first:"
+    echo "  Arch/Manjaro:  sudo pacman -S plymouth"
+    echo "  Debian:        sudo apt install plymouth"
+    exit 1
+fi
+
+# ─── Check theme files exist ─────────────────────────────────────────────────
+THEME_DIR="/usr/share/plymouth/themes/stormos"
+if [[ ! -f "$THEME_DIR/stormos.plymouth" ]]; then
+    err "StormOS plymouth theme not found at $THEME_DIR"
+    echo "  Make sure the StormOS build files are installed."
+    exit 1
+fi
+
+ok "StormOS plymouth theme found"
+
+# ─── Set as default theme ────────────────────────────────────────────────────
+info "Setting StormOS as default Plymouth theme..."
+plymouth-set-default-theme stormos
+ok "Default theme set to stormos"
+
+# ─── Rebuild initramfs ───────────────────────────────────────────────────────
+info "Rebuilding initramfs..."
+if command -v mkinitcpio &>/dev/null; then
+    # Arch/Manjaro
+    mkinitcpio -P 2>/dev/null && ok "initramfs rebuilt (mkinitcpio)" || warn "mkinitcpio failed — rebuild manually"
+elif command -v update-initramfs &>/dev/null; then
+    # Debian
+    update-initramfs -u 2>/dev/null && ok "initramfs rebuilt (update-initramfs)" || warn "update-initramfs failed — rebuild manually"
+else
+    warn "No initramfs tool found — rebuild manually"
+fi
+
+# ─── Ensure plymouth is in hooks ─────────────────────────────────────────────
+if command -v mkinitcpio &>/dev/null; then
+    HOOKS_FILE="/etc/mkinitcpio.conf"
+    if [[ -f "$HOOKS_FILE" ]]; then
+        if ! grep -q "plymouth" "$HOOKS_FILE"; then
+            info "Adding plymouth to mkinitcpio hooks..."
+            sudo sed -i 's/^HOOKS=(/HOOKS=(base udev plymouth /' "$HOOKS_FILE"
+            mkinitcpio -P 2>/dev/null || true
+            ok "plymouth added to hooks and initramfs rebuilt"
+        else
+            ok "plymouth already in mkinitcpio hooks"
+        fi
+    fi
+fi
+
+# ─── Enable systemd service ──────────────────────────────────────────────────
+if command -v systemctl &>/dev/null; then
+    info "Enabling Plymouth systemd services..."
+    systemctl enable plymouth-quit-wait.service 2>/dev/null || true
+    systemctl enable plymouth-start.service 2>/dev/null || true
+    ok "Plymouth services enabled"
+fi
+
+echo ""
+echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║   StormOS Plymouth configured!       ║${NC}"
+echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
+echo ""
+echo "  Theme:  stormos (lightning bolt)"
+echo "  Assets: bolt.png, glow.png, frost.png"
+echo "  Colors: #0A1628 bg, #19A9FF bolt"
+echo ""
+echo "  Reboot to see the splash screen."
+echo ""
