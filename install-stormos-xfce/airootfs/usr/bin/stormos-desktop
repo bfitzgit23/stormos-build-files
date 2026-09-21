@@ -1,21 +1,16 @@
 #!/usr/bin/env bash
-# stormos-desktop — StormOS session: xfwm4 + React shell (20% XFCE).
+# stormos-desktop — StormOS session: xfwm4 + panel + React shell.
 #
-# Session startup order:
-#   1. xfwm4 — window manager (from XFCE, provides decorations/compositing)
-#   2. picom — optional compositor for transparency/shadows
-#   3. bridge — Python IPC bridge for React shell
-#   4. Electron — StormOS React shell (the desktop UI)
+# Base: xfwm4 (window manager) + xfce4-panel (taskbar) + xfdesktop (wallpaper/icons)
+# Overlay: StormOS React shell replaces xfdesktop when available
 #
-# This session uses ONLY xfwm4 from XFCE — no xfce4-panel, no xfdesktop,
-# no xfce4-session. The React shell IS the desktop.
+# Session is always usable — React shell is optional.
 
 set -uo pipefail
 
 LOG="$HOME/.stormos-desktop.log"
 log() { echo "[$(date '+%H:%M:%S')] $*" >> "$LOG"; }
 
-# Truncate log each start
 > "$LOG"
 log "=== stormos-desktop starting (pid $$) ==="
 log "HOME=$HOME USER=$(whoami) DISPLAY=${DISPLAY:-unset}"
@@ -23,7 +18,7 @@ log "HOME=$HOME USER=$(whoami) DISPLAY=${DISPLAY:-unset}"
 PROJECT_DIR="${STORMOS_DESKTOP_DIR:-/usr/share/stormos-shell}"
 
 export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
-export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-StormOS}"
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-XFCE}"
 export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-stormos}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-x11}"
 
@@ -40,34 +35,42 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# --- 1. Window manager: xfwm4 (from XFCE) ---
+# --- 1. Window manager: xfwm4 ---
 log "Starting xfwm4..."
-# xfwm4 --daemon forks, so we start it in background and track via pidfile
-rm -f /tmp/xfwm4-stormos.pid
 xfwm4 2>>"$LOG" &
 sleep 1
-# Get the actual xfwm4 PID
 XFWM_PID=$(pgrep -n xfwm4 2>/dev/null || echo "")
 log "xfwm4 PID=$XFWM_PID"
 
 if [ -z "$XFWM_PID" ]; then
-    log "ERROR: xfwm4 failed to start! Session cannot continue."
+    log "ERROR: xfwm4 failed to start!"
     exit 1
 fi
 
-# --- 2. Compositor: picom (optional) ---
+# --- 2. Panel: xfce4-panel ---
+log "Starting xfce4-panel..."
+xfce4-panel 2>>"$LOG" &
+sleep 1
+PANEL_PID=$(pgrep -n xfce4-panel 2>/dev/null || echo "")
+log "xfce4-panel PID=$PANEL_PID"
+
+# --- 3. Desktop icons/wallpaper: xfdesktop ---
+log "Starting xfdesktop..."
+xfdesktop --reload 2>>"$LOG" || true
+XFDESKTOP_PID=$(pgrep -n xfdesktop 2>/dev/null || echo "")
+log "xfdesktop PID=$XFDESKTOP_PID"
+
+# --- 4. Compositor: picom (optional) ---
 if command -v picom >/dev/null 2>&1; then
     if ! pgrep -x picom >/dev/null 2>&1; then
         log "Starting picom..."
         picom --daemon 2>>"$LOG" &
         log "picom PID=$!"
         sleep 0.3
-    else
-        log "picom already running"
     fi
 fi
 
-# --- 3. Bridge (background, optional) ---
+# --- 5. Bridge (background, optional) ---
 BRIDGE_PID=""
 if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
     log "Starting bridge..."
@@ -81,14 +84,14 @@ if [ -f "$PROJECT_DIR/native/stormos-bridge.py" ]; then
     log "Bridge check done"
 fi
 
-# --- 4. Electron shell (the desktop) ---
+# --- 6. Electron shell (overlay, optional) ---
+ELECTRON_PID=""
 ELECTRON_BIN=""
 for candidate in /usr/bin/electron /usr/lib/electron/electron /usr/local/bin/electron; do
     [ -x "$candidate" ] && ELECTRON_BIN="$candidate" && break
 done
 [ -z "$ELECTRON_BIN" ] && ELECTRON_BIN="$(command -v electron 2>/dev/null)"
 
-ELECTRON_PID=""
 if [ -n "$ELECTRON_BIN" ] && [ -d "$PROJECT_DIR/dist" ]; then
     log "Launching Electron at $ELECTRON_BIN (dir=$PROJECT_DIR)..."
     "$ELECTRON_BIN" "$PROJECT_DIR" --no-sandbox >>"$HOME/.stormos-electron.log" 2>&1 &
@@ -96,24 +99,26 @@ if [ -n "$ELECTRON_BIN" ] && [ -d "$PROJECT_DIR/dist" ]; then
     log "Electron PID=$ELECTRON_PID"
     sleep 2
     if ! kill -0 "$ELECTRON_PID" 2>/dev/null; then
-        log "WARNING: Electron died — falling back to xfwm4-only mode"
+        log "WARNING: Electron died — running XFCE-only mode"
         ELECTRON_PID=""
     else
         log "Electron is running"
     fi
 else
-    log "WARNING: electron=$ELECTRON_BIN dist=$PROJECT_DIR/dist — running xfwm4-only"
+    log "No Electron available — running XFCE-only mode"
 fi
 
-# --- 5. Keep session alive ---
-# If Electron is running, wait on it (it's the session leader)
-# If not, wait on xfwm4 — session stays alive as long as WM is up
+# --- 7. Keep session alive ---
+# Prefer waiting on Electron (overlay), fall back to panel, then xfwm4
 if [ -n "$ELECTRON_PID" ]; then
     log "Waiting for Electron..."
     wait "$ELECTRON_PID" 2>/dev/null
     log "Electron exited (code=$?)"
+elif [ -n "$PANEL_PID" ]; then
+    log "Waiting on xfce4-panel..."
+    wait "$PANEL_PID" 2>/dev/null
 else
-    log "No Electron — waiting on xfwm4 (wm-only mode)"
+    log "Waiting on xfwm4..."
     wait "$XFWM_PID" 2>/dev/null
 fi
 log "=== Session ended ==="
