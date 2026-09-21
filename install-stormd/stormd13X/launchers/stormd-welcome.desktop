@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=StormD Welcome
+Comment=StormD Welcome Screen
+Exec=/usr/local/bin/stormd-welcome
+Icon=stormd
+Terminal=false
+Categories=System;

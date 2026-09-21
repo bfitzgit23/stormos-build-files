@@ -1,0 +1,364 @@
+#!/usr/bin/env python3
+"""
+StormD Welcome Application
+Based on StormOS Welcome, adapted for Debian
+"""
+
+import sys
+import os
+import subprocess
+import webbrowser
+from pathlib import Path
+
+try:
+    from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+    from PyQt5.QtGui import QIcon, QFont, QGuiApplication, QPalette, QColor
+    from PyQt5.QtWidgets import (
+        QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+        QTabWidget, QPushButton, QLabel, QLineEdit, QTextEdit,
+        QGroupBox, QMessageBox, QScrollArea
+    )
+except ImportError:
+    print("Error: python3-pyqt5 not installed")
+    print("Install with: sudo apt install python3-pyqt5")
+    sys.exit(1)
+
+# Colors (StormOS/StormD theme)
+STORM_NAVY = "#0a192f"
+STORM_BLUE = "#64ffda"
+STORM_PURPLE = "#a742f5"
+STORM_TEAL = "#00d1b2"
+STORM_CORAL = "#ff6b6b"
+STORM_GRAY = "#8892b0"
+STORM_DARK = "#020c1b"
+STORM_LIGHT = "#e6f1ff"
+GLASS_DARK = "rgba(2, 12, 27, 0.85)"
+
+HOME = Path.home()
+LIVE_MARKERS = ["/run/live", "/live/medium", "/cdrom"]
+
+class StormDWelcome(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.is_live = any(Path(m).exists() for m in LIVE_MARKERS)
+        self.init_ui()
+        self.apply_styles()
+        self.animate_window()
+    
+    def init_ui(self):
+        self.setWindowTitle("StormD Welcome")
+        self.setMinimumSize(1000, 700)
+        screen = QGuiApplication.primaryScreen().geometry()
+        self.setGeometry(
+            (screen.width() - 1000) // 2,
+            (screen.height() - 700) // 2,
+            1000, 700
+        )
+        
+        central = QWidget()
+        central.setObjectName("central")
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        
+        layout.addWidget(self.create_header())
+        
+        self.tabs = QTabWidget()
+        self.tabs.setObjectName("mainTabs")
+        self.tabs.addTab(self.create_welcome_tab(), "Welcome")
+        self.tabs.addTab(self.create_system_tab(), "System")
+        self.tabs.addTab(self.create_software_tab(), "Software")
+        self.tabs.addTab(self.create_help_tab(), "Help")
+        layout.addWidget(self.tabs)
+        
+        layout.addWidget(self.create_footer())
+    
+    def create_header(self):
+        header = QWidget()
+        hlayout = QHBoxLayout(header)
+        title = QLabel("StormD")
+        title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
+        subtitle = QLabel("Debian made easy")
+        subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
+        hlayout.addWidget(title)
+        hlayout.addWidget(subtitle)
+        hlayout.addStretch()
+        if self.is_live:
+            badge = QLabel(" LIVE SESSION ")
+            badge.setStyleSheet(f"background: {STORM_CORAL}; color: {STORM_DARK}; padding: 4px 12px; border-radius: 20px; font-weight: bold;")
+            hlayout.addWidget(badge)
+        return header
+    
+    def create_footer(self):
+        footer = QWidget()
+        flayout = QHBoxLayout(footer)
+        self.status_label = QLabel("Ready")
+        self.status_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
+        flayout.addWidget(self.status_label)
+        flayout.addStretch()
+        version = QLabel("v1.0 - Debian Trixie")
+        version.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
+        flayout.addWidget(version)
+        return footer
+    
+    def create_glass_card(self, title):
+        card = QGroupBox(title)
+        card.setStyleSheet(f"""
+            QGroupBox {{
+                background-color: {GLASS_DARK};
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 16px;
+                margin-top: 12px;
+                padding-top: 12px;
+                font-weight: bold;
+                color: {STORM_BLUE};
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 16px;
+                padding: 0 8px;
+            }}
+        """)
+        layout = QVBoxLayout(card)
+        layout.setSpacing(12)
+        return card
+    
+    def create_welcome_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(25)
+        
+        welcome = QLabel("Welcome to StormD!")
+        welcome.setStyleSheet("font-size: 28px; font-weight: bold;")
+        welcome.setWordWrap(True)
+        layout.addWidget(welcome)
+        
+        desc = QLabel("StormD is StormOS for Debian - the same great experience on a stable base")
+        desc.setStyleSheet(f"color: {STORM_GRAY}; font-size: 15px; margin-bottom: 20px;")
+        layout.addWidget(desc)
+        
+        # Install card
+        install_card = self.create_glass_card("Install StormD")
+        install_btn = QPushButton("Launch Installer (Calamares)")
+        install_btn.setObjectName("gradientButton")
+        install_btn.clicked.connect(self.launch_calamares)
+        install_card.layout().addWidget(install_btn)
+        layout.addWidget(install_card)
+        
+        # Quick links
+        links_card = self.create_glass_card("Quick Links")
+        links_layout = QHBoxLayout()
+        for name, url in [("Debian Wiki", "https://wiki.debian.org"), ("StormOS GitHub", "https://github.com/bfitzgit23/stormos-build-files"), ("StormD Forum", "https://github.com/bfitzgit23/stormos-build-files/issues")]:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            links_layout.addWidget(btn)
+        links_layout.addStretch()
+        links_card.layout().addLayout(links_layout)
+        layout.addWidget(links_card)
+        
+        layout.addStretch()
+        return self._wrap_scroll(tab)
+    
+    def create_system_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(25)
+        
+        # System info
+        sys_card = self.create_glass_card("System Information")
+        
+        info_text = QTextEdit()
+        info_text.setReadOnly(True)
+        info_text.setMaximumHeight(200)
+        
+        try:
+            result = subprocess.run(['lsb_release', '-a'], capture_output=True, text=True)
+            info_text.setText(result.stdout)
+        except:
+            info_text.setText("Debian-based system")
+        
+        sys_card.layout().addWidget(info_text)
+        layout.addWidget(sys_card)
+        
+        layout.addStretch()
+        return self._wrap_scroll(tab)
+    
+    def create_software_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(25)
+        
+        # Package manager
+        pkg_card = self.create_glass_card("Package Management")
+        
+        apt_btn = QPushButton("Open Synaptic Package Manager")
+        apt_btn.setObjectName("actionButton")
+        apt_btn.clicked.connect(lambda: subprocess.Popen(['gksu', 'synaptic']))
+        pkg_card.layout().addWidget(apt_btn)
+        
+        update_btn = QPushButton("Update Package Lists")
+        update_btn.setObjectName("actionButton")
+        update_btn.clicked.connect(self.update_packages)
+        pkg_card.layout().addWidget(update_btn)
+        
+        layout.addWidget(pkg_card)
+        
+        layout.addStretch()
+        return self._wrap_scroll(tab)
+    
+    def create_help_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(25)
+        
+        # Help card
+        help_card = self.create_glass_card("Help & Resources")
+        
+        wiki_btn = QPushButton("Debian Wiki")
+        wiki_btn.setObjectName("linkButton")
+        wiki_btn.clicked.connect(lambda: webbrowser.open("https://wiki.debian.org"))
+        help_card.layout().addWidget(wiki_btn)
+        
+        forum_btn = QPushButton("StormD Issues & Support")
+        forum_btn.setObjectName("linkButton")
+        forum_btn.clicked.connect(lambda: webbrowser.open("https://github.com/bfitzgit23/stormos-build-files/issues"))
+        help_card.layout().addWidget(forum_btn)
+        
+        layout.addWidget(help_card)
+        layout.addStretch()
+        return self._wrap_scroll(tab)
+    
+    def _wrap_scroll(self, widget):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(widget)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        return scroll
+    
+    def launch_calamares(self):
+        if not subprocess.run(['which', 'calamares'], capture_output=True).returncode == 0:
+            QMessageBox.warning(self, "Installer not found", "Calamares not installed.")
+            return
+        subprocess.Popen(['gksu', 'calamares'])
+    
+    def update_packages(self):
+        self.status_label.setText("Updating packages...")
+        try:
+            subprocess.Popen(['gksu', 'apt', 'update'])
+            self.status_label.setText("Package lists updated")
+        except Exception as e:
+            self.status_label.setText(f"Error: {str(e)}")
+    
+    def apply_styles(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {STORM_NAVY}; }}
+            #central {{
+                background-color: {GLASS_DARK};
+                border-radius: 20px;
+                border: 1px solid rgba(100, 255, 218, 0.1);
+            }}
+            QTabWidget::pane {{
+                background-color: rgba(2, 12, 27, 0.5);
+                border: 1px solid rgba(100, 255, 218, 0.15);
+                border-radius: 16px;
+            }}
+            QTabBar::tab {{
+                background: transparent;
+                color: {STORM_GRAY};
+                padding: 12px 24px;
+                font-weight: 600;
+                font-size: 14px;
+            }}
+            QTabBar::tab:selected {{
+                background: rgba(100, 255, 218, 0.1);
+                color: {STORM_BLUE};
+                border-bottom: 2px solid {STORM_BLUE};
+            }}
+            QPushButton#gradientButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {STORM_TEAL}, stop:1 {STORM_PURPLE});
+                color: {STORM_NAVY};
+                border: none;
+                border-radius: 12px;
+                padding: 12px 20px;
+                font-weight: bold;
+                font-size: 14px;
+            }}
+            QPushButton#gradientButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {STORM_PURPLE}, stop:1 {STORM_TEAL});
+            }}
+            QPushButton#actionButton {{
+                background: rgba(100, 255, 218, 0.08);
+                color: {STORM_LIGHT};
+                border: 1px solid rgba(100, 255, 218, 0.2);
+                border-radius: 10px;
+                padding: 10px 16px;
+                text-align: left;
+            }}
+            QPushButton#actionButton:hover {{
+                background: rgba(100, 255, 218, 0.15);
+                border-color: {STORM_BLUE};
+            }}
+            QPushButton#linkButton {{
+                background: transparent;
+                color: {STORM_BLUE};
+                border: none;
+                padding: 6px 12px;
+            }}
+            QLabel {{
+                color: {STORM_LIGHT};
+                background: transparent;
+            }}
+            QScrollBar:vertical {{
+                background: rgba(2, 12, 27, 0.4);
+                width: 10px;
+                margin: 0;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: rgba(100, 255, 218, 0.3);
+                min-height: 30px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: rgba(100, 255, 218, 0.5);
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+        """)
+    
+    def animate_window(self):
+        self.setWindowOpacity(0)
+        self.anim = QPropertyAnimation(self, b"windowOpacity")
+        self.anim.setDuration(400)
+        self.anim.setStartValue(0)
+        self.anim.setEndValue(1)
+        self.anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.anim.start()
+
+def main():
+    app = QApplication(sys.argv)
+    app.setApplicationName("StormD Welcome")
+    app.setStyle("Fusion")
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Window, QColor(STORM_NAVY))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(STORM_LIGHT))
+    palette.setColor(QPalette.ColorRole.Base, QColor(STORM_DARK))
+    palette.setColor(QPalette.ColorRole.Text, QColor(STORM_LIGHT))
+    app.setPalette(palette)
+    
+    window = StormDWelcome()
+    window.show()
+    sys.exit(app.exec())
+
+if __name__ == "__main__":
+    main()
