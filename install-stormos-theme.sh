@@ -34,8 +34,7 @@ OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz foot alacritty fastfetch
                xfce4-goodies xfce4-terminal xorg-server)
 
 # AUR packages (yay)
-AUR_PKGS=(arc-black-ice-theme qogir-dark-icons ttf-inter
-           ttf-jetbrains-mono-nerd xfce4-docklike-plugin)
+AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin)
 
 # Check and install official packages
 NEED_OFFICIAL=()
@@ -74,6 +73,38 @@ else
 fi
 
 ok "All packages ready"
+
+# ─── 1b. Install StormOS themes from build files ────────────────────────────
+info "Installing StormOS themes..."
+
+THEMES_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes"
+ICONS_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/icons"
+
+# Copy Arc-BLACK-ICE theme
+if [ -d "$THEMES_SRC/Arc-BLACK-ICE" ]; then
+    sudo cp -r "$THEMES_SRC/Arc-BLACK-ICE" /usr/share/themes/
+    ok "Arc-BLACK-ICE theme installed"
+else
+    err "Arc-BLACK-ICE not found in build files"
+fi
+
+# Copy Qogir icons
+if [ -d "$ICONS_SRC/Qogir" ]; then
+    sudo cp -r "$ICONS_SRC/Qogir" /usr/share/icons/
+    sudo cp -r "$ICONS_SRC/Qogir-dark" /usr/share/icons/ 2>/dev/null || true
+    ok "Qogir icons installed"
+else
+    err "Qogir icons not found in build files"
+fi
+
+# Copy StormOS wallpaper
+WALLPAPER_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/backgrounds"
+if [ -f "$WALLPAPER_SRC/stormos-wallpaper.png" ]; then
+    sudo cp "$WALLPAPER_SRC/stormos-wallpaper.png" /usr/share/backgrounds/
+    ok "StormOS wallpaper installed"
+fi
+
+ok "Themes installed"
 
 # ─── 2. Backup existing configs ──────────────────────────────────────────────
 BACKUP="$HOME/.stormos-backup-$(date +%Y%m%d-%H%M%S)"
