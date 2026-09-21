@@ -45,6 +45,7 @@ edk2-shell
 efibootmgr
 engrampa
 espeakup
+electron
 ethtool
 exfatprogs
 expac
@@ -150,6 +151,7 @@ nvidia-settings
 nvidia-utils
 nvme-cli
 open-iscsi
+openbox
 open-vm-tools
 opencl-nvidia
 openconnect
