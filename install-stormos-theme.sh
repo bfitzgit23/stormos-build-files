@@ -151,29 +151,22 @@ info "Installing StormOS themes..."
 THEMES_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes"
 ICONS_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/icons"
 
-# Copy Arc-StormOS theme (base WM theme)
+# Copy Arc-StormOS theme — replace entirely so stale host files never linger
 if [ -d "$THEMES_SRC/Arc-StormOS" ]; then
+    sudo rm -rf /usr/share/themes/Arc-StormOS
     sudo cp -r "$THEMES_SRC/Arc-StormOS" /usr/share/themes/
     # Fix CRLF in text files (may come from Windows)
     sudo find /usr/share/themes/Arc-StormOS -type f \
-        \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
+        \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' -o -name '*.xml' \) \
         -exec sed -i 's/\r$//' {} + 2>/dev/null || true
     ok "Arc-StormOS theme installed"
 else
     err "Arc-StormOS not found in build files"
 fi
 
-# Copy Arc-StormOS theme (Arc-StormOS colors + BleuFear window borders)
-if [ -d "$THEMES_SRC/Arc-StormOS" ]; then
-    sudo cp -r "$THEMES_SRC/Arc-StormOS" /usr/share/themes/
-    sudo find /usr/share/themes/Arc-StormOS -type f \
-        \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
-        -exec sed -i 's/\r$//' {} + 2>/dev/null || true
-    ok "Arc-StormOS theme installed"
-fi
-
 # Copy BleuFear theme (dark blue accent theme)
 if [ -d "$THEMES_SRC/BleuFear" ]; then
+    sudo rm -rf /usr/share/themes/BleuFear
     sudo cp -r "$THEMES_SRC/BleuFear" /usr/share/themes/
     sudo find /usr/share/themes/BleuFear -type f \
         \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
@@ -183,6 +176,7 @@ fi
 
 # Copy Xfce-Purp theme (dark purple accent theme)
 if [ -d "$THEMES_SRC/Xfce-Purp" ]; then
+    sudo rm -rf /usr/share/themes/Xfce-Purp
     sudo cp -r "$THEMES_SRC/Xfce-Purp" /usr/share/themes/
     sudo find /usr/share/themes/Xfce-Purp -type f \
         \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \

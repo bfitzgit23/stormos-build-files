@@ -37,6 +37,7 @@ if [ "$want" = "on" ]; then
     # Start the window decorator (compiz does not draw its own borders)
     # using the Arc-StormOS metacity theme
     gsettings set org.gnome.desktop.wm.preferences theme "Arc-StormOS" 2>/dev/null || true
+    gsettings set org.gnome.metacity.theme name "Arc-StormOS" 2>/dev/null || true
     killall gtk-window-decorator 2>/dev/null || true
     if command -v gtk-window-decorator >/dev/null 2>&1; then
         nohup gtk-window-decorator --replace \
