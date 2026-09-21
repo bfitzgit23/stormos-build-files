@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=JULinux Welcome
+Comment=JULinux Welcome Screen
+Exec=/usr/local/bin/julinux-welcome
+Icon=julinux
+Terminal=false
+Categories=System;

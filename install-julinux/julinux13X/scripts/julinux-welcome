@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""
+JULinux Welcome App
+Maintained by Justin Briethaupt and Ben Fitzpatrick
+"""
+
+import sys
+import os
+import subprocess
+import webbrowser
+from pathlib import Path
+
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QIcon, QFont, QColor
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QTabWidget, QPushButton, QLabel, QTextEdit, QMessageBox, QScrollArea
+)
+
+# Colors
+NAVY = "#0a192f"
+BLUE = "#19A9FF"
+LIGHT = "#E8F2FF"
+DARK = "#020c1b"
+GLASS = "rgba(2, 12, 27, 0.85)"
+TEAL = "#19A9FF"
+
+HOME = Path.home()
+AUTOSTART_FILE = HOME / ".config/autostart/julinux-welcome.desktop"
+LIVE_MARKERS = ["/run/live", "/run/archiso"]
+
+def is_live():
+    return any(Path(m).exists() for m in LIVE_MARKERS)
+
+def run_in_terminal(cmd, title="JULinux"):
+    """Run a command in the default terminal."""
+    import shutil
+    terminals = ["kitty", "xfce4-terminal", "gnome-terminal", "xterm"]
+    for t in terminals:
+        term = shutil.which(t)
+        if term:
+            try:
+                subprocess.Popen([term, "-e", cmd], start_new_session=True)
+                return
+            except:
+                pass
+    QMessageBox.critical(None, "Error", "No terminal emulator found.")
+
+class JULinuxWelcome(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.live = is_live()
+        self.setWindowTitle("JULinux Welcome")
+        self.setMinimumSize(900, 600)
+        self.setup_ui()
+        self.apply_styles()
+
+    def setup_ui(self):
+        central = QWidget()
+        central.setObjectName("central")
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Header
+        header = QWidget()
+        hlayout = QHBoxLayout(header)
+        title = QLabel("JULinux")
+        title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {BLUE};")
+        subtitle = QLabel("Justin's Linux — Built for Everyone")
+        subtitle.setStyleSheet(f"color: {LIGHT}; font-size: 14px; margin-left: 12px;")
+        hlayout.addWidget(title)
+        hlayout.addWidget(subtitle)
+        hlayout.addStretch()
+        if self.live:
+            badge = QLabel(" LIVE SESSION ")
+            badge.setStyleSheet(f"background: #ff6b6b; color: {DARK}; padding: 4px 12px; border-radius: 20px; font-weight: bold;")
+            hlayout.addWidget(badge)
+        layout.addWidget(header)
+
+        # Tabs
+        self.tabs = QTabWidget()
+        self.tabs.setObjectName("mainTabs")
+        self.tabs.addTab(self.welcome_tab(), "Welcome")
+        self.tabs.addTab(self.system_tab(), "System")
+        self.tabs.addTab(self.drivers_tab(), "Drivers")
+        self.tabs.addTab(self.help_tab(), "Help")
+        layout.addWidget(self.tabs)
+
+        # Footer
+        footer = QLabel("JULinux 13X — Developed by Justin Briethaupt & Ben Fitzpatrick")
+        footer.setStyleSheet(f"color: {TEAL}; font-size: 11px;")
+        layout.addWidget(footer)
+
+    def welcome_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+
+        desc = QLabel("Welcome to JULinux!\n\nJulinux is a user-friendly, open-source operating system based on Debian.\nIt comes with everything you need for daily computing, gaming, and more.")
+        desc.setStyleSheet(f"font-size: 15px; color: {LIGHT};")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        if self.live:
+            install_btn = QPushButton("Launch Installer (Calamares)")
+            install_btn.setObjectName("gradientButton")
+            install_btn.clicked.connect(self.launch_calamares)
+            layout.addWidget(install_btn)
+
+            note = QLabel("Calamares will install JULinux to your hard drive. You need sudo privileges.")
+            note.setStyleSheet(f"color: {TEAL}; font-size: 12px;")
+            note.setWordWrap(True)
+            layout.addWidget(note)
+
+        links = QHBoxLayout()
+        for name, url in [("Debian Wiki", "https://wiki.debian.org"), ("JULinux GitHub", "https://github.com/bfitzgit23/stormos-build-files")]:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            links.addWidget(btn)
+        links.addStretch()
+        layout.addLayout(links)
+
+        layout.addStretch()
+        return tab
+
+    def system_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(15)
+
+        layout.addWidget(self.section_header("System Actions"))
+
+        for text, cmd in [
+            ("Update System (apt upgrade)", "sudo apt update && sudo apt upgrade -y"),
+            ("Launch Terminal", "kitty"),
+            ("Reboot", "sudo reboot"),
+            ("Shutdown", "sudo shutdown -h now"),
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_in_terminal(c))
+            layout.addWidget(btn)
+
+        layout.addStretch()
+        return tab
+
+    def drivers_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(15)
+
+        layout.addWidget(self.section_header("GPU Drivers"))
+
+        for text, cmd in [
+            ("NVIDIA (proprietary)", "sudo apt install nvidia-driver"),
+            ("NVIDIA (nouveau)", "sudo apt install xserver-xorg-video-nouveau"),
+            ("AMD (amdgpu)", "sudo apt install firmware-amd-graphics"),
+            ("Intel (modesetting)", "sudo apt install firmware-misc-nonfree"),
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_in_terminal(c))
+            layout.addWidget(btn)
+
+        layout.addWidget(self.section_header("Hardware"))
+        for text, cmd in [
+            ("Broadcom Wi-Fi", "sudo apt install broadcom-sta-dkms firmware-brcm80211"),
+            ("Switchable Graphics (switcheroo)", "sudo apt install switcheroo-control"),
+            ("NVIDIA Detection", "sudo apt install nvidia-detect && nvidia-detect"),
+        ]:
+            btn = QPushButton(text)
+            btn.setObjectName("actionButton")
+            btn.clicked.connect(lambda _, c=cmd: run_in_terminal(c))
+            layout.addWidget(btn)
+
+        layout.addStretch()
+        return tab
+
+    def help_tab(self):
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(15)
+
+        layout.addWidget(self.section_header("Help & Resources"))
+        for name, url in [("Debian Wiki", "https://wiki.debian.org"), ("Debian Forums", "https://forums.debian.net"), ("JULinux GitHub", "https://github.com/bfitzgit23/stormos-build-files")]:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            layout.addWidget(btn)
+
+        about = QPushButton("About JULinux")
+        about.setObjectName("linkButton")
+        about.clicked.connect(lambda: QMessageBox.about(self, "About JULinux", "JULinux 13X\nDeveloped by Justin Briethaupt & Ben Fitzpatrick\nBased on Debian"))
+        layout.addWidget(about)
+
+        layout.addStretch()
+        return tab
+
+    def section_header(self, text):
+        label = QLabel(text)
+        label.setStyleSheet(f"font-size: 16px; font-weight: bold; color: {BLUE}; margin-top: 10px;")
+        return label
+
+    def launch_calamares(self):
+        if not subprocess.run(["which", "calamares"], capture_output=True).returncode == 0:
+            QMessageBox.warning(self, "Not Found", "Calamares is not installed.")
+            return
+        run_in_terminal("sudo calamares")
+
+    def apply_styles(self):
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {NAVY}; }}
+            #central {{ background-color: {GLASS}; border-radius: 20px; border: 1px solid rgba(100, 255, 218, 0.1); }}
+            QTabWidget::pane {{ background-color: rgba(2, 12, 27, 0.5); border: 1px solid rgba(100, 255, 218, 0.15); border-radius: 16px; }}
+            QTabBar::tab {{ background: transparent; color: {LIGHT}; padding: 12px 24px; font-weight: 600; font-size: 14px; }}
+            QTabBar::tab:selected {{ background: rgba(100, 255, 218, 0.1); color: {BLUE}; border-bottom: 2px solid {BLUE}; }}
+            QPushButton#gradientButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BLUE}, stop:1 #a742f5);
+                color: {NAVY}; border: none; border-radius: 12px; padding: 12px 20px; font-weight: bold; font-size: 14px;
+            }}
+            QPushButton#gradientButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #a742f5, stop:1 {BLUE});
+            }}
+            QPushButton#actionButton {{
+                background: rgba(100, 255, 218, 0.08); color: {LIGHT};
+                border: 1px solid rgba(100, 255, 218, 0.2); border-radius: 10px; padding: 10px 16px; text-align: left;
+            }}
+            QPushButton#actionButton:hover {{ background: rgba(100, 255, 218, 0.15); border-color: {BLUE}; }}
+            QPushButton#linkButton {{ background: transparent; color: {BLUE}; border: none; padding: 6px 12px; text-align: left; }}
+            QLabel {{ color: {LIGHT}; background: transparent; }}
+        """)
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    app.setApplicationName("JULinux Welcome")
+    app.setStyle("Fusion")
+    window = JULinuxWelcome()
+    window.show()
+    sys.exit(app.exec())

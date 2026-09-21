@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=JULinux GPU Switcher
+Comment=System tray applet for GPU switching
+Exec=/usr/local/bin/switcheroo-applet
+Icon=switcheroo
+Terminal=false
+Categories=System;

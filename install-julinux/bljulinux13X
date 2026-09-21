@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# bljulinux13X -- Revision: 13X -- JULinux by Justin Briethaupt & Ben Fitzpatrick
+# Based on eznixOS by eznix and StormD by Ben Fitzpatrick
+# JULinux = Justin's Linux
+# (GNU/General Public License version 3.0)
+
+# Step by Step Live-Build
+
+# Assign work, files, and build directory variables
+WKDIR="$(pwd)"
+FLDIR="julinux13X"
+BLDDIR="JULinux13X"
+
+# Remove icon cache cleaning hook, create the build staging folder, and cd into it
+[[ -f /usr/share/live/build/hooks/normal/9000-remove-gnome-icon-cache.hook.chroot ]] && rm /usr/share/live/build/hooks/normal/9000-remove-gnome-icon-cache.hook.chroot
+
+mkdir $BLDDIR
+cd $BLDDIR
+
+# Set up build environment
+lb config \
+    --binary-images iso-hybrid \
+    --mode debian \
+    --architectures amd64 \
+    --linux-flavours amd64 \
+    --distribution trixie \
+    --archive-areas "main contrib non-free non-free-firmware" \
+    --debian-installer none \
+    --updates true \
+    --security true \
+    --cache true \
+    --apt-recommends true \
+    --firmware-binary true \
+    --firmware-chroot true \
+    --win32-loader false \
+    --iso-application "JULinux" \
+    --iso-preparer "JULinux-https://github.com/bfitzgit23/stormos-build-files" \
+    --iso-publisher "JULinux-https://github.com/bfitzgit23/stormos-build-files" \
+    --image-name "$BLDDIR-$(date -u +"%y%m%d")" \
+    --iso-volume "$BLDDIR-$(date -u +"%y%m%d")" \
+    --checksums sha512 \
+    --clean --color
+
+# Install Xfce desktop
+echo "accountsservice arc-theme asunder atril breeze-gtk-theme breeze-icon-theme dconf-cli galculator geany gnome-keyring gnome-nettool gnome-system-tools greybird-gtk-theme gthumb guvcview gvfs-backends gvfs-fuse light-locker lightdm lightdm-gtk-greeter lightdm-gtk-greeter-settings mousepad network-manager-gnome network-manager-openconnect-gnome network-manager-openvpn-gnome pavucontrol pulseaudio remmina simple-scan system-config-printer tango-icon-theme transmission-gtk xarchiver xfce4 xfce4-goodies xfce4-power-manager xfce4-terminal xscreensaver" > $WKDIR/$BLDDIR/config/package-lists/xfcedesktop.list.chroot
+
+# Install JULinux system packages (adapted from StormD/StormOS)
+echo "accountsservice apt-transport-https bleachbit build-essential cdtool cdrdao cdrskin chromium cifs-utils clonezilla cryptsetup cryptsetup-initramfs cups cups-filters curl dbus-user-session dbus-x11 debconf debhelper dh-autoreconf dialog dirmngr dkms dos2unix dosbox dvdauthor exfatprogs faac faad fakeroot fastfetch ffmpeg filezilla flac foomatic-db foomatic-db-engine frei0r-plugins fuse3 gdebi ghostscript gnome-disk-utility gparted grsync grub-common grub2-common gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-plugins-good gvfs gvfs-backends gvfs-fuse hardinfo haveged hplip-gui htop hunspell-en-us hyphen-en-us iftop im-config inxi iw keepassxc lame less libqt5opengl5t64 libreoffice-calc libreoffice-draw libreoffice-impress libreoffice-writer libreoffice-gtk3 libreoffice-help-en-us libnss-mdns libsmbclient0 libxcb-xtest0 libxvidcore4 linux-headers-amd64 live-build lsb-release lshw meld mencoder menu mjpegtools mpg321 mpv mtools mythes-en-us netcat-openbsd openconnect openvpn openvpn-systemd-resolved os-prober p7zip-full p7zip-rar papirus-icon-theme pciutils perl plymouth plymouth-label plymouth-themes plymouth-x11 printer-driver-gutenprint python3-pyqt5 rar samba-common-bin smbclient smplayer smplayer-l10n smplayer-themes soundconverter sox squashfs-tools streamripper sudo synaptic syslinux syslinux-common systemd-timesyncd testdisk timeshift twolame upower unrar unzip webext-keepassxc-browser wget x11-common x265 x264 xauth xclip xdg-utils xorg xserver-xorg-input-all xserver-xorg-video-all xorriso xterm zip zstd" > $WKDIR/$BLDDIR/config/package-lists/morepackages.list.chroot
+
+# Install JULinux-specific packages (switcheroo-control, nvidia-detect, broadcom)
+echo "switcheroo-control nvidia-detect broadcom-sta-dkms bluez blueman network-manager-gnome pavucontrol pipewire pipewire-pulse wireplumber kitty kitty-terminfo" > $WKDIR/$BLDDIR/config/packages.list.chroot
+
+# Install firmware
+echo "atmel-firmware bluez-firmware firmware-linux-free midisport-firmware firmware-misc-nonfree firmware-amd-graphics firmware-atheros firmware-bnx2 firmware-bnx2x firmware-brcm80211 firmware-cavium firmware-intel-sound firmware-iwlwifi firmware-libertas firmware-linux firmware-linux-nonfree firmware-misc-nonfree firmware-myricom firmware-netronome firmware-netxen firmware-qcom-media firmware-qcom-soc firmware-qlogic firmware-realtek firmware-samsung firmware-siano firmware-ti-connectivity firmware-sof-signed firmware-zd1211 firmware-b43-installer broadcom-sta-dkms" > $WKDIR/$BLDDIR/config/package-lists/firmware.list.chroot
+
+# Install Calamares dependencies
+echo "btrfs-progs dosfstools e2fsprogs ntfs-3g qml-module-qtquick-controls qml-module-qtquick-controls2 qml-module-qtquick-templates2 qml-module-qtquick-window2 qt5-image-formats-plugins udisks2 xfsprogs" > $WKDIR/$BLDDIR/config/package-lists/calamares-needs.list.chroot
+
+# Include grub-efi binaries
+echo "efibootmgr grub-efi grub-efi-amd64 grub-efi-amd64-bin grub-efi-amd64-signed grub-efi-amd64-unsigned mokutil shim-helpers-amd64-signed shim-signed shim-unsigned" > $WKDIR/$BLDDIR/config/packages.list.binary
+
+# Include grub-pc binaries
+echo "grub-pc grub-pc-bin grub-common grub2-common" > $WKDIR/$BLDDIR/config/grub-pc.list.binary
+
+# Install the Calamares Installer
+mkdir -p $WKDIR/$BLDDIR/config/includes.chroot/etc/
+cp -r $WKDIR/$FLDIR/calamares/ $WKDIR/$BLDDIR/config/includes.chroot/etc/
+echo "calamares calamares-settings-debian" > $WKDIR/$BLDDIR/config/package-lists/calamares.list.chroot
+
+# Make folders in the chroot
+mkdir -p $WKDIR/$BLDDIR/config/hooks/normal/
+mkdir -p $WKDIR/$BLDDIR/config/includes.chroot/etc/skel/
+mkdir -p $WKDIR/$BLDDIR/config/includes.chroot/usr/local/bin/
+mkdir -p $WKDIR/$BLDDIR/config/includes.chroot/usr/share/backgrounds/
+mkdir -p $WKDIR/$BLDDIR/config/includes.chroot/usr/share/applications/
+mkdir -p $WKDIR/$BLDDIR/config/includes.chroot/usr/share/icons/default/
+
+# Copy files into the chroot
+cp -r $WKDIR/$FLDIR/bootloaders/ $WKDIR/$BLDDIR/config/
+cp -r $WKDIR/$FLDIR/ $WKDIR/$BLDDIR/config/includes.chroot/usr/share/
+cp -r $WKDIR/$FLDIR/modprobe.d/ $WKDIR/$BLDDIR/config/includes.chroot/etc/
+cp $WKDIR/$FLDIR/hooks/* $WKDIR/$BLDDIR/config/hooks/normal/ 2>/dev/null || true
+cp $WKDIR/$FLDIR/scripts/* $WKDIR/$BLDDIR/config/includes.chroot/usr/local/bin/
+cp $WKDIR/$FLDIR/icons/* $WKDIR/$BLDDIR/config/includes.chroot/usr/share/icons/default/
+cp $WKDIR/$FLDIR/backgrounds/* $WKDIR/$BLDDIR/config/includes.chroot/usr/share/backgrounds/
+cp $WKDIR/$FLDIR/launchers/*.desktop $WKDIR/$BLDDIR/config/includes.chroot/usr/share/applications/ 2>/dev/null || true
+ln -sf /usr/share/$FLDIR $WKDIR/$BLDDIR/config/includes.chroot/etc/skel/$FLDIR
+
+# Copy Calamares branding
+cp -r $WKDIR/$FLDIR/calamares/* $WKDIR/$BLDDIR/config/includes.chroot/etc/calamares/ 2>/dev/null || true
+
+# Start the build process
+lb build

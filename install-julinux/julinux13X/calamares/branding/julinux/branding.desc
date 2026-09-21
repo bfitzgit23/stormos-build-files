@@ -1,0 +1,55 @@
+# JULinux Calamares Branding
+# Maintainer: Justin Briethaupt <justin@julinux.org>
+# SPDX-FileCopyrightText: 2024 Justin Briethaupt <justin@julinux.org>
+# SPDX-License-Identifier: CC0-1.0
+
+---
+componentName: julinux
+
+translate: true
+
+version: 1.0
+
+type:    kalgebra
+display: form
+style:   none
+
+welcome:
+    title:      Welcome to JULinux
+    subtitle:   Justin's Linux — Built for Everyone
+    brands:     [ julinux ]
+    productIcon: julinux
+
+    strings:
+        - description: "JULinux is an independent, beginner-friendly Linux distribution based on Debian. It features the XFCE desktop with a clean, modern look.\n\nDeveloped by Justin Briethaupt and Ben Fitzpatrick."
+    images:
+        - julinux/julinux-splash.png
+
+finished:
+    title:      Installation Complete
+    subtitle:   JULinux has been installed to your disk.
+    brand:      julinux
+
+    strings:
+        - description: "Remove the live USB and reboot to start using JULinux."
+
+users:
+    title:      User Setup
+    subtitle:   Create your user account.
+
+    strings:
+        - description: "Set up your username and password."
+
+partition:
+    title:      Partitioning
+    subtitle:   Choose how to install JULinux.
+
+    strings:
+        - description: "You can install alongside your existing operating system, or use the entire disk."
+
+summary:
+    title:      Summary
+    subtitle:   Review your installation settings before proceeding.
+
+    strings:
+        - description: "JULinux will be installed with the settings shown above."
