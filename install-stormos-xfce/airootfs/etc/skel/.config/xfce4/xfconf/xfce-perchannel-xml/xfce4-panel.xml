@@ -44,7 +44,7 @@
       <property name="position" type="string" value="p=12;x=672;y=0"/>
       <property name="size" type="uint" value="40"/>
       <property name="length" type="double" value="30"/>
-      <property name="length-adjust" type="bool" value="false"/>
+      <property name="length-adjust" type="bool" value="true"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="background-style" type="uint" value="1"/>
       <property name="background-rgba" type="array">
