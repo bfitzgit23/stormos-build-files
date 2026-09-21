@@ -20,7 +20,7 @@ style "notify-button" {
   fg[PRELIGHT] = "#ffffff"
   fg[ACTIVE] = @selected_fg_color
 
-  engine "murrine" {
+  engine "pixmap" {
     gradient_shades = { 1.0, 1.0, 1.0, 1.0 }
     border_shades = { 1.0, 1.0 }
     roundness = 2
@@ -35,7 +35,7 @@ style "notify-text" {
   fg[PRELIGHT] = "#ffffff"
   fg[ACTIVE] = "#ffffff"
 
-  engine "murrine" {
+  engine "pixmap" {
     textstyle = 0
   }
 }
@@ -55,7 +55,7 @@ style "notify-progressbar" {
   bg[ACTIVE] = "#1D1F26"
   bg[SELECTED] = @selected_bg_color
 
-  engine "murrine" {
+  engine "pixmap" {
     gradient_shades = { 1.0, 1.0, 1.0, 1.0 }
     border_shades = { 1.0, 1.0 }
     trough_shades = { 1.0, 1.0 }

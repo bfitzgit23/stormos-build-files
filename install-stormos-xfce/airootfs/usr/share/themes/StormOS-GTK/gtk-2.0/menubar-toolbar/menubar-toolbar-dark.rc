@@ -64,7 +64,7 @@ style "menubar_item" {
 # Text Style Menubar
 style "menubar-text" {
 
-  engine "murrine" {
+  engine "pixmap" {
     text_shade = 0.0
     textstyle = 0
   }

@@ -18,7 +18,7 @@ style "theme-panel" {
   text[ACTIVE] = "#ffffff"
   text[SELECTED] = "#ffffff"
 
-  engine "murrine" {
+  engine "pixmap" {
     reliefstyle = 0
     glazestyle = 0
     glow_shade = 1.0
@@ -43,7 +43,7 @@ style "panelbar" {
 
   bg[SELECTED] = @selected_bg_color
 
-  engine "murrine" {}
+  engine "pixmap" {}
 }
 
 style "panelbuttons" {
@@ -51,7 +51,7 @@ style "panelbuttons" {
   xthickness = 4
   ythickness = 0
 
-  engine "murrine" {
+  engine "pixmap" {
     textstyle = 0
   }
 }
@@ -66,7 +66,7 @@ style "theme-panel-text" {
   text[PRELIGHT] = @selected_fg_color
   text[ACTIVE] = "#edf5fb"
 
-  engine "murrine" {
+  engine "pixmap" {
     textstyle = 0
     text_shade = 0.2
   }

@@ -309,7 +309,7 @@ ok "All configs installed"
 info "Setting XFCE theme via xfconf..."
 
 # Set theme (don't kill xfconfd — it will pick up new XML configs on restart)
-xfconf-query -c xsettings -p /Net/ThemeName -s "Arc-BLACK-ICE" 2>/dev/null || true
+xfconf-query -c xsettings -p /Net/ThemeName -s "StormOS-GTK" 2>/dev/null || true
 xfconf-query -c xsettings -p /Net/IconThemeName -s "Qogir-dark" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 11" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 14" 2>/dev/null || true

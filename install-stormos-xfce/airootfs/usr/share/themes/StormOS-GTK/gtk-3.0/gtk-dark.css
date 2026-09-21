@@ -1,1 +1,26 @@
-@import url("resource:///org/gnome/arc-theme/gtk-main-dark.css");
+/* StormOS-GTK dark variant — blue accent overrides on Arc-BLACK-ICE dark base */
+
+:selected, :selected:focus {
+    background-color: #19A9FF;
+    color: #0A1628;
+}
+
+scrollbar slider {
+    background-color: rgba(25, 169, 255, 0.4);
+    border-radius: 10px;
+    min-width: 6px;
+    min-height: 6px;
+}
+scrollbar slider:hover { background-color: rgba(25, 169, 255, 0.6); }
+
+progressbar progress { background-color: #19A9FF; }
+switch:checked { background-color: #19A9FF; border-color: #19A9FF; }
+check:checked, radio:checked { background-color: #19A9FF; border-color: #19A9FF; }
+a { color: #19A9FF; }
+
+notebook > header > tabs > tab:checked {
+    color: #19A9FF;
+    border-bottom-color: #19A9FF;
+}
+
+scale trough highlight { background-color: #19A9FF; }
