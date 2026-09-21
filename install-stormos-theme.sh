@@ -32,7 +32,7 @@ info "Checking packages..."
 # Official repo packages (pacman)
 OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch
                xfce4-goodies xorg-server switcheroo-control
-               xfce4-notifyd xfce4-power-manager xfce4-screenshooter-plugin
+               xfce4-notifyd xfce4-power-manager xfce4-screenshooter
                xfce4-pulseaudio-plugin)
 
 # AUR packages (yay)
