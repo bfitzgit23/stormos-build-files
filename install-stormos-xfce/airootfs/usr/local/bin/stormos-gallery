@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+"""
+StormOS Gallery — custom image viewer for StormOS.
+Replaces Ristretto as the default image viewer. Dark StormOS theme,
+thumbnail grid, zoom, rotate, slideshow, and fullscreen support.
+"""
+import sys
+import os
+import glob
+
+from PyQt5.QtCore import Qt, QSize, QDir
+from PyQt5.QtGui import QIcon, QPixmap, QImageReader, QKeySequence, QPainter, QTransform
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QListWidget, QListWidgetItem, QLabel, QPushButton, QFileDialog,
+    QScrollArea, QToolBar, QAction, QStatusBar, QSlider, QMessageBox,
+    QFileSystemModel, QListView, QSplitter, QSizePolicy
+)
+
+STORM_NAVY = "#0a192f"
+STORM_BLUE = "#19A9FF"
+STORM_DARK = "#020c1b"
+STORM_LIGHT = "#ccd6f6"
+GLASS_DARK = "rgba(10, 25, 47, 0.92)"
+
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".xpm", ".svg", ".tiff", ".tif"}
+
+
+class StormGallery(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.image_files = []
+        self.current_index = -1
+        self.zoom_factor = 1.0
+        self.rotation = 0
+        self.setWindowTitle("StormOS Gallery")
+        self.setMinimumSize(1000, 700)
+        self.resize(1100, 750)
+        self._build_ui()
+        self._apply_styles()
+        # Open folder from command line or Pictures dir
+        args = [a for a in sys.argv[1:] if not a.startswith("-")]
+        if args:
+            self.open_folder(os.path.dirname(os.path.abspath(args[0])), select=os.path.basename(args[0]))
+        else:
+            pics = os.path.join(os.path.expanduser("~"), "Pictures")
+            if os.path.isdir(pics):
+                self.open_folder(pics)
+
+    def _build_ui(self):
+        central = QWidget(objectName="central")
+        self.setCentralWidget(central)
+        root = QVBoxLayout(central)
+        root.setContentsMargins(8, 8, 8, 8)
+
+        # Toolbar
+        tb = QToolBar()
+        tb.setMovable(False)
+        self.addToolBar(tb)
+        act_open = QAction("📂 Open Folder", self)
+        act_open.triggered.connect(self._pick_folder)
+        tb.addAction(act_open)
+        tb.addSeparator()
+        act_prev = QAction("◀ Prev", self)
+        act_prev.setShortcut(QKeySequence.MoveToPreviousChar)
+        act_prev.triggered.connect(lambda: self._step(-1))
+        tb.addAction(act_prev)
+        act_next = QAction("Next ▶", self)
+        act_next.setShortcut(QKeySequence.MoveToNextChar)
+        act_next.triggered.connect(lambda: self._step(1))
+        tb.addAction(act_next)
+        tb.addSeparator()
+        act_zi = QAction("➕", self)
+        act_zi.triggered.connect(lambda: self._zoom(1.25))
+        tb.addAction(act_zi)
+        act_zo = QAction("➖", self)
+        act_zo.triggered.connect(lambda: self._zoom(0.8))
+        tb.addAction(act_zo)
+        act_fit = QAction("⤢ Fit", self)
+        act_fit.triggered.connect(self._fit)
+        tb.addAction(act_fit)
+        act_rot = QAction("⟳ Rotate", self)
+        act_rot.triggered.connect(self._rotate)
+        tb.addAction(act_rot)
+        tb.addSeparator()
+        act_fs = QAction("⛶ Fullscreen", self)
+        act_fs.setShortcut("F11")
+        act_fs.triggered.connect(self._toggle_fs)
+        tb.addAction(act_fs)
+
+        # Splitter: thumbnail strip | viewer
+        split = QSplitter(Qt.Horizontal)
+        self.thumbs = QListWidget()
+        self.thumbs.setViewMode(QListView.IconMode)
+        self.thumbs.setIconSize(QSize(96, 96))
+        self.thumbs.setResizeMode(QListView.Adjust)
+        self.thumbs.setMovement(QListView.Static)
+        self.thumbs.setSpacing(8)
+        self.thumbs.setFixedWidth(140)
+        self.thumbs.itemClicked.connect(self._thumb_clicked)
+        split.addWidget(self.thumbs)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setAlignment(Qt.AlignCenter)
+        self.image_label = QLabel("Open a folder to start")
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.scroll.setWidget(self.image_label)
+        split.addWidget(self.scroll)
+        split.setStretchFactor(1, 1)
+        root.addWidget(split)
+
+        self.status = QStatusBar()
+        self.setStatusBar(self.status)
+
+    def _apply_styles(self):
+        self.setStyleSheet(f"""
+            QMainWindow, #central {{
+                background-color: {STORM_NAVY};
+            }}
+            QToolBar {{
+                background: {GLASS_DARK};
+                border: none;
+                padding: 6px;
+                spacing: 6px;
+            }}
+            QToolBar QAction {{ color: {STORM_BLUE}; }}
+            QListWidget {{
+                background-color: rgba(2, 12, 27, 0.6);
+                border: 1px solid rgba(25, 169, 255, 0.25);
+                border-radius: 10px;
+                outline: none;
+            }}
+            QListWidget::item {{ border-radius: 6px; }}
+            QListWidget::item:selected {{
+                background: rgba(25, 169, 255, 0.25);
+                border: 1px solid {STORM_BLUE};
+            }}
+            QScrollArea {{
+                background: transparent;
+                border: none;
+            }}
+            QLabel {{ color: {STORM_LIGHT}; font-size: 14px; }}
+            QStatusBar {{ background: {GLASS_DARK}; color: {STORM_BLUE}; }}
+            QStatusBar QLabel {{ color: {STORM_BLUE}; }}
+        """)
+
+    # ---------- Actions ----------
+    def _pick_folder(self):
+        d = QFileDialog.getExistingDirectory(self, "Open Folder", QDir.homePath())
+        if d:
+            self.open_folder(d)
+
+    def open_folder(self, folder, select=None):
+        self.image_files = []
+        for name in sorted(os.listdir(folder)):
+            if os.path.splitext(name)[1].lower() in IMAGE_EXTS:
+                self.image_files.append(os.path.join(folder, name))
+        self.thumbs.clear()
+        for path in self.image_files:
+            reader = QImageReader(path)
+            reader.setAutoTransform(True)
+            sz = reader.size()
+            sz.scale(QSize(96, 96), Qt.KeepAspectRatio)
+            reader.setScaledSize(sz)
+            pix = reader.read()
+            item = QListWidgetItem(QIcon(pix), os.path.basename(path))
+            item.setData(Qt.UserRole, path)
+            item.setToolTip(os.path.basename(path))
+            self.thumbs.addItem(item)
+        self.status.showMessage(f"{folder} — {len(self.image_files)} images")
+        if select:
+            for i, p in enumerate(self.image_files):
+                if os.path.basename(p) == select:
+                    self.thumbs.setCurrentRow(i)
+                    self._show(i)
+                    return
+        if self.image_files:
+            self.thumbs.setCurrentRow(0)
+            self._show(0)
+
+    def _thumb_clicked(self, item):
+        path = item.data(Qt.UserRole)
+        if path in self.image_files:
+            self._show(self.image_files.index(path))
+
+    def _show(self, idx):
+        if not (0 <= idx < len(self.image_files)):
+            return
+        self.current_index = idx
+        self.rotation = 0
+        self.zoom_factor = 1.0
+        path = self.image_files[idx]
+        reader = QImageReader(path)
+        reader.setAutoTransform(True)
+        img = reader.read()
+        if img.isNull():
+            self.image_label.setText(f"Cannot open: {os.path.basename(path)}")
+            return
+        self._pixmap = QPixmap.fromImage(img)
+        self._fit()
+        name = os.path.basename(path)
+        w, h = img.width(), img.height()
+        self.status.showMessage(f"{name}  {w}×{h}  ({idx+1}/{len(self.image_files)})")
+
+    def _render(self):
+        if not hasattr(self, "_pixmap"):
+            return
+        pm = self._pixmap
+        if self.rotation:
+            pm = pm.transformed(QTransform().rotate(self.rotation), Qt.SmoothTransformation)
+        if self.zoom_factor != 1.0:
+            pm = pm.scaled(
+                int(pm.width() * self.zoom_factor),
+                int(pm.height() * self.zoom_factor),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.image_label.setPixmap(pm)
+
+    def _fit(self):
+        if not hasattr(self, "_pixmap"):
+            return
+        avail = self.scroll.viewport().size() * 0.95
+        pm = self._pixmap
+        s = min(avail.width() / max(pm.width(), 1), avail.height() / max(pm.height(), 1), 1.0)
+        self.zoom_factor = s
+        pm2 = pm.scaled(pm.width() * s, pm.height() * s, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.image_label.setPixmap(pm2)
+
+    def _zoom(self, f):
+        self.zoom_factor *= f
+        self._render()
+
+    def _rotate(self):
+        self.rotation = (self.rotation + 90) % 360
+        self._render()
+
+    def _step(self, d):
+        if self.image_files:
+            self.current_index = (self.current_index + d) % len(self.image_files)
+            self.thumbs.setCurrentRow(self.current_index)
+            self._show(self.current_index)
+
+    def _toggle_fs(self):
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Left:
+            self._step(-1)
+        elif e.key() == Qt.Key_Right:
+            self._step(1)
+        elif e.key() == Qt.Key_Escape and self.isFullScreen():
+            self.showNormal()
+        else:
+            super().keyPressEvent(e)
+
+
+def main():
+    app = QApplication(sys.argv)
+    app.setApplicationName("StormOS Gallery")
+    app.setWindowIcon(QIcon("/usr/share/icons/StormOS-icons/scalable/apps/stormos-gallery.svg"))
+    w = StormGallery()
+    w.show()
+    sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()

@@ -213,6 +213,25 @@ if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-set-wal
     ok "Wallpaper setter installed"
 fi
 
+# Install StormOS Gallery (custom image viewer, replaces ristretto)
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-gallery" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-gallery" /usr/local/bin/
+    sudo chmod +x /usr/local/bin/stormos-gallery
+    sudo sed -i 's/\r$//' /usr/local/bin/stormos-gallery
+    ok "StormOS Gallery installed"
+fi
+if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/stormos-gallery.desktop" ]; then
+    sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/stormos-gallery.desktop" /usr/share/applications/
+    ok "StormOS Gallery desktop entry installed"
+fi
+# Make StormOS Gallery the default image viewer
+if command -v xdg-mime >/dev/null 2>&1; then
+    for mime in image/png image/jpeg image/gif image/bmp image/webp image/tiff image/svg+xml; do
+        xdg-mime default stormos-gallery.desktop "$mime" 2>/dev/null || true
+    done
+    ok "StormOS Gallery set as default image viewer"
+fi
+
 # Install wallpaper autostart
 mkdir -p "$HOME/.config/autostart"
 cp "$SKEL/.config/autostart/stormos-wallpaper.desktop" "$HOME/.config/autostart/" 2>/dev/null || true
@@ -292,6 +311,13 @@ rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
 rm -f "$HOME/.config/xfce4/panel/"*.rc 2>/dev/null || true
 rm -rf "$HOME/.config/xfce4/panel/launcher-"* 2>/dev/null || true
 
+# Remove ristretto and block it from coming back (replaced by StormOS Gallery)
+sudo sed -i 's/^#IgnorePkg.*$/#IgnorePkg =\nIgnorePkg = ristretto/' /etc/pacman.conf 2>/dev/null || true
+if pacman -Qi ristretto &>/dev/null; then
+    sudo pacman -Rns --noconfirm ristretto 2>/dev/null || true
+    info "Ristretto removed (replaced by StormOS Gallery)"
+fi
+
 # Remove stale autostart entries that might block session startup
 rm -f "$HOME/.config/autostart/autoi.desktop" 2>/dev/null || true
 rm -f "$HOME/.config/autostart/trust-launch.desktop" 2>/dev/null || true
@@ -327,6 +353,8 @@ fi
 # Terminal config
 mkdir -p "$HOME/.config/xfce4/terminal"
 cp "$SKEL/.config/xfce4/terminal/terminalrc" "$HOME/.config/xfce4/terminal/" 2>/dev/null || true
+# Enforce terminal font size 14 (JetBrains Mono Nerd)
+sed -i 's/^FontName=.*/FontName=JetBrains Mono Nerd Font 14/' "$HOME/.config/xfce4/terminal/terminalrc" 2>/dev/null || true
 
 # GTK themes
 mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
