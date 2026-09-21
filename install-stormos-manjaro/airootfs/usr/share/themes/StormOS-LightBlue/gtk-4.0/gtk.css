@@ -1,0 +1,20 @@
+/* StormOS-LightBlue GTK4 — inherits Arc-BLACK-ICE, overrides with light blue accents */
+@import url("resource:///org/gnome/arc-theme/gtk-main.css");
+
+@define-color accent_color #60A5FA;
+@define-color accent_bg_color #1e40af;
+@define-color accent_fg_color #ffffff;
+@define-color window_bg_color #0A1628;
+@define-color window_fg_color #E8F2FF;
+@define-color headerbar_bg_color #0f1d30;
+@define-color headerbar_fg_color #E8F2FF;
+
+*, *::selection { background-color: rgba(96, 165, 250, 0.25); color: #E8F2FF; }
+:focus-visible { outline-color: #60A5FA; }
+switch:checked { background-color: #60A5FA; border-color: #60A5FA; }
+scrollbar slider { background-color: rgba(96, 165, 250, 0.3); border-radius: 5px; }
+scrollbar slider:hover { background-color: rgba(96, 165, 250, 0.5); }
+a { color: #60A5FA; }
+a:hover { color: #93c5fd; }
+progressbar progress { background-color: #60A5FA; }
+headerbar .title { color: #60A5FA; font-weight: bold; }

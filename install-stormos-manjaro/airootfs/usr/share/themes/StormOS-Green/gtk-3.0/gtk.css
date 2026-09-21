@@ -1,0 +1,67 @@
+/* StormOS-Green — inherits Arc-BLACK-ICE, overrides with green accents */
+@import url("resource:///org/gnome/arc-theme/gtk-main.css");
+
+/* Green accent: #4ADE80 (tailwind green-400) */
+@define-color accent_color #4ADE80;
+@define-color accent_bg_color #166534;
+@define-color accent_fg_color #ffffff;
+@define-color window_bg_color #0A1628;
+@define-color window_fg_color #E8F2FF;
+@define-color headerbar_bg_color #0f1d30;
+@define-color headerbar_fg_color #E8F2FF;
+@define-color card_bg_color #111c2e;
+@define-color card_fg_color #E8F2FF;
+@definecolor borders #1a3a5c;
+
+/* Selections */
+*, *::selection {
+    background-color: rgba(74, 222, 128, 0.25);
+    color: #E8F2FF;
+}
+
+/* Focus rings */
+:focus-visible {
+    outline-color: #4ADE80;
+}
+
+/* Buttons */
+button.suggested-action, button destructive {
+    background-color: #166534;
+    color: #ffffff;
+    border-color: #4ADE80;
+}
+button.suggested-action:hover {
+    background-color: #22c55e;
+}
+
+/* Switch / Toggle */
+switch:checked {
+    background-color: #4ADE80;
+    border-color: #4ADE80;
+}
+
+/* Sidebar */
+.sidebar, placessidebar, navigationsidebar {
+    background-color: #0a1628;
+    color: #c8e6ff;
+}
+
+/* Scrollbars */
+scrollbar slider {
+    background-color: rgba(74, 222, 128, 0.3);
+    border-radius: 5px;
+}
+scrollbar slider:hover {
+    background-color: rgba(74, 222, 128, 0.5);
+}
+
+/* Links */
+a { color: #4ADE80; }
+a:hover { color: #86efac; }
+
+/* Progress bars */
+progressbar trough { background-color: #111c2e; }
+progressbar progress { background-color: #4ADE80; }
+
+/* Headers / titles */
+headerbar .title { color: #4ADE80; font-weight: bold; }

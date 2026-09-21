@@ -1,0 +1,10 @@
+[Icon Theme]
+Name=StormOS-LightBlue
+Comment=StormOS LightBlue icon theme
+Inherits=Qogir-dark,hicolor
+Directories=scalable
+
+[scalable]
+Size=48
+Type=Scalable
+Context=Applications

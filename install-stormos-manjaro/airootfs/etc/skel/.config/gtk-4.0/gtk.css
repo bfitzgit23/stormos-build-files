@@ -1,0 +1,40 @@
+/* StormOS accent colors for GTK4 — mirrors GTK3 overrides */
+@define-color accent_color #19a9ff;
+@define-color accent_bg_color #0876c9;
+@define-color accent_fg_color #ffffff;
+@define-color headerbar_bg_color #0a1628;
+@define-color window_bg_color #0d1a2e;
+@define-color window_fg_color #e8f2ff;
+@define-color view_bg_color #0a1628;
+@define-color view_fg_color #e8f2ff;
+@define-color card_bg_color #111d33;
+@define-color card_fg_color #e8f2ff;
+
+selection, selection:focus {
+  background-color: @accent_color;
+  color: @accent_fg_color;
+}
+
+:focus { outline-color: @accent_color; }
+
+headerbar button:hover {
+  background-color: rgba(25, 169, 255, 0.15);
+  color: @accent_color;
+}
+
+scrollbar slider {
+  background-color: rgba(25, 169, 255, 0.4);
+  border-radius: 99px;
+}
+scrollbar slider:hover { background-color: rgba(25, 169, 255, 0.6); }
+
+switch:checked { background-color: @accent_color; color: @accent_fg_color; }
+
+notebook > header > tabs > tab:checked {
+  color: @accent_color;
+  border-bottom-color: @accent_color;
+}
+
+progressbar progress { background-color: @accent_color; }
+scale trough highlight { background-color: @accent_color; }
+a, button.link { color: @accent_color; }

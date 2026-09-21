@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=StormOS-Green
+Comment=StormOS green variant with dark background
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=StormOS-Green
+MetacityTheme=StormOS-Green
+IconTheme=StormOS-icons
+CursorTheme=DMZ-Black
+ButtonLayout=menu:minimize,maximize,close

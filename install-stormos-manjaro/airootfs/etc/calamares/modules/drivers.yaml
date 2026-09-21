@@ -1,0 +1,73 @@
+---
+- name: NVIDIA Open Driver
+  description: Build the open NVIDIA driver for linux, linux-lts, and linux-zen.
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - nvidia-open-dkms
+    - nvidia-utils
+    - nvidia-settings
+    - dkms
+    - opencl-nvidia
+    - vulkan-icd-loader
+    - lib32-nvidia-utils
+    - lib32-opencl-nvidia
+    - lib32-vulkan-icd-loader
+
+- name: Intel Graphics
+  description: Install Intel userspace graphics support.
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - intel-media-driver
+    - lib32-mesa
+    - mesa
+    - mesa-utils
+    - vulkan-intel
+    - lib32-vulkan-icd-loader
+
+- name: AMD Graphics
+  description: Install AMD userspace graphics support.
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - lib32-mesa
+    - mesa
+    - mesa-utils
+    - vulkan-radeon
+    - lib32-vulkan-radeon
+    - vulkan-icd-loader
+    - lib32-vulkan-icd-loader
+
+- name: CUDA Toolkit
+  description: Install the CUDA toolkit for supported workloads.
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - cuda
+
+- name: Intel Microcode
+  description: Install Intel CPU microcode.
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - intel-ucode
+
+- name: AMD Microcode
+  description: Install AMD CPU microcode.
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - amd-ucode
