@@ -427,10 +427,23 @@ for ws in 0 1 2 3; do
     xfconf-query -c xfce4-desktop -p "/backdrop/screen0/workspace${ws}/image-path" -s "/usr/share/backgrounds/stormos-wallpaper.png" 2>/dev/null || true
 done
 
-# Force xfdesktop to reload wallpaper
+# Force xfdesktop to reload wallpaper and disable desktop icons
 if pgrep -x xfdesktop >/dev/null 2>&1; then
     xfdesktop --reload 2>/dev/null || true
+    # Kill and restart xfdesktop to ensure icons are disabled
+    killall xfdesktop 2>/dev/null || true
+    sleep 1
+    xfdesktop --disable-desktop 2>/dev/null &
+    sleep 1
+    xfdesktop --reload 2>/dev/null || true
 fi
+
+# Also set desktop icons via xfconf to be absolutely sure
+xfconf-query -c xfce4-desktop -p /icons/default/show -s false 2>/dev/null || true
+xfconf-query -c xfce4-desktop -p /icons/default/show-home -s false 2>/dev/null || true
+xfconf-query -c xfce4-desktop -p /icons/default/show-filesystem -s false 2>/dev/null || true
+xfconf-query -c xfce4-desktop -p /icons/default/show-removable -s false 2>/dev/null || true
+xfconf-query -c xfce4-desktop -p /icons/default/show-trash -s false 2>/dev/null || true
 
 ok "XFCE theme set"
 
