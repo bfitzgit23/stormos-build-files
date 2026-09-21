@@ -38,6 +38,13 @@
   <property name="icons" type="empty">
     <property name="default" type="empty">
       <property name="show" type="bool" value="false"/>
+      <property name="show-home" type="bool" value="false"/>
+      <property name="show-filesystem" type="bool" value="false"/>
+      <property name="show-removable" type="bool" value="false"/>
+      <property name="show-trash" type="bool" value="false"/>
+      <property name="size" type="int" value="48"/>
+      <property name="font-size" type="int" value="-1"/>
+      <property name="icon-size" type="int" value="0"/>
     </property>
   </property>
 </channel>

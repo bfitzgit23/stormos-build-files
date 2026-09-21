@@ -162,6 +162,8 @@ os-prober
 p7zip
 pacman-contrib
 pamac-all
+flatpak
+qt5-styleplugins
 partclone
 parted
 partimage

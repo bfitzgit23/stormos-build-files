@@ -24,15 +24,16 @@ from PyQt5.QtWidgets import (
 # ============================================================
 # Colors (glass theme)
 # ============================================================
+# Colors – keep StormOS blue accent, fix gray/text colors
 STORM_NAVY = "#0a192f"
 STORM_BLUE = "#19A9FF"
 STORM_PURPLE = "#a742f5"
 STORM_TEAL = "#19A9FF"
 STORM_CORAL = "#ff6b6b"
-STORM_GRAY = "#19A9FF"
+STORM_GRAY = "#8892b0"
 STORM_DARK = "#020c1b"
-STORM_LIGHT = "#19A9FF"
-GLASS_DARK = "rgba(2, 12, 27, 0.85)"
+STORM_LIGHT = "#ccd6f6"
+GLASS_DARK = "rgba(10, 25, 47, 0.92)"
 
 HOME = Path.home()
 AUTOSTART_FILE = HOME / ".config/autostart/stormos-welcome.desktop"
@@ -193,6 +194,7 @@ class StormWelcome(QMainWindow):
         super().__init__()
         self.is_live = is_live_session()
         self.selected_package = None
+        self._apply_system_palette()
         self.init_ui()
         self.apply_styles()
         self.setup_autostart()
@@ -913,6 +915,27 @@ Categories=System;
                 font-size: 12px;
             }}
         """)
+
+    def _apply_system_palette(self):
+        """Read the system palette and update colors to match the GTK theme."""
+        global STORM_NAVY, STORM_GRAY, STORM_DARK, STORM_LIGHT, GLASS_DARK
+        pal = QGuiApplication.palette()
+        bg = pal.color(QPalette.Window)
+        fg = pal.color(QPalette.WindowText)
+        mid = pal.color(QPalette.Mid)
+        
+        def to_hex(c):
+            return f"#{c.red():02x}{c.green():02x}{c.blue():02x}"
+        
+        def to_rgba(c, alpha=0.92):
+            return f"rgba({c.red()}, {c.green()}, {c.blue()}, {alpha})"
+        
+        STORM_NAVY = to_hex(bg)
+        STORM_DARK = to_hex(mid)
+        STORM_LIGHT = to_hex(fg)
+        STORM_GRAY = to_hex(mid)
+        GLASS_DARK = to_rgba(bg, 0.92)
+        self.setPalette(pal)
 
     def animate_window(self):
         self.setWindowOpacity(0)

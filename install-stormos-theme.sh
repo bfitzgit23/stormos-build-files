@@ -345,6 +345,10 @@ sudo mkdir -p /etc/qt5ct/colors /etc/qt6ct/colors
 sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt5ct/colors/stormos.conf" /etc/qt5ct/colors/ 2>/dev/null || true
 sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/qt6ct/colors/stormos.conf" /etc/qt6ct/colors/ 2>/dev/null || true
 
+# Pamac config (AUR, Flatpak, parallel downloads)
+mkdir -p "$HOME/.config/pamac"
+[ -f "$SKEL/.config/pamac/pamac.conf" ] && cp "$SKEL/.config/pamac/pamac.conf" "$HOME/.config/pamac/" 2>/dev/null || true
+
 # Thunar file manager
 mkdir -p "$HOME/.config/Thunar"
 cp "$SKEL/.config/Thunar/uca.xml" "$HOME/.config/Thunar/"
