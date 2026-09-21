@@ -1,5 +1,7 @@
-# StormOS-GTK — Arc-BLACK-ICE base with blue accent color overrides
+# StormOS-GTK — Arc-BLACK-ICE base with StormOS blue accent colors
+# GTK2 theme: includes Arc-BLACK-ICE's gtkrc, overrides color scheme
 
+# StormOS blue accent color scheme
 gtk-color-scheme = "base_color: #020c1b"
 gtk-color-scheme = "text_color: #E8F2FF"
 gtk-color-scheme = "bg_color: #0A1628"
@@ -19,8 +21,6 @@ gtk-icon-sizes = "gtk-button=16,16"
 gtk-auto-mnemonics = 1
 gtk-primary-button-warps-slider = 1
 
-include "main.rc"
-include "apps.rc"
-include "panel.rc"
-include "xfce-notify.rc"
-include "menubar-toolbar/menubar-toolbar-dark.rc"
+# Include Arc-BLACK-ICE's base rendering (engine rules, widget styles)
+# The color-scheme above overrides the colors, everything else stays Arc-BLACK-ICE
+include "/usr/share/themes/Arc-BLACK-ICE/gtk-2.0/gtkrc"
