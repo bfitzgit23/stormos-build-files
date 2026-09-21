@@ -1,5 +1,4 @@
 
-# StormOS React Desktop Shell
 #pamac
 #yay-bin
 StormOS-conf
@@ -28,7 +27,6 @@ calamares-app
 clamav
 clonezilla
 cloud-init
-conky
 cryptsetup
 cups
 cups-pdf
@@ -46,7 +44,6 @@ dosfstools
 e2fsprogs
 edk2-shell
 efibootmgr
-electron
 engrampa
 espeakup
 ethtool
@@ -149,8 +146,6 @@ networkmanager
 nfs-utils
 nilfs-utils
 nmap
-nodejs
-npm
 ntfs-3g
 nvidia-open-dkms
 nvidia-settings
@@ -158,7 +153,6 @@ nvidia-utils
 nvme-cli
 open-iscsi
 open-vm-tools
-openbox
 opencl-nvidia
 openconnect
 openpgp-card-tools
@@ -172,7 +166,6 @@ parted
 partimage
 pavucontrol
 pcsclite
-picom
 pipewire
 pipewire-alsa
 pipewire-pulse
@@ -214,7 +207,6 @@ thermald
 tmux
 tpm2-tools
 tpm2-tss
-ttf-inter
 ttf-jetbrains-mono
 ttf-jetbrains-mono-nerd
 ttf-ubuntu-font-family
