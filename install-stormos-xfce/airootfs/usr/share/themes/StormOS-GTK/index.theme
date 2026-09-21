@@ -1,5 +1,6 @@
 [Desktop Entry]
-Type=GTK
+Type=X-GNOME-Metatheme
 Name=StormOS-GTK
-Comment=StormOS theme (Arc-BLACK-ICE with blue accents)
+Comment=StormOS GTK2 theme with blue accents (GTK3 uses Arc-BLACK-ICE)
 Encoding=UTF-8
+X-GNOME-Metatheme=Arc-BLACK-ICE
