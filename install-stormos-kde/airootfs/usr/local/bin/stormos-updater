@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+#
+# stormos-updater — Background system updater with TUI progress.
+#
+# Runs pacman -Syu in the background on first boot after install.
+# Shows a minimal dialog with progress. Can also be run manually.
+#
+# Usage:
+#   stormos-updater          # Interactive (shows dialog if available)
+#   stormos-updater --quiet  # No dialog, just log to file
+#
+
+set -uo pipefail
+
+LOG="/var/log/stormos-updater.log"
+LOCK="/tmp/.stormos-updater.lock"
+NOTIFY_DB="$HOME/.stormos-update-done"
+
+# Prevent concurrent runs
+if [ -f "$LOCK" ]; then
+    PID=$(cat "$LOCK" 2>/dev/null)
+    if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+        echo "Updater already running (PID $PID)"
+        exit 0
+    fi
+fi
+echo $$ > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT
+
+log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG"; }
+
+# ── Check if update is needed ────────────────────────────────────────────────
+if [ -f "$NOTIFY_DB" ]; then
+    LAST=$(cat "$NOTIFY_DB" 2>/dev/null || echo 0)
+    NOW=$(date +%s)
+    AGE=$(( NOW - LAST ))
+    # Skip if updated in last 6 hours
+    if [ "$AGE" -lt 21600 ]; then
+        log "System updated recently ($(( AGE / 3600 ))h ago), skipping"
+        exit 0
+    fi
+fi
+
+# ── Sync database ────────────────────────────────────────────────────────────
+log "Syncing package databases..."
+pacman -Sy --noconfirm >>"$LOG" 2>&1
+
+# ── Check if updates are available ───────────────────────────────────────────
+UPDATES=$(checkupdates 2>/dev/null | wc -l)
+if [ "$UPDATES" -eq 0 ]; then
+    log "System is up to date"
+    date +%s > "$NOTIFY_DB"
+    exit 0
+fi
+
+log "$UPDATES updates available"
+
+# ── Show TUI dialog or run quiet ────────────────────────────────────────────
+if [ "${1:-}" = "--quiet" ]; then
+    log "Installing updates (quiet mode)..."
+    pacman -Syu --noconfirm >>"$LOG" 2>&1
+    RESULT=$?
+else
+    # Try zenity first, then dialog, then terminal
+    if command -v zenity &>/dev/null; then
+        log "Installing updates (zenity)..."
+        pacman -Syu --noconfirm 2>&1 | zenity --progress \
+            --title="StormOS System Update" \
+            --text="Updating $UPDATES packages..." \
+            --percentage=0 \
+            --auto-close \
+            --width=400 2>/dev/null
+        RESULT=$?
+    elif command -v dialog &>/dev/null; then
+        log "Installing updates (dialog)..."
+        exec 3>&1
+        OUTPUT=$(pacman -Syu --noconfirm 2>&1 | dialog \
+            --title "StormOS System Update" \
+            --gauge "Updating $UPDATES packages..." \
+            - 20 60 0)
+        RESULT=$?
+        exec 3>&-
+    else
+        log "Installing updates (terminal)..."
+        echo ""
+        echo "╔══════════════════════════════════════╗"
+        echo "║    StormOS System Update             ║"
+        echo "║    Updating $UPDATES packages...              ║"
+        echo "╚══════════════════════════════════════╝"
+        echo ""
+        pacman -Syu --noconfirm 2>&1 | tail -20
+        RESULT=$?
+    fi
+fi
+
+if [ "$RESULT" -eq 0 ]; then
+    log "Update completed successfully"
+    date +%s > "$NOTIFY_DB"
+    # Show notification if possible
+    if command -v notify-send &>/dev/null; then
+        notify-send "StormOS" "System update complete — $UPDATES packages updated" \
+            --icon=system-software-update 2>/dev/null || true
+    fi
+else
+    log "Update failed (exit code $RESULT)"
+    if command -v notify-send &>/dev/null; then
+        notify-send "StormOS" "System update failed — check /var/log/stormos-updater.log" \
+            --icon=dialog-error 2>/dev/null || true
+    fi
+fi
+
+exit "$RESULT"

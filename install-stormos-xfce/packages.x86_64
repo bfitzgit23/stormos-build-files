@@ -162,6 +162,7 @@ openssh
 openvpn
 os-prober
 p7zip
+pacman-contrib
 pamac-all
 partclone
 parted

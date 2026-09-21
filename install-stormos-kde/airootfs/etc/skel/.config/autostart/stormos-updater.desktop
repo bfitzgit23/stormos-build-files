@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=StormOS System Updater
+Comment=Background system update checker
+Exec=stormos-updater
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-XFCE-Autostart-Override=true
