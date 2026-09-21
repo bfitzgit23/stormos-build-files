@@ -14,7 +14,9 @@
       <property name="size" type="uint" value="34"/>
       <property name="plugin-ids" type="array">
         <value type="int" value="1"/>
+        <value type="int" value="23"/>
         <value type="int" value="12"/>
+        <value type="int" value="22"/>
         <value type="int" value="20"/>
         <value type="int" value="3"/>
         <value type="int" value="2"/>
@@ -161,6 +163,14 @@
         <property name="label0" type="int" value="3"/>
         <property name="label1" type="int" value="9"/>
       </property>
+    </property>
+    <property name="plugin-22" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+      <property name="expand" type="bool" value="false"/>
+    </property>
+    <property name="plugin-23" type="string" value="separator">
+      <property name="style" type="uint" value="0"/>
+      <property name="expand" type="bool" value="false"/>
     </property>
     <property name="plugin-20" type="string" value="separator">
       <property name="style" type="uint" value="0"/>

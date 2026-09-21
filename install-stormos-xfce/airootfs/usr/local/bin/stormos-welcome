@@ -25,13 +25,13 @@ from PyQt5.QtWidgets import (
 # Colors (glass theme)
 # ============================================================
 STORM_NAVY = "#0a192f"
-STORM_BLUE = "#64ffda"
+STORM_BLUE = "#19A9FF"
 STORM_PURPLE = "#a742f5"
-STORM_TEAL = "#00d1b2"
+STORM_TEAL = "#19A9FF"
 STORM_CORAL = "#ff6b6b"
-STORM_GRAY = "#8892b0"
+STORM_GRAY = "#19A9FF"
 STORM_DARK = "#020c1b"
-STORM_LIGHT = "#e6f1ff"
+STORM_LIGHT = "#19A9FF"
 GLASS_DARK = "rgba(2, 12, 27, 0.85)"
 
 HOME = Path.home()
@@ -241,7 +241,7 @@ class StormWelcome(QMainWindow):
         title = QLabel("🌩️ StormOS")
         title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
         subtitle = QLabel("Arch Linux made easy")
-        subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
+        subtitle.setStyleSheet(f"color: {STORM_BLUE}; font-size: 14px; margin-left: 12px;")
         hlayout.addWidget(title)
         hlayout.addWidget(subtitle)
         hlayout.addStretch()
@@ -255,11 +255,11 @@ class StormWelcome(QMainWindow):
         footer = QWidget()
         flayout = QHBoxLayout(footer)
         self.status_label = QLabel("Ready")
-        self.status_label.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
+        self.status_label.setStyleSheet(f"color: {STORM_BLUE}; font-size: 12px;")
         flayout.addWidget(self.status_label)
         flayout.addStretch()
         version = QLabel("v2.0 • Arch made easy")
-        version.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
+        version.setStyleSheet(f"color: {STORM_BLUE}; font-size: 11px;")
         flayout.addWidget(version)
         return footer
 
@@ -298,13 +298,13 @@ class StormWelcome(QMainWindow):
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(25)
 
-        welcome = QLabel("Welcome to Your New <span style='color:#64ffda'>StormOS</span> System!")
+        welcome = QLabel("Welcome to Your New <span style='color:#19A9FF'>StormOS</span> System!")
         welcome.setStyleSheet("font-size: 28px; font-weight: bold;")
         welcome.setWordWrap(True)
         layout.addWidget(welcome)
 
         desc = QLabel("Your Arch Linux journey starts now — easy, powerful, and beginner-friendly")
-        desc.setStyleSheet(f"color: {STORM_GRAY}; font-size: 15px; margin-bottom: 20px;")
+        desc.setStyleSheet(f"color: {STORM_BLUE}; font-size: 15px; margin-bottom: 20px;")
         layout.addWidget(desc)
 
         # Installer card
@@ -314,7 +314,7 @@ class StormWelcome(QMainWindow):
         install_btn.clicked.connect(self.launch_calamares)
         install_card.layout().addWidget(install_btn)
         hint = QLabel("Runs the graphical installer to install StormOS to disk." if self.is_live else "StormOS is already installed.")
-        hint.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px; margin-top: 8px;")
+        hint.setStyleSheet(f"color: {STORM_BLUE}; font-size: 12px; margin-top: 8px;")
         hint.setWordWrap(True)
         install_card.layout().addWidget(hint)
         layout.addWidget(install_card)
@@ -325,7 +325,7 @@ class StormWelcome(QMainWindow):
             self.autostatus = QLabel()
             autocard.layout().addWidget(self.autostatus)
             info = QLabel("Control whether this app launches automatically when you log in.")
-            info.setStyleSheet(f"color: {STORM_GRAY}; font-size: 12px;")
+            info.setStyleSheet(f"color: {STORM_BLUE}; font-size: 12px;")
             info.setWordWrap(True)
             autocard.layout().addWidget(info)
             btn_layout = QHBoxLayout()
@@ -378,7 +378,7 @@ class StormWelcome(QMainWindow):
             btn.clicked.connect(lambda _, c=cmd, t=text: run_command(c, t))
             card.layout().addWidget(btn)
         note = QLabel("Note: commands open in your default terminal (konsole on KDE).")
-        note.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px; margin-top: 12px;")
+        note.setStyleSheet(f"color: {STORM_BLUE}; font-size: 11px; margin-top: 12px;")
         card.layout().addWidget(note)
         layout.addWidget(card)
         layout.addStretch()
@@ -399,7 +399,7 @@ class StormWelcome(QMainWindow):
         header.addWidget(title)
         header.addStretch()
         self.backend_status = QLabel("Pacman: ✓ | AUR: ?")
-        self.backend_status.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
+        self.backend_status.setStyleSheet(f"color: {STORM_BLUE}; font-size: 11px;")
         header.addWidget(self.backend_status)
         layout.addLayout(header)
 
@@ -775,7 +775,7 @@ Categories=System;
             }}
             QPushButton#actionButton {{
                 background: rgba(100, 255, 218, 0.08);
-                color: {STORM_LIGHT};
+                color: {STORM_BLUE};
                 border: 1px solid rgba(100, 255, 218, 0.2);
                 border-radius: 10px;
                 padding: 10px 16px;
@@ -804,7 +804,7 @@ Categories=System;
                 border: 1px solid rgba(100, 255, 218, 0.3);
                 border-radius: 10px;
                 padding: 8px;
-                color: {STORM_LIGHT};
+                color: {STORM_BLUE};
             }}
             QTreeWidget {{
                 background-color: rgba(2, 12, 27, 0.6);
@@ -856,12 +856,12 @@ Categories=System;
                 background: none;
             }}
             QLabel {{
-                color: {STORM_LIGHT};
+                color: {STORM_BLUE};
                 background: transparent;
             }}
             QToolTip {{
                 background-color: {STORM_NAVY};
-                color: {STORM_LIGHT};
+                color: {STORM_BLUE};
                 border: 1px solid rgba(100, 255, 218, 0.3);
                 border-radius: 6px;
                 padding: 4px 8px;
