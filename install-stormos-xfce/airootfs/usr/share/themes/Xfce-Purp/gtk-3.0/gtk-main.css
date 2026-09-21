@@ -1,0 +1,47 @@
+/*default color scheme */
+@define-color bg_color #1a0a2e;
+@define-color fg_color #d4c4f0;
+@define-color base_color #ffffff;
+@define-color text_color #3C3C3C;
+@define-color selected_bg_color #8a43bd;
+@define-color selected_fg_color #ffffff;
+@define-color tooltip_bg_color #2a2a3a;
+@define-color tooltip_fg_color #ffffff;
+
+/* misc colors used by gtk+
+ *
+ * Gtk doesn't currently expand color variables for style properties. Thus,
+ * gtk-widgets.css uses literal color names, but includes a comment containing
+ * the name of the variable. Please remember to change values there as well
+ * when changing one of the variables below.
+ */
+@define-color info_fg_color rgb (181, 171, 156);
+@define-color info_bg_color rgb (252, 252, 189);
+@define-color warning_fg_color rgb (173, 120, 41);
+@define-color warning_bg_color rgb (250, 173, 61);
+@define-color question_fg_color rgb (97, 122, 214);
+@define-color question_bg_color rgb (138, 173, 212);
+@define-color error_fg_color rgb (235, 235, 235);
+@define-color error_bg_color rgb (223, 56, 44);
+@define-color link_color @selected_bg_color;
+@define-color success_color #4e9a06;
+@define-color error_color #df382c;
+@define-color chrome_bg_color #1a0a2e;
+@define-color theme_unfocus_selected_bg_color #8a43bd;
+@define-color button_bg_color shade (#1a0a2e, 1.02);
+@define-color notebook_button_bg_color shade (#1a0a2e, 1.02);
+@define-color button_insensitive_bg_color mix (#1a0a2e, #d4c4f0, 0.6);
+@define-color dark_bg_color #3c3b37;
+@define-color backdrop_fg_color mix (#1a0a2e, #d4c4f0, 0.8);
+@define-color backdrop_dark_fg_color mix (#3c3b37, #dfdbd2, 0.75);
+@define-color focus_color alpha(#8a43bd, 0.5);
+@define-color focus_bg_color alpha(#8a43bd, 0.1);
+@define-color active_shadow_color #000;
+@define-color inactive_shadow_color rgba(0,0,0,0.3);
+@define-color scrollbar_track_color alpha(#d4c4f0, 0.08);
+@define-color places_sidebar_fg_color #d4c4f0;
+@define-color places_sidebar_selected_bg_color alpha(#8a43bd, 0.2);
+@define-color theme_unfocus_fg_color #dfdbd2;
+@define-color theme_unfocus_base_color #3c3b37;
+@define-color theme_unfocus_selected_fg_color #ffffff;
+@define-color border_color rgba(255,255,255,0.1);

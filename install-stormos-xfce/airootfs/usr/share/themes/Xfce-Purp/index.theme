@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=Xfce-Purp
+Comment=A dark GTK theme with electric purple accents. Supports XFCE 4.20+, MATE, GNOME Flashback, Unity 7 (CSD), and GTK 3.20/4.0. Compatible with adw-gtk3 dark aesthetics.
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Xfce-Purp
+XfwmTheme=Xfce-Purp
+MetacityTheme=Xfce-Purp
+OpenboxTheme=Xfce-Purp
+CursorTheme=Adwaita
+ButtonLayout=:minimize,maximize,close

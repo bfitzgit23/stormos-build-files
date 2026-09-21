@@ -1,0 +1,346 @@
+/* Xfce-Purp Unity Theme - XFCE 4.20+ / Ubuntu Unity */
+
+.UnityPanel {
+    background-color: #1a0a2e;
+    background-image: none;
+    color: #e6e9ef;
+    font-weight: bold;
+    border-bottom: 1px solid #8a43bd;
+    padding: 0 4px;
+    min-height: 28px;
+}
+
+.UnityPanel .panel-button {
+    color: #e6e9ef;
+    padding: 0 8px;
+    border-radius: 4px;
+    min-height: 22px;
+    background-image: none;
+    background-color: transparent;
+    border: none;
+}
+
+.UnityPanel .panel-button:hover {
+    background-color: #8a43bd;
+    color: #e6e9ef;
+}
+
+.UnityPanel .panel-button:active,
+.UnityPanel .panel-button:checked {
+    background-color: #8a43bd;
+    color: #ffffff;
+}
+
+.UnityPanel .panel-button:focus {
+    box-shadow: none;
+}
+
+.UnityPanel .appmenu {
+    color: #e6e9ef;
+    font-weight: bold;
+    padding: 0 10px;
+}
+
+.UnityPanel .panel-menu {
+    background-color: #252a3a;
+    border: 1px solid #ffffff;
+    border-radius: 0 0 6px 6px;
+    padding: 4px 0;
+}
+
+.panel-button menu menuitem {
+    padding: 5px 12px;
+    min-height: 24px;
+    color: #e6e9ef;
+}
+
+.panel-button menu menuitem:hover {
+    background-color: #8a43bd;
+}
+
+.unity-indicator-application-accessible {
+    padding: 0 4px;
+}
+
+.indicator-desktop-menu-item,
+.indicator-messages-menu-item {
+    color: #e6e9ef;
+}
+
+.panel-indicator {
+    color: #e6e9ef;
+    padding: 0 6px;
+}
+
+.panel-indicator:hover {
+    background-color: #8a43bd;
+}
+
+.panel-indicator .panel-indicator-entry {
+    color: #e6e9ef;
+    padding: 2px 4px;
+}
+
+.panel-indicator .panel-indicator-entry:hover {
+    background-color: #8a43bd;
+}
+
+.Launcher {
+    background-color: #141724;
+    background-image: none;
+    border-right: 1px solid #ffffff;
+    padding: 4px 0;
+}
+
+.Launcher .launcher-icon {
+    padding: 6px 8px;
+    border-radius: 6px;
+    min-width: 48px;
+    min-height: 48px;
+}
+
+.Launcher .launcher-icon:hover {
+    background-color: #e6e9ef;
+}
+
+.Launcher .launcher-icon:active,
+.Launcher .launcher-icon:checked {
+    background-color: #8a43bd;
+}
+
+.Launcher .launcher-icon .counter,
+.Launcher .launcher-icon .progress {
+    background-color: #8a43bd;
+    color: #ffffff;
+    font-size: 10px;
+    min-width: 16px;
+    min-height: 16px;
+    border-radius: 99px;
+    padding: 1px 4px;
+}
+
+.Launcher .quicklist {
+    background-color: #252a3a;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    padding: 6px;
+}
+
+.Launcher .quicklist menuitem {
+    padding: 5px 12px;
+    min-height: 24px;
+    color: #e6e9ef;
+}
+
+.Launcher .quicklist menuitem:hover {
+    background-color: #8a43bd;
+    border-radius: 4px;
+}
+
+.Dash {
+    background-color: #1a0a2e;
+    color: #e6e9ef;
+}
+
+.Dash .search-entry {
+    background-color: #252a3a;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    color: #e6e9ef;
+    padding: 8px 16px;
+    font-size: 14px;
+    min-height: 32px;
+}
+
+.Dash .search-entry:focus {
+    border-color: #8a43bd;
+    box-shadow: 0 0 0 2px #8a43bd;
+}
+
+.Dash .search-entry .search-icon {
+    color: #8891a4;
+    padding: 0 8px;
+}
+
+.Dash .dash-tile {
+    background-color: #252a3a;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    padding: 8px;
+    min-width: 120px;
+    min-height: 90px;
+}
+
+.Dash .dash-tile:hover {
+    background-color: #8a43bd;
+    border-color: #8a43bd;
+}
+
+.Dash .dash-tile:active {
+    background-color: #8a43bd;
+}
+
+.Dash .dash-tile .tile-title {
+    color: #e6e9ef;
+    font-weight: bold;
+}
+
+.Dash .dash-tile .tile-subtitle {
+    color: #8891a4;
+    font-size: smaller;
+}
+
+.Dash .dash-category {
+    color: #8891a4;
+    font-weight: bold;
+    padding: 8px 4px;
+    border-bottom: 1px solid #ffffff;
+}
+
+.Dash .dash-category:hover {
+    color: #8a43bd;
+}
+
+.HudWindow {
+    background-color: #1a0a2e;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.HudWindow .hud-search {
+    background-color: #252a3a;
+    border: 1px solid #ffffff;
+    border-radius: 6px;
+    color: #e6e9ef;
+    padding: 8px 12px;
+    min-height: 32px;
+}
+
+.HudWindow .hud-search:focus {
+    border-color: #8a43bd;
+}
+
+.HudWindow .hud-result {
+    padding: 5px 12px;
+    min-height: 28px;
+    color: #e6e9ef;
+}
+
+.HudWindow .hud-result:hover,
+.HudWindow .hud-result:active {
+    background-color: #8a43bd;
+    border-radius: 4px;
+}
+
+.HudWindow .hud-result .result-label {
+    color: #e6e9ef;
+}
+
+.HudWindow .hud-result .result-shortcut {
+    color: #8891a4;
+    font-size: smaller;
+}
+
+decoration {
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 12px 28px #000000, 0 2px 4px #000000;
+}
+
+decoration .titlebar {
+    background-color: #1a0a2e;
+    min-height: 32px;
+    padding: 0 6px;
+}
+
+decoration .titlebar .title {
+    color: #e6e9ef;
+    font-weight: bold;
+}
+
+decoration .titlebar .subtitle {
+    color: #8891a4;
+    font-size: smaller;
+}
+
+.notify {
+    background-color: #252a3a;
+    border: 1px solid #ffffff;
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #e6e9ef;
+}
+
+.notify .notification-title {
+    font-weight: bold;
+    color: #e6e9ef;
+}
+
+.notify .notification-body {
+    color: #8891a4;
+}
+
+.notify .notification-action {
+    background-color: #8a43bd;
+    border: 1px solid #8a43bd;
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 4px 12px;
+}
+
+.notify .notification-action:hover {
+    background-color: #8a43bd;
+}
+
+.lockscreen {
+    background-color: #1a0a2e;
+}
+
+.lockscreen .prompt-entry {
+    background-color: #e6e9ef;
+    border: 1px solid #ffffff;
+    border-radius: 6px;
+    color: #e6e9ef;
+    padding: 8px 12px;
+}
+
+.lockscreen .prompt-entry:focus {
+    border-color: #8a43bd;
+}
+
+.panel-window-controls {
+    padding: 0 2px;
+}
+
+.panel-window-controls .close-button {
+    color: #e5534b;
+}
+
+.panel-window-controls .minimize-button,
+.panel-window-controls .maximize-button {
+    color: #8891a4;
+}
+
+.panel-session-menu {
+    color: #e6e9ef;
+}
+
+UnityProgressBar {
+    background-color: #e6e9ef;
+    border-radius: 99px;
+    min-height: 4px;
+}
+
+UnityProgressBar *,
+UnityProgressBar progress {
+    background-color: #8a43bd;
+    border-radius: 99px;
+}
+
+unity-tooltip {
+    background-color: #252a3a;
+    color: #e6e9ef;
+    border: 1px solid #ffffff;
+    border-radius: 6px;
+    padding: 6px 10px;
+}

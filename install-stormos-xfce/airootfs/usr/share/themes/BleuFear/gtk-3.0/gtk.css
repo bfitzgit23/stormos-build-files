@@ -1,0 +1,146 @@
+
+/* === BLEUFEAR MODERN GTK3 REWRITE === */
+
+/* ---- COLOR SYSTEM ---- */
+@define-color bg_color #1f2330;
+@define-color bg_alt #252a3a;
+@define-color fg_color #e6e9ef;
+@define-color accent_color #5aa2ff;
+@define-color accent_hover #6fb0ff;
+@define-color border_color rgba(255,255,255,0.08);
+@define-color shadow_color rgba(0,0,0,0.4);
+
+/* ---- BASE ---- */
+* {
+  border-radius: 6px;
+  outline: none;
+}
+
+window {
+  background-color: @bg_color;
+  color: @fg_color;
+}
+
+/* ---- BUTTONS ---- */
+button {
+  background-color: @bg_alt;
+  border: 1px solid @border_color;
+  padding: 6px 10px;
+}
+
+button:hover {
+  background-color: alpha(@accent_color, 0.15);
+}
+
+button:active {
+  background-color: alpha(@accent_color, 0.25);
+}
+
+/* ---- ENTRIES ---- */
+entry {
+  background-color: @bg_alt;
+  border: 1px solid @border_color;
+  padding: 6px;
+}
+
+entry:focus {
+  border-color: @accent_color;
+  box-shadow: 0 0 0 1px alpha(@accent_color, 0.4);
+}
+
+/* ---- MENUS ---- */
+menu {
+  background-color: @bg_alt;
+  padding: 6px;
+}
+
+menuitem {
+  padding: 6px 10px;
+}
+
+menuitem:hover {
+  background-color: alpha(@accent_color, 0.2);
+}
+
+/* ---- HEADERBAR ---- */
+headerbar {
+  background-color: @bg_color;
+  border: none;
+}
+
+/* ---- TOOLTIP ---- */
+tooltip {
+  background-color: @bg_alt;
+  padding: 6px;
+}
+
+/* ---- SCROLLBARS ---- */
+scrollbar slider {
+  background-color: alpha(@fg_color, 0.2);
+  min-width: 6px;
+  min-height: 6px;
+}
+
+
+/* ===== FINAL POLISH PASS ===== */
+
+@define-color accent_color #5aa2ff;
+
+button {
+  border-radius: 6px;
+  padding: 6px 12px;
+  border: 1px solid alpha(@fg_color, 0.12);
+  background-color: mix(@bg_color, @fg_color, 0.04);
+}
+
+button:hover {
+  background-color: mix(@accent_color, @bg_color, 0.2);
+  border-color: alpha(@accent_color, 0.4);
+}
+
+button:active {
+  background-color: mix(@accent_color, @bg_color, 0.35);
+}
+
+entry {
+  border-radius: 6px;
+  padding: 6px 8px;
+  border: 1px solid alpha(@fg_color, 0.15);
+}
+
+entry:focus {
+  border-color: @accent_color;
+  box-shadow: 0 0 0 2px alpha(@accent_color, 0.25);
+}
+
+menu {
+  padding: 6px;
+  border-radius: 8px;
+}
+
+menuitem {
+  padding: 6px 12px;
+}
+
+menuitem:hover {
+  background-color: alpha(@accent_color, 0.18);
+}
+
+.xfce4-panel, panel {
+  background-color: mix(@bg_color, #000, 0.15);
+}
+
+headerbar {
+  background-color: @bg_color;
+}
+
+scrollbar slider {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 6px;
+}
+
+tooltip {
+  border-radius: 6px;
+  padding: 6px 8px;
+}

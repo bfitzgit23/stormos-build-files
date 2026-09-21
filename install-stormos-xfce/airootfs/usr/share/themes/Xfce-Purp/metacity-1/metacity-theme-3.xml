@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metacity_theme>
+  <info>
+    <name>Xfce-Purp</name>
+    <title>Xfce-Purp</title>
+    <author>Xfce-Purp</author>
+    <copyright>(c) 2024</copyright>
+    <date>2024</date>
+    <description>Xfce-Purp dark theme for Metacity/Mutter</description>
+  </info>
+
+  <window type="normal" style_set="0">
+    <maximized state="whole">
+      <border color="#282e3c" style="plain" />
+      <distance name="left" value="0" />
+      <distance name="right" value="0" />
+      <distance name="top" value="0" />
+      <distance name="bottom" value="0" />
+    </maximized>
+    <maximized state="heading">
+      <border color="#282e3c" style="plain" />
+      <distance name="left" value="0" />
+      <distance name="right" value="0" />
+      <distance name="top" value="1" />
+      <distance name="bottom" value="0" />
+    </maximized>
+    <unmaximized>
+      <border color="#282e3c" style="plain" />
+      <distance name="left" value="1" />
+      <distance name="right" value="1" />
+      <distance name="top" value="1" />
+      <distance name="bottom" value="1" />
+    </unmaximized>
+
+    <title style_set="1">
+      <text color="#e6e9ef" />
+      <font name="sans-serif" size="10" />
+      <x_offset value="10" />
+      <y_offset value="1" />
+    </title>
+
+    <title_focused state="focused">
+      <text color="#e6e9ef" />
+    </title_focused>
+    <title_unfocused state="unfocused">
+      <text color="#8891a4" />
+    </title_unfocused>
+
+    <titlebar style_set="0">
+      <distance name="ygap" value="0" />
+      <distance name="parent_ygap" value="0" />
+    </titlebar>
+
+    <titlebar_focused state="focused">
+      <background color="#1f2330" />
+    </titlebar_focused>
+    <titlebar_unfocused state="unfocused">
+      <background color="#282e3c" />
+    </titlebar_unfocused>
+
+    <button function="close" state_set="2">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button-active.xpm" />
+    </button>
+    <button function="close" state_set="1">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+    <button function="close" state_set="0">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+    <button function="close" state_set="3">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+
+    <button function="maximize" state_set="2">
+      <area x0="24" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./maximize-active.xpm" />
+    </button>
+    <button function="maximize" state_set="1">
+      <area x0="24" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./maximize.xpm" />
+    </button>
+    <button function="maximize" state_set="0">
+      <area x0="24" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./maximize.xpm" />
+    </button>
+    <button function="maximize" state_set="3">
+      <area x0="24" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./maximize.xpm" />
+    </button>
+
+    <button function="minimize" state_set="2">
+      <area x0="48" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./minimize-active.xpm" />
+    </button>
+    <button function="minimize" state_set="1">
+      <area x0="48" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./minimize.xpm" />
+    </button>
+    <button function="minimize" state_set="0">
+      <area x0="48" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./minimize.xpm" />
+    </button>
+    <button function="minimize" state_set="3">
+      <area x0="48" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./minimize.xpm" />
+    </button>
+
+    <resize handle="left" state_set="0">
+      <distance name="left_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="right" state_set="0">
+      <distance name="right_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="top" state_set="0">
+      <distance name="top_height" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="bottom" state_set="0">
+      <distance name="bottom_height" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="topleft" state_set="0">
+      <distance name="top_height" value="1" />
+      <distance name="left_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="topright" state_set="0">
+      <distance name="top_height" value="1" />
+      <distance name="right_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="bottomleft" state_set="0">
+      <distance name="bottom_height" value="1" />
+      <distance name="left_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="bottomright" state_set="0">
+      <distance name="bottom_height" value="1" />
+      <distance name="right_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+
+    <resize handle="left" state_set="1">
+      <distance name="left_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="right" state_set="1">
+      <distance name="right_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="top" state_set="1">
+      <distance name="top_height" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="bottom" state_set="1">
+      <distance name="bottom_height" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="topleft" state_set="1">
+      <distance name="top_height" value="1" />
+      <distance name="left_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="topright" state_set="1">
+      <distance name="top_height" value="1" />
+      <distance name="right_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="bottomleft" state_set="1">
+      <distance name="bottom_height" value="1" />
+      <distance name="left_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+    <resize handle="bottomright" state_set="1">
+      <distance name="bottom_height" value="1" />
+      <distance name="right_width" value="1" />
+      <border color="#282e3c" style="plain" />
+    </resize>
+  </window>
+
+  <window type="dialog" style_set="0">
+    <border color="#282e3c" style="plain" />
+    <distance name="left" value="1" />
+    <distance name="right" value="1" />
+    <distance name="top" value="1" />
+    <distance name="bottom" value="1" />
+
+    <title style_set="1">
+      <text color="#e6e9ef" />
+      <font name="sans-serif" size="10" />
+      <x_offset value="10" />
+      <y_offset value="1" />
+    </title>
+
+    <titlebar style_set="0">
+      <distance name="ygap" value="0" />
+      <distance name="parent_ygap" value="0" />
+    </titlebar>
+
+    <titlebar_focused state="focused">
+      <background color="#1f2330" />
+    </titlebar_focused>
+    <titlebar_unfocused state="unfocused">
+      <background color="#282e3c" />
+    </titlebar_unfocused>
+
+    <button function="close" state_set="2">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button-active.xpm" />
+    </button>
+    <button function="close" state_set="1">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+    <button function="close" state_set="0">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+
+    <button function="maximize" state_set="2">
+      <area x0="24" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./maximize-active.xpm" />
+    </button>
+    <button function="maximize" state_set="1">
+      <area x0="24" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./maximize.xpm" />
+    </button>
+    <button function="maximize" state_set="0">
+      <area x0="24" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./maximize.xpm" />
+    </button>
+
+    <button function="minimize" state_set="2">
+      <area x0="48" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./minimize-active.xpm" />
+    </button>
+    <button function="minimize" state_set="1">
+      <area x0="48" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./minimize.xpm" />
+    </button>
+    <button function="minimize" state_set="0">
+      <area x0="48" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./minimize.xpm" />
+    </button>
+
+    <resize handle="left" state_set="0">
+      <distance name="left_width" value="1" />
+    </resize>
+    <resize handle="right" state_set="0">
+      <distance name="right_width" value="1" />
+    </resize>
+    <resize handle="top" state_set="0">
+      <distance name="top_height" value="1" />
+    </resize>
+    <resize handle="bottom" state_set="0">
+      <distance name="bottom_height" value="1" />
+    </resize>
+    <resize handle="topleft" state_set="0">
+      <distance name="top_height" value="1" />
+      <distance name="left_width" value="1" />
+    </resize>
+    <resize handle="topright" state_set="0">
+      <distance name="top_height" value="1" />
+      <distance name="right_width" value="1" />
+    </resize>
+    <resize handle="bottomleft" state_set="0">
+      <distance name="bottom_height" value="1" />
+      <distance name="left_width" value="1" />
+    </resize>
+    <resize handle="bottomright" state_set="0">
+      <distance name="bottom_height" value="1" />
+      <distance name="right_width" value="1" />
+    </resize>
+  </window>
+
+  <window type="modal_dialog" style_set="0">
+    <border color="#282e3c" style="plain" />
+    <distance name="left" value="1" />
+    <distance name="right" value="1" />
+    <distance name="top" value="1" />
+    <distance name="bottom" value="1" />
+
+    <title style_set="1">
+      <text color="#e6e9ef" />
+      <font name="sans-serif" size="10" />
+      <x_offset value="10" />
+      <y_offset value="1" />
+    </title>
+
+    <titlebar_focused state="focused">
+      <background color="#1f2330" />
+    </titlebar_focused>
+    <titlebar_unfocused state="unfocused">
+      <background color="#282e3c" />
+    </titlebar_unfocused>
+
+    <button function="close" state_set="2">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button-active.xpm" />
+    </button>
+    <button function="close" state_set="1">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+    <button function="close" state_set="0">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+  </window>
+
+  <window type="splash" style_set="0">
+    <border color="#282e3c" style="plain" />
+    <distance name="left" value="1" />
+    <distance name="right" value="1" />
+    <distance name="top" value="1" />
+    <distance name="bottom" value="1" />
+  </window>
+
+  <window type="utility" style_set="0">
+    <border color="#282e3c" style="plain" />
+    <distance name="left" value="1" />
+    <distance name="right" value="1" />
+    <distance name="top" value="1" />
+    <distance name="bottom" value="1" />
+
+    <title style_set="1">
+      <text color="#e6e9ef" />
+      <font name="sans-serif" size="10" />
+      <x_offset value="10" />
+      <y_offset value="1" />
+    </title>
+
+    <titlebar_focused state="focused">
+      <background color="#1f2330" />
+    </titlebar_focused>
+    <titlebar_unfocused state="unfocused">
+      <background color="#282e3c" />
+    </titlebar_unfocused>
+
+    <button function="close" state_set="2">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button-active.xpm" />
+    </button>
+    <button function="close" state_set="1">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+    <button function="close" state_set="0">
+      <area x0="0" y0="0" width="24" height="24" />
+      <border color="#000000" style="plain" />
+      <image filename="./button.xpm" />
+    </button>
+  </window>
+</metacity_theme>

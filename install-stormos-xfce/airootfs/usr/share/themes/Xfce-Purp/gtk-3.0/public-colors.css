@@ -1,0 +1,48 @@
+/* Named colors for app compatibility */
+
+@define-color theme_fg_color @fg_color;
+@define-color theme_bg_color @bg_color;
+@define-color theme_base_color @bg_alt;
+@define-color theme_selected_bg_color @accent_color;
+@define-color theme_selected_fg_color @selected_fg;
+@define-color theme_text_color @fg_color;
+@define-color insensitive_bg_color mix(@bg_color, @fg_color, 0.04);
+@define-color insensitive_fg_color @fg_dim;
+@define-color insensitive_base_color @bg_alt;
+@define-color theme_unfocused_fg_color @fg_dim;
+@define-color theme_unfocused_bg_color @bg_color;
+@define-color theme_unfocused_base_color @bg_alt;
+@define-color theme_unfocused_selected_bg_color @accent_color;
+@define-color theme_unfocused_selected_fg_color @selected_fg;
+@define-color borders @border_color;
+@define-color unfocused_borders @border_color;
+
+@define-color warning_color @warning_color;
+@define-color error_color @error_color;
+@define-color success_color @success_color;
+
+@define-color link_color @link_color;
+
+/* Window manager colors */
+@define-color wm_title @fg_color;
+@define-color wm_unfocused_title @fg_dim;
+@define-color wm_highlight alpha(@fg_color, 0.08);
+@define-color wm_borders_edge alpha(@fg_color, 0.08);
+@define-color wm_bg_a @bg_color;
+@define-color wm_bg_b @bg_variant;
+@define-color wm_shadow @shadow_color;
+@define-color wm_border @border_color;
+@define-color wm_button_hover_color_a mix(@fg_color, @bg_color, 0.15);
+@define-color wm_button_hover_color_b @fg_color;
+@define-color wm_button_active_color_a mix(@fg_color, @bg_color, 0.12);
+@define-color wm_button_active_color_b mix(@fg_color, @bg_color, 0.10);
+@define-color content_view_bg @bg_color;
+
+@define-color info_fg_color @fg_color;
+@define-color info_bg_color mix(@bg_color, @accent_color, 0.15);
+@define-color warning_fg_color @warning_color;
+@define-color warning_bg_color mix(@bg_color, @warning_color, 0.15);
+@define-color error_fg_color @error_color;
+@define-color error_bg_color mix(@bg_color, @error_color, 0.15);
+@define-color question_fg_color @accent_color;
+@define-color question_bg_color mix(@bg_color, @accent_color, 0.15);

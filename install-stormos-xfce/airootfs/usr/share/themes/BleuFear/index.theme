@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=BleuFear
+Comment=A dark theme with a wild streak of electric blue.
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=BleuFear
+MetacityTheme=BleuFear
+CursorTheme=default
+ButtonLayout=close,minimize,maximize:

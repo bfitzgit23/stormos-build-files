@@ -1,0 +1,623 @@
+/* Xfce-Purp GTK3 Theme - Updated for XFCE 4.20+ / GTK 3.24+ */
+
+@import url("public-colors.css");
+
+/* ---- COLOR SYSTEM ---- */
+@define-color bg_color #1a0a2e;
+@define-color bg_alt #2a1a3e;
+@define-color bg_variant #151025;
+@define-color fg_color #d4c4f0;
+@define-color fg_dim #9e8ab0;
+@define-color accent_color #8a43bd;
+@define-color accent_hover #9e5ad8;
+@define-color accent_active #7a34a8;
+@define-color selected_bg #8a43bd;
+@define-color selected_fg #ffffff;
+@define-color error_color #e5534b;
+@define-color warning_color #f5a623;
+@define-color success_color #57b96a;
+@define-color border_color rgba(255,255,255,0.08);
+@define-color shadow_color rgba(0,0,0,0.4);
+@define-color link_color #8a43bd;
+
+/* ---- DERIVED COLORS (needed by Stock Numix gtk-widgets.css) ---- */
+@define-color base_color @bg_alt;
+@define-color text_color @fg_color;
+@define-color selected_bg_color @accent_color;
+@define-color selected_fg_color @selected_fg;
+@define-color tooltip_bg_color @bg_alt;
+@define-color tooltip_fg_color @fg_color;
+@define-color dark_bg_color @bg_variant;
+@define-color dark_fg_color @fg_dim;
+@define-color button_bg_color mix(@bg_color, @fg_color, 0.06);
+@define-color button_insensitive_bg_color mix(@bg_color, @fg_color, 0.03);
+@define-color focus_color alpha(@accent_color, 0.5);
+@define-color focus_bg_color alpha(@accent_color, 0.1);
+@define-color active_shadow_color #000;
+@define-color inactive_shadow_color rgba(0,0,0,0.3);
+@define-color scrollbar_track_color alpha(@fg_color, 0.08);
+@define-color osd_bg_color alpha(@bg_alt, 0.92);
+@define-color osd_fg_color @fg_color;
+@define-color osd_border_color @border_color;
+@define-color panel_lighter_color mix(@bg_color, @fg_color, 0.04);
+@define-color panel_darker_color mix(@bg_color, #000, 0.15);
+@define-color places_sidebar_fg_color @fg_color;
+@define-color places_sidebar_selected_bg_color alpha(@accent_color, 0.2);
+@define-color backdrop_fg_color @fg_dim;
+@define-color backdrop_text_color mix(@bg_alt, @fg_color, 0.7);
+@define-color backdrop_bg_color @bg_color;
+@define-color backdrop_selected_bg_color alpha(@accent_color, 0.15);
+@define-color backdrop_selected_fg_color @fg_color;
+@define-color backdrop_dark_fg_color @fg_dim;
+@define-color maximized_header_color @bg_color;
+@define-color chrome_bg_color @bg_variant;
+@define-color inset_dark_color mix(@bg_color, #000, 0.2);
+@define-color internal_element_color shade(@bg_color, 0.95);
+@define-color theme_unfocus_fg_color @fg_dim;
+@define-color theme_unfocus_selected_bg_color @accent_color;
+@define-color theme_unfocus_selected_fg_color @selected_fg;
+@define-color theme_unfocus_base_color @bg_alt;
+
+/* ---- DARK SCHEME DECLARATION ---- */
+color-scheme: dark;
+
+/* ---- BASE RESET ---- */
+* {
+  border-radius: 6px;
+  outline-style: none;
+  -gtk-outline-radius: 0;
+  -gtk-icon-effect: none;
+  -gtk-icon-shadow: none;
+}
+
+window,
+.background {
+  background-color: @bg_color;
+  color: @fg_color;
+}
+
+/* ---- SELECTION ---- */
+selection {
+  background-color: @selected_bg;
+  color: @selected_fg;
+}
+
+/* ---- BUTTONS ---- */
+button {
+  background-color: mix(@bg_color, @fg_color, 0.06);
+  border: 1px solid @border_color;
+  color: @fg_color;
+  padding: 5px 12px;
+  min-height: 20px;
+  transition: all 150ms ease-in-out;
+}
+
+button:hover {
+  background-color: mix(@accent_color, @bg_color, 0.2);
+  border-color: alpha(@accent_color, 0.4);
+}
+
+button:active,
+button:checked {
+  background-color: mix(@accent_color, @bg_color, 0.35);
+  color: @selected_fg;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+button.suggested-action {
+  background-color: @accent_color;
+  color: @selected_fg;
+  border-color: @accent_color;
+}
+
+button.suggested-action:hover {
+  background-color: @accent_hover;
+}
+
+button.destructive-action {
+  background-color: @error_color;
+  color: @selected_fg;
+  border-color: @error_color;
+}
+
+button.flat {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+button.flat:hover {
+  background-color: alpha(@fg_color, 0.06);
+}
+
+/* ---- ENTRIES ---- */
+entry {
+  background-color: @bg_alt;
+  border: 1px solid @border_color;
+  color: @fg_color;
+  padding: 5px 8px;
+  caret-color: @fg_color;
+  transition: border-color 150ms ease-in-out, box-shadow 150ms ease-in-out;
+}
+
+entry:focus {
+  border-color: @accent_color;
+  box-shadow: 0 0 0 2px alpha(@accent_color, 0.25);
+}
+
+entry:disabled {
+  opacity: 0.5;
+}
+
+entry selection {
+  background-color: alpha(@accent_color, 0.35);
+  color: @fg_color;
+}
+
+/* ---- MENUS ---- */
+menu,
+.context-menu {
+  background-color: @bg_alt;
+  border: 1px solid @border_color;
+  padding: 6px;
+}
+
+menu menuitem {
+  padding: 5px 12px;
+  min-height: 24px;
+}
+
+menu menuitem:hover {
+  background-color: alpha(@accent_color, 0.18);
+  border-radius: 4px;
+}
+
+menu menuitem separator {
+  margin: 4px 6px;
+  background-color: @border_color;
+}
+
+/* ---- HEADERBAR / CSD ---- */
+headerbar,
+.titlebar {
+  background-color: @bg_color;
+  color: @fg_color;
+  border-bottom: 1px solid @border_color;
+  padding: 0 6px;
+  min-height: 32px;
+}
+
+headerbar .title,
+.titlebar .title {
+  font-weight: bold;
+}
+
+headerbar .subtitle,
+.titlebar .subtitle {
+  font-size: smaller;
+  opacity: 0.75;
+}
+
+headerbar button,
+.titlebar button {
+  min-height: 24px;
+  padding: 3px 8px;
+}
+
+headerbar button.flat,
+.titlebar button.flat {
+  background-image: none;
+  box-shadow: none;
+}
+
+window.csd,
+dialog.csd,
+.ssd {
+  border-radius: 8px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.15);
+}
+
+window.csd .titlebar {
+  border-radius: 8px 8px 0 0;
+}
+
+/* ---- SCROLLBARS ---- */
+scrollbar {
+  background-color: transparent;
+  transition: all 150ms ease-in-out;
+}
+
+scrollbar slider {
+  background-color: alpha(@fg_color, 0.2);
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 99px;
+  transition: all 150ms ease-in-out;
+}
+
+scrollbar slider:hover {
+  background-color: alpha(@fg_color, 0.35);
+}
+
+scrollbar slider:active {
+  background-color: alpha(@fg_color, 0.5);
+}
+
+scrollbar.overlay-indicator:not(.dragging):not(.hovering) {
+  opacity: 0.4;
+}
+
+/* ---- SCALE / SLIDER ---- */
+scale {
+  padding: 12px 0;
+}
+
+scale trough {
+  background-color: alpha(@fg_color, 0.08);
+  border-radius: 99px;
+  min-height: 4px;
+}
+
+scale trough highlight {
+  background-color: @accent_color;
+  border-radius: 99px;
+}
+
+scale slider {
+  background-color: @fg_color;
+  border: 2px solid @accent_color;
+  border-radius: 99px;
+  min-width: 18px;
+  min-height: 18px;
+  margin: -7px;
+  transition: all 150ms ease-in-out;
+}
+
+scale slider:hover {
+  background-color: @accent_hover;
+  border-color: @accent_hover;
+}
+
+scale slider:active {
+  background-color: @accent_active;
+  border-color: @accent_active;
+}
+
+/* ---- PROGRESSBAR ---- */
+progressbar {
+  font-size: smaller;
+}
+
+progressbar trough {
+  background-color: alpha(@fg_color, 0.08);
+  border-radius: 99px;
+  min-height: 6px;
+}
+
+progressbar progress {
+  background-color: @accent_color;
+  border-radius: 99px;
+  min-height: 6px;
+}
+
+/* ---- LEVELBAR ---- */
+levelbar trough {
+  background-color: alpha(@fg_color, 0.08);
+  border-radius: 99px;
+  min-height: 6px;
+}
+
+levelbar block.filled {
+  background-color: @accent_color;
+  border-radius: 99px;
+}
+
+levelbar block.empty {
+  background-color: transparent;
+}
+
+/* ---- NOTEBOOK / TABS ---- */
+notebook > header {
+  background-color: @bg_variant;
+  border-color: @border_color;
+}
+
+notebook > header tab {
+  padding: 5px 12px;
+  min-height: 24px;
+  color: @fg_dim;
+  border-bottom: 2px solid transparent;
+}
+
+notebook > header tab:hover {
+  color: @fg_color;
+  background-color: alpha(@fg_color, 0.04);
+}
+
+notebook > header tab:checked {
+  color: @accent_color;
+  border-bottom-color: @accent_color;
+  background-color: @bg_color;
+}
+
+notebook > stack {
+  background-color: @bg_color;
+}
+
+/* ---- TREEVIEW / LIST ---- */
+treeview,
+list {
+  background-color: @bg_color;
+  color: @fg_color;
+}
+
+treeview:selected,
+list row:selected {
+  background-color: alpha(@accent_color, 0.2);
+  color: @fg_color;
+}
+
+treeview header,
+list header {
+  background-color: @bg_variant;
+  border-bottom: 1px solid @border_color;
+  font-weight: bold;
+}
+
+list row {
+  padding: 4px 8px;
+  transition: background-color 100ms ease-in-out;
+}
+
+list row:hover {
+  background-color: alpha(@fg_color, 0.04);
+}
+
+/* ---- VIEW ---- */
+.view {
+  background-color: @bg_color;
+  color: @fg_color;
+}
+
+.view:selected {
+  background-color: alpha(@accent_color, 0.2);
+}
+
+/* ---- SIDEBAR / PANEL ---- */
+.sidebar,
+.places-sidebar {
+  background-color: @bg_variant;
+  color: @fg_color;
+}
+
+.sidebar row:hover,
+.places-sidebar row:hover {
+  background-color: alpha(@fg_color, 0.06);
+}
+
+.sidebar row:selected,
+.places-sidebar row:selected {
+  background-color: alpha(@accent_color, 0.2);
+}
+
+.xfce4-panel,
+panel {
+  background-color: mix(@bg_color, #000, 0.15);
+  color: @fg_color;
+}
+
+panel button {
+  padding: 2px 6px;
+  min-height: 16px;
+}
+
+panel .tasklist button {
+  padding: 2px 8px;
+}
+
+/* ---- TOOLTIP ---- */
+tooltip {
+  background-color: @bg_alt;
+  color: @fg_color;
+  border: 1px solid @border_color;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+tooltip * {
+  color: @fg_color;
+}
+
+/* ---- POPOVER ---- */
+popover.background {
+  background-color: @bg_alt;
+  border: 1px solid @border_color;
+  border-radius: 8px;
+  padding: 6px;
+}
+
+/* ---- DIALOG ---- */
+messagedialog .titlebar {
+  min-height: 24px;
+}
+
+messagedialog .dialog-action-area button {
+  min-height: 32px;
+  padding: 6px 16px;
+}
+
+/* ---- CHECKBOX / RADIO ---- */
+check,
+radio {
+  min-height: 18px;
+  min-width: 18px;
+  border: 2px solid @border_color;
+  background-color: @bg_alt;
+  transition: all 150ms ease-in-out;
+}
+
+check {
+  border-radius: 4px;
+}
+
+radio {
+  border-radius: 99px;
+}
+
+check:hover,
+radio:hover {
+  border-color: alpha(@accent_color, 0.5);
+}
+
+check:checked,
+radio:checked {
+  background-color: @accent_color;
+  border-color: @accent_color;
+  color: @selected_fg;
+}
+
+check:disabled,
+radio:disabled {
+  opacity: 0.5;
+}
+
+/* ---- SWITCH ---- */
+switch {
+  min-width: 36px;
+  min-height: 20px;
+  border-radius: 99px;
+  background-color: alpha(@fg_color, 0.15);
+  transition: all 200ms ease-in-out;
+}
+
+switch:checked {
+  background-color: @accent_color;
+}
+
+switch slider {
+  min-width: 16px;
+  min-height: 16px;
+  border-radius: 99px;
+  background-color: @fg_color;
+  margin: 2px;
+}
+
+/* ---- FRAME / SEPARATOR ---- */
+frame > border {
+  border: 1px solid @border_color;
+}
+
+separator {
+  background-color: @border_color;
+  min-height: 1px;
+  min-width: 1px;
+}
+
+/* ---- SPINBUTTON ---- */
+spinbutton {
+  background-color: @bg_alt;
+  border: 1px solid @border_color;
+}
+
+spinbutton button {
+  min-width: 24px;
+  border: none;
+  background-color: transparent;
+}
+
+spinbutton button:hover {
+  background-color: alpha(@fg_color, 0.08);
+}
+
+/* ---- COMBOBOX ---- */
+combobox button.combo {
+  padding: 5px 8px;
+}
+
+/* ---- INFOBAR ---- */
+infobar {
+  border-style: none;
+}
+
+infobar.info {
+  background-color: mix(@bg_color, @accent_color, 0.15);
+}
+
+infobar.warning {
+  background-color: mix(@bg_color, @warning_color, 0.15);
+}
+
+infobar.error {
+  background-color: mix(@bg_color, @error_color, 0.15);
+}
+
+infobar.question {
+  background-color: mix(@bg_color, @success_color, 0.15);
+}
+
+/* ---- OSD ---- */
+.osd {
+  background-color: alpha(@bg_alt, 0.92);
+  color: @fg_color;
+  border: 1px solid @border_color;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+/* ---- APP-SPECIFIC: XFCE PANEL ---- */
+.xfce4-panel .workspace-switcher {
+  padding: 2px;
+}
+
+.xfce4-panel .windowlist-button {
+  padding: 0 4px;
+}
+
+/* ---- APP-SPECIFIC: THUNAR ---- */
+.sidebar .view {
+  background-color: @bg_variant;
+}
+
+/* ---- APP-SPECIFIC: XFCE TERMINAL ---- */
+terminal-window .background {
+  background-color: @bg_variant;
+}
+
+/* ---- MISC ---- */
+.header {
+  font-weight: bold;
+}
+
+.dim-label {
+  color: @fg_dim;
+}
+
+.framed {
+  border: 1px solid @border_color;
+}
+
+.nautilus-toolbar,
+.thunar-toolbar {
+  background-color: @bg_color;
+}
+
+.path-bar button {
+  border-radius: 4px;
+}
+
+toolbar button {
+  border-radius: 4px;
+}
+
+/* ---- TRANSITIONS ---- */
+button,
+entry,
+scale slider,
+scrollbar slider,
+switch,
+check,
+radio {
+  transition: all 150ms ease-in-out;
+}
