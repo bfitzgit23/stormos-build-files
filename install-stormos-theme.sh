@@ -30,7 +30,7 @@ echo ""
 info "Checking packages..."
 
 # Official repo packages (pacman)
-OFFICIAL_PKGS=(picom conky dmz-cursor-theme foot alacritty fastfetch
+OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz foot alacritty fastfetch
                xfce4-goodies xfce4-terminal xorg-server)
 
 # AUR packages (yay)
