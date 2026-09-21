@@ -9,6 +9,7 @@
 set -u
 
 MODE_FILE="$HOME/.config/stormos/wm-mode"
+STORM_THEME="Arc-StormOS"
 
 # No saved mode, or mode is xfwm4 -> nothing to do
 [ -f "$MODE_FILE" ] || exit 0
@@ -27,6 +28,21 @@ sleep 1
 # Apply the StormOS profile (wobbly + cube) before taking over
 python3 /usr/local/bin/stormos-compiz-setup.py >/dev/null 2>&1 || true
 
+# Set the metacity theme GWD will render, in BOTH schemas that matter.
+# Verify with gsettings get; if the schema is missing (dconf not running),
+# write directly to the dconf database.
+set_gsettings() {
+    local schema="$1" key="$2" value="$3"
+    gsettings set "$schema" "$key" "$value" 2>/dev/null && return 0
+    # Fallback: raw dconf write (org.gnome.metacity.theme -> /org/gnome/metacity/theme/)
+    local path
+    path="/${schema//./\\/}/$key"
+    dconf write "$path" "'$value'" 2>/dev/null
+}
+
+set_gsettings org.gnome.desktop.wm.preferences theme "$STORM_THEME"
+set_gsettings org.gnome.metacity.theme name "$STORM_THEME"
+
 # Replace xfwm4 with Compiz
 killall xfwm4 2>/dev/null || true
 sleep 0.5
@@ -34,11 +50,13 @@ compiz --replace ccp &
 sleep 1
 
 # Start the window decorator (compiz does not draw its own borders)
-# using the Arc-StormOS metacity theme
-gsettings set org.gnome.desktop.wm.preferences theme "Arc-StormOS" 2>/dev/null || true
-gsettings set org.gnome.metacity.theme name "Arc-StormOS" 2>/dev/null || true
 if command -v gtk-window-decorator >/dev/null 2>&1; then
     killall gtk-window-decorator 2>/dev/null || true
     nohup gtk-window-decorator --replace \
-        --metacity-theme "Arc-StormOS" >/dev/null 2>&1 &
+        --metacity-theme "$STORM_THEME" >/dev/null 2>&1 &
+    sleep 1
+    # If GWD died (theme load failure), restart it via gsettings theme only
+    if ! pgrep -x gtk-window-decorator >/dev/null 2>&1; then
+        nohup gtk-window-decorator --replace >/dev/null 2>&1 &
+    fi
 fi
