@@ -30,7 +30,7 @@ echo ""
 info "Checking packages..."
 
 # Official repo packages (pacman)
-OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz xfce4-terminal fastfetch
+OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch
                xfce4-goodies xorg-server switcheroo-control)
 
 # AUR packages (yay)
@@ -112,7 +112,6 @@ mkdir -p "$BACKUP"
 info "Backing up existing configs to $BACKUP"
 
 for f in .config/xfce4 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc-2.0 \
-         .config/alacritty .config/foot .config/conky .config/picom \
          .config/qt5ct .config/qt6ct .config/Kvantum .config/Thunar \
          .config/autostart .gtk-bookmarks; do
     [ -e "$HOME/$f" ] && cp -r "$HOME/$f" "$BACKUP/$(basename "$f")" 2>/dev/null || true
@@ -148,8 +147,6 @@ mkdir -p "$HOME/.config/picom"
 cp "$SKEL/.config/picom/picom.conf" "$HOME/.config/picom/"
 
 # Conky system monitor
-mkdir -p "$HOME/.config/conky"
-cp "$SKEL/.config/conky/conky.conf" "$HOME/.config/conky/"
 
 # Qt themes
 mkdir -p "$HOME/.config/qt5ct" "$HOME/.config/qt6ct" "$HOME/.config/Kvantum"
@@ -162,10 +159,9 @@ mkdir -p "$HOME/.config/Thunar"
 cp "$SKEL/.config/Thunar/uca.xml" "$HOME/.config/Thunar/"
 cp "$SKEL/.config/Thunar/gtk.xml" "$HOME/.config/Thunar/" 2>/dev/null || true
 
-# Autostart entries (picom, conky, welcome, switcheroo)
+# Autostart entries (picom, welcome, switcheroo)
 mkdir -p "$HOME/.config/autostart"
 cp "$SKEL/.config/autostart/picom.desktop" "$HOME/.config/autostart/"
-cp "$SKEL/.config/autostart/conky.desktop" "$HOME/.config/autostart/"
 [ -f "$SKEL/.config/autostart/stormos-welcome.desktop" ] && \
     cp "$SKEL/.config/autostart/stormos-welcome.desktop" "$HOME/.config/autostart/"
 [ -f "$SKEL/.config/autostart/stormos-switcheroo-applet.desktop" ] && \
@@ -206,7 +202,7 @@ xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 10" 2>/dev/null || t
 
 ok "XFCE theme set"
 
-# ─── 5. Remove replaced terminals (kitty is primary) ────────────────────────
+# ─── 5. Terminal setup ────────────────────────
 # xfce4-terminal is the default — no terminals to remove
 
 # ─── 6. Enable services ──────────────────────────────────────────────────────
@@ -240,33 +236,3 @@ else
     info "No display server detected — picom will start on next login"
 fi
 
-# ─── 7. Start conky now ──────────────────────────────────────────────────────
-if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then
-    info "Starting conky..."
-    killall conky 2>/dev/null || true
-    sleep 0.5
-    conky -c "$HOME/.config/conky/conky.conf" &>/dev/null &
-    ok "Conky started"
-else
-    info "Conky will start on next login"
-fi
-
-# ─── Done ─────────────────────────────────────────────────────────────────────
-echo ""
-echo -e "${GREEN}╔══════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║   StormOS theme applied!             ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════╝${NC}"
-echo ""
-echo "  Theme:    Arc-BLACK-ICE + StormOS blue accents"
-echo "  Icons:    StormOS-icons"
-echo "  Cursor:   DMZ-Black"
-echo "  Font:     Inter (UI), JetBrains Mono (terminal)"
-echo "  Compositor: picom (GLX, blur, shadows, rounded corners)"
-echo "  System:   Conky sidebar (CPU, GPU, RAM, Disk, Network)"
-echo ""
-echo "  Backup:   $BACKUP"
-echo ""
-echo "  To reload panel:  xfce4-panel -r"
-echo "  To restart WM:    xfwm4 --replace"
-echo "  To apply now:     Log out and back in"
-echo ""
