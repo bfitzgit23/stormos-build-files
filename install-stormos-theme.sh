@@ -222,6 +222,16 @@ if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switche
     ok "Switcheroo applet installed"
 fi
 
+# LightDM configs
+LIGHTDM_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/lightdm"
+if [ -d "$LIGHTDM_SRC" ]; then
+    sudo mkdir -p /etc/lightdm
+    sudo cp "$LIGHTDM_SRC/lightdm.conf" /etc/lightdm/
+    sudo cp "$LIGHTDM_SRC/slick-greeter.conf" /etc/lightdm/
+    [ -f "$LIGHTDM_SRC/users.conf" ] && sudo cp "$LIGHTDM_SRC/users.conf" /etc/lightdm/
+    ok "LightDM configs installed"
+fi
+
 ok "All configs installed"
 
 # ─── 4. Set GTK theme via xfconf ─────────────────────────────────────────────
