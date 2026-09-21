@@ -1,20 +1,21 @@
 #!/bin/bash
 #
-# CyberXero Toolkit — Calamares post-install builder
+# StormOS Toolkit — Calamares post-install builder
+# Based on CyberXero Toolkit by XeroLinux and DarkXero (credit: github.com/MurderFromMars)
 # Runs inside the target chroot after user creation. Clones the toolkit
-# from GitHub, compiles it, and installs it to /opt/cyberxero-toolkit.
+# from GitHub, compiles it, and installs it to /opt/stormos-toolkit.
 #
 set -u
 
-LOG=/var/log/cyberxero-postinstall.log
+LOG=/var/log/stormos-toolkit-postinstall.log
 exec > >(tee -a "$LOG") 2>&1
 
 REPO_URL="https://github.com/MurderFromMars/CyberXero-Toolkit"
-SRC_DIR="/opt/cyberxero-toolkit-src"
-INSTALL_DIR="/opt/cyberxero-toolkit"
+SRC_DIR="/opt/stormos-toolkit-src"
+INSTALL_DIR="/opt/stormos-toolkit"
 
 echo "=================================================="
-echo "CyberXero Toolkit post-install — $(date)"
+echo "StormOS Toolkit post-install — $(date)"
 echo "=================================================="
 
 if ! command -v cargo >/dev/null 2>&1; then
@@ -59,13 +60,13 @@ if [ -d sources/systemd ]; then
     find sources/systemd -maxdepth 1 -type f -exec install -Dm644 {} "$INSTALL_DIR/sources/systemd/" \;
 fi
 
-ln -sf "$INSTALL_DIR/cyberxero-toolkit" /usr/bin/cyberxero-toolkit
+ln -sf "$INSTALL_DIR/cyberxero-toolkit" /usr/bin/stormos-toolkit
 
 if [ -f packaging/cyberxero-toolkit.desktop ]; then
-    install -Dm644 packaging/cyberxero-toolkit.desktop /usr/share/applications/cyberxero-toolkit.desktop
+    install -Dm644 packaging/cyberxero-toolkit.desktop /usr/share/applications/stormos-toolkit.desktop
 fi
 if [ -f gui/resources/icons/scalable/apps/cyberxero-toolkit.png ]; then
-    install -Dm644 gui/resources/icons/scalable/apps/cyberxero-toolkit.png /usr/share/icons/hicolor/scalable/apps/cyberxero-toolkit.png
+    install -Dm644 gui/resources/icons/scalable/apps/cyberxero-toolkit.png /usr/share/icons/hicolor/scalable/apps/stormos-toolkit.png
 fi
 
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
@@ -80,5 +81,6 @@ if git rev-parse HEAD >/dev/null 2>&1; then
     git rev-parse HEAD > "$INSTALL_DIR/.commit"
 fi
 
-echo "CyberXero Toolkit installed to $INSTALL_DIR"
+echo "StormOS Toolkit installed to $INSTALL_DIR"
+echo "Original project: CyberXero Toolkit by XeroLinux / DarkXero"
 exit 0
