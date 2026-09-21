@@ -1,22 +1,48 @@
 #!/bin/bash
-# StormOS wallpaper setter — runs on first login to set the wallpaper
-# regardless of monitor name (xfce4-desktop.xml has hardcoded names that
-# may not match the actual hardware).
+# StormOS wallpaper setter — multiple methods to ensure wallpaper loads
 WALLPAPER="/usr/share/backgrounds/stormos-wallpaper.png"
 
 if [ ! -f "$WALLPAPER" ]; then
-    exit 0
+    echo "Wallpaper not found: $WALLPAPER" >&2
+    exit 1
 fi
 
-# Get all backdrop properties and set image-path
-for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-path"); do
-    xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null
-done
+# Wait for xfce settings daemon
+sleep 1
 
-# Also set image-style to 5 (zoomed) for all
-for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-style"); do
-    xfconf-query -c xfce4-desktop -p "$prop" -n -t int -s 5 2>/dev/null
-done
+# Method 1: xfconf-query (works if xfconfd is running)
+if command -v xfconf-query >/dev/null 2>&1; then
+    # Set for all existing backdrop properties
+    for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep -E "(image-path|last-image)$"); do
+        xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null
+    done
+    # Set image-style to 5 (zoomed) for all
+    for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-style$"); do
+        xfconf-query -c xfce4-desktop -p "$prop" -n -t int -s 5 2>/dev/null
+    done
+fi
 
-# Force xfdesktop to reload
+# Method 2: Direct xfce4 config file edit (works even if xfconfd isn't running)
+XFCE_CONF="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml"
+if [ -f "$XFCE_CONF" ]; then
+    # Replace all image-path values
+    sed -i "s|<property name=\"image-path\" type=\"string\" value=\"[^\"]*\"/>|<property name=\"image-path\" type=\"string\" value=\"$WALLPAPER\"/>|g" "$XFCE_CONF" 2>/dev/null
+    sed -i "s|<property name=\"last-image\" type=\"string\" value=\"[^\"]*\"/>|<property name=\"last-image\" type=\"string\" value=\"$WALLPAPER\"/>|g" "$XFCE_CONF" 2>/dev/null
+fi
+
+# Method 3: nitrogen fallback (if installed)
+if command -v nitrogen >/dev/null 2>&1; then
+    nitrogen --set-zoom-fill "$WALLPAPER" 2>/dev/null
+fi
+
+# Method 4: feh fallback (if installed)
+if command -v feh >/dev/null 2>&1; then
+    feh --bg-fill "$WALLPAPER" 2>/dev/null
+fi
+
+# Force xfdesktop reload
+killall xfdesktop 2>/dev/null
+sleep 0.5
 xfdesktop --reload 2>/dev/null &
+
+echo "StormOS wallpaper set to $WALLPAPER"
