@@ -413,6 +413,11 @@ if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes/Arc-StormOS/
     sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes/Arc-StormOS/xfwm4/themerc" \
         /usr/share/themes/Arc-StormOS/xfwm4/themerc 2>/dev/null || true
 fi
+# Refresh xfwm4 to apply the new theme
+if pgrep -x xfwm4 >/dev/null 2>&1; then
+    xfwm4 --replace >/dev/null 2>&1 &
+    info "xfwm4 refreshed to apply Arc-StormOS theme"
+fi
 
 # Set wallpaper for all workspaces (XFCE 4.20 uses monitor0 nesting)
 for ws in 0 1 2 3; do
