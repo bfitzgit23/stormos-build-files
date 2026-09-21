@@ -9,9 +9,6 @@
 #   1. startxfce4 (full XFCE session, non-blocking background)
 #   2. Optional Electron overlay (if available)
 #   3. Session stays alive as long as XFCE is running
-#
-# If Electron is not installed, the session is a pure XFCE desktop with
-# StormOS theming applied via xsettings.xml.
 
 set -uo pipefail
 
@@ -29,11 +26,9 @@ export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-XFCE}"
 export XDG_SESSION_DESKTOP="${XDG_SESSION_DESKTOP:-stormos}"
 export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-x11}"
 
-# Disable screen blanking
 xset s off -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
 
-# Cleanup on exit
 cleanup() {
     log "=== Cleaning up ==="
     [ -n "${ELECTRON_PID:-}" ] && kill "$ELECTRON_PID" 2>/dev/null
@@ -43,14 +38,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # --- 1. Start the full XFCE session in the background ---
-# startxfce4 forks xfce4-session which manages all components:
-# xfsettingsd, xfconfd, xfwm4, xfce4-panel, xfdesktop
 log "Starting XFCE session via startxfce4..."
 startxfce4 &
 XFCE_PID=$!
 log "XFCE session PID=$XFCE_PID"
-
-# Give XFCE a moment to initialize
 sleep 3
 
 if ! kill -0 "$XFCE_PID" 2>/dev/null; then
@@ -59,15 +50,13 @@ if ! kill -0 "$XFCE_PID" 2>/dev/null; then
 fi
 log "XFCE session is running"
 
-# --- 2. Compositor: picom (optional, only if not already running) ---
+# --- 2. Compositor (optional) ---
 if command -v picom >/dev/null 2>&1; then
     if ! pgrep -x picom >/dev/null 2>&1; then
         log "Starting picom..."
         picom --daemon 2>>"$LOG" &
         log "picom PID=$!"
         sleep 0.3
-    else
-        log "picom already running"
     fi
 fi
 
@@ -110,8 +99,6 @@ else
 fi
 
 # --- 5. Keep session alive ---
-# Wait on XFCE session (startxfce4). This keeps the session alive
-# as long as the user is logged in, regardless of Electron status.
 log "Waiting on XFCE session..."
 wait "$XFCE_PID" 2>/dev/null
 log "=== Session ended (code=$?) ==="
