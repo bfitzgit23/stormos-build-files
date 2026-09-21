@@ -119,6 +119,10 @@ ICONS_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/icons"
 # Copy Arc-BLACK-ICE theme (base WM theme)
 if [ -d "$THEMES_SRC/Arc-BLACK-ICE" ]; then
     sudo cp -r "$THEMES_SRC/Arc-BLACK-ICE" /usr/share/themes/
+    # Fix CRLF in text files (may come from Windows)
+    sudo find /usr/share/themes/Arc-BLACK-ICE -type f \
+        \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
+        -exec sed -i 's/\r$//' {} + 2>/dev/null || true
     ok "Arc-BLACK-ICE theme installed"
 else
     err "Arc-BLACK-ICE not found in build files"
