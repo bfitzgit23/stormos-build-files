@@ -1,0 +1,32 @@
+# compiz-easy-patch — fixed source URL for 0.9.14.2
+# Based on AUR compiz-easy-patch by lectrode
+
+pkgname=compiz-easy-patch
+pkgver=0.9.14.2
+pkgrel=1
+pkgdesc="OpenGL compositing window manager with friendly defaults, GWD theme selector and autostart"
+arch=('x86_64')
+url="https://github.com/lectrode/compiz"
+license=('GPL' 'LGPL' 'MIT')
+depends=('boost-libs' 'ccsm' 'gtk2' 'libwnck' 'protobuf' 'python'
+         'mesa' 'libgl' 'dbus' 'libxml2' 'libxcomposite' 'libxdamage'
+         'libxrandr' 'libxinerama' 'libice' 'libsm')
+makedepends=('boost' 'cmake' 'intltool' 'libtool' 'pkg-config' 'python2')
+source=("https://launchpadlibrarian.net/619556414/compiz-${pkgver}.tar.xz")
+sha256sums=('SKIP')
+
+build() {
+    cd "${srcdir}/compiz-${pkgver}"
+    mkdir -p build && cd build
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCOMPIZ_BUILD_WITH_RPATH=False \
+        -DCOMPIZ_PACKAGING_ENABLED=True
+    make
+}
+
+package() {
+    cd "${srcdir}/compiz-${pkgver}/build"
+    make DESTDIR="${pkgdir}" install
+}
