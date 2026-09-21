@@ -50,6 +50,7 @@
     <property name="shadow_delta_y" type="int" value="-4"/>
     <property name="shadow_opacity" type="int" value="60"/>
     <property name="show_app_icon" type="bool" value="false"/>
+    <property name="title_alignment" type="string" value="center"/>
     <property name="show_dock_shadow" type="bool" value="false"/>
     <property name="show_frame_shadow" type="bool" value="true"/>
     <property name="show_popup_shadow" type="bool" value="true"/>
@@ -58,10 +59,9 @@
     <property name="snap_to_windows" type="bool" value="false"/>
     <property name="snap_width" type="int" value="16"/>
     <property name="vblank_mode" type="string" value="auto"/>
-    <property name="theme" type="string" value="BleuFear"/>
+    <property name="theme" type="string" value="Arc-StormOS"/>
     <property name="tile_on_move" type="bool" value="true"/>
-    <property name="title_alignment" type="string" value="center"/>
-    <property name="title_font" type="string" value="JetBrains Mono Bold 10"/>
+    <property name="title_font" type="string" value="JetBrains Mono Nerd Font 11"/>
     <property name="title_horizontal_offset" type="int" value="0"/>
     <property name="titleless_maximize" type="bool" value="false"/>
     <property name="title_shadow_active" type="string" value="false"/>
