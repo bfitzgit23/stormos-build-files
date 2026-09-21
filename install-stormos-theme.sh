@@ -31,7 +31,9 @@ info "Checking packages..."
 
 # Official repo packages (pacman)
 OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch
-               xfce4-goodies xorg-server switcheroo-control)
+               xfce4-goodies xorg-server switcheroo-control
+               xfce4-notifyd xfce4-power-manager xfce4-screenshooter-plugin
+               xfce4-pulseaudio-plugin)
 
 # AUR packages (yay)
 AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin)
@@ -200,14 +202,16 @@ ok "Backup complete"
 # ─── 3. Copy XFCE theme settings ONLY (do NOT overwrite panel config!) ───────
 info "Installing StormOS theme settings..."
 
-# XFCE theme settings only — xsettings (themes, icons, fonts) + xfwm4 (WM theme)
+# XFCE configs — themes, icons, fonts, panel, session
 mkdir -p "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
-cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml" \
-   "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
-cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml" \
-   "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
-cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml" \
-   "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
+for xfconf_xml in xsettings.xml xfwm4.xml xfce4-desktop.xml xfce4-panel.xml xfce4-session.xml; do
+    [ -f "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/$xfconf_xml" ] && \
+        cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/$xfconf_xml" \
+           "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
+done
+# Clear any saved session state that might reference broken components
+rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
+ok "XFCE session configs installed"
 
 # Terminal config
 mkdir -p "$HOME/.config/xfce4/terminal"
