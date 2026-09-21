@@ -69,7 +69,7 @@
       <property name="show-generics" type="bool" value="true"/>
       <property name="recent" type="array">
         <value type="string" value="thunar.desktop"/>
-        <value type="string" value="foot.desktop"/>
+        <value type="string" value="xfce4-terminal.desktop"/>
         <value type="string" value="firefox.desktop"/>
         <value type="string" value="org.gnome.Settings.desktop"/>
         <value type="string" value="pamac-manager.desktop"/>
@@ -78,7 +78,7 @@
       </property>
       <property name="favorites" type="array">
         <value type="string" value="thunar.desktop"/>
-        <value type="string" value="foot.desktop"/>
+        <value type="string" value="xfce4-terminal.desktop"/>
         <value type="string" value="firefox.desktop"/>
         <value type="string" value="org.gnome.Settings.desktop"/>
         <value type="string" value="pamac-manager.desktop"/>

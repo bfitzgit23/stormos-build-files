@@ -1,123 +1,44 @@
 #!/usr/bin/env python3
 """
 StormOS Switcheroo-Control Applet
-System tray applet for GPU switching with Intel/AMD/Nvidia hybrid support.
-Handles: Intel+AMD, Intel+Nvidia, AMD+Nvidia, AMD+AMD, and single GPU setups.
+GPU switching using switcheroo-control.
+Falls back to a regular window if the system tray is unavailable (common on XFCE).
 """
 
 import subprocess
 import sys
 import os
-import re
 
-try:
-    from PyQt5.QtWidgets import (QApplication, QSystemTrayIcon, QMenu,
-                                  QAction, QMessageBox, QInputDialog)
-    from PyQt5.QtGui import QIcon
-    from PyQt5.QtCore import QThread, pyqtSignal
-except ImportError:
-    print("Error: python-pyqt5 not installed")
-    print("Install with: sudo pacman -S python-pyqt5")
-    sys.exit(1)
+from PyQt5.QtWidgets import (
+    QApplication, QSystemTrayIcon, QMenu, QAction, QMessageBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QMainWindow,
+    QTextEdit, QGroupBox, QInputDialog, QLineEdit
+)
+from PyQt5.QtGui import QIcon, QFont, QColor
+from PyQt5.QtCore import QThread, pyqtSignal, Qt
 
-
-def detect_gpus():
-    """Detect GPUs via lspci and switcherooctl. Returns list of dicts."""
-    gpus = []
-
-    # Method 1: switcherooctl (most accurate)
-    try:
-        result = subprocess.run(['switcherooctl', 'list'],
-                              capture_output=True, text=True, timeout=10)
-        if result.returncode == 0 and result.stdout.strip():
-            for line in result.stdout.strip().split('\n'):
-                line = line.strip()
-                if not line or line.startswith('Device') or line.startswith('-----'):
-                    continue
-                # Parse switcheroo output like:
-                # "Device: /dev/dri/card0  integrated  Intel ..."
-                # "Device: /dev/dri/card1  discrete    AMD ..."
-                gpu = {'raw': line}
-                if 'integrated' in line.lower():
-                    gpu['type'] = 'integrated'
-                elif 'discrete' in line.lower():
-                    gpu['type'] = 'discrete'
-                else:
-                    gpu['type'] = 'unknown'
-
-                # Detect vendor
-                upper = line.upper()
-                if 'NVIDIA' in upper or 'NVS' in upper or 'GEFORCE' in upper or 'RTX' in upper or 'GTX' in upper:
-                    gpu['vendor'] = 'nvidia'
-                elif 'AMD' in upper or 'ATI' in upper or 'RADEON' in upper:
-                    gpu['vendor'] = 'amd'
-                elif 'INTEL' in upper:
-                    gpu['vendor'] = 'intel'
-                else:
-                    gpu['vendor'] = 'unknown'
-
-                # Extract card path
-                match = re.search(r'/dev/dri/card\d+', line)
-                if match:
-                    gpu['card'] = match.group(0)
-
-                gpus.append(gpu)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-
-    # Method 2: lspci fallback if switcherooctl gave nothing
-    if not gpus:
-        try:
-            result = subprocess.run(['lspci'], capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                for line in result.stdout.split('\n'):
-                    line_lower = line.lower()
-                    if 'vga' in line_lower or '3d' in line_lower or 'display' in line_lower:
-                        gpu = {'raw': line.strip()}
-                        if 'nvidia' in line_lower:
-                            gpu['vendor'] = 'nvidia'
-                        elif 'amd' in line_lower or 'ati' in line_lower or 'radeon' in line_lower:
-                            gpu['vendor'] = 'amd'
-                        elif 'intel' in line_lower:
-                            gpu['vendor'] = 'intel'
-                        else:
-                            gpu['vendor'] = 'unknown'
-                        gpu['type'] = 'unknown'
-                        gpus.append(gpu)
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
-
-    return gpus
-
-
-def get_gpu_pair_type(gpus):
-    """Determine the hybrid GPU configuration type."""
-    vendors = set(g.get('vendor', 'unknown') for g in gpus)
-    if len(gpus) <= 1:
-        return 'single', vendors
-    if 'intel' in vendors and 'nvidia' in vendors:
-        return 'intel-nvidia', vendors
-    if 'intel' in vendors and 'amd' in vendors:
-        return 'intel-amd', vendors
-    if 'amd' in vendors and 'nvidia' in vendors:
-        return 'amd-nvidia', vendors
-    if vendors == {'amd'}:
-        return 'amd-amd', vendors
-    return 'unknown', vendors
+# ── Colors ───────────────────────────────────────────────────────────────────
+NAVY  = "#0a192f"
+BLUE  = "#19A9FF"
+LIGHT = "#E8F2FF"
+DARK  = "#020c1b"
+GLASS = "rgba(2, 12, 27, 0.85)"
+GREEN = "#4ADE80"
+CORAL = "#ff6b6b"
 
 
 class GPUSwitcher(QThread):
     finished = pyqtSignal(str)
-    error = pyqtSignal(str)
+    error    = pyqtSignal(str)
 
     def run(self):
         try:
-            result = subprocess.run(['switcherooctl', 'list'],
-                                  capture_output=True, text=True, timeout=10)
+            result = subprocess.run(["switcherooctl", "list"],
+                                    capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 self.finished.emit(result.stdout)
             else:
-                self.error.emit("switcherooctl not available")
+                self.error.emit("switcherooctl returned error")
         except FileNotFoundError:
             self.error.emit("switcheroo-control not installed")
         except subprocess.TimeoutExpired:
@@ -126,323 +47,274 @@ class GPUSwitcher(QThread):
             self.error.emit(str(e))
 
 
-class StormOSSwitcherooApplet(QSystemTrayIcon):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+class GPUBackend:
+    @staticmethod
+    def get_gpu_info():
+        try:
+            r = subprocess.run(["switcherooctl", "list"],
+                               capture_output=True, text=True, timeout=10)
+            if r.returncode == 0:
+                return r.stdout.strip()
+        except Exception:
+            pass
+        try:
+            r = subprocess.run(["lspci"], capture_output=True, text=True, timeout=5)
+            lines = [l for l in r.stdout.splitlines()
+                     if any(k in l.lower() for k in ("vga", "3d", "display"))]
+            return "\n".join(lines) if lines else "No GPU info available"
+        except Exception:
+            return "No GPU info available"
 
-        # Set icon
-        for icon_path in [
-            "/usr/share/pixmaps/stormos/whiskermenu-bolt.svg",
-            "/usr/share/icons/stormos/switcheroo.png",
-            "/usr/share/pixmaps/stormos.png",
-        ]:
-            if os.path.exists(icon_path):
-                self.setIcon(QIcon(icon_path))
-                break
-        else:
-            self.setIcon(QIcon.fromTheme("video-display"))
+    @staticmethod
+    def switch_gpu(gpu_type):
+        env_var = "DRI_PRIME=0" if gpu_type == "integrated" else "DRI_PRIME=1"
+        profile = os.path.expanduser("~/.profile")
+        if os.path.exists(profile):
+            with open(profile) as f:
+                lines = [l for l in f.readlines()
+                         if "# StormOS GPU Switch" not in l
+                         and "DRI_PRIME" not in l]
+            with open(profile, "w") as f:
+                f.writelines(lines)
+        with open(profile, "a") as f:
+            f.write(f"\n# StormOS GPU Switch\nexport {env_var}\n")
+        return "Switched to integrated GPU" if gpu_type == "integrated" \
+            else "Switched to discrete GPU"
 
-        # Detect GPUs
-        self.gpus = detect_gpus()
-        self.pair_type, self.vendors = get_gpu_pair_type(self.gpus)
+    @staticmethod
+    def launch_on_gpu(command):
+        env = {**os.environ, "DRI_PRIME": "1"}
+        try:
+            subprocess.Popen(["switcherooctl", "launch", command], env=env)
+            return True
+        except Exception:
+            return False
 
-        # Build tooltip
-        vendor_names = {'intel': 'Intel', 'amd': 'AMD', 'nvidia': 'Nvidia', 'unknown': 'Unknown'}
-        gpu_list = ', '.join(vendor_names.get(v, v) for v in self.vendors)
-        self.setToolTip(f"StormOS GPU Switcher — {gpu_list}")
 
-        # Build menu
-        self.build_menu()
+# ── Window mode fallback ─────────────────────────────────────────────────────
+class SwitcherooWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("StormOS GPU Switcher")
+        self.setMinimumSize(520, 460)
 
-        # Start background detection
-        self.gpu_thread = GPUSwitcher()
-        self.gpu_thread.finished.connect(self.on_gpu_info)
-        self.gpu_thread.error.connect(self.on_gpu_error)
-        self.gpu_thread.start()
+        central = QWidget()
+        central.setObjectName("central")
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
 
-    def build_menu(self):
-        self.menu = QMenu()
+        title = QLabel("StormOS GPU Switcher")
+        title.setStyleSheet(f"font-size: 22px; font-weight: bold; color: {BLUE};")
+        layout.addWidget(title)
 
         # GPU info
-        info_action = QAction("GPU Information", self)
-        info_action.triggered.connect(self.show_gpu_info)
-        self.menu.addAction(info_action)
+        info_card = self._card("GPU Information")
+        self.gpu_info = QLabel("Detecting GPUs...")
+        self.gpu_info.setStyleSheet(f"color: {LIGHT}; font-size: 12px;")
+        self.gpu_info.setWordWrap(True)
+        self.gpu_info.setMinimumHeight(60)
+        info_card.layout().addWidget(self.gpu_info)
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.setObjectName("smallBtn")
+        refresh_btn.clicked.connect(self.refresh_gpu)
+        info_card.layout().addWidget(refresh_btn)
+        layout.addWidget(info_card)
 
-        # Detected config
-        config_action = QAction(f"Config: {self.pair_type}", self)
-        config_action.setEnabled(False)
-        self.menu.addAction(config_action)
+        # Switch
+        switch_card = self._card("Switch Default GPU")
+        desc = QLabel("Switch which GPU is used by default.\nLog out and back in for full effect.")
+        desc.setStyleSheet(f"color: {LIGHT}; font-size: 12px;")
+        desc.setWordWrap(True)
+        switch_card.layout().addWidget(desc)
+        btn_row = QHBoxLayout()
+        int_btn = QPushButton("Integrated (Power Saving)")
+        int_btn.setObjectName("actionBtn")
+        int_btn.clicked.connect(lambda: self.do_switch("integrated"))
+        btn_row.addWidget(int_btn)
+        disc_btn = QPushButton("Discrete (Performance)")
+        disc_btn.setObjectName("actionBtn")
+        disc_btn.clicked.connect(lambda: self.do_switch("discrete"))
+        btn_row.addWidget(disc_btn)
+        switch_card.layout().addLayout(btn_row)
+        layout.addWidget(switch_card)
 
-        self.menu.addSeparator()
+        # Launch
+        launch_card = self._card("Launch App on Discrete GPU")
+        launch_row = QHBoxLayout()
+        self.app_input = QLineEdit()
+        self.app_input.setPlaceholderText("Application name (e.g. steam)")
+        self.app_input.setStyleSheet(f"""
+            background: {DARK}; color: {LIGHT}; border: 1px solid rgba(100,255,218,0.3);
+            border-radius: 8px; padding: 8px; font-size: 13px;
+        """)
+        launch_row.addWidget(self.app_input)
+        launch_btn = QPushButton("Launch")
+        launch_btn.setObjectName("smallBtn")
+        launch_btn.clicked.connect(self.do_launch)
+        launch_row.addWidget(launch_btn)
+        launch_card.layout().addLayout(launch_row)
+        layout.addWidget(launch_card)
 
-        # ── Intel + AMD hybrid ──
-        if self.pair_type == 'intel-amd':
-            use_intel = QAction("Use Intel iGPU (power save)", self)
-            use_intel.triggered.connect(lambda: self.switch_gpu("intel"))
-            self.menu.addAction(use_intel)
+        footer = QLabel("StormOS — github.com/bfitzgit23/stormos-build-files")
+        footer.setStyleSheet(f"color: {BLUE}; font-size: 10px;")
+        layout.addWidget(footer)
 
-            use_amd = QAction("Use AMD dGPU (performance)", self)
-            use_amd.triggered.connect(lambda: self.switch_gpu("amd"))
-            self.menu.addAction(use_amd)
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {NAVY}; }}
+            #central {{ background-color: {GLASS}; border-radius: 16px;
+                         border: 1px solid rgba(100,255,218,0.1); }}
+            QLabel {{ color: {LIGHT}; background: transparent; }}
+            QPushButton#actionBtn {{
+                background: rgba(100,255,218,0.08); color: {LIGHT};
+                border: 1px solid rgba(100,255,218,0.2); border-radius: 10px;
+                padding: 10px 16px; font-size: 13px;
+            }}
+            QPushButton#actionBtn:hover {{
+                background: rgba(100,255,218,0.15); border-color: {BLUE};
+            }}
+            QPushButton#smallBtn {{
+                background: rgba(30,58,95,0.7); color: {BLUE};
+                border: 1px solid rgba(100,255,218,0.3); border-radius: 8px;
+                padding: 6px 14px; font-size: 12px;
+            }}
+            QPushButton#smallBtn:hover {{ background: rgba(30,58,95,1.0); }}
+        """)
+        self.refresh_gpu()
 
-            self.menu.addSeparator()
+    def _card(self, title):
+        card = QWidget()
+        card.setStyleSheet(f"""
+            QWidget {{ background-color: {GLASS}; border: 1px solid rgba(100,255,218,0.2);
+                        border-radius: 14px; }}
+        """)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(14, 10, 14, 14)
+        lay.setSpacing(8)
+        lbl = QLabel(title)
+        lbl.setStyleSheet(f"color: {BLUE}; font-weight: bold; font-size: 14px; "
+                          f"background: transparent; border: none;")
+        lay.addWidget(lbl)
+        return card
 
-            launch_amd = QAction("Launch App on AMD GPU", self)
-            launch_amd.triggered.connect(lambda: self.launch_app("amd"))
-            self.menu.addAction(launch_amd)
+    def refresh_gpu(self):
+        self.gpu_info.setText("Detecting...")
+        self._worker = GPUSwitcher()
+        self._worker.finished.connect(lambda info: self.gpu_info.setText(info[:300]))
+        self._worker.error.connect(lambda e: self.gpu_info.setText(f"Error: {e}"))
+        self._worker.start()
 
-            launch_intel = QAction("Launch App on Intel GPU", self)
-            launch_intel.triggered.connect(lambda: self.launch_app("intel"))
-            self.menu.addAction(launch_intel)
+    def do_switch(self, gpu_type):
+        msg = GPUBackend.switch_gpu(gpu_type)
+        QMessageBox.information(self, "GPU Switched",
+                                f"{msg}\n\nLog out and back in for full effect.")
 
-        # ── Intel + Nvidia hybrid ──
-        elif self.pair_type == 'intel-nvidia':
-            use_intel = QAction("Use Intel iGPU (power save)", self)
-            use_intel.triggered.connect(lambda: self.switch_gpu("intel"))
-            self.menu.addAction(use_intel)
-
-            use_nvidia = QAction("Use Nvidia dGPU (performance)", self)
-            use_nvidia.triggered.connect(lambda: self.switch_gpu("nvidia"))
-            self.menu.addAction(use_nvidia)
-
-            self.menu.addSeparator()
-
-            launch_nvidia = QAction("Launch App on Nvidia GPU", self)
-            launch_nvidia.triggered.connect(lambda: self.launch_app("nvidia"))
-            self.menu.addAction(launch_nvidia)
-
-            launch_intel = QAction("Launch App on Intel GPU", self)
-            launch_intel.triggered.connect(lambda: self.launch_app("intel"))
-            self.menu.addAction(launch_intel)
-
-        # ── AMD + Nvidia hybrid ──
-        elif self.pair_type == 'amd-nvidia':
-            use_amd_int = QAction("Use AMD iGPU (power save)", self)
-            use_amd_int.triggered.connect(lambda: self.switch_gpu("amd"))
-            self.menu.addAction(use_amd_int)
-
-            use_nvidia = QAction("Use Nvidia dGPU (performance)", self)
-            use_nvidia.triggered.connect(lambda: self.switch_gpu("nvidia"))
-            self.menu.addAction(use_nvidia)
-
-            self.menu.addSeparator()
-
-            launch_nvidia = QAction("Launch App on Nvidia GPU", self)
-            launch_nvidia.triggered.connect(lambda: self.launch_app("nvidia"))
-            self.menu.addAction(launch_nvidia)
-
-            launch_amd = QAction("Launch App on AMD GPU", self)
-            launch_amd.triggered.connect(lambda: self.launch_app("amd"))
-            self.menu.addAction(launch_amd)
-
-        # ── AMD + AMD (dual AMD, e.g. APU + discrete) ──
-        elif self.pair_type == 'amd-amd':
-            use_integrated = QAction("Use Integrated AMD (power save)", self)
-            use_integrated.triggered.connect(lambda: self.switch_gpu("integrated"))
-            self.menu.addAction(use_integrated)
-
-            use_discrete = QAction("Use Discrete AMD (performance)", self)
-            use_discrete.triggered.connect(lambda: self.switch_gpu("discrete"))
-            self.menu.addAction(use_discrete)
-
-            self.menu.addSeparator()
-
-            launch_discrete = QAction("Launch App on Discrete AMD", self)
-            launch_discrete.triggered.connect(lambda: self.launch_app("discrete"))
-            self.menu.addAction(launch_discrete)
-
-        # ── Single or unknown GPU ──
+    def do_launch(self):
+        cmd = self.app_input.text().strip()
+        if not cmd:
+            QMessageBox.warning(self, "No Command", "Enter an application name.")
+            return
+        if GPUBackend.launch_on_gpu(cmd):
+            QMessageBox.information(self, "Launched", f"Launched on discrete GPU: {cmd}")
         else:
-            if len(self.gpus) == 0:
-                no_gpu = QAction("No GPU detected", self)
-                no_gpu.setEnabled(False)
-                self.menu.addAction(no_gpu)
-            else:
-                for i, gpu in enumerate(self.gpus):
-                    vendor = gpu.get('vendor', 'unknown').upper()
-                    gtype = gpu.get('type', 'unknown')
-                    gpu_action = QAction(f"GPU {i}: {vendor} ({gtype})", self)
-                    gpu_action.setEnabled(False)
-                    self.menu.addAction(gpu_action)
+            QMessageBox.critical(self, "Error", f"Failed to launch: {cmd}")
 
-            # Still offer launch options if switcherooctl works
-            self.menu.addSeparator()
-            launch_prime = QAction("Launch App on GPU 1", self)
-            launch_prime.triggered.connect(lambda: self.launch_app("discrete"))
-            self.menu.addAction(launch_prime)
 
-        # ── Common menu items ──
+# ── Tray mode ────────────────────────────────────────────────────────────────
+class SwitcherooTray(QSystemTrayIcon):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        icon_path = "/usr/share/icons/stormos/switcheroo.png"
+        if not os.path.exists(icon_path):
+            icon_path = "/usr/share/pixmaps/stormos.png"
+        self.setIcon(QIcon(icon_path))
+        self.setToolTip("StormOS GPU Switcher")
+
+        self.menu = QMenu()
+        info_act = QAction("GPU Information", self)
+        info_act.triggered.connect(self.show_gpu_info)
+        self.menu.addAction(info_act)
         self.menu.addSeparator()
 
-        about_action = QAction("About StormOS GPU Switcher", self)
-        about_action.triggered.connect(self.show_about)
-        self.menu.addAction(about_action)
+        int_act = QAction("Use Integrated GPU", self)
+        int_act.triggered.connect(lambda: self.switch_gpu("integrated"))
+        self.menu.addAction(int_act)
 
-        quit_action = QAction("Quit", self)
-        quit_action.triggered.connect(QApplication.quit)
-        self.menu.addAction(quit_action)
+        disc_act = QAction("Use Discrete GPU", self)
+        disc_act.triggered.connect(lambda: self.switch_gpu("discrete"))
+        self.menu.addAction(disc_act)
+        self.menu.addSeparator()
+
+        launch_act = QAction("Launch App on Discrete GPU", self)
+        launch_act.triggered.connect(self.launch_on_discrete)
+        self.menu.addAction(launch_act)
+        self.menu.addSeparator()
+
+        about_act = QAction("About", self)
+        about_act.triggered.connect(self.show_about)
+        self.menu.addAction(about_act)
+
+        quit_act = QAction("Quit", self)
+        quit_act.triggered.connect(QApplication.quit)
+        self.menu.addAction(quit_act)
 
         self.setContextMenu(self.menu)
 
+        self._worker = GPUSwitcher()
+        self._worker.finished.connect(
+            lambda info: self.setToolTip(f"StormOS GPU Switcher\n{info[:60]}"))
+        self._worker.error.connect(
+            lambda err: self.setToolTip(f"StormOS GPU Switcher\nError: {err}"))
+        self._worker.start()
+
     def show_gpu_info(self):
-        """Show detailed GPU information dialog."""
-        info_parts = ["=== GPU Information ===\n"]
+        info = GPUBackend.get_gpu_info()
+        QMessageBox.information(self, "GPU Information", "Available GPUs:\n\n" + info)
 
-        # lspci output
-        try:
-            result = subprocess.run(['lspci', '-v'], capture_output=True, text=True, timeout=10)
-            vga_lines = []
-            for line in result.stdout.split('\n'):
-                if any(k in line.lower() for k in ['vga', '3d', 'display', 'audio']):
-                    vga_lines.append(line)
-            if vga_lines:
-                info_parts.append("PCI Devices:\n" + '\n'.join(vga_lines[:15]))
-        except Exception:
-            pass
+    def switch_gpu(self, gpu_type):
+        msg = GPUBackend.switch_gpu(gpu_type)
+        QMessageBox.information(self, "GPU Switched",
+                                f"{msg}\n\nLog out and back in for full effect.")
 
-        # switcherooctl output
-        info_parts.append("\n=== Switcheroo Status ===\n")
-        try:
-            result = subprocess.run(['switcherooctl', 'list'],
-                                  capture_output=True, text=True, timeout=10)
-            info_parts.append(result.stdout if result.returncode == 0 else "Not available")
-        except Exception as e:
-            info_parts.append(f"Error: {e}")
-
-        # DRI status
-        info_parts.append("\n=== DRI Devices ===\n")
-        try:
-            result = subprocess.run(['ls', '-la', '/dev/dri/'],
-                                  capture_output=True, text=True, timeout=5)
-            info_parts.append(result.stdout if result.returncode == 0 else "Not available")
-        except Exception:
-            info_parts.append("Not available")
-
-        QMessageBox.information(self, "GPU Information", '\n'.join(info_parts))
-
-    def switch_gpu(self, target):
-        """Switch default GPU for new applications."""
-        env_settings = []
-
-        if target == "intel":
-            env_settings.append(("DRI_PRIME", "0"))
-            env_settings.append(("DRI_PRIME_RENDER_OFFLOAD", "0"))
-            msg = "Switched to Intel GPU (power save mode)"
-        elif target == "amd":
-            env_settings.append(("DRI_PRIME", "1"))
-            env_settings.append(("DRI_PRIME_RENDER_OFFLOAD", "1"))
-            msg = "Switched to AMD GPU (performance mode)"
-        elif target == "nvidia":
-            env_settings.append(("DRI_PRIME", "1"))
-            env_settings.append(("DRI_PRIME_RENDER_OFFLOAD", "1"))
-            env_settings.append(("__NV_PRIME_RENDER_OFFLOAD", "1"))
-            env_settings.append(("__GLX_VENDOR_LIBRARY_NAME", "nvidia"))
-            msg = "Switched to Nvidia GPU (performance mode)"
-        elif target == "discrete":
-            env_settings.append(("DRI_PRIME", "1"))
-            env_settings.append(("DRI_PRIME_RENDER_OFFLOAD", "1"))
-            msg = "Switched to discrete GPU (performance mode)"
-        else:
-            env_settings.append(("DRI_PRIME", "0"))
-            msg = "Switched to integrated GPU (power save mode)"
-
-        try:
-            # Remove old StormOS GPU settings
-            profile_path = os.path.expanduser("~/.profile")
-            if os.path.exists(profile_path):
-                with open(profile_path, 'r') as f:
-                    lines = f.readlines()
-                with open(profile_path, 'w') as f:
-                    skip = False
-                    for line in lines:
-                        if '# StormOS GPU Switch' in line:
-                            skip = True
-                        elif skip and line.startswith('export DRI_PRIME') or \
-                             skip and line.startswith('export __NV_') or \
-                             skip and line.startswith('export __GLX_'):
-                            continue
-                        elif skip and not line.strip().startswith('export'):
-                            skip = False
-                        f.write(line)
-
-            # Write new settings
-            with open(profile_path, 'a') as f:
-                f.write("\n# StormOS GPU Switch\n")
-                for key, val in env_settings:
-                    f.write(f"export {key}={val}\n")
-
-            QMessageBox.information(self, "GPU Switched",
-                f"{msg}\n\nNew applications will use this GPU.\n"
-                "Log out and back in for full effect.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to switch GPU:\n{str(e)}")
-
-    def launch_app(self, target):
-        """Launch an application on a specific GPU."""
-        app_name, ok = QInputDialog.getText(self, f"Launch on {target.upper()} GPU",
-            "Enter application name or command:")
-
-        if not ok or not app_name:
-            return
-
-        env = os.environ.copy()
-
-        if target == "intel":
-            env['DRI_PRIME'] = '0'
-            env['DRI_PRIME_RENDER_OFFLOAD'] = '0'
-        elif target == "amd":
-            env['DRI_PRIME'] = '1'
-            env['DRI_PRIME_RENDER_OFFLOAD'] = '1'
-        elif target == "nvidia":
-            env['DRI_PRIME'] = '1'
-            env['DRI_PRIME_RENDER_OFFLOAD'] = '1'
-            env['__NV_PRIME_RENDER_OFFLOAD'] = '1'
-            env['__GLX_VENDOR_LIBRARY_NAME'] = 'nvidia'
-        elif target == "discrete":
-            env['DRI_PRIME'] = '1'
-            env['DRI_PRIME_RENDER_OFFLOAD'] = '1'
-        else:
-            env['DRI_PRIME'] = '0'
-
-        try:
-            # Try switcherooctl first (most reliable)
-            if subprocess.run(['which', 'switcherooctl'],
-                            capture_output=True).returncode == 0:
-                subprocess.Popen(['switcherooctl', 'launch', app_name.split()[0]] + app_name.split()[1:],
-                               env=env)
+    def launch_on_discrete(self):
+        cmd, ok = QInputDialog.getText(self, "Launch on Discrete GPU",
+                                       "Application name or command:")
+        if ok and cmd:
+            if GPUBackend.launch_on_gpu(cmd):
+                QMessageBox.information(self, "Launched", f"Launched on discrete GPU: {cmd}")
             else:
-                subprocess.Popen(app_name.split(), env=env)
-        except Exception as e:
-            QMessageBox.critical(self, "Error",
-                f"Failed to launch application:\n{str(e)}")
+                QMessageBox.critical(self, "Error", f"Failed to launch: {cmd}")
 
     def show_about(self):
         QMessageBox.about(self, "About StormOS GPU Switcher",
-            "<h3>StormOS GPU Switcher</h3>"
-            "<p>System tray applet for GPU switching</p>"
-            f"<p>Detected: {self.pair_type}</p>"
-            "<p>Supports: Intel, AMD, Nvidia hybrid setups</p>"
-            "<p>Part of StormOS Linux</p>")
-
-    def on_gpu_info(self, info):
-        self.setToolTip(f"StormOS GPU Switcher\n{info[:60]}...")
-
-    def on_gpu_error(self, error):
-        self.setToolTip(f"StormOS GPU Switcher\nError: {error}")
+                          "<h3>StormOS GPU Switcher</h3>"
+                          "<p>System tray applet for GPU switching</p>"
+                          "<p>Based on switcheroo-control</p>"
+                          "<p>Part of StormOS</p>")
 
 
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("StormOS GPU Switcher")
-    app.setQuitOnLastWindowClosed(False)
+    app.setStyle("Fusion")
 
-    if not QSystemTrayIcon.isSystemTrayAvailable():
-        QMessageBox.critical(None, "System Tray",
-            "System tray is not available on this system.")
-        sys.exit(1)
+    palette = app.palette()
+    palette.setColor(palette.Window,      QColor(NAVY))
+    palette.setColor(palette.WindowText,  QColor(LIGHT))
+    palette.setColor(palette.Base,        QColor(DARK))
+    palette.setColor(palette.Text,        QColor(LIGHT))
+    palette.setColor(palette.Button,      QColor("#1a3a5c"))
+    palette.setColor(palette.ButtonText,  QColor(LIGHT))
+    app.setPalette(palette)
 
-    switcher = StormOSSwitcherooApplet()
-    switcher.show()
+    if QSystemTrayIcon.isSystemTrayAvailable():
+        app.setQuitOnLastWindowClosed(False)
+        tray = SwitcherooTray()
+        tray.show()
+    else:
+        win = SwitcherooWindow()
+        win.show()
 
     sys.exit(app.exec_())
 

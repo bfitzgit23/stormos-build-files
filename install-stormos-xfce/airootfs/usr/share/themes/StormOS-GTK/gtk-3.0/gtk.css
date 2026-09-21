@@ -1,0 +1,79 @@
+/* StormOS-GTK — blue accent overrides on top of Arc-BLACK-ICE */
+
+@define-color theme_bg_color #0A1628;
+@define-color theme_fg_color #E8F2FF;
+@define-color theme_selected_bg_color #19A9FF;
+@define-color theme_selected_fg_color #0A1628;
+@define-color theme_base_color #020c1b;
+@define-color theme_text_color #E8F2FF;
+
+@define-color theme_link_color #19A9FF;
+@define-color theme_warning_color #FFD93D;
+@define-color theme_error_color #FF6B6B;
+@define-color theme_success_color #4ADE80;
+
+@define-color theme_button_background #1a3a5c;
+@define-color borders #19A9FF;
+
+/* Selection highlight */
+*:selected,:selected:focus {
+    background-color: #19A9FF;
+    color: #0A1628;
+}
+
+/* Links */
+a, .link {
+    color: #19A9FF;
+}
+
+/* Scrollbar styling */
+scrollbar slider {
+    background-color: rgba(25, 169, 255, 0.4);
+    border-radius: 10px;
+    min-width: 6px;
+    min-height: 6px;
+}
+
+scrollbar slider:hover {
+    background-color: rgba(25, 169, 255, 0.6);
+}
+
+/* Progress bars */
+progressbar progress,
+levelbar block.filled {
+    background-color: #19A9FF;
+}
+
+/* Switches */
+switch:checked {
+    background-color: #19A9FF;
+    border-color: #19A9FF;
+}
+
+/* Checkbuttons and Radios */
+check:checked, radio:checked {
+    background-color: #19A9FF;
+    border-color: #19A9FF;
+}
+
+/* Sidebar */
+.sidebar, .navigation-sidebar {
+    background-color: #0A1628;
+}
+
+/* Headerbar */
+headerbar, .titlebar {
+    background-color: #0A1628;
+    color: #E8F2FF;
+}
+
+headerbar:selected, .titlebar:selected {
+    background-color: #19A9FF;
+    color: #0A1628;
+}
+
+/* Notebook tabs */
+notebook tab:checked {
+    background-color: #19A9FF;
+    color: #0A1628;
+}

@@ -30,7 +30,7 @@ echo ""
 info "Checking packages..."
 
 # Official repo packages (pacman)
-OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz alacritty kitty fastfetch
+OFFICIAL_PKGS=(picom conky xcursor-vanilla-dmz xfce4-terminal fastfetch
                xfce4-goodies xorg-server switcheroo-control)
 
 # AUR packages (yay)
@@ -141,11 +141,7 @@ cp "$SKEL/.config/gtkrc-2.0" "$HOME/.config/"
 # GTK2 Murrine overrides
 cp "$SKEL/.config/gtk-2.0/main.rc" "$HOME/.config/gtk-2.0/" 2>/dev/null || true
 
-# Terminals
-mkdir -p "$HOME/.config/alacritty" "$HOME/.config/foot" "$HOME/.config/kitty"
-cp "$SKEL/.config/alacritty/alacritty.toml" "$HOME/.config/alacritty/"
-cp "$SKEL/.config/foot/foot.ini" "$HOME/.config/foot/"
-cp "$SKEL/.config/kitty/kitty.conf" "$HOME/.config/kitty/"
+# xfce4-terminal is the default terminal — no additional terminals installed
 
 # Picom compositor
 mkdir -p "$HOME/.config/picom"
@@ -211,16 +207,7 @@ xfconf-query -c xfwm4 -p /general/title_font -s "Inter Bold 10" 2>/dev/null || t
 ok "XFCE theme set"
 
 # ─── 5. Remove replaced terminals (kitty is primary) ────────────────────────
-info "Removing replaced terminals..."
-for terminal in xfce4-terminal foot; do
-    if pacman -Qi "$terminal" &>/dev/null 2>&1; then
-        sudo pacman -Rns --noconfirm "$terminal" 2>/dev/null && ok "$terminal removed" || warn "Could not remove $terminal"
-    elif dpkg -s "$terminal" &>/dev/null 2>&1; then
-        sudo apt-get remove -y "$terminal" 2>/dev/null && ok "$terminal removed" || warn "Could not remove $terminal"
-    else
-        ok "$terminal not installed"
-    fi
-done
+# xfce4-terminal is the default — no terminals to remove
 
 # ─── 6. Enable services ──────────────────────────────────────────────────────
 info "Enabling services..."

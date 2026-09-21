@@ -3,7 +3,6 @@
 #yay-bin
 StormOS-conf
 accountsservice
-alacritty
 alsa-utils
 amd-ucode
 arch-install-scripts
@@ -57,7 +56,6 @@ fatresize
 ffmpeg
 ffmpegthumbnailer
 firefox
-foot-terminfo
 fsarchiver
 fwupd
 fzf
@@ -84,8 +82,6 @@ iw
 iwd
 jfsutils
 kirigami
-kitty
-kitty-terminfo
 ldns
 less
 lftp

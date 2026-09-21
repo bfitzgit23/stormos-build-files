@@ -7,13 +7,13 @@
 <openbox_menu>
   <menu id="root-menu">
     <item label="Terminal">
-      <action name="Execute" command="stormos-foot" />
+      <action name="Execute" command="xfce4-terminal" />
     </item>
     <item label="Files">
       <action name="Execute" command="thunar" />
     </item>
     <item label="Display Configuration">
-      <action name="Execute" command="stormos-foot -e wlr-randr" />
+      <action name="Execute" command="xfce4-terminal -e wlr-randr" />
     </item>
     <separator />
     <item label="Reload labwc Configuration">

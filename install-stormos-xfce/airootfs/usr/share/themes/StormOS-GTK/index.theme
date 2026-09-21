@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=StormOS-GTK
+Comment=StormOS dark theme based on Arc-BLACK-ICE with electric blue accents
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+GtkTheme=Arc-BLACK-ICE
+MetacityTheme=Arc-Dark
+IconTheme=Qogir-dark
+CursorTheme=DMZ-Black
+ButtonLayout=close,minimize,maximize:menu

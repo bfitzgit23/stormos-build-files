@@ -1,0 +1,17 @@
+gtk-theme-name="Arc-BLACK-ICE"
+gtk-icon-theme-name="Qogir-dark"
+gtk-cursor-theme-name="DMZ-Black"
+gtk-cursor-theme-size=24
+gtk-toolbar-style=GTK_TOOLBAR_ICONS
+gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
+gtk-button-images=0
+gtk-menu-images=0
+gtk-enable-event-sounds=1
+gtk-enable-input-feedback-sounds=0
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle="hintslight"
+gtk-xft-rgba="rgba"
+
+# StormOS blue accent colors
+gtk-color-scheme="bg_color:#0A1628\nfg_color:#E8F2FF\nbase_color:#020c1b\ntext_color:#E8F2FF\nselected_bg_color:#19A9FF\nselected_fg_color:#0A1628\nlink_color:#19A9FF\nwarning_color:#FFD93D\nerror_color:#FF6B6B\nsuccess_color:#4ADE80"
