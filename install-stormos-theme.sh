@@ -112,6 +112,10 @@ fi
 # Copy StormOS-GTK theme (GTK theme with blue accents)
 if [ -d "$THEMES_SRC/StormOS-GTK" ]; then
     sudo cp -r "$THEMES_SRC/StormOS-GTK" /usr/share/themes/
+    # Fix CRLF in text files (may come from Windows)
+    sudo find /usr/share/themes/StormOS-GTK -type f \
+        \( -name '*.rc' -o -name '*.css' -o -name '*.conf' -o -name '*.theme' -o -name 'gtkrc' \) \
+        -exec sed -i 's/\r$//' {} + 2>/dev/null || true
     ok "StormOS-GTK theme installed"
 else
     err "StormOS-GTK not found in build files"
@@ -141,6 +145,45 @@ if [ -f "$WALLPAPER_SRC/stormos-wallpaper.png" ]; then
 fi
 
 ok "Themes installed"
+
+# ─── 1d. Install StormOS session files ──────────────────────────────────────
+info "Installing StormOS session files..."
+
+SESSION_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs"
+
+# StormOS session script
+if [ -f "$SESSION_SRC/usr/bin/stormos-desktop" ]; then
+    sudo cp "$SESSION_SRC/usr/bin/stormos-desktop" /usr/bin/stormos-desktop
+    # Fix line endings (may come from Windows)
+    sudo sed -i 's/\r$//' /usr/bin/stormos-desktop
+    sudo chmod +x /usr/bin/stormos-desktop
+    ok "StormOS session script installed"
+fi
+
+# Session .desktop files
+sudo mkdir -p /usr/share/xsessions
+for sess in "$SESSION_SRC/usr/share/xsessions/"*.desktop; do
+    if [ -f "$sess" ]; then
+        sudo cp "$sess" /usr/share/xsessions/
+        sudo sed -i 's/\r$//' "/usr/share/xsessions/$(basename "$sess")"
+        ok "Session: $(basename "$sess")"
+    fi
+done
+
+# LightDM configs
+LIGHTDM_SRC="$SESSION_SRC/etc/lightdm"
+if [ -d "$LIGHTDM_SRC" ]; then
+    sudo mkdir -p /etc/lightdm
+    for lconf in lightdm.conf slick-greeter.conf users.conf; do
+        if [ -f "$LIGHTDM_SRC/$lconf" ]; then
+            sudo cp "$LIGHTDM_SRC/$lconf" /etc/lightdm/
+            sudo sed -i 's/\r$//' "/etc/lightdm/$lconf"
+        fi
+    done
+    ok "LightDM configs installed"
+fi
+
+ok "Session files installed"
 
 # ─── 2. Backup existing configs ──────────────────────────────────────────────
 BACKUP="$HOME/.stormos-backup-$(date +%Y%m%d-%H%M%S)"
@@ -237,16 +280,6 @@ if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switche
     sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switcheroo-applet" /usr/local/bin/
     sudo chmod +x /usr/local/bin/stormos-switcheroo-applet
     ok "Switcheroo applet installed"
-fi
-
-# LightDM configs
-LIGHTDM_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/etc/lightdm"
-if [ -d "$LIGHTDM_SRC" ]; then
-    sudo mkdir -p /etc/lightdm
-    sudo cp "$LIGHTDM_SRC/lightdm.conf" /etc/lightdm/
-    sudo cp "$LIGHTDM_SRC/slick-greeter.conf" /etc/lightdm/
-    [ -f "$LIGHTDM_SRC/users.conf" ] && sudo cp "$LIGHTDM_SRC/users.conf" /etc/lightdm/
-    ok "LightDM configs installed"
 fi
 
 ok "All configs installed"
