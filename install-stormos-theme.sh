@@ -31,7 +31,7 @@ echo ""
 OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
                xfce4-goodies xorg-server switcheroo-control
                xfce4-notifyd xfce4-power-manager xfce4-screenshooter
-               xfce4-pulseaudio-plugin mpv libmpv)
+               xfce4-pulseaudio-plugin mpv)
 
 # AUR packages (yay)
 AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
