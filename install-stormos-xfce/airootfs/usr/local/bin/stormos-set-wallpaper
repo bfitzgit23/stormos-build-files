@@ -1,0 +1,22 @@
+#!/bin/bash
+# StormOS wallpaper setter — runs on first login to set the wallpaper
+# regardless of monitor name (xfce4-desktop.xml has hardcoded names that
+# may not match the actual hardware).
+WALLPAPER="/usr/share/backgrounds/stormos-wallpaper.png"
+
+if [ ! -f "$WALLPAPER" ]; then
+    exit 0
+fi
+
+# Get all backdrop properties and set image-path
+for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-path"); do
+    xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null
+done
+
+# Also set image-style to 5 (zoomed) for all
+for prop in $(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep "image-style"); do
+    xfconf-query -c xfce4-desktop -p "$prop" -n -t int -s 5 2>/dev/null
+done
+
+# Force xfdesktop to reload
+xfdesktop --reload 2>/dev/null &
