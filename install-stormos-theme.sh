@@ -87,6 +87,14 @@ if [ ${#NEED_REMOVE[@]} -gt 0 ]; then
     sudo pacman -Rns --noconfirm "${NEED_REMOVE[@]}" 2>/dev/null && ok "Removed ${NEED_REMOVE[*]}" || true
 fi
 
+# Remove openbox/labwc session files and configs
+for sess_file in /usr/share/xsessions/openbox.desktop /usr/share/xsessions/labwc.desktop /usr/share/xsessions/labwc-wayland.desktop; do
+    [ -f "$sess_file" ] && sudo rm -f "$sess_file" && info "Removed $(basename $sess_file)"
+done
+for cfg_dir in ~/.config/openbox ~/.config/labwc /etc/xdg/openbox /etc/xdg/labwc; do
+    [ -d "$cfg_dir" ] && sudo rm -rf "$cfg_dir" && info "Removed $cfg_dir"
+done
+
 # ─── 1b. Install StormOS themes from build files ────────────────────────────
 info "Installing StormOS themes..."
 
