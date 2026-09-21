@@ -256,6 +256,11 @@ for xfconf_xml in xsettings.xml xfwm4.xml xfce4-desktop.xml xfce4-panel.xml xfce
         cp "$SKEL/.config/xfce4/xfconf/xfce-perchannel-xml/$xfconf_xml" \
            "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/" 2>/dev/null || true
 done
+# Copy panel plugin RC files (docklike pinned apps etc.)
+mkdir -p "$HOME/.config/xfce4/panel"
+for panel_rc in "$SKEL/.config/xfce4/panel/"*.rc; do
+    [ -f "$panel_rc" ] && cp "$panel_rc" "$HOME/.config/xfce4/panel/" 2>/dev/null || true
+done
 # Clear any saved session state that might reference broken components
 rm -rf "$HOME/.cache/sessions" 2>/dev/null || true
 ok "XFCE session configs installed"
