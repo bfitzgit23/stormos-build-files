@@ -651,7 +651,7 @@ class StormWelcome(QMainWindow):
             help_card.layout().addWidget(btn)
         about_btn = QPushButton("About StormOS")
         about_btn.setObjectName("linkButton")
-        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS", "StormOS Welcome v2.0\n\nBuilt with PyQt5"))
+        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS", "StormOS Welcome v2.0\n\nBuilt with PyQt6"))
         help_card.layout().addWidget(about_btn)
         layout.addWidget(help_card)
         layout.addStretch()
@@ -814,10 +814,6 @@ Categories=System;
         """)
 
     def animate_window(self):
-        # Keep a reference on self: a parentless QPropertyAnimation is owned
-        # by Python refcount and would be garbage-collected the moment this
-        # method returns, freezing the window at opacity 0 (visible in the
-        # taskbar, invisible on screen).
         self.setWindowOpacity(0)
         self.anim = QPropertyAnimation(self, b"windowOpacity")
         self.anim.setDuration(400)

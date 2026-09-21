@@ -41,9 +41,22 @@ if [ -f "$NOTIFY_DB" ]; then
     fi
 fi
 
+# ── Detect ISO vs installed system ───────────────────────────────────────────
+IS_LIVE=false
+[ -d /run/archiso ] && IS_LIVE=true
+
+if $IS_LIVE; then
+    # ISO: just sync database, don't upgrade live session
+    log "Live ISO detected — syncing databases only"
+    sudo pacman -Sy --noconfirm >>"$LOG" 2>&1
+    log "Database sync complete"
+    date +%s > "$NOTIFY_DB"
+    exit 0
+fi
+
 # ── Sync database ────────────────────────────────────────────────────────────
 log "Syncing package databases..."
-pacman -Sy --noconfirm >>"$LOG" 2>&1
+sudo pacman -Sy --noconfirm >>"$LOG" 2>&1
 
 # ── Check if updates are available ───────────────────────────────────────────
 UPDATES=$(checkupdates 2>/dev/null | wc -l)
@@ -58,13 +71,13 @@ log "$UPDATES updates available"
 # ── Show TUI dialog or run quiet ────────────────────────────────────────────
 if [ "${1:-}" = "--quiet" ]; then
     log "Installing updates (quiet mode)..."
-    pacman -Syu --noconfirm >>"$LOG" 2>&1
+    sudo pacman -Syu --noconfirm >>"$LOG" 2>&1
     RESULT=$?
 else
     # Try zenity first, then dialog, then terminal
     if command -v zenity &>/dev/null; then
         log "Installing updates (zenity)..."
-        pacman -Syu --noconfirm 2>&1 | zenity --progress \
+        sudo pacman -Syu --noconfirm 2>&1 | zenity --progress \
             --title="StormOS System Update" \
             --text="Updating $UPDATES packages..." \
             --percentage=0 \
@@ -74,7 +87,7 @@ else
     elif command -v dialog &>/dev/null; then
         log "Installing updates (dialog)..."
         exec 3>&1
-        OUTPUT=$(pacman -Syu --noconfirm 2>&1 | dialog \
+        OUTPUT=$(        sudo pacman -Syu --noconfirm 2>&1 | dialog \
             --title "StormOS System Update" \
             --gauge "Updating $UPDATES packages..." \
             - 20 60 0)
@@ -88,7 +101,7 @@ else
         echo "║    Updating $UPDATES packages...              ║"
         echo "╚══════════════════════════════════════╝"
         echo ""
-        pacman -Syu --noconfirm 2>&1 | tail -20
+        sudo pacman -Syu --noconfirm 2>&1 | tail -20
         RESULT=$?
     fi
 fi
