@@ -157,6 +157,9 @@ pulseaudio-ctl
 
 ## Package management
 pamac
+flatpak
+gnome-software
+gnome-software-packagekit-plugin
 
 ## Games
 steam
