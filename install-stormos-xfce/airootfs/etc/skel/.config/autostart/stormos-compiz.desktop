@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Compiz (StormOS session)
+Comment=Restore Compiz window manager if it was the last active WM
+Exec=/usr/local/bin/stormos-compiz-autostart
+Icon=stormos-compiz
+Terminal=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
