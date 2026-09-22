@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# stormos-compiz-toggle — switch the window manager between xfwm4 and Compiz.
+# Used by the "Compiz" panel launcher/applet on the StormOS dock.
+#
+# With no args it toggles; 'on' forces Compiz, 'off' forces xfwm4.
+# Persists the choice via xfconf so it survives logout.
+
+set -uo pipefail
+
+state_file="$HOME/.config/stormos/wm-mode"
+
+current="xfwm4"
+[ -f "$state_file" ] && current="$(cat "$state_file" 2>/dev/null || echo xfwm4)"
+[ -z "$current" ] && current="xfwm4"
+
+want="${1:-auto}"
+if [ "$want" = "auto" ]; then
+    if [ "$current" = "compiz" ]; then want="off"; else want="on"; fi
+fi
+
+mkdir -p "$(dirname "$state_file")"
+
+if [ "$want" = "on" ]; then
+    if ! command -v compiz >/dev/null 2>&1; then
+        notify-send "StormOS" "Compiz is not installed. Install compiz-easy-patch first." -i dialog-warning 2>/dev/null || true
+        exit 1
+    fi
+    echo "compiz" > "$state_file"
+    # Apply the StormOS profile (wobbly + cube) then replace the WM
+    python3 /usr/local/bin/stormos-compiz-setup.py >/dev/null 2>&1 || true
+    xfwm4 --replace >/dev/null 2>&1 || true   # clean handoff
+    sleep 0.5
+    killall xfwm4 2>/dev/null || true
+    nohup compiz --replace ccp >/dev/null 2>&1 &
+    sleep 1
+    # Start the window decorator (compiz does not draw its own borders)
+    # using the Arc-StormOS metacity theme — set every schema GWD reads
+    gsettings set org.gnome.desktop.wm.preferences theme "Arc-StormOS" 2>/dev/null || true
+    gsettings set org.gnome.metacity.theme name "Arc-StormOS" 2>/dev/null || true
+    dconf write /org/gnome/desktop/wm/preferences/theme "'Arc-StormOS'" 2>/dev/null || true
+    dconf write /org/gnome/metacity/theme/name "'Arc-StormOS'" 2>/dev/null || true
+    killall gtk-window-decorator 2>/dev/null || true
+    if command -v gtk-window-decorator >/dev/null 2>&1; then
+        nohup gtk-window-decorator --replace \
+            --metacity-theme "Arc-StormOS" >/dev/null 2>&1 &
+        sleep 1
+        pgrep -x gtk-window-decorator >/dev/null 2>&1 || \
+            nohup gtk-window-decorator --replace >/dev/null 2>&1 &
+    fi
+    notify-send "StormOS" "Compiz enabled — wobbly windows + cube (Ctrl+Alt+←/→)" -i stormos-logo 2>/dev/null || true
+else
+    echo "xfwm4" > "$state_file"
+    killall compoz 2>/dev/null || true
+    killall compiz 2>/dev/null || true
+    killall gtk-window-decorator 2>/dev/null || true
+    sleep 0.3
+    nohup xfwm4 --replace >/dev/null 2>&1 &
+    notify-send "StormOS" "xfwm4 enabled" -i stormos-logo 2>/dev/null || true
+fi
