@@ -314,7 +314,7 @@ done
 ok "Welcome + Toolkit added to XFCE Settings Manager"
 
 # Deploy Compiz desktop entries (ccsm + theme selector)
-for compiz_desk in ccsm.desktop compiz-theme-selector.desktop; do
+for compiz_desk in compiz-theme-selector.desktop; do
     if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/$compiz_desk" ]; then
         sudo cp "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/applications/$compiz_desk" /usr/share/applications/
         sudo sed -i 's/\r$//' "/usr/share/applications/$compiz_desk" 2>/dev/null || true
