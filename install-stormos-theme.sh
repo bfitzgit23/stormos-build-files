@@ -26,6 +26,19 @@ echo -e "${CYAN}║       StormOS Theme Installer        ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════╝${NC}"
 echo ""
 
+# ─── Setup detection: has this script already been run? ─────────────────────
+# The stamp records the version of the repo (last commit) it was set up with.
+# Re-running with the SAME version skips the bulk work (theme copies, config
+# deployment) and only re-applies live xfconf settings + service checks.
+REPO_REV="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+STAMP_FILE="$HOME/.config/stormos/theme-setup.stamp"
+ALREADY_SETUP=false
+if [ -f "$STAMP_FILE" ] && [ "$(cat "$STAMP_FILE" 2>/dev/null)" = "$REPO_REV" ]; then
+    ALREADY_SETUP=true
+    ok "StormOS theme already set up at repo revision $REPO_REV — fast path"
+fi
+mkdir -p "$(dirname "$STAMP_FILE")"
+
 # ─── 0. Block unwanted packages FIRST (before any installs) ──────────────────
 # Block ristretto, parole, xfburn from pacman — do this BEFORE package
 # installation so xfce4-goodies (if present) can't pull them back as deps.
@@ -55,7 +68,7 @@ OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
                xfce4-pulseaudio-plugin mpv)
 
 # AUR packages (yay)
-AUR_PKGS=(ttf-inter ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
+AUR_PKGS=(ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
 
 # Quick check: are all packages already installed?
 ALL_INSTALLED=true
@@ -146,6 +159,9 @@ if [ -d /opt/cyberxero-toolkit ]; then
 fi
 
 # ─── 1b. Install StormOS themes from build files ────────────────────────────
+if $ALREADY_SETUP; then
+    ok "Themes already installed — skipping theme copy"
+else
 info "Installing StormOS themes..."
 
 THEMES_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/share/themes"
@@ -333,8 +349,10 @@ done
 ok "Wallpaper set"
 
 ok "Themes installed"
+fi  # end ALREADY_SETUP skip for theme copy
 
 # ─── 1d. Install StormOS session files ──────────────────────────────────────
+if ! $ALREADY_SETUP; then
 info "Installing StormOS session files..."
 
 SESSION_SRC="$SCRIPT_DIR/install-stormos-xfce/airootfs"
@@ -372,8 +390,12 @@ if [ -d "$LIGHTDM_SRC" ]; then
 fi
 
 ok "Session files installed"
+fi  # end ALREADY_SETUP skip for session files
 
-# ─── 2. Backup existing configs ──────────────────────────────────────────────
+# ─── 2. Backup existing configs (only on first setup) ───────────────────────
+if $ALREADY_SETUP; then
+    ok "Configs already deployed — skipping backup/config copy"
+else
 BACKUP="$HOME/.stormos-backup-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$BACKUP"
 info "Backing up existing configs to $BACKUP"
@@ -384,6 +406,7 @@ for f in .config/xfce4 .config/gtk-3.0 .config/gtk-4.0 .config/gtkrc-2.0 \
     [ -e "$HOME/$f" ] && cp -r "$HOME/$f" "$BACKUP/$(basename "$f")" 2>/dev/null || true
 done
 ok "Backup complete"
+fi  # end ALREADY_SETUP skip for backup
 
 # ─── 2b. Clean stale XFCE state (prevents blank screen / login loop) ─────
 info "Cleaning stale XFCE state..."
@@ -435,6 +458,9 @@ rm -f "$HOME/.config/autostart/picom.desktop" 2>/dev/null || true
 ok "Stale state cleaned"
 
 # ─── 3. Copy XFCE theme settings ONLY (do NOT overwrite panel config!) ───────
+if $ALREADY_SETUP; then
+    ok "Config files already deployed — skipping copy (live xfconf settings still applied below)"
+else
 info "Installing StormOS theme settings..."
 
 # XFCE configs — themes, icons, fonts, panel, session
@@ -553,14 +579,18 @@ if [ -f "$SCRIPT_DIR/install-stormos-xfce/airootfs/usr/local/bin/stormos-switche
 fi
 
 ok "All configs installed"
+fi  # end ALREADY_SETUP skip for config copy
 
-# ─── 4. Set GTK theme via xfconf ─────────────────────────────────────────────
+# Record setup stamp for future fast-path runs
+echo "$REPO_REV" > "$STAMP_FILE"
+
+# ─── 4. Set GTK theme via xfconf (always applied, even on fast path) ────────────
 info "Setting XFCE theme via xfconf..."
 
 # Set theme (don't kill xfconfd — it will pick up new XML configs on restart)
 xfconf-query -c xsettings -p /Net/ThemeName -s "Arc-StormOS" 2>/dev/null || true
 xfconf-query -c xsettings -p /Net/IconThemeName -s "StormOS-icons" 2>/dev/null || true
-xfconf-query -c xsettings -p /Gtk/FontName -s "Inter 11" 2>/dev/null || true
+xfconf-query -c xsettings -p /Gtk/FontName -s "JetBrains Mono Nerd Font 11" 2>/dev/null || true
 xfconf-query -c xsettings -p /Gtk/MonospaceFontName -s "JetBrains Mono 14" 2>/dev/null || true
 
 # WM theme
