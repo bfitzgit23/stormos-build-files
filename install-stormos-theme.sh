@@ -68,7 +68,7 @@ OFFICIAL_PKGS=(picom xcursor-vanilla-dmz xfce4-terminal fastfetch conky
                xfce4-pulseaudio-plugin mpv)
 
 # AUR packages (yay)
-AUR_PKGS=(ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins compiz-easy-patch)
+AUR_PKGS=(ttf-jetbrains-mono-nerd xfce4-docklike-plugin qt5-styleplugins)
 
 # Quick check: are all packages already installed?
 ALL_INSTALLED=true
