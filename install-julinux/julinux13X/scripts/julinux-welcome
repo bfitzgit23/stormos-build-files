@@ -38,11 +38,11 @@ JULINUX_MARKER   = Path("/etc/julinux-release")
 
 # Packages installed by the JULinux post-install flow
 JULINUX_PACKAGES = [
-    "kitty", "kitty-terminfo", "fastfetch", "switcheroo-control",
+    "fastfetch", "switcheroo-control",
     "nvidia-detect", "broadcom-sta-dkms", "blueman", "bluez",
     "pipewire", "pipewire-pulse", "wireplumber",
     "arc-theme", "papirus-icon-theme", "plymouth",
-    "xfce4-terminal",  # fallback if kitty fails
+    "xfce4-terminal",
 ]
 
 
@@ -54,7 +54,7 @@ def is_installed():
     return JULINUX_MARKER.exists()
 
 def find_terminal():
-    for name in ["kitty", "xfce4-terminal", "gnome-terminal", "xterm"]:
+    for name in ["xfce4-terminal", "gnome-terminal", "xterm"]:
         path = shutil.which(name)
         if path:
             return path, name
@@ -66,11 +66,7 @@ def run_in_terminal(cmd, title="JULinux"):
     if not path:
         QMessageBox.critical(None, "Error", "No terminal emulator found.")
         return
-    if name == "kitty":
-        subprocess.Popen([path, "--title", title, "-e", "bash", "-c",
-                          f'{cmd}; echo; echo "Press Enter to close..."; read'],
-                         start_new_session=True)
-    elif name == "xfce4-terminal":
+    if name == "xfce4-terminal":
         subprocess.Popen([path, "--disable-server", "--title", title,
                           "--command", f'bash -c "{cmd}; echo; echo Press Enter to close...; read"'],
                          start_new_session=True)
@@ -205,13 +201,11 @@ class UninstallDialog(QDialog):
         self.chk_switcheroo.setChecked(True)
         self.chk_autostart  = QCheckBox("Autostart entry")
         self.chk_autostart.setChecked(True)
-        self.chk_kitty      = QCheckBox("Kitty terminal + config")
-        self.chk_kitty.setChecked(False)
         self.chk_packages   = QCheckBox("JULinux extra packages (fastfetch, broadcom, etc.)")
         self.chk_packages.setChecked(False)
 
         for chk in [self.chk_welcome, self.chk_switcheroo, self.chk_autostart,
-                     self.chk_kitty, self.chk_packages]:
+                     self.chk_packages]:
             chk.setStyleSheet(f"color: {LIGHT}; font-size: 13px; padding: 4px 0;")
             layout.addWidget(chk)
 
@@ -376,7 +370,6 @@ class JULinuxWelcome(QMainWindow):
         groups_card = self.glass_card("📦 Individual Packages")
 
         groups = [
-            ("Terminal (Kitty)",        ["kitty", "kitty-terminfo"]),
             ("Fastfetch",               ["fastfetch"]),
             ("GPU Switcher",            ["switcheroo-control", "nvidia-detect"]),
             ("Bluetooth",               ["blueman", "bluez"]),
@@ -428,7 +421,7 @@ class JULinuxWelcome(QMainWindow):
         card = self.glass_card("💻 System Actions")
         for label, cmd in [
             ("Update System (apt update && apt upgrade)", "sudo apt update && sudo apt upgrade -y"),
-            ("Launch Terminal (kitty)",                   "kitty"),
+            ("Launch Terminal (xfce4-terminal)",          "xfce4-terminal"),
             ("Open File Manager (Thunar)",                "thunar"),
             ("Network Settings",                          "nm-connection-editor"),
             ("Display Settings",                          "arandr"),
@@ -708,8 +701,6 @@ class JULinuxWelcome(QMainWindow):
             to_remove.append("_switcheroo")
         if dlg.chk_autostart.isChecked():
             self.disable_autostart()
-        if dlg.chk_kitty.isChecked():
-            to_remove.extend(["kitty", "kitty-terminfo"])
         if dlg.chk_packages.isChecked():
             to_remove.extend(["fastfetch", "switcheroo-control", "nvidia-detect",
                               "broadcom-sta-dkms", "pipewire", "pipewire-pulse", "wireplumber"])
