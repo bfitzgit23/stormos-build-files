@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=XFCE
-Comment=Standard XFCE desktop session
-Exec=/usr/bin/startxfce4
-Type=Application
-DesktopNames[0]=XFCE
-Terminal=false
