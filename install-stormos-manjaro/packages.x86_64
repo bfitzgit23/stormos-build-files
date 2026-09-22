@@ -53,6 +53,7 @@ f2fs-tools
 fakeroot
 fastfetch
 fatresize
+flatpak
 ffmpeg
 ffmpegthumbnailer
 firefox
@@ -63,6 +64,8 @@ fzf
 ghostscript
 gnome-calculator
 gnome-disk-utility
+gnome-software
+gnome-software-packagekit-plugin
 gnome-system-monitor
 gpart
 gparted
