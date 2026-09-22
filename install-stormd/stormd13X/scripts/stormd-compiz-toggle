@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# stormd-compiz-toggle — switch the window manager between xfwm4 and Compiz.
+# Used by the "Compiz" launcher on the StormD dock.
+#
+# With no args it toggles; 'on' forces Compiz, 'off' forces xfwm4.
+# Persists the choice via ~/.config/stormd/wm-mode.
+#
+# StormD ships Debian's compiz 0.8.18 (plugin id: decoration, not 0.9's
+# "decor"; gtk-window-decorator comes from compiz-gnome).
+#
+set -uo pipefail
+
+state_file="$HOME/.config/stormd/wm-mode"
+
+current="xfwm4"
+[ -f "$state_file" ] && current="$(cat "$state_file" 2>/dev/null || echo xfwm4)"
+[ -z "$current" ] && current="xfwm4"
+
+want="${1:-auto}"
+if [ "$want" = "auto" ]; then
+    if [ "$current" = "compiz" ]; then want="off"; else want="on"; fi
+fi
+
+mkdir -p "$(dirname "$state_file")"
+
+if [ "$want" = "on" ]; then
+    if ! command -v compiz >/dev/null 2>&1; then
+        notify-send "StormD" "Compiz is not installed." -i dialog-warning 2>/dev/null || true
+        exit 1
+    fi
+    echo "compiz" > "$state_file"
+    # Apply the StormOS profile (wobbly + cube) then replace the WM
+    python3 /usr/local/bin/stormd-compiz-setup.py >/dev/null 2>&1 || true
+    xfwm4 --replace >/dev/null 2>&1 || true   # clean handoff
+    sleep 0.5
+    killall xfwm4 2>/dev/null || true
+    nohup compiz --replace ccp >/dev/null 2>&1 &
+    sleep 1
+    # Start the window decorator (compiz does not draw its own borders).
+    # 0.8 GWD reads the metacity theme via gconf/GSettings — set both.
+    gsettings set org.gnome.desktop.wm.preferences theme "StormD" 2>/dev/null || true
+    gsettings set org.gnome.metacity.theme name "StormD" 2>/dev/null || true
+    gconftool-2 -s /apps/metacity/general/theme -t string "StormD" 2>/dev/null || true
+    killall gtk-window-decorator 2>/dev/null || true
+    if command -v gtk-window-decorator >/dev/null 2>&1; then
+        nohup gtk-window-decorator --replace >/dev/null 2>&1 &
+        sleep 1
+        pgrep -x gtk-window-decorator >/dev/null 2>&1 || \
+            nohup gtk-window-decorator --replace >/dev/null 2>&1 &
+    fi
+    notify-send "StormD" "Compiz enabled — wobbly windows + cube (Ctrl+Alt+←/→)" -i stormos-compiz 2>/dev/null || true
+else
+    echo "xfwm4" > "$state_file"
+    killall compiz 2>/dev/null || true
+    killall gtk-window-decorator 2>/dev/null || true
+    sleep 0.3
+    nohup xfwm4 --replace >/dev/null 2>&1 &
+    notify-send "StormD" "xfwm4 enabled" -i stormos-compiz 2>/dev/null || true
+fi
