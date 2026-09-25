@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Xfce Session
+Comment=The Xfce desktop environment
+Exec=startxfce4
+TryExec=startxfce4
+Type=Application
+DesktopNames=XFCE
+Keywords=xfce;session;

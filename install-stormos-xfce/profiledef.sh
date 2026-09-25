@@ -39,4 +39,5 @@ file_permissions=(
   ["/usr/local/bin/sysconfig.py"]="0:0:755"
   ["/usr/local/bin/upgrade"]="0:0:755"
   ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
+  ["/usr/share/xsessions/xfce.desktop"]="0:0:644"
 )

@@ -130,64 +130,12 @@ if [ -d "$TARGET_ROOT/etc/systemd/system/multi-user.target.wants" ] || [ -d "$TA
     echo "✓ NetworkManager enabled"
 fi
 
-# === STORMOS DESKTOP SHELL ===
-show_progress "Installing StormOS Desktop shell..."
-SHELL_SRC="/usr/share/stormos-shell"
-SHELL_DST="$TARGET_ROOT/usr/share/stormos-shell"
-if [ -d "$SHELL_SRC" ]; then
-    mkdir -p "$SHELL_DST"
-    cp -r "$SHELL_SRC"/* "$SHELL_DST/"
-    chmod +x "$SHELL_DST/bin/stormos-desktop" 2>/dev/null || true
-    echo "✓ StormOS Desktop shell installed to $SHELL_DST"
-
-    # Install launcher binary
-    mkdir -p "$TARGET_ROOT/usr/local/bin"
-    cat > "$TARGET_ROOT/usr/bin/stormos-desktop" << LAUNCHER
-#!/usr/bin/env bash
-export STORMOS_DESKTOP_DIR="$SHELL_DST"
-exec bash "$SHELL_DST/bin/stormos-desktop" "\$@"
-LAUNCHER
-    chmod +x "$TARGET_ROOT/usr/bin/stormos-desktop"
-    echo "✓ Launcher installed to /usr/bin/stormos-desktop"
-
-    # Install session entry
-    mkdir -p "$TARGET_ROOT/usr/share/xsessions"
-    cat > "$TARGET_ROOT/usr/share/xsessions/stormos-desktop.desktop" << 'XS'
-[Desktop Entry]
-Name=StormOS Desktop
-Comment=StormOS React desktop shell (Electron + openbox)
-Exec=/usr/bin/stormos-desktop
-TryExec=/usr/bin/stormos-desktop
-Type=Application
-DesktopNames=StormOS
-XS
-    echo "✓ Session entry installed to /usr/share/xsessions/"
-
-    # Install Node.js dependencies on target
-    if [ -d "$SHELL_DST/node_modules" ] || [ -f "$SHELL_DST/package.json" ]; then
-        show_progress "Installing Node.js dependencies for StormOS shell..."
-        chroot "$TARGET_ROOT" /bin/bash -c "cd $SHELL_DST && npm install --production 2>/dev/null" || true
-        echo "✓ Node.js dependencies installed"
-    fi
-else
-    warn "  StormOS Desktop shell source not found at $SHELL_SRC — skipping"
-fi
-
 # === LIGHTDM SESSION CONFIGURATION ===
 show_progress "Configuring LightDM session..."
 LIGHTDM_CONF="$TARGET_ROOT/etc/lightdm/lightdm.conf"
 if [ -f "$LIGHTDM_CONF" ]; then
-    # Set StormOS Desktop as the default session
-    sed -i 's/^user-session=.*/user-session=stormos-desktop/' "$LIGHTDM_CONF"
-    sed -i 's/^autologin-session=.*/autologin-session=stormos-desktop/' "$LIGHTDM_CONF"
-
-    # If no user-session line exists, add it under [Seat:*]
-    if ! grep -q '^user-session=' "$LIGHTDM_CONF"; then
-        sed -i '/\[Seat:\*\]/a user-session=stormos-desktop' "$LIGHTDM_CONF"
-    fi
-    if ! grep -q '^autologin-session=' "$LIGHTDM_CONF"; then
-        sed -i '/\[Seat:\*\]/a autologin-session=stormos-desktop' "$LIGHTDM_CONF"
-    fi
+    # Stock Xfce session (no custom StormOS shell)
+    sed -i 's/^user-session=.*/user-session=xfce/' "$LIGHTDM_CONF"
 
     # Set autologin to the user created by Calamares
     if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "root" ]; then
@@ -196,7 +144,7 @@ if [ -f "$LIGHTDM_CONF" ]; then
         echo "✓ Autologin configured for $USER_NAME"
     fi
 
-    echo "✓ LightDM session set to stormos-desktop"
+    echo "✓ LightDM session set to xfce"
 fi
 
 echo ""
