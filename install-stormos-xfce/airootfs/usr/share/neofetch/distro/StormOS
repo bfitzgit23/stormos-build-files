@@ -1,0 +1,20 @@
+              .-/+oossssoo+/-.              stormos@stormos
+          `:+ssssssssssssssssss+:`          ------------------
+        -+ssssssssssssssssssyyssss+-        OS: StormOS (Arch Linux)
+      .ossssssssssssssssssdMMMNysssso.      Kernel: $(uname -r)
+     /ssssssssssshdmmNNmmyNMMMMhssssss/     Uptime: $(uptime -p | sed 's/up //')
+    +ssssssssshmydMMMMMMMNddddyssssssss+    Packages: $(pacman -Q 2>/dev/null | wc -l) (pacman)
+   /sssssssshNMMMyhhyyyyhmNMMMNhssssssss/   Shell: bash 5.2
+  .ssssssssdMMMNhsssssssssshNMMMdssssssss.  DE: StormOS (Electron)
+  +sssshhhyNMMNyssssssssssssyNMMMysssssss+  WM: openbox + React
+  ossyNMMMNyMMhsssssssssssssshmmmhssssssso  Theme: StormOS-GTK [GTK3]
+  ossyNMMMNyMMhsssssssssssssshmmmhssssssso  Icons: StormOS-icons [GTK3]
+  +sssshhhyNMMNyssssssssssssyNMMMysssssss+  Terminal: foot
+  .ssssssssdMMMNhsssssssssshNMMMdssssssss.  Terminal Font: Fira Code 12
+   /sssssssshNMMMyhhyyyyhdNMMMNhssssssss/   CPU: $(sed -n 's/^model name[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n1)
+    +sssssssssdmydMMMMMMMMddddyssssssss+    GPU: $(lspci 2>/dev/null | grep -Ei 'vga|3d|display' | sed -E 's/^[^:]+: //' | head -n1)
+     /ssssssssssshdmNNNNmyNMMMMhssssss/     Memory: $(free -h | awk '/^Mem:/{print $3 "/" $2}')
+      .ossssssssssssssssssdMMMNysssso.
+        -+sssssssssssssssyyyssss+-
+          `:+ssssssssssssssssss+:`
+              .-/+oossssoo+/-.

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=StormOS Translator
+Comment=
+Exec=/usr/local/bin/multitranslatetest
+Icon=translator
+Path=
+Terminal=false
+StartupNotify=false
