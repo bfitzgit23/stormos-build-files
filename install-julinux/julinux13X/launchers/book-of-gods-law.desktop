@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=The Book of God's Law
+GenericName=Bible Study
+Comment=Read and study the Holy Bible (KJV) with Xiphos
+Exec=xiphos
+Icon=xiphos
+Terminal=false
+Categories=Education;
+Keywords=Bible;Scripture;Sword;KJV;Gospel;God;
+StartupNotify=true
