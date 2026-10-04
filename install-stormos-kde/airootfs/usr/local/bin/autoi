@@ -104,71 +104,75 @@ class TerminalOpener:
     
     @staticmethod
     def get_available_terminals() -> List[tuple]:
-        """Get list of available terminals and their execute flags"""
-        terminals = [
-            # (executable, execute_flag, single_arg_flag)
-            ("konsole", "-e", False),         # konsole -e bash -c (KDE default)
-            ("gnome-terminal", "--", False),  # gnome-terminal -- bash -c
-            ("lxterminal", "-e", False),      # lxterminal -e bash -c
-            ("terminator", "-x", False),      # terminator -x bash -c
-            ("tilix", "-e", False),           # tilix -e bash -c
-            ("kitty", "", True),              # kitty bash -c (uses single arg)
-            ("alacritty", "-e", False),       # alacritty -e bash -c
-            ("xterm", "-e", False),           # xterm -e bash -c
-            ("urxvt", "-e", False),           # urxvt -e bash -c
-            ("rxvt", "-e", False),            # rxvt -e bash -c
-            ("st", "-e", False),              # st -e bash -c
-            ("mate-terminal", "-x", False),   # mate-terminal -x bash -c
-            ("qterminal", "-e", False),       # qterminal -e bash -c
-            ("sakura", "-x", False),          # sakura -x bash -c
-            ("terminology", "-e", False),     # terminology -e bash -c
+        """Terminals in preference order, most preferred first.
+
+        The running desktop's native terminal leads the list (konsole on
+        KDE/Plasma, xfce4-terminal on XFCE) via XDG_CURRENT_DESKTOP, with
+        a generic fallback chain after it. Only installed terminals are
+        returned. Single shared implementation for all StormOS editions.
+        """
+        preferred = [
+            (("kde", "plasma"), ("konsole", "-e", False)),
+            (("xfce",), ("xfce4-terminal", "-x", False)),
         ]
-        
-        available = []
-        for term, flag, single_arg in terminals:
-            if shutil.which(term):
-                available.append((term, flag, single_arg))
-        
-        return available
+        xdg = os.environ.get("XDG_CURRENT_DESKTOP", "").lower()
+        ordered = []
+        for keys, entry in preferred:
+            if any(k in xdg for k in keys) and entry not in ordered:
+                ordered.append(entry)
+
+        # Generic fallbacks; single_arg terminals take the command as one arg
+        generic = [
+            ("gnome-terminal", "--", False),
+            ("konsole", "-e", False),
+            ("xfce4-terminal", "-x", False),
+            ("lxterminal", "-e", False),
+            ("terminator", "-x", False),
+            ("tilix", "-e", False),
+            ("kitty", "", True),
+            ("xterm", "-e", False),
+            ("urxvt", "-e", False),
+            ("rxvt", "-e", False),
+            ("st", "-e", False),
+            ("mate-terminal", "-x", False),
+            ("qterminal", "-e", False),
+            ("sakura", "-x", False),
+            ("terminology", "-e", False),
+        ]
+        for entry in generic:
+            if entry not in ordered:
+                ordered.append(entry)
+
+        return [(term, flag, single) for (term, flag, single) in ordered
+                if shutil.which(term)]
     
     @staticmethod
     def get_default_terminal() -> Optional[tuple]:
-        """Get the system's default terminal"""
-        # Check XDG default terminal
+        """Pick the terminal to use: the desktop's native terminal first
+        (via the ordered list above), then x-terminal-emulator /
+        $TERMINAL overrides, then the first installed fallback."""
+        available = TerminalOpener.get_available_terminals()
+
+        # x-terminal-emulator (common on Debian-based systems)
         try:
-            # Check for x-terminal-emulator (common on Debian-based)
             if shutil.which("x-terminal-emulator"):
-                # Get the actual symlink target
                 target = os.path.realpath(shutil.which("x-terminal-emulator"))
-                term_name = os.path.basename(target)
-                
-                # Map to our known terminals
-                terminal_map = {
-                    "gnome-terminal": ("gnome-terminal", "--", False),
-                    "konsole": ("konsole", "-e", False),
-                    "konsole": ("konsole", "-e", False),
-                    "lxterminal": ("lxterminal", "-e", False),
-                    "terminator": ("terminator", "-x", False),
-                    "tilix": ("tilix", "-e", False),
-                    "xterm": ("xterm", "-e", False),
-                }
-                
-                if term_name in terminal_map:
-                    return terminal_map[term_name]
-        except:
+                name = os.path.basename(target)
+                known = {term: (term, flag, single)
+                         for (term, flag, single) in available}
+                if name in known:
+                    return known[name]
+        except Exception:
             pass
-        
-        # Check $TERMINAL environment variable
+
+        # $TERMINAL environment variable
         env_term = os.environ.get("TERMINAL")
         if env_term:
-            term_name = os.path.basename(env_term)
-            # Try to match with known terminals
-            for term, flag, single_arg in TerminalOpener.get_available_terminals():
-                if term == term_name:
-                    return (term, flag, single_arg)
-        
-        # Return first available terminal
-        available = TerminalOpener.get_available_terminals()
+            name = os.path.basename(env_term)
+            for entry in available:
+                if entry[0] == name:
+                    return entry
+
         return available[0] if available else None
     
     @classmethod
