@@ -27,10 +27,6 @@ Credits
   live-build base, scripts, and desktop design that StormD is derived from.
 * Ben Fitzpatrick (bfitzgit23) -- StormD (StormOS Debian Edition): adaptation
   of the eznix13X build, StormOS branding, and maintenance.
-* Justin Breithaupt -- JULinux, the sibling JULinux 13X edition built from the
-  same eznix13X base (julinux branch, install-julinux), by
-  Justin Breithaupt & Ben Fitzpatrick.
-
 Changes requested for StormD (vs. the eznix13X base)
 ----------------------------------------------------
 
@@ -44,6 +40,17 @@ Changes requested for StormD (vs. the eznix13X base)
 License
 -------
 
-GNU General Public License, version 3.0 (GPL-3.0), consistent with the
-eznix13X base this distribution derives from:
-https://www.gnu.org/licenses/gpl-3.0.html
+eznixOS 13X is Copyright (C) eznix (https://sourceforge.net/projects/eznixos/).
+StormD (StormOS Debian Edition) modifications are Copyright (C) 2026
+Ben Fitzpatrick (bfitzgit23).
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation, version 3 of the License. This program is
+distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.
