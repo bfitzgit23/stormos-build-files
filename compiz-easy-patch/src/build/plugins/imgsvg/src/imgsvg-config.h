@@ -1,1 +1,0 @@
-#define HAVE_RSVG_2_36_2
