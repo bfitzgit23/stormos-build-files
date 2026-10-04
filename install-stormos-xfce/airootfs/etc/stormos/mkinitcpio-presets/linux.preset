@@ -1,0 +1,9 @@
+# Kernel and boot wiring based on eznix EzArch build files: https://sourceforge.net/projects/ezarch/ (GNU GPL v3.0)
+# StormOS target preset for the mainline linux package
+ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-linux"
+
+PRESETS=('default' 'fallback')
+default_image="/boot/initramfs-linux.img"
+fallback_image="/boot/initramfs-linux-fallback.img"
+fallback_options="-S autodetect"

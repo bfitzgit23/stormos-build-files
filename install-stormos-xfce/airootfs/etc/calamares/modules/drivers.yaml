@@ -1,6 +1,6 @@
 ---
 - name: NVIDIA Open Driver
-  description: Build the open NVIDIA driver for linux-lts.
+  description: Build the open NVIDIA driver for linux, linux-lts, and linux-zen.
   critical: false
   hidden: false
   selected: false
