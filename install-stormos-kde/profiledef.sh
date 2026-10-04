@@ -35,6 +35,6 @@ file_permissions=(
   ["/usr/local/bin/stormos-welcome"]="0:0:755"
   ["/usr/local/bin/sysconfig.py"]="0:0:755"
   ["/usr/local/bin/upgrade"]="0:0:755"
-  ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
+  ["/usr/local/bin/stormos-toolkit-postinstall.sh"]="0:0:755"
   ["/usr/share/libalpm/scripts/stormos-branding-restore"]="0:0:755"
 )

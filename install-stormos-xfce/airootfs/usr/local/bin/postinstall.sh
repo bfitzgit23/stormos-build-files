@@ -101,12 +101,6 @@ fi
 # Ensure grub theme files are available in installed system
 if [ -d "/usr/share/grub/themes/stormos" ] && [ ! -d "$TARGET_ROOT/usr/share/grub/themes/stormos" ]; then
     cp -r /usr/share/grub/themes/stormos "$TARGET_ROOT/usr/share/grub/themes/"
-n# === PLYMOUTH THEME SETUP ===
-show_progress "Setting StormOS plymouth theme..."
-if [ -d "/usr/share/plymouth/themes/stormos" ]; then
-    chroot "$TARGET_ROOT" plymouth-set-default-theme stormos 2>/dev/null || true
-    echo "✓ Plymouth theme set to StormOS"
-fi
     echo "✓ Copied StormOS GRUB theme to installed system"
 fi
 
@@ -128,23 +122,6 @@ show_progress "Enabling NetworkManager..."
 if [ -d "$TARGET_ROOT/etc/systemd/system/multi-user.target.wants" ] || [ -d "$TARGET_ROOT/usr/lib/systemd/system" ]; then
     ln -sf /usr/lib/systemd/system/NetworkManager.service "$TARGET_ROOT/etc/systemd/system/multi-user.target.wants/NetworkManager.service" 2>/dev/null || true
     echo "✓ NetworkManager enabled"
-fi
-
-# === LIGHTDM SESSION CONFIGURATION ===
-show_progress "Configuring LightDM session..."
-LIGHTDM_CONF="$TARGET_ROOT/etc/lightdm/lightdm.conf"
-if [ -f "$LIGHTDM_CONF" ]; then
-    # Stock Xfce session (no custom StormOS shell)
-    sed -i 's/^user-session=.*/user-session=xfce/' "$LIGHTDM_CONF"
-
-    # Set autologin to the user created by Calamares
-    if [ -n "$USER_NAME" ] && [ "$USER_NAME" != "root" ]; then
-        sed -i "s/^#*autologin-user=.*/autologin-user=$USER_NAME/" "$LIGHTDM_CONF"
-        sed -i 's/^#*autologin-user-timeout=.*/autologin-user-timeout=0/' "$LIGHTDM_CONF"
-        echo "✓ Autologin configured for $USER_NAME"
-    fi
-
-    echo "✓ LightDM session set to xfce"
 fi
 
 echo ""

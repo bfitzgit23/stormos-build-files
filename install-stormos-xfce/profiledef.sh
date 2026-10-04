@@ -49,10 +49,5 @@ file_permissions=(
   ["/etc/skel/.config/autostart/welcome.desktop"]="0:0:755"
   ["/etc/skel/Desktop/abif.desktop"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
-  ["/etc/skel/Desktop/installer.desktop"]="0:0:755"
-  ["/etc/skel/Desktop/stormos_browser.desktop"]="0:0:755"
-  ["/etc/skel/Desktop/system-tool.desktop"]="0:0:755"
-  ["/etc/xdg/autostart/storm_welcome.desktop"]="0:0:755"
-  ["/etc/xdg/labwc/autostart"]="0:0:755"
   ["/usr/share/xsessions/xfce.desktop"]="0:0:644"
 )

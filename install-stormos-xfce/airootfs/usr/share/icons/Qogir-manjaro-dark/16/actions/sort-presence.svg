@@ -5,10 +5,10 @@
         color:#d3dae3;
       }
       .ColorScheme-NegativeText {
-        color:#19A9FF;
+        color:#da4453;
       }
       .ColorScheme-PositiveText {
-        color:#19A9FF;
+        color:#27ae60;
       }
       </style>
   </defs>

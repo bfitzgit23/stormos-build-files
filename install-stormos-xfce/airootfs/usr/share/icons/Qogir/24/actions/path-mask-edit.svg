@@ -25,7 +25,7 @@
 </metadata>
 <sodipodi:namedview
    pagecolor="#ffffff"
-   bordercolor="#4fc3f7"
+   bordercolor="#666666"
    borderopacity="1"
    objecttolerance="10"
    gridtolerance="10"
@@ -50,7 +50,7 @@ a
      type="text/css"
      id="current-color-scheme">
       .ColorScheme-Text {
-        color:#4FC3F7;
+        color:#5d656b;
       }
       </style>
   <linearGradient
@@ -67,7 +67,7 @@ a
      inkscape:collect="always"
      id="linearGradient4172-7">
     <stop
-       style="stop-color:#19A9FF;stop-opacity:1"
+       style="stop-color:#1d99f3;stop-opacity:1"
        offset="0"
        id="stop4174-2" />
     <stop

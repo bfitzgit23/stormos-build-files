@@ -58,10 +58,6 @@ less
 lftp
 libfido2
 libusb-compat
-linux
-linux-headers
-linux-zen
-linux-zen-headers
 linux-lts
 linux-lts-headers
 linux-atm
@@ -159,7 +155,7 @@ firefox
 wmctrl
 calamares-app
 calamares-config-xfce
-python-pyqt5
+pyqt5
 qt5ct
 spice-vdagent
 spice-protocol

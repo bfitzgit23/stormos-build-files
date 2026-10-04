@@ -1,8 +1,0 @@
-[Plymouth Theme]
-Name=StormOS
-Description=StormOS lightning bolt boot splash
-ModuleName=script
-
-[script]
-ImageDir=/usr/share/plymouth/themes/stormos
-ScriptFile=/usr/share/plymouth/themes/stormos/stormos.script

@@ -16,7 +16,7 @@
   <sodipodi:namedview
      id="namedview759"
      pagecolor="#ffffff"
-     bordercolor="#4fc3f7"
+     bordercolor="#666666"
      borderopacity="1.0"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
@@ -40,7 +40,7 @@
      type="text/css"
      id="current-color-scheme">
         .ColorScheme-Text {
-            color:#4FC3F7;
+            color:#5d656b;
         }
     </style>
   <path
