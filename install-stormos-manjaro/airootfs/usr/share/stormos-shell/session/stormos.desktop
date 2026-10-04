@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=StormOS
-Comment=StormOS React desktop shell on labwc
-Exec=/usr/bin/stormos-session
-TryExec=/usr/bin/stormos-session
-Type=Application
-DesktopNames=StormOS;Wayland
