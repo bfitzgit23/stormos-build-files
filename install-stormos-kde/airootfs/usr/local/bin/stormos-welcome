@@ -241,9 +241,11 @@ class StormWelcome(QMainWindow):
         header = QWidget()
         hlayout = QHBoxLayout(header)
         title = QLabel("🌩️ StormOS")
-        title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {STORM_BLUE};")
+        title.setObjectName("headerTitle")
+        title.setStyleSheet("font-size: 28px; font-weight: bold;")
         subtitle = QLabel("Arch Linux made easy")
-        subtitle.setStyleSheet(f"color: {STORM_GRAY}; font-size: 14px; margin-left: 12px;")
+        subtitle.setObjectName("headerSubtitle")
+        subtitle.setStyleSheet("font-size: 14px; margin-left: 12px;")
         hlayout.addWidget(title)
         hlayout.addWidget(subtitle)
         hlayout.addStretch()
@@ -284,7 +286,8 @@ class StormWelcome(QMainWindow):
         layout.setContentsMargins(16, 12, 16, 16)
         layout.setSpacing(10)
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(f"color: {STORM_BLUE}; font-weight: bold; font-size: 14px; background: transparent; border: none; padding: 0;")
+        title_lbl.setObjectName("cardTitle")
+        title_lbl.setStyleSheet("font-weight: bold; font-size: 14px; background: transparent; border: none; padding: 0;")
         layout.addWidget(title_lbl)
         return card
 
@@ -306,7 +309,8 @@ class StormWelcome(QMainWindow):
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(25)
 
-        welcome = QLabel("Welcome to Your New <span style='color:#64ffda'>StormOS</span> System!")
+        welcome = QLabel("Welcome to Your New StormOS System!")
+        welcome.setObjectName("welcomeTitle")
         welcome.setStyleSheet("font-size: 28px; font-weight: bold;")
         welcome.setWordWrap(True)
         layout.addWidget(welcome)
@@ -416,7 +420,8 @@ class StormWelcome(QMainWindow):
 
         header = QHBoxLayout()
         title = QLabel("📦 Software Center")
-        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #64ffda;")
+        title.setObjectName("sectionTitle")
+        title.setStyleSheet("font-size: 20px; font-weight: bold;")
         header.addWidget(title)
         header.addStretch()
         self.backend_status = QLabel("Pacman: ✓ | AUR: ?")
@@ -454,7 +459,8 @@ class StormWelcome(QMainWindow):
         details_widget = QWidget()
         details_layout = QVBoxLayout(details_widget)
         self.details_title = QLabel("Select a package")
-        self.details_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #64ffda;")
+        self.details_title.setObjectName("sectionTitle")
+        self.details_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         details_layout.addWidget(self.details_title)
         self.details_text = QTextEdit()
         self.details_text.setReadOnly(True)
@@ -676,7 +682,7 @@ class StormWelcome(QMainWindow):
             help_card.layout().addWidget(btn)
         about_btn = QPushButton("About StormOS")
         about_btn.setObjectName("linkButton")
-        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS", "StormOS Welcome v2.0\n\nBuilt with PyQt6"))
+        about_btn.clicked.connect(lambda: QMessageBox.about(self, "About StormOS", "StormOS Welcome v2.0\n\nBuilt with PyQt5"))
         help_card.layout().addWidget(about_btn)
         layout.addWidget(help_card)
         layout.addStretch()
@@ -699,11 +705,12 @@ class StormWelcome(QMainWindow):
         run_command(env_cmd, "Calamares Installer", hold=False)
 
     def launch_abif(self):
-        abif_path = "/abif-master/abif"
+        abif_path = "/usr/local/bin/stormos-abif"
         if not os.path.isfile(abif_path):
             QMessageBox.warning(self, "Installer not found", "ABIF installer not installed.")
             return
-        run_command([abif_path], "ABIF Installer", hold=True)
+        # ABIF needs root; the password prompt happens inside the terminal
+        run_command(["sudo", abif_path], "ABIF Installer", hold=True)
 
     def enable_autostart(self):
         AUTOSTART_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -743,7 +750,7 @@ Categories=System;
         if "Dark" in theme:
             self.apply_styles()
         else:
-            self.setStyleSheet("QMainWindow { background-color: #f0f0f0; } QLabel { color: #000; }")
+            self.apply_light_styles()
 
     def setup_autostart(self):
         if not self.is_live and not AUTOSTART_DISABLED_MARKER.exists():
@@ -827,6 +834,50 @@ Categories=System;
                 padding: 6px 12px;
                 font-size: 12px;
             }}
+            QPushButton#smallGlass:hover {{
+                background: rgba(100, 255, 218, 0.15);
+                border-color: {STORM_BLUE};
+                color: {STORM_LIGHT};
+            }}
+            QPushButton#glassButton:hover {{
+                background: rgba(100, 255, 218, 0.12);
+                color: {STORM_LIGHT};
+            }}
+            QPushButton#linkButton:hover {{ color: {STORM_TEAL}; }}
+            QPushButton#successGlass {{
+                background: rgba(0, 209, 178, 0.15);
+                color: {STORM_TEAL};
+                border: 1px solid rgba(0, 209, 178, 0.45);
+                border-radius: 10px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton#successGlass:hover {{ background: rgba(0, 209, 178, 0.28); }}
+            QPushButton#successGlass:disabled {{ color: {STORM_GRAY}; border-color: rgba(136, 146, 176, 0.3); background: rgba(2, 12, 27, 0.4); }}
+            QPushButton#dangerGlass {{
+                background: rgba(255, 107, 107, 0.12);
+                color: {STORM_CORAL};
+                border: 1px solid rgba(255, 107, 107, 0.45);
+                border-radius: 10px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton#dangerGlass:hover {{ background: rgba(255, 107, 107, 0.25); }}
+            QPushButton#dangerGlass:disabled {{ color: {STORM_GRAY}; border-color: rgba(136, 146, 176, 0.3); background: rgba(2, 12, 27, 0.4); }}
+            QPushButton:disabled {{ color: {STORM_GRAY}; }}
+            QComboBox QAbstractItemView {{
+                background-color: {STORM_DARK};
+                color: {STORM_LIGHT};
+                border: 1px solid rgba(100, 255, 218, 0.3);
+                selection-background-color: rgba(100, 255, 218, 0.2);
+                selection-color: {STORM_LIGHT};
+            }}
+            QTabBar::tab:hover {{ color: {STORM_LIGHT}; }}
+            QLabel#headerTitle {{ color: {STORM_BLUE}; }}
+            QLabel#headerSubtitle {{ color: {STORM_GRAY}; }}
+            QLabel#welcomeTitle {{ color: {STORM_LIGHT}; }}
+            QLabel#sectionTitle {{ color: {STORM_BLUE}; }}
+            QLabel#cardTitle {{ color: {STORM_BLUE}; }}
             QLineEdit, QComboBox, QTextEdit {{
                 background-color: rgba(2, 12, 27, 0.7);
                 border: 1px solid rgba(100, 255, 218, 0.3);
@@ -891,6 +942,157 @@ Categories=System;
                 background-color: {STORM_NAVY};
                 color: {STORM_LIGHT};
                 border: 1px solid rgba(100, 255, 218, 0.3);
+                border-radius: 6px;
+                padding: 4px 8px;
+                font-size: 12px;
+            }}
+        """)
+
+    def apply_light_styles(self):
+        """Light "daylight glass" theme - mirrors the dark theme structure."""
+        bg = "#f0f4f8"; card = "#ffffff"; line = "#dbe2ea"
+        text = "#1f2933"; subtle = "#5f6b7a"; teal = "#0f766e"; purple = "#7c3aed"
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {bg}; }}
+            #central {{
+                background-color: {card};
+                border-radius: 20px;
+                border: 1px solid {line};
+            }}
+            QTabWidget::pane {{
+                background-color: #fbfcfe;
+                border: 1px solid {line};
+                border-radius: 16px;
+            }}
+            QTabBar::tab {{
+                background: transparent;
+                color: {subtle};
+                padding: 12px 24px;
+                font-weight: 600;
+                font-size: 14px;
+            }}
+            QTabBar::tab:selected {{
+                background: rgba(15, 118, 110, 0.08);
+                color: {teal};
+                border-bottom: 2px solid {teal};
+            }}
+            QTabBar::tab:hover {{ color: {text}; }}
+            QPushButton#gradientButton {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {teal}, stop:1 {purple});
+                color: #ffffff;
+                border: none;
+                border-radius: 12px;
+                padding: 12px 20px;
+                font-weight: bold;
+                font-size: 14px;
+            }}
+            QPushButton#gradientButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {purple}, stop:1 {teal});
+            }}
+            QPushButton#glassButton {{
+                background: #e8edf3;
+                color: {teal};
+                border: 1px solid {teal};
+                border-radius: 10px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton#glassButton:hover {{ background: #dceaf2; }}
+            QPushButton#actionButton {{
+                background: #f0f4f8;
+                color: {text};
+                border: 1px solid {line};
+                border-radius: 10px;
+                padding: 10px 16px;
+                text-align: left;
+            }}
+            QPushButton#actionButton:hover {{
+                background: #e3ecf4;
+                border-color: {teal};
+            }}
+            QPushButton#linkButton {{
+                background: transparent;
+                color: {teal};
+                border: none;
+                padding: 6px 12px;
+            }}
+            QPushButton#linkButton:hover {{ color: {purple}; }}
+            QPushButton#smallGlass {{
+                background: #e8edf3;
+                color: {teal};
+                border: 1px solid #9fb6c9;
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 12px;
+            }}
+            QPushButton#smallGlass:hover {{ background: #dceaf2; }}
+            QPushButton#successGlass {{
+                background: rgba(15, 118, 110, 0.08);
+                color: {teal};
+                border: 1px solid rgba(15, 118, 110, 0.45);
+                border-radius: 10px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton#successGlass:hover {{ background: rgba(15, 118, 110, 0.16); }}
+            QPushButton#successGlass:disabled {{ color: {subtle}; border-color: {line}; background: #eef1f5; }}
+            QPushButton#dangerGlass {{
+                background: rgba(185, 28, 28, 0.06);
+                color: #b91c1c;
+                border: 1px solid rgba(185, 28, 28, 0.4);
+                border-radius: 10px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton#dangerGlass:hover {{ background: rgba(185, 28, 28, 0.14); }}
+            QPushButton#dangerGlass:disabled {{ color: {subtle}; border-color: {line}; background: #eef1f5; }}
+            QPushButton:disabled {{ color: {subtle}; }}
+            QLineEdit, QComboBox, QTextEdit {{
+                background-color: #ffffff;
+                border: 1px solid #9fb6c9;
+                border-radius: 10px;
+                padding: 8px;
+                color: {text};
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: #ffffff;
+                color: {text};
+                border: 1px solid #9fb6c9;
+                selection-background-color: #d6ecec;
+                selection-color: {text};
+            }}
+            QTreeWidget {{
+                background-color: #ffffff;
+                border: 1px solid {line};
+                border-radius: 12px;
+                color: {text};
+            }}
+            QTreeWidget::item:selected {{
+                background: rgba(15, 118, 110, 0.14);
+                border-left: 3px solid {teal};
+            }}
+            QScrollBar:vertical {{ background: #e8edf3; width: 10px; margin: 0; border-radius: 5px; }}
+            QScrollBar::handle:vertical {{ background: #b9c6d4; min-height: 30px; border-radius: 5px; }}
+            QScrollBar::handle:vertical:hover {{ background: #9fb6c9; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: none; }}
+            QScrollBar:horizontal {{ background: #e8edf3; height: 10px; margin: 0; border-radius: 5px; }}
+            QScrollBar::handle:horizontal {{ background: #b9c6d4; min-width: 30px; border-radius: 5px; }}
+            QScrollBar::handle:horizontal:hover {{ background: #9fb6c9; }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0px; }}
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ background: none; }}
+            QLabel {{ color: {text}; background: transparent; }}
+            QLabel#headerTitle {{ color: {teal}; }}
+            QLabel#headerSubtitle {{ color: {subtle}; }}
+            QLabel#welcomeTitle {{ color: {text}; }}
+            QLabel#sectionTitle {{ color: {teal}; }}
+            QLabel#cardTitle {{ color: {teal}; }}
+            QToolTip {{
+                background-color: #ffffff;
+                color: {text};
+                border: 1px solid #9fb6c9;
                 border-radius: 6px;
                 padding: 4px 8px;
                 font-size: 12px;

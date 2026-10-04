@@ -47,13 +47,9 @@ if [ "$IS_CALAMARES" = true ]; then
 
     USER_HOME="$TARGET_ROOT/home/$USER_NAME"
     mkdir -p "$USER_HOME"
-
-    # Remove Calamares desktop shortcut from target user
-    rm -f "$USER_HOME/Desktop/calamares.desktop" 2>/dev/null || true
 else
     # Outside chroot — get caller name safely
     USER_NAME=$(logname 2>/dev/null || whoami 2>/dev/null || echo "root")
-    rm -f "/home/$USER_NAME/Desktop/calamares.desktop" 2>/dev/null || true
 fi
 
 # === USER SETUP ===
@@ -71,6 +67,21 @@ if [ "$IS_CALAMARES" = true ]; then
     chown -R "${USER_UID:-1000}:${USER_GID:-1000}" "$USER_HOME"
 
 fi
+
+# === INSTALLER CLEANUP ===
+# The live image ships Calamares/ABIF artifacts that unpackfs copies into
+# the installed system: /etc/calamares, installer desktop icons and menu
+# entries. Remove them so nothing installer-related persists post-install.
+show_progress "Removing installer artifacts from installed system..."
+rm -rf "$TARGET_ROOT/etc/calamares" 2>/dev/null || true
+rm -f "$TARGET_ROOT/usr/share/applications/stormos-installer-cli.desktop" 2>/dev/null || true
+if [ -d "$TARGET_ROOT/etc/skel/Desktop" ]; then
+    rm -f "$TARGET_ROOT/etc/skel/Desktop/calamares.desktop" "$TARGET_ROOT/etc/skel/Desktop/abif.desktop" 2>/dev/null || true
+fi
+if [ -n "${USER_HOME:-}" ] && [ -d "$USER_HOME/Desktop" ]; then
+    rm -f "$USER_HOME/Desktop/calamares.desktop" "$USER_HOME/Desktop/abif.desktop" 2>/dev/null || true
+fi
+echo "✓ Installer artifacts removed"
 
 # === PLYMOUTH SETUP ===
 show_progress "Ensuring plymouth is configured for installed system..."
@@ -101,13 +112,14 @@ fi
 # Ensure grub theme files are available in installed system
 if [ -d "/usr/share/grub/themes/stormos" ] && [ ! -d "$TARGET_ROOT/usr/share/grub/themes/stormos" ]; then
     cp -r /usr/share/grub/themes/stormos "$TARGET_ROOT/usr/share/grub/themes/"
-n# === PLYMOUTH THEME SETUP ===
+    echo "✓ Copied StormOS GRUB theme to installed system"
+fi
+
+# === PLYMOUTH THEME SETUP ===
 show_progress "Setting StormOS plymouth theme..."
 if [ -d "/usr/share/plymouth/themes/stormos" ]; then
     chroot "$TARGET_ROOT" plymouth-set-default-theme stormos 2>/dev/null || true
     echo "✓ Plymouth theme set to StormOS"
-fi
-    echo "✓ Copied StormOS GRUB theme to installed system"
 fi
 
 # DNS

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=StormOS Installer (CLI)
 Comment=Command Line Installer For StormOS
-Exec=xfce4-terminal --disable-server --title "StormOS Installer (CLI)" -x sudo /usr/local/bin/stormos-abif
+Exec=konsole -p tabtitle=StormOS-Installer-CLI -e sudo /usr/local/bin/stormos-abif
 Icon=utilities-terminal
 Type=Application
 Categories=System;SystemUtils;

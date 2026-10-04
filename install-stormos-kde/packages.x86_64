@@ -267,6 +267,5 @@ vlc
 python-flask
 python-flask-cors
 clamav
-alacritty
 dialog
 wipe
