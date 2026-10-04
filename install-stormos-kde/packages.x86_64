@@ -107,7 +107,7 @@ sdparm
 sequoia-sq
 sg3_utils
 smartmontools
-stormos-grub-theme
+#stormos-grub-theme
 sof-firmware
 squashfs-tools
 sudo
