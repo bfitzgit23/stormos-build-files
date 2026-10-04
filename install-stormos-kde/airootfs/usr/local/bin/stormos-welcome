@@ -729,9 +729,23 @@ Categories=System;
         self.update_autostart_status()
         self.status_label.setText("Autostart enabled")
 
+    @staticmethod
+    def _write_autostart_mask():
+        # A user-level autostart entry with Hidden=true shadows the
+        # system-wide /etc/xdg/autostart/stormos-welcome.desktop on every
+        # login (XDG autostart spec). Deleting the user-level file alone
+        # leaves the system-wide entry active, so the welcome app came
+        # back after every reboot.
+        AUTOSTART_FILE.parent.mkdir(parents=True, exist_ok=True)
+        AUTOSTART_FILE.write_text(
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=StormOS Welcome\n"
+            "Hidden=true\n"
+        )
+
     def disable_autostart(self):
-        if AUTOSTART_FILE.exists():
-            AUTOSTART_FILE.unlink()
+        self._write_autostart_mask()
         AUTOSTART_DISABLED_MARKER.touch()
         self.update_autostart_status()
         self.status_label.setText("Autostart disabled")
@@ -757,8 +771,7 @@ Categories=System;
             QTimer.singleShot(1000, self.disable_autostart_once)
 
     def disable_autostart_once(self):
-        if AUTOSTART_FILE.exists():
-            AUTOSTART_FILE.unlink()
+        self._write_autostart_mask()
         AUTOSTART_DISABLED_MARKER.touch()
 
     def apply_styles(self):
