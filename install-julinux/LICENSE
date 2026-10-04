@@ -1,0 +1,51 @@
+JULinux 13X -- Licenses & Credits
+=================================
+
+JULinux is built from build files based on eznixOS 13X by eznix (and on
+StormD by Ben Fitzpatrick). The build script (bljulinux13X) carries
+eznix's original license header, reproduced here together with his
+disclaimer, re-included verbatim:
+
+    bldeznix13X -- Revision: 13X -- by eznix (https://sourceforge.net/projects/eznixos/)
+    (GNU/General Public License version 3.0)
+
+# Disclaimer:
+# THIS SOFTWARE IS PROVIDED BY EZNIX “AS IS” AND ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+# EVENT SHALL EZNIX BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+# IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+Credits
+-------
+
+* eznix -- eznixOS (https://sourceforge.net/projects/eznixos/): the eznix13X
+  live-build base, scripts, and desktop design that JULinux is derived from.
+* Justin Breithaupt -- JULinux ("Justin's Linux"): the JULinux 13X edition.
+* Ben Fitzpatrick (bfitzgit23) -- StormD (StormOS Debian Edition) and the
+  JULinux 13X build adaptation.
+
+Changes requested for JULinux (vs. the eznix13X / StormD base)
+--------------------------------------------------------------
+
+* Added the JULinux 13X build with Calamares, switcheroo applet, and
+  welcome app (b9607ea76)
+* Rewrote the welcome app with install/uninstall tabs and apt progress
+  (28a3d4785)
+* Switcheroo applet falls back to a window when the tray is unavailable
+  (86975b83e)
+* Ship flatpak, gnome-software + flathub pre-enabled (e40f3fe2c)
+* Dropped kitty -- xfce4-terminal is the only terminal (b2c15a79b)
+* Added "The Book of God's Law" desktop shortcut (9c0211e41)
+
+License
+-------
+
+GNU General Public License, version 3.0 (GPL-3.0), consistent with the
+eznix13X base this distribution derives from:
+https://www.gnu.org/licenses/gpl-3.0.html
