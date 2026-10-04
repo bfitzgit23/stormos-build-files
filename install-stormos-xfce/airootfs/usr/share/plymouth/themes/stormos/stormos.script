@@ -1,0 +1,79 @@
+# StormOS Plymouth Theme — Boot Splash
+# Dark background with animated loading indicator
+
+# Colors
+_define_color BG       0x0a1628;
+_define_color BLUE     0x19a9ff;
+_define_color BLUE2    0x0876c9;
+_define_color WHITE    0xe8f2ff;
+_define_color MUTED    0x7a9bb5;
+
+# Boot message
+boot_message = "StormOS";
+
+# Progress bar dimensions
+bar_x = (window_width - 300) / 2;
+bar_y = window_height - 120;
+bar_width = 300;
+bar_height = 4;
+bar_radius = 2;
+
+# Logo position
+logo_x = (window_width - 200) / 2;
+logo_y = (window_height - 80) / 2 - 40;
+
+# Text position
+text_y = logo_y + 160;
+
+# Animation
+progress = 0;
+progress_steps = 0;
+
+# Animation state
+angle = 0;
+
+fun refresh() {
+    # Background
+    window_draw_box(window_root, 0, 0, window_width, window_height, BG);
+
+    # StormOS text
+    window_draw_text(window_root, window_width/2, logo_y, 28, boot_message,
+                     WHITE, WINDOW_TEXT_ALIGN_CENTER);
+
+    # Subtitle
+    window_draw_text(window_root, window_width/2, logo_y + 40, 12,
+                     "POWER  •  PERFORMANCE  •  FREEDOM",
+                     MUTED, WINDOW_TEXT_ALIGN_CENTER);
+
+    # Progress bar background
+    window_draw_box(window_root, bar_x, bar_y, bar_width, bar_height, 0x1e4a6e);
+
+    # Progress bar fill
+    fill_width = bar_width * progress;
+    if (fill_width > 0) {
+        window_draw_box(window_root, bar_x, bar_y, fill_width, bar_height, BLUE);
+    }
+
+    # Spinning indicator (simple rotating dot)
+    dot_angle = angle * 0.1;
+    dot_x = window_width/2 + 50 * cos(dot_angle);
+    dot_y = text_y + 20 * sin(dot_angle);
+    window_draw_box(window_root, dot_x - 3, dot_y - 3, 6, 6, BLUE);
+}
+
+fun progress_callback(progress_pct) {
+    progress = progress_pct;
+    refresh();
+}
+
+fun update() {
+    angle = angle + 5;
+    refresh();
+    return 0;  # continue animating
+}
+
+# Start the animation loop
+main_loop = window_main_loop();
+window_loop_add_timeout(main_loop, 30, update);
+window_set_background_color(window_root, BG);
+refresh();

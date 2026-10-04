@@ -107,9 +107,8 @@ class TerminalOpener:
         """Get list of available terminals and their execute flags"""
         terminals = [
             # (executable, execute_flag, single_arg_flag)
+            ("konsole", "-e", False),         # konsole -e bash -c (KDE default)
             ("gnome-terminal", "--", False),  # gnome-terminal -- bash -c
-            ("konsole", "-e", False),         # konsole -e bash -c
-            ("konsole", "-e", False),  # konsole -x bash -c
             ("lxterminal", "-e", False),      # lxterminal -e bash -c
             ("terminator", "-x", False),      # terminator -x bash -c
             ("tilix", "-e", False),           # tilix -e bash -c
