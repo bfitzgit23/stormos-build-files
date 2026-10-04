@@ -38,5 +38,4 @@ file_permissions=(
   ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
   ["/etc/skel/Desktop/abif.desktop"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
-  ["/usr/share/xsessions/xfce.desktop"]="0:0:644"
 )
