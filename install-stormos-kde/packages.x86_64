@@ -154,6 +154,7 @@ kwalletmanager
 partitionmanager
 kdegraphics-thumbnailers
 ffmpegthumbs
+breeze
 breeze-gtk
 qt5-imageformats
 qt6-imageformats
