@@ -11,4 +11,4 @@ bfitzgit23 (Ben - StormOS Main Dev).
 Credits
 -------
 
-The Arch profiles' multi-kernel setup (mainline linux, linux-zen, and linux-lts), calamares initcpio wiring, and boot entries are based on eznix's EzArch build files (https://sourceforge.net/projects/ezarch/), licensed under the GNU GPL version 3.0. thanks eznix!
+The Arch profiles' multi-kernel setup (mainline linux, linux-zen, and linux-lts), calamares initcpio wiring, boot entries, and the welcome app's calamares installer launchers are based on eznix's EzArch build files (https://sourceforge.net/projects/ezarch/), licensed under the GNU GPL version 3.0. thanks eznix!

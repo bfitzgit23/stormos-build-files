@@ -2,6 +2,8 @@
 """
 StormOS Welcome – Tabs version, KDE‑friendly (konsole preferred)
 """
+# Calamares installer launchers and installer fixes in this app are based on
+# eznix's EzArch build files: https://sourceforge.net/projects/ezarch/ (GNU GPL v3.0)
 
 import sys
 import os
@@ -264,9 +266,15 @@ class StormWelcome(QMainWindow):
         return footer
 
     def create_glass_card(self, title):
+        # NOTE: scope the card QSS to the card itself. a bare QWidget selector
+        # cascades to child widgets and beats the window-level
+        # #gradientButton/#glassButton rules (nearest ancestor wins in Qt's
+        # stylesheet cascade), so the installer buttons rendered dark-on-dark
+        # with no chrome -- invisible.
         card = QWidget()
+        card.setObjectName("stormCard")
         card.setStyleSheet(f"""
-            QWidget {{
+            QWidget#stormCard {{
                 background-color: {GLASS_DARK};
                 border: 1px solid rgba(100, 255, 218, 0.2);
                 border-radius: 16px;
