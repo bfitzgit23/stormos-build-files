@@ -487,6 +487,27 @@ create_new_user() {
 
 #_________ Generate Initramfs _________________________________#
 
+# Install the target (installed-system) mkinitcpio presets, mirroring what
+# Calamares does via shellprocess@first before running its initcpio modules.
+prepare_target_presets() {
+
+	# Replace the ISO build presets with the installed-system presets
+	if [[ -d /etc/stormos/mkinitcpio-presets ]]; then
+		for _p in linux linux-lts linux-zen; do
+			rm -f ${MOUNTPOINT}/etc/mkinitcpio.d/${_p}.preset 2>>/tmp/.errlog
+			install -Dm644 /etc/stormos/mkinitcpio-presets/${_p}.preset ${MOUNTPOINT}/etc/mkinitcpio.d/${_p}.preset 2>>/tmp/.errlog
+		done
+		check_for_error
+	fi
+
+	# Same guard as Calamares shellprocess-crc32c (harmless when not present)
+	sed -i -E 's/\bcrc32c(-intel|_intel)?\b//g' ${MOUNTPOINT}/etc/mkinitcpio.conf 2>>/tmp/.errlog
+
+	# Remove any archiso-built initramfs images copied from the live /boot
+	rm -f ${MOUNTPOINT}/boot/initramfs-*.img 2>>/tmp/.errlog
+
+}
+
 run_mkinitcpio() {
 	
 	clear
@@ -498,6 +519,16 @@ run_mkinitcpio() {
     ([[ $LVM -eq 1 ]] && [[ $LUKS -eq 1 ]]) && sed -i 's/block filesystems/block sd-encrypt lvm2 filesystems/g' ${MOUNTPOINT}/etc/mkinitcpio.conf 2>/tmp/.errlog && sed -i 's/#GRUB_ENABLE_CRYPTODISK=.*/GRUB_ENABLE_CRYPTODISK=y/g' ${MOUNTPOINT}/etc/default/grub 2>/tmp/.errlog
     ([[ $LVM -eq 0 ]] && [[ $LUKS -eq 1 ]]) && sed -i 's/block filesystems/block sd-encrypt filesystems/g' ${MOUNTPOINT}/etc/mkinitcpio.conf 2>/tmp/.errlog && sed -i 's/#GRUB_ENABLE_CRYPTODISK=.*/GRUB_ENABLE_CRYPTODISK=y/g' ${MOUNTPOINT}/etc/default/grub 2>/tmp/.errlog
     check_for_error
+
+	# Port of the Calamares initramfs handling (shellprocess-first.conf,
+	# shellprocess-crc32c.conf and initcpio-linux{,-lts,-zen}.conf):
+	# the presets shipped in /etc/mkinitcpio.d are 'archiso' build presets
+	# (they generate the LIVE ISO initramfs from /etc/mkinitcpio.conf.d/archiso.conf).
+	# Left in place, 'mkinitcpio -P' in the installed system would rebuild
+	# live-ISO initramfs images and the installed system would fail to boot,
+	# so replace them with the target presets from /etc/stormos/mkinitcpio-presets,
+	# drop any archiso-built images from the live /boot, then regenerate.
+	prepare_target_presets
 
 	arch_chroot "mkinitcpio -P" 2>>/tmp/.errlog
 	check_for_error
@@ -1502,6 +1533,11 @@ install_root(){
   cp /tmp/.scriptlog ${MOUNTPOINT}/var/log/abif_ps_log 2>>/tmp/.errlog
 
   ############# ################################# #############
+
+  # Generate the installed system's initramfs images now (the same step
+  # Calamares performs with its initcpio modules) so a fresh install boots
+  # without requiring the separate "Generate Initramfs" menu entry.
+  run_mkinitcpio
 
   # Clean up installation
   rm -rf ${MOUNTPOINT}/vomi 2>>/tmp/.errlog
