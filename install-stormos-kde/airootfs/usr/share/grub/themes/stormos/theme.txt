@@ -5,7 +5,7 @@
 # Settings
 title-text: ""
 title-color: "#0fa2f2"
-desktop-image: "background.png"
+desktop-image: "stormos-wallpaper.png"
 desktop-color: "#000000"
 terminal-box: "terminal_box_*.png"
 terminal-font: "Unifont Regular 16"
