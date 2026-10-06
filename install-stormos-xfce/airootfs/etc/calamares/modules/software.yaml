@@ -1,8 +1,8 @@
 - name: "Extra TTF Fonts"
   description: "Installs Additional Fonts"
   critical: false
-  hidden: true
-  selected: true
+  hidden: false
+  selected: false
   expanded: false
   packages:
     - ttf-anonymous-pro

@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import webbrowser
 import threading
+import time
 from pathlib import Path
 
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QEvent
@@ -92,8 +93,8 @@ def run_command(cmd, title="StormOS", hold=True):
     elif term_name == "xterm":
         args = [term, "-title", title, "-e", shell_cmd]
     elif term_name == "konsole":
-        # --hold keeps window open after command finishes
-        args = [term, "--hold", "-e", shell_cmd]
+        # --hold keeps the window open after the command finishes
+        args = [term, "-e", shell_cmd] if not hold else [term, "--hold", "-e", shell_cmd]
     else:
         args = [term, "-e", shell_cmd]
 
@@ -105,12 +106,27 @@ def run_command(cmd, title="StormOS", hold=True):
         QMessageBox.critical(None, "Terminal Error", str(e))
         return False
 
-def run_capture(cmd):
+def run_capture(cmd, timeout=30):
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return result.returncode, result.stdout, result.stderr
     except Exception:
         return 1, "", ""
+
+PACMAN_SYNC_DB = "/var/lib/pacman/sync/core.db"
+PACMAN_SYNC_MAX_AGE = 7 * 24 * 3600  # refresh at most once a week
+
+def pacman_db_stale():
+    """True when the pacman sync databases are missing or older than a week.
+
+    On a freshly installed system (or after a failed 'pacman -Sy' inside the
+    installer) the sync databases can be missing entirely, which makes
+    'pacman -Ss' return nothing and the Software Center look broken.
+    """
+    try:
+        return (time.time() - os.stat(PACMAN_SYNC_DB).st_mtime) > PACMAN_SYNC_MAX_AGE
+    except OSError:
+        return True
 
 # ============================================================
 # Package backends (same as before)
@@ -233,6 +249,13 @@ class StormWelcome(QMainWindow):
         layout.addWidget(self.tabs)
 
         layout.addWidget(self.create_footer())
+
+        # Sync the pacman databases by default so the Software Center can find
+        # packages on a freshly installed system (at most once a week; silent
+        # in the live session where sudo is passwordless).
+        if pacman_db_stale():
+            self.status_label.setText("Syncing package databases...")
+            threading.Thread(target=self._auto_sync_dbs, daemon=True).start()
 
     # ------------------------------------------------------------------
     # Header, Footer, Glass card helper
@@ -484,6 +507,30 @@ class StormWelcome(QMainWindow):
         splitter.setSizes([450, 350])
         layout.addWidget(splitter)
         return tab
+
+    def _auto_sync_dbs(self):
+        """Refresh the pacman sync databases in the background.
+
+        Live session: sudo is passwordless, so the sync runs silently.
+        Installed system: the password prompt appears in a terminal window
+        (the same flow as every other privileged action in this app).
+        """
+        if is_live_session():
+            run_capture(["sudo", "pacman", "-Sy"], timeout=600)
+        elif find_terminal():
+            run_command(["sudo", "pacman", "-Sy"],
+                        title="StormOS - Syncing package databases", hold=False)
+        # When run via a terminal the command returns immediately; wait (up to
+        # 5 minutes) for the sync to finish before updating the status label.
+        if not is_live_session():
+            deadline = time.time() + 300
+            while time.time() < deadline and pacman_db_stale():
+                time.sleep(2)
+        if pacman_db_stale():
+            msg = "Could not sync package databases (offline?)"
+        else:
+            msg = "Package databases synced - ready to search"
+        QApplication.instance().postEvent(self, SyncDoneEvent(msg))
 
     def search_packages(self):
         query = self.soft_search.text().strip()
@@ -1122,6 +1169,9 @@ Categories=System;
         self.anim.start()
 
     def customEvent(self, event):
+        if isinstance(event, SyncDoneEvent):
+            self.status_label.setText(event.message)
+            return
         if isinstance(event, SearchResultsEvent):
             self.package_list.clear()
             for pkg in event.packages:
@@ -1139,6 +1189,13 @@ class SearchResultsEvent(QEvent):
     def __init__(self, packages):
         super().__init__(SearchResultsEvent.EVENT_TYPE)
         self.packages = packages
+
+class SyncDoneEvent(QEvent):
+    EVENT_TYPE = QEvent.Type.User + 2
+
+    def __init__(self, message):
+        super().__init__(SyncDoneEvent.EVENT_TYPE)
+        self.message = message
 
 # ============================================================
 # Main
