@@ -79,7 +79,7 @@ ApplicationWindow {
                     y: 12
                     height: 100
                     fillMode: Image.PreserveAspectFit
-                    source: "squid.png"
+                    source: "logo.png"
                 }
 
             }

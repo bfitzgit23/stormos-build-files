@@ -72,25 +72,16 @@ chage -E -1 lightdm
 
 xdg-user-dirs-update --force
 
-
-mkdir -p /usr/share/backgrounds/xfce
-cp -af /usr/share/backgrounds/*.* /usr/share/backgrounds/xfce
-
 ####
 
 chown -R liveuser:liveuser /tmp
 
 plymouth-set-default-theme stormos
 
-# Create theme directory
-mkdir -p /usr/share/themes/grub/fonts
-
-# Copy StormOS theme
-cp -r /usr/share/themes/grub/stormos /usr/share/grub/themes
-
-# Ensure proper permissions
-chown -R root:root /usr/share/themes/grub
-chmod -R 755 /usr/share/themes/grub
+# The live GRUB theme ships directly in airootfs at
+# /usr/share/grub/themes/stormos. The old /usr/share/themes/grub copy
+# (stale wallpaper, other-distro icons) was removed — never copy it over
+# the real theme.
 
 systemctl disable --now systemd-userdb-load-credentials.service systemd-userdbd.service systemd-userdbd.socket
 systemctl mask systemd-userdb-load-credentials.service systemd-userdbd.service systemd-userdbd.socket

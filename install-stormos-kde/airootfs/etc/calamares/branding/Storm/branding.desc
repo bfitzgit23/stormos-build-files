@@ -31,9 +31,9 @@ strings:
 
 # Images for branding
 images:
-    productLogo:         "squid.png"
+    productLogo:         "logo.png"
     productIcon:         "logo.png"
-    productWelcome:      "languages.png"
+    productWelcome:      "slide1.png"
 
 # Slideshow configuration
 slideshow:               "show.qml"
