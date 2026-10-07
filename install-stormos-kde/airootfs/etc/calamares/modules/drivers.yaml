@@ -1,6 +1,6 @@
 ---
 - name: NVIDIA Open Driver
-  description: Build the open NVIDIA driver for linux, linux-lts, and linux-zen.
+  description: Build the open NVIDIA driver via DKMS for the installed kernel(s).
   critical: false
   hidden: false
   selected: false

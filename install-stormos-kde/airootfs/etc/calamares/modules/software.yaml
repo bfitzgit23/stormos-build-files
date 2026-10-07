@@ -1,3 +1,23 @@
+- name: "LTS Kernel"
+  description: "Optional linux-lts kernel and headers (the default linux kernel is always installed)"
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - linux-lts
+    - linux-lts-headers
+
+- name: "Zen Kernel"
+  description: "Optional linux-zen kernel and headers (the default linux kernel is always installed)"
+  critical: false
+  hidden: false
+  selected: false
+  expanded: false
+  packages:
+    - linux-zen
+    - linux-zen-headers
+
 - name: "Extra TTF Fonts"
   description: "Installs Additional Fonts"
   critical: false

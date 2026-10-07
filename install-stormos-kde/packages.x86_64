@@ -58,10 +58,6 @@ libusb-compat
 # Kernel and boot wiring based on eznix EzArch build files: https://sourceforge.net/projects/ezarch/ (GNU GPL v3.0)
 linux
 linux-headers
-linux-lts
-linux-lts-headers
-linux-zen
-linux-zen-headers
 linux-atm
 linux-firmware
 linux-firmware-marvell
@@ -236,12 +232,6 @@ linux-firmware-cirrus
 linux-firmware-intel
 linux-firmware-mediatek
 linux-firmware-nvidia
-nvidia-open-dkms
-nvidia-utils
-lib32-nvidia-utils
-opencl-nvidia
-lib32-opencl-nvidia
-nvidia-settings
 linux-firmware-radeon
 linux-firmware-realtek
 xorg-server
