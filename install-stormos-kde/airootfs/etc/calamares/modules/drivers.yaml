@@ -93,7 +93,7 @@
      - linux-lts-headers
 
 - name: NVIDIA LTS Driver
-  description: Build the open NVIDIA driver via DKMS for the installed kernel(s).
+  description: Build the open NVIDIA long term support driver via DKMS for the installed kernel(s).
   critical: false
   hidden: false
   selected: false
