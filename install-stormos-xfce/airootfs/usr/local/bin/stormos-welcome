@@ -145,8 +145,8 @@ class StormWelcome(QMainWindow):
         self.tabs.addTab(self.create_system_tab(), "💻 System")
         self.tabs.addTab(self.create_maintenance_tab(), "🔧 Maintenance")
         self.tabs.addTab(self.create_drivers_tab(), "🎮 Drivers")
-        self.tabs.addTab(self.create_tweaks_tab(), "⚙️ Tweaks")
-        self.tabs.addTab(self.create_gaming_tab(), "🎲 Gaming")
+        self.tabs.addTab(self.create_tweaks_tab(), "🐚 Shells & Plymouth")
+        self.tabs.addTab(self.create_arch_university_tab(), "🎓 Arch University")
         self.tabs.addTab(self.create_settings_tab(), "⚙️ Settings")
         self.tabs.addTab(self.create_help_tab(), "❓ Help")
         layout.addWidget(self.tabs)
@@ -311,11 +311,12 @@ class StormWelcome(QMainWindow):
         layout.setSpacing(20)
         card = self.create_glass_card("⚡ System Actions")
         actions = [
-            ("⟳ Update System (pacman -Syu)", ["sudo", "pacman", "-Syu"]),
-            ("⟳ Update System + AUR (yay -Syu)", ["yay", "-Syu"]),
             ("🔁 Reboot", ["sudo", "reboot"]),
             ("⏻ Shutdown", ["sudo", "shutdown", "-h", "now"])
         ]
+        note = QLabel("System updates are handled by pamac.")
+        note.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px; margin-top: 12px;")
+        card.layout().addWidget(note)
         for text, cmd in actions:
             btn = QPushButton(text)
             btn.setObjectName("actionButton")
@@ -410,27 +411,55 @@ class StormWelcome(QMainWindow):
         layout.addStretch()
         return self._wrap_scroll(tab)
 
-    def create_gaming_tab(self):
+    def create_arch_university_tab(self):
+        """Arch University — imported from the StormOS-conf sysconfig tool."""
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
-        plat_card = self.create_glass_card("🎮 Game Platforms")
-        for text, cmd in [
-            ("Steam", ["sudo", "pacman", "-S", "--needed", "steam"]),
-            ("Lutris", ["sudo", "pacman", "-S", "--needed", "lutris"])
-        ]:
+
+        commands_card = self.create_glass_card("📜 Arch Commands")
+        actions = [
+            ("StormOS Arch Commands cheat sheet", ["bash", "/usr/local/bin/data/commands"]),
+        ]
+        for text, cmd in actions:
             btn = QPushButton(text)
             btn.setObjectName("actionButton")
-            btn.clicked.connect(lambda _, c=cmd: run_command(c))
-            plat_card.layout().addWidget(btn)
-        layout.addWidget(plat_card)
-        wine_card = self.create_glass_card("🍷 Wine & Proton")
-        btn = QPushButton("Wine (staging)")
-        btn.setObjectName("actionButton")
-        btn.clicked.connect(lambda: run_command(["sudo", "pacman", "-S", "--needed", "wine-staging", "wine-mono", "wine-gecko"]))
-        wine_card.layout().addWidget(btn)
-        layout.addWidget(wine_card)
+            btn.clicked.connect(lambda _, c=cmd, t=text: run_command(c, t))
+            commands_card.layout().addWidget(btn)
+        if not Path("/usr/local/bin/data/commands").is_file():
+            hint = QLabel("(stormos-conf data scripts not present on this system)")
+            hint.setStyleSheet(f"color: {STORM_GRAY}; font-size: 11px;")
+            commands_card.layout().addWidget(hint)
+        layout.addWidget(commands_card)
+
+        docs_card = self.create_glass_card("📖 Learn the Arch Way")
+        links = [
+            ("Arch Wiki", "https://wiki.archlinux.org/"),
+            ("Arch Website", "https://archlinux.org/"),
+            ("Explanation of Arch Commands (GeeksforGeeks)",
+             "https://www.geeksforgeeks.org/pacman-command-in-arch-linux/"),
+            ("AUR — 3rd Party / AUR Packages", "https://aur.archlinux.org/"),
+        ]
+        for name, url in links:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            docs_card.layout().addWidget(btn)
+        layout.addWidget(docs_card)
+
+        video_card = self.create_glass_card("🎬 Pacman Video Tutorials")
+        videos = [
+            ("Beginner video tutorial on Pacman", "https://www.youtube.com/watch?v=TQaHfQrwnXo"),
+            ("Novice/Advanced video tutorial on Pacman", "https://www.youtube.com/watch?v=-dEuXTMzRKs"),
+        ]
+        for name, url in videos:
+            btn = QPushButton(name)
+            btn.setObjectName("linkButton")
+            btn.clicked.connect(lambda checked, u=url: webbrowser.open(u))
+            video_card.layout().addWidget(btn)
+        layout.addWidget(video_card)
+
         layout.addStretch()
         return self._wrap_scroll(tab)
 

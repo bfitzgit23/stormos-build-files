@@ -241,6 +241,10 @@ vulkan-intel
 ffmpeg
 yay-bin
 pamac-all
+# CyberXero Toolkit build deps (cyberxero-postinstall.sh needs cargo + git to compile)
+base-devel
+git
+rust
 xfce4-docklike-plugin
 vlc
 yaml-cpp

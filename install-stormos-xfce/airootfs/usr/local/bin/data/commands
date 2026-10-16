@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+
+## Enhanced by Seeker
+## created by XeroLinux
+
+yad --title "Welcome To StormOS Arch Commands" --image='/usr/share/icons/scalable/apps/stormos.png'  \
+	--about \
+	--pname='StormOS Arch Commands' \
+	--image='archlinux' \
+	--comments="Commands: Sudo pacman -Syy or Sudo pacman -Sy synchronizes the repository also Sudo pacman -Syyu or Sudo pacman -Syu synchronizes the repository and updates system packages and Sudo pacman -S package name installs package or if you want to remove a package you can type Sudo pacman -R package name, To do a search for a package you can type sudo pacman -Ss package name" \
+	
