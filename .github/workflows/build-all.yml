@@ -19,24 +19,31 @@ on:
           - debian
           - all
 
+# Called workflows can only downgrade the caller's GITHUB_TOKEN permissions, so
+# grant contents: write here or the "Create release" steps 403 in every build.
+permissions:
+  contents: write
+
 jobs:
   build-arch:
     uses: ./.github/workflows/build-arch.yml
-    if: github.event.inputs.branch == 'main' || github.event.inputs.branch == 'all'
+    if: inputs.branch == 'main' || inputs.branch == 'all'
     with:
-      release: ${{ github.event.inputs.release }}
+      # inputs.release is a boolean here; github.event.inputs.release would be
+      # the string "false", which fails validation against a boolean input.
+      release: ${{ inputs.release }}
 
   build-manjaro:
     uses: ./.github/workflows/build-manjaro.yml
-    if: github.event.inputs.branch == 'manjaro' || github.event.inputs.branch == 'all'
+    if: inputs.branch == 'manjaro' || inputs.branch == 'all'
     with:
-      release: ${{ github.event.inputs.release }}
+      release: ${{ inputs.release }}
 
   build-debian:
     uses: ./.github/workflows/build-debian.yml
-    if: github.event.inputs.branch == 'debian' || github.event.inputs.branch == 'all'
+    if: inputs.branch == 'debian' || inputs.branch == 'all'
     with:
-      release: ${{ github.event.inputs.release }}
+      release: ${{ inputs.release }}
 
   summary:
     runs-on: ubuntu-latest
