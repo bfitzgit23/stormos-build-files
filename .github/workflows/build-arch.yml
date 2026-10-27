@@ -5,9 +5,15 @@ on:
     branches: [main]
     paths:
       - 'install-stormos-xfce/**'
-      - 'profiles/arch/**'
       - '.github/workflows/build-arch.yml'
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create GitHub release'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
     inputs:
       release:
         description: 'Create GitHub release'
@@ -18,60 +24,59 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: archlinux:latest
-      options: --privileged
+    timeout-minutes: 120
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm archiso git
-          # Copy the archiso releng profile as base
-          cp -r /usr/share/archiso/configs/releng profiles/arch || true
-
-      - name: Prepare profile
-        run: |
-          mkdir -p profiles/arch/airootfs
-          # Copy our XFCE overlay into the profile
-          cp -r install-stormos-xfce/airootfs/* profiles/arch/airootfs/ 2>/dev/null || true
-          # Copy package list
-          cp install-stormos-xfce/packages.x86_64 profiles/arch/packages.x86_64 2>/dev/null || true
-          # Set hostname
-          echo "stormos" > profiles/arch/airootfs/etc/hostname
-          # Set locale
-          echo "en_US.UTF-8 UTF-8" > profiles/arch/airootfs/etc/locale.gen
-
+      # install-stormos-xfce is a complete archiso profile (profiledef.sh,
+      # packages.x86_64, pacman.conf, airootfs/ and the grub/syslinux/efiboot
+      # configs), so it is built as-is. Do not stage a copy of archiso's releng
+      # profile: that produced an overlay missing profiledef.sh and lost the
+      # profile's ISO name, package list and file permissions.
+      #
+      # mkarchiso must loop-mount its work directory while installing packages,
+      # which GitHub's unprivileged `container:` jobs cannot do. Run it inside a
+      # privileged docker container from the VM host instead.
       - name: Build ISO
         run: |
-          cd profiles/arch
-          mkarchiso -v -w /var/cache/archiso -o /tmp/output .
-
-      - name: Rename ISO
-        run: |
-          cd /tmp/output
-          ISO=$(ls -1 *.iso | head -1)
-          VERSION=$(date +%Y%m%d)
-          mv "$ISO" "StormOS-Arch-${VERSION}.iso"
-          echo "ISO_PATH=/tmp/output/StormOS-Arch-${VERSION}.iso" >> $GITHUB_ENV
+          docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE":/repo -w /repo \
+            archlinux:base-devel \
+            bash -ec '
+              pacman -Sy --noconfirm archlinux-keyring
+              pacman -Syu --noconfirm archiso grub syslinux
+              cd install-stormos-xfce
+              ./build.sh -v -w ./work -o ./out
+              ISO=$(ls -1 out/*.iso | head -1)
+              VERSION=$(date -u +%Y%m%d)
+              mv "$ISO" "out/StormOS-Arch-${VERSION}.iso"
+              (cd out && sha256sum ./*.iso > SHA256SUMS)
+              rm -rf ./work
+            '
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
           name: StormOS-Arch-ISO
-          path: /tmp/output/*.iso
+          path: |
+            install-stormos-xfce/out/*.iso
+            install-stormos-xfce/out/SHA256SUMS
           retention-days: 30
+          if-no-files-found: error
 
       - name: Create release
-        if: github.event.inputs.release == 'true'
-        uses: softprops/action-gh-release@v1
+        # inputs.release keeps its boolean type for both workflow_dispatch and
+        # workflow_call (github.event.inputs would only match a string here).
+        if: inputs.release
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: arch-${{ github.run_number }}
           name: StormOS Arch ${{ github.run_number }}
-          files: /tmp/output/*.iso
+          files: |
+            install-stormos-xfce/out/*.iso
+            install-stormos-xfce/out/SHA256SUMS
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

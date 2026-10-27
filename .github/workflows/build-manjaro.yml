@@ -13,6 +13,13 @@ on:
         required: false
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      release:
+        description: 'Create GitHub release'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -77,8 +84,10 @@ jobs:
           retention-days: 30
 
       - name: Create release
-        if: github.event.inputs.release == 'true'
-        uses: softprops/action-gh-release@v1
+        # inputs.release keeps its boolean type for both workflow_dispatch and
+        # workflow_call (github.event.inputs would only match a string here).
+        if: inputs.release
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: manjaro-${{ github.run_number }}
           name: StormOS Manjaro ${{ github.run_number }}
