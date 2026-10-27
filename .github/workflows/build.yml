@@ -33,13 +33,11 @@ jobs:
               pacman -Syu --noconfirm archiso grub syslinux
               cd "${{ matrix.profile }}"
               ./build.sh -v
+              # sha256sum must run in here: the container creates out/ as root,
+              # so the runner user cannot write SHA256SUMS into it afterwards.
+              (cd out && sha256sum ./*.iso > SHA256SUMS)
+              cat out/SHA256SUMS
             '
-
-      - name: Generate SHA256SUMS
-        run: |
-          cd "${{ matrix.profile }}/out"
-          sha256sum *.iso > SHA256SUMS
-          cat SHA256SUMS
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
