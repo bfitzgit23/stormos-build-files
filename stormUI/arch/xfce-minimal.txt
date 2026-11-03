@@ -1,0 +1,16 @@
+# StormOS — the only Xfce pieces Storm still needs.
+# Everything else (panel, desktop, app finder, Thunar, settings manager,
+# power-manager UI, pulse/network applets) is replaced by Storm apps.
+#
+# Add these to install-stormos-xfce/packages.x86_64 and drop the rest of the
+# xfce4 group for a Storm-native ISO.
+
+xfwm4            # window manager + compositor — no replacement yet
+xfce4-settings   # ships xfsettingsd, the XSETTINGS daemon GTK apps read
+xfconf           # config store used by xfwm4/xfsettingsd
+xfce4-notifyd    # org.freedesktop.Notifications on the session bus
+xfce4-terminal   # interim terminal until Storm Terminal (xterm.js + PTY)
+
+# Needed by the shell itself
+python
+electron

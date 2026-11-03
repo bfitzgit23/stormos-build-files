@@ -1,0 +1,65 @@
+#!/bin/sh
+# storm-session — the StormOS desktop session.
+#
+# Starts ONLY the Xfce substrate Storm still needs, then hands the session to
+# the Storm shell. Everything the user sees (bar, dock, launcher, files,
+# settings, notifications surface) is Storm; xfce4-session and xfce4-panel are
+# deliberately not used.
+#
+#   xfsettingsd   XSETTINGS daemon — GTK apps read theme/font/cursor through it
+#   xfwm4         window manager + compositor (no replacement exists yet)
+#   xfce4-notifyd implements org.freedesktop.Notifications on the session bus
+#   stormui       the shell; when it exits, the session ends
+#
+set -u
+
+export XDG_CURRENT_DESKTOP=Storm
+export XDG_SESSION_DESKTOP=Storm
+export DESKTOP_SESSION=Storm
+
+# one XSETTINGS daemon, otherwise GTK apps fall back to unstyled defaults
+xfsettingsd --daemon 2>/dev/null &
+
+# window manager: --replace takes over from any previous instance
+xfwm4 --replace 2>/dev/null &
+sleep 0.4
+
+# apps assume a notification server exists even if Storm draws the popups
+if command -v xfce4-notifyd >/dev/null 2>&1; then
+    xfce4-notifyd 2>/dev/null &
+fi
+
+# pkexec-driven actions (GPU/CPU switching, governor fallback) need an
+# authentication agent in the session — without one the password prompt
+# cannot appear and the action fails instead of asking.
+agent="$(command -v lxpolkit 2>/dev/null || true)"
+if [ -z "$agent" ] && [ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]; then
+    agent=/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+fi
+[ -n "$agent" ] && "$agent" 2>/dev/null &
+
+# system bridge for the shell (files, system stats, xfconf, launch)
+if ! curl -sf --max-time 1 http://127.0.0.1:9876/api/health >/dev/null 2>&1; then
+    python3 /usr/lib/stormui/backend/stormd.py --port 9876 2>/dev/null &
+fi
+
+# Hardware keys: bind the XF86 brightness (panel + keyboard) and volume keys to
+# stormd, so a physical key and the Control Center share one code path.
+bind_key() {
+    command -v xfconf-query >/dev/null 2>&1 || return 0
+    xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/$1" -n -t string \
+        -s "storm-key $2" >/dev/null 2>&1 \
+      || xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/$1" \
+        -s "storm-key $2" >/dev/null 2>&1
+}
+
+bind_key XF86MonBrightnessUp brightness-up
+bind_key XF86MonBrightnessDown brightness-down
+bind_key XF86KbdBrightnessUp kbdlight-up
+bind_key XF86KbdBrightnessDown kbdlight-down
+bind_key XF86AudioRaiseVolume volume-up
+bind_key XF86AudioLowerVolume volume-down
+bind_key XF86AudioMute volume-mute
+
+# shell owns the session lifetime
+exec stormui

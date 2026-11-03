@@ -32,12 +32,12 @@ fi
 systemctl enable thermald.service
 systemctl enable haveged.service
 systemctl enable NetworkManager.service
-systemctl enable pacman-init.service choose-mirror.service
-systemctl enable sshd.service
-systemctl enable bluetooth.service
-systemctl enable lightdm.service
+systemctl enable pacman-init.service choose-mirror.service 2>/dev/null || true
+systemctl enable sshd.service 2>/dev/null || true
+systemctl enable bluetooth.service 2>/dev/null || true
+systemctl enable lightdm.service 2>/dev/null || true
 systemctl set-default graphical.target
-systemctl enable cups.service
+systemctl enable cups.service 2>/dev/null || true
 
 ## Fix permissions
 chmod 750 /etc/sudoers.d

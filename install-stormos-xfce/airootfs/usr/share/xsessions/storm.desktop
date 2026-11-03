@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Storm
+Comment=StormOS desktop environment
+Exec=/usr/bin/storm-session
+TryExec=/usr/bin/storm-session
+DesktopNames=Storm
+Keywords=storm;desktop;shell;
