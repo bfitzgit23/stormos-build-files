@@ -148,17 +148,9 @@ blueman
 networkmanager
 network-manager-applet
 #pamac
-xfwm4
-xfce4-settings
-xfconf
-xfce4-notifyd
+xfce4
+xfce4-goodies
 xfce4-terminal
-python
-electron
-cpupower
-pciutils
-curl
-power-profiles-daemon
 firefox
 wmctrl
 calamares-app
@@ -250,4 +242,4 @@ vulkan-intel
 ffmpeg
 yay
 #pamac-all
-yad
+xfce4-docklike-plugin

@@ -146,19 +146,9 @@ blueman
 networkmanager
 network-manager-applet
 #pamac
-# Storm substrate — replaces the rest of the xfce4 group; the full set is
-# stormUI/arch/xfce-minimal.txt. xfce4-terminal stays as the interim terminal.
-xfwm4
-xfce4-settings
-xfconf
-xfce4-notifyd
+xfce4
+xfce4-goodies
 xfce4-terminal
-python
-electron
-cpupower
-pciutils
-curl
-power-profiles-daemon
 firefox
 wmctrl
 calamares-app
@@ -255,6 +245,7 @@ pamac-all
 base-devel
 git
 rust
+xfce4-docklike-plugin
 vlc
 yaml-cpp
 python-flask
@@ -262,4 +253,3 @@ python-flask-cors
 clamav
 dialog
 wipe
-yad
