@@ -34,6 +34,7 @@ import os
 import pty
 import re
 import select
+import shlex
 import shutil
 import signal
 import struct
@@ -41,15 +42,32 @@ import subprocess
 import threading
 import time
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ALLOWED_COMMANDS = {
     "reboot": ["systemctl", "reboot"],
     "poweroff": ["systemctl", "poweroff"],
-    "logout": ["xfce4-session-logout", "--logout"],
+    "logout": None,  # resolved per session by logout_command()
     "update": ["xfce4-terminal", "--command", "sudo pacman -Syu"],
 }
+
+
+def logout_command():
+    """End the desktop session.
+
+    Storm installs xfwm4/xfsettingsd but not xfce4-session, so
+    `xfce4-session-logout` does not exist on the live image and the Log Out
+    button would silently do nothing. logind ends the lightdm session cleanly,
+    so use it and keep the Xfce helper only as a fallback.
+    """
+    if shutil.which("xfce4-session-logout"):
+        return ["xfce4-session-logout", "--logout"]
+    session_id = os.environ.get("XDG_SESSION_ID", "")
+    if session_id:
+        return ["loginctl", "terminate-session", session_id]
+    user = os.environ.get("USER") or os.environ.get("LOGNAME")
+    return ["loginctl", "terminate-user", user] if user else None
 
 # ── Files app sandbox: everything stays inside $HOME ─────────────────────────
 ROOT = Path.home().resolve()
@@ -505,7 +523,10 @@ def aura_empty_trash():
 
 def aura_create_project(payload):
     """Scaffold a new project in ~/Projects."""
-    name = (payload or {}).get("name", "new-project")
+    # The name becomes a directory: no separators, no traversal outside ~/Projects.
+    name = str((payload or {}).get("name") or "new-project").strip()
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", name) or name in (".", ".."):
+        return {"ok": False, "error": "invalid project name"}
     try:
         projects = _safe("~/Projects")
         projects.mkdir(parents=True, exist_ok=True)
@@ -1172,6 +1193,23 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    # ── who may talk to stormd ───────────────────────────────────────────────
+    # Binding to 127.0.0.1 keeps the network out, but not the browser: any page
+    # the user visits can POST here (CORS is wide open) and WebSockets are not
+    # CORS-restricted at all. Require a loopback Host header (defeats DNS
+    # rebinding) and reject real remote Origins, so a random site cannot list
+    # $HOME, run a command or open a PTY.
+    LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+    def _local_only(self):
+        host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]").lower()
+        if host and host not in self.LOOPBACK_HOSTS:
+            return False
+        origin = (self.headers.get("Origin") or "").strip().lower()
+        if not origin or origin == "null" or origin.startswith("file://"):
+            return True
+        return (urllib.parse.urlparse(origin).hostname or "") in self.LOOPBACK_HOSTS
+
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -1180,6 +1218,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        if not self._local_only():
+            return self._send({"error": "forbidden"}, 403)
         path = urllib.parse.urlparse(self.path).path
         length = int(self.headers.get("Content-Length", 0) or 0)
         try:
@@ -1191,8 +1231,13 @@ class Handler(BaseHTTPRequestHandler):
                 cmd = data.get("cmd", "")
                 if not cmd:
                     return self._send({"error": "empty cmd"}, 400)
+                # Drop .desktop field codes (%U, %f, …), then split into argv.
+                # `cmd` arrives over the wire, so it must never meet a shell.
                 clean = " ".join(t for t in cmd.split() if not t.startswith("%"))
-                subprocess.Popen(clean, shell=True, start_new_session=True,
+                argv = shlex.split(clean)
+                if not argv:
+                    return self._send({"error": "empty cmd"}, 400)
+                subprocess.Popen(argv, start_new_session=True,
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 return self._send({"ok": True})
 
@@ -1211,7 +1256,10 @@ class Handler(BaseHTTPRequestHandler):
                 action = data.get("action", "")
                 if action not in ALLOWED_COMMANDS:
                     return self._send({"error": "action not allowed"}, 403)
-                subprocess.Popen(ALLOWED_COMMANDS[action], start_new_session=True,
+                argv = logout_command() if action == "logout" else ALLOWED_COMMANDS[action]
+                if not argv:
+                    return self._send({"error": "cannot determine the session"}, 500)
+                subprocess.Popen(argv, start_new_session=True,
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 return self._send({"ok": True})
 
@@ -1320,15 +1368,14 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── WebSocket PTY upgrade ──
     def do_GET(self):
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
-        if path == "/api/pty" and self.headers.get("Upgrade", "").lower() == "websocket":
-            self._handle_pty_upgrade()
-            return
-        # Fall through to original do_GET
+        if not self._local_only():
+            return self._send({"error": "forbidden"}, 403)
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         qs = urllib.parse.parse_qs(parsed.query)
+        if path == "/api/pty" and self.headers.get("Upgrade", "").lower() == "websocket":
+            self._handle_pty_upgrade()
+            return
         try:
             if path == "/api/health":
                 self._send({"ok": True, "service": "stormd"})
@@ -1382,6 +1429,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _handle_pty_upgrade(self):
         """Upgrade HTTP connection to WebSocket for PTY."""
+        if not self._local_only():
+            return self._send({"error": "forbidden"}, 403)
         key = self.headers.get("Sec-WebSocket-Key", "")
         if not key:
             self._send({"error": "WebSocket key required"}, 400)
@@ -1507,4 +1556,7 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=9876)
     args = ap.parse_args()
     # localhost only — never expose stormd to the network
-    HTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
+    # ThreadingHTTPServer, not HTTPServer: a PTY session occupies its handler
+    # thread for as long as the terminal is open, and a single-threaded server
+    # would freeze every other call (/api/system polling) for that whole time.
+    ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()

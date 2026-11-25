@@ -10,4 +10,24 @@ if [[ "$(id -u)" -ne 0 ]]; then
   echo "stormos-archinstall: must run as root" >&2
   exit 1
 fi
-exec archinstall --config "$CONFIG" "$@"
+
+# archinstall only accepts its own config schema (config_version + disk_config).
+# The bundled profile uses its own keys, and handing archinstall an unknown JSON
+# aborts it with a traceback, so check the schema first and fall back to the
+# guided menu rather than leaving the user with a dead installer.
+if python3 - "$CONFIG" <<'PY'
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    sys.exit(1)
+ok = isinstance(data, dict) and "config_version" in data and "disk_config" in data
+sys.exit(0 if ok else 1)
+PY
+then
+  exec archinstall --config "$CONFIG" "$@"
+fi
+
+echo "stormos-archinstall: $CONFIG is not in archinstall's config format;" >&2
+echo "  starting archinstall's guided installer instead." >&2
+exec archinstall "$@"
