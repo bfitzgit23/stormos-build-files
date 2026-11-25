@@ -1,32 +1,109 @@
 {
-  "version": "2.6",
-  "profile": "minimal",
+  "version": "2.8.6",
   "script": "guided",
-  "bootloader": "systemd-boot",
-  "target": null,
-  "disk_encryption": false,
-  "swap": true,
-  "swap_size": "4G",
+  "archinstall-language": "English",
+  "audio_config": {
+    "audio": "pipewire"
+  },
+  "bootloader_config": {
+    "bootloader": "Systemd-boot",
+    "uki": false,
+    "removable": false
+  },
+  "debug": false,
+  "disk_config": {
+    "config_type": "default_layout",
+    "device_modifications": [
+      {
+        "device": "/dev/sda",
+        "wipe": true,
+        "partitions": [
+          {
+            "btrfs": [],
+            "dev_path": null,
+            "flags": [
+              "boot"
+            ],
+            "fs_type": "fat32",
+            "size": {
+              "sector_size": {
+                "unit": "B",
+                "value": 512
+              },
+              "unit": "MiB",
+              "value": 512
+            },
+            "mount_options": [],
+            "mountpoint": "/boot",
+            "obj_id": "a1c2b3d4-0001-4a5b-8c7d-1e2f3a4b5c01",
+            "start": {
+              "sector_size": {
+                "unit": "B",
+                "value": 512
+              },
+              "unit": "MiB",
+              "value": 1
+            },
+            "status": "create",
+            "type": "primary"
+          },
+          {
+            "btrfs": [],
+            "dev_path": null,
+            "flags": [],
+            "fs_type": "ext4",
+            "size": {
+              "sector_size": {
+                "unit": "B",
+                "value": 512
+              },
+              "unit": "MiB",
+              "value": 20480
+            },
+            "mount_options": [],
+            "mountpoint": "/",
+            "obj_id": "a1c2b3d4-0002-4a5b-8c7d-1e2f3a4b5c02",
+            "start": {
+              "sector_size": {
+                "unit": "B",
+                "value": 512
+              },
+              "unit": "MiB",
+              "value": 513
+            },
+            "status": "create",
+            "type": "primary"
+          }
+        ]
+      }
+    ]
+  },
   "hostname": "stomros",
-  "locale": "en_US.UTF-8",
-  "keymap": "us",
-  "timezone": "UTC",
-  "root_password": null,
-  "users": [
-    {
-      "username": "storm",
-      "password": null,
-      "sudo": true,
-      "groups": [
-        "wheel",
-        "video",
-        "audio",
-        "storage",
-        "power",
-        "network"
-      ]
-    }
+  "kernels": [
+    "linux"
   ],
+  "locale_config": {
+    "kb_layout": "us",
+    "sys_enc": "UTF-8",
+    "sys_lang": "en_US.UTF-8"
+  },
+  "network_config": {
+    "type": "nm"
+  },
+  "ntp": true,
+  "offline": false,
+  "no_pkg_lookups": false,
+  "pacman_config": {
+    "color": false,
+    "parallel_downloads": 5
+  },
+  "profile_config": {
+    "profile": {
+      "main": "Minimal"
+    },
+    "gfx_driver": null,
+    "greeter": null
+  },
   "packages": [
     "base",
     "linux",
@@ -52,9 +129,9 @@
     "power-profiles-daemon",
     "cpupower",
     "pciutils",
-    "envycontrol",
     "lightdm",
     "lightdm-slick-greeter",
+    "xorg-server",
     "plymouth",
     "xfwm4",
     "xfce4-settings",
@@ -80,82 +157,18 @@
   "services": [
     "NetworkManager",
     "lightdm",
-    "systemd-timesyncd",
-    "pipewire",
-    "pipewire-pulse"
+    "systemd-timesyncd"
   ],
-  "kernels": [
-    "linux"
-  ],
-  "profile_def": {
-    "name": "StomrOS Aurora",
-    "description": "Vibe-coded desktop over minimal Xfce substrate",
-    "packages": [
-      "base",
-      "linux",
-      "linux-firmware",
-      "linux-headers",
-      "sudo",
-      "networkmanager",
-      "polkit",
-      "polkit-gnome",
-      "vim",
-      "git",
-      "curl",
-      "wget",
-      "htop",
-      "btop",
-      "unzip",
-      "zip",
-      "pipewire",
-      "pipewire-pulse",
-      "pipewire-alsa",
-      "wireplumber",
-      "brightnessctl",
-      "power-profiles-daemon",
-      "cpupower",
-      "pciutils",
-      "envycontrol",
-      "lightdm",
-      "lightdm-slick-greeter",
-      "plymouth",
-      "xfwm4",
-      "xfce4-settings",
-      "xfconf",
-      "xfce4-notifyd",
-      "electron",
-      "python",
-      "firefox",
-      "thunar",
-      "gvfs",
-      "gvfs-mtp",
-      "gvfs-gphoto2",
-      "file-roller",
-      "xarchiver",
-      "code",
-      "noto-fonts",
-      "noto-fonts-emoji",
-      "noto-fonts-cjk",
-      "ttf-jetbrains-mono",
-      "ttf-firacode-nerd",
-      "inter-font"
-    ]
+  "silent": false,
+  "swap": {
+    "enabled": true,
+    "algorithm": "zstd"
   },
-  "post_install": [
-    "sed -i 's/^#autologin-user=.*/autologin-user=storm/' /etc/lightdm/lightdm.conf",
-    "sed -i 's/^#autologin-session=.*/autologin-session=storm/' /etc/lightdm/lightdm.conf",
-    "sed -i 's/^#greeter-session=.*/greeter-session=lightdm-slick-greeter/' /etc/lightdm/lightdm.conf",
-    "mkdir -p /etc/lightdm",
-    "cat > /etc/lightdm/slick-greeter.conf <<'EOF'\n[Greeter]\nbackground=/usr/share/backgrounds/stormos-grub.png\ntheme-name=Storm-Dark\nicon-theme-name=Papirus-Dark\nfont-name=Inter 10\nshow-indicators=~session;~power\nshow-clock=true\nclock-format=%H:%M\nEOF",
-    "mkdir -p /usr/share/plymouth/themes/stormos",
-    "cat > /usr/share/plymouth/themes/stormos/stormos.plymouth <<'EOF'\n[Plymouth Theme]\nName=StomrOS Aurora\nDescription=Vibe-coded boot splash\nModuleName=script\n[script]\nImageDir=/usr/share/plymouth/themes/stormos\nScriptFile=/usr/share/plymouth/themes/stormos/stormos.script\nEOF",
-    "pacman -U --noconfirm /tmp/stormui-git-*.pkg.tar.zst 2>/dev/null || true",
-    "bash /usr/lib/stormui/arch/stage3-arch.sh --apply --install --autologin storm 2>/dev/null || true",
-    "systemctl set-default graphical.target",
-    "sudo -u storm systemctl --user enable stormd.service 2>/dev/null || true",
-    "pacman -Sc --noconfirm",
-    "rm -rf /tmp/* /var/tmp/*"
-  ],
-  "extra_repos": [],
-  "extra_packages": []
+  "timezone": "UTC",
+  "custom_commands": [
+    "systemctl set-default graphical.target\n",
+    "if id -u storm >/dev/null 2>&1 && [ -f /etc/lightdm/lightdm.conf ]; then\n  sed -i 's/^#\\?autologin-user=.*/autologin-user=storm/' /etc/lightdm/lightdm.conf\nfi\n",
+    "if [ -f /usr/share/xsessions/storm.desktop ] && [ -f /etc/lightdm/lightdm.conf ]; then\n  sed -i 's/^#\\?autologin-session=.*/autologin-session=storm/' /etc/lightdm/lightdm.conf\nfi\n",
+    "if [ -d /etc/lightdm ]; then\n  printf '[Greeter]\\nshow-clock=true\\nclock-format=%%H:%%M\\nfont-name=Inter 10\\n' > /etc/lightdm/slick-greeter.conf\nfi\n"
+  ]
 }
