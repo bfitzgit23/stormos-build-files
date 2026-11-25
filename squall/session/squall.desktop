@@ -1,9 +1,9 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Storm
+Name=Squall
 Comment=StormOS desktop environment
-Exec=/usr/bin/storm-session
-TryExec=/usr/bin/storm-session
-DesktopNames=Storm
-Keywords=storm;desktop;shell;
+Exec=/usr/bin/squall-session
+TryExec=/usr/bin/squall-session
+DesktopNames=Squall
+Keywords=squall;desktop;shell;

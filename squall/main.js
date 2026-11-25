@@ -4,20 +4,20 @@ const path = require('path');
 const fs = require('fs');
 
 const isDev = process.argv.includes('--dev');
-// --app <name> opens a single Storm app in its own window instead of the shell
+// --app <name> opens a single Squall app in its own window instead of the shell
 const appIdx = process.argv.indexOf('--app');
 const appName = appIdx > -1 ? process.argv[appIdx + 1] : null;
 
-const BACKEND = path.join(__dirname, 'backend', 'stormd.py');
+const BACKEND = path.join(__dirname, 'backend', 'squalld.py');
 let backend = null;
 
 function startBackend() {
   if (!fs.existsSync(BACKEND)) {
-    console.error('[stormui] backend missing:', BACKEND);
+    console.error('[squall] backend missing:', BACKEND);
     return;
   }
   backend = spawn('python3', [BACKEND, '--port', '9876'], { stdio: 'ignore' });
-  backend.on('error', (e) => console.error('[stormui] backend failed:', e.message));
+  backend.on('error', (e) => console.error('[squall] backend failed:', e.message));
   backend.unref();
 }
 
@@ -45,12 +45,12 @@ function createShell() {
 function createApp(name) {
   const file = path.join(__dirname, 'apps', `${name}.html`);
   if (!fs.existsSync(file)) {
-    console.error('[stormui] unknown app:', name);
+    console.error('[squall] unknown app:', name);
     return app.quit();
   }
   const win = new BrowserWindow({
     width: 1180, height: 760, minWidth: 720, minHeight: 480,
-    backgroundColor: '#020c1b', autoHideMenuBar: true, title: `Storm ${name}`,
+    backgroundColor: '#020c1b', autoHideMenuBar: true, title: `Squall ${name}`,
     webPreferences: { nodeIntegration: false, contextIsolation: true }
   });
   win.loadFile(file);
@@ -59,7 +59,7 @@ function createApp(name) {
 
 app.whenReady().then(() => {
   if (appName) {
-    // app windows expect a running stormd (systemd user unit on StormOS)
+    // app windows expect a running squalld (systemd user unit on StormOS)
     createApp(appName);
     return;
   }

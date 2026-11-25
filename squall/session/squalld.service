@@ -1,22 +1,22 @@
-# stormd.service — optional systemd user unit for the Storm system bridge.
+# squalld.service — optional systemd user unit for the Squall system bridge.
 #
-# storm-session and the electron shell both start stormd themselves, so this
-# unit is for everything else: scripts, the Storm Files app opened from a
+# squall-session and the electron shell both start squalld themselves, so this
+# unit is for everything else: scripts, the Squall Files app opened from a
 # terminal, or head-less debugging. Enable it by hand, never automatically:
 #
-#   install -Dm644 stormd.service ~/.config/systemd/user/stormd.service
+#   install -Dm644 squalld.service ~/.config/systemd/user/squalld.service
 #   systemctl --user daemon-reload
-#   systemctl --user enable --now stormd
+#   systemctl --user enable --now squalld
 #
-# If the port is already held by the session's own stormd, this unit fails
+# If the port is already held by the session's own squalld, this unit fails
 # quietly on bind — that is the expected "already running" behaviour and not
 # an error. architecture/stage3-arch.sh --install does this for you.
 
 [Unit]
-Description=Storm system bridge (stormd, port 9876)
+Description=Squall system bridge (squalld, port 9876)
 
 [Service]
-ExecStart=/usr/bin/python3 /usr/lib/stormui/backend/stormd.py --port 9876
+ExecStart=/usr/bin/python3 /usr/lib/squall/backend/squalld.py --port 9876
 Restart=on-failure
 RestartSec=1
 

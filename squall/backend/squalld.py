@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""stormd — StormOS system bridge. Stdlib only, no pip deps.
+"""squalld — StormOS system bridge. Stdlib only, no pip deps.
 
 Serves GET/POST JSON on 127.0.0.1:9876 for the web shell.
 Every privileged action runs here (JS never calls sudo directly).
@@ -13,7 +13,7 @@ Endpoints:
   POST /api/theme    {gtk, icon, font}  apply via xfconf-query
   POST /api/command  {action}  reboot/poweroff/logout/update (allow-listed)
 
-Files app (Storm Files), confined to $HOME:
+Files app (Squall Files), confined to $HOME:
   GET  /api/fs/list?path=          directory listing
   GET  /api/fs/search?path=&q=     recursive name search
   GET  /api/fs/read?path=          text preview (max 200 KB)
@@ -46,7 +46,7 @@ ALLOWED_COMMANDS = {
 
 # ── Files app sandbox: everything stays inside $HOME ─────────────────────────
 ROOT = Path.home().resolve()
-TRASH = ROOT / ".storm-trash"
+TRASH = ROOT / ".squall-trash"
 
 
 def _safe(path_str):
@@ -181,7 +181,7 @@ def system_info():
 
 # ── App index: XDG + flatpak, with first-seen tracking so newly installed apps
 # can be surfaced as new and uninstalled ones drop out on the next scan.
-APPS_CACHE = ROOT / ".cache" / "storm" / "apps.json"
+APPS_CACHE = ROOT / ".cache" / "squall" / "apps.json"
 NEW_APP_WINDOW = 7 * 86400
 
 
@@ -239,7 +239,7 @@ def list_apps():
 
     for d in dirs:
         for f in sorted(d.glob("*.desktop")):
-            if f.stem in ids or f.name.startswith("storm-shell"):
+            if f.stem in ids or f.name.startswith("squall-shell"):
                 continue
             cp = configparser.ConfigParser(interpolation=None, strict=False)
             try:
@@ -630,7 +630,7 @@ def set_cpu(governor=None, turbo=None):
 
 
 # ── Persistent desktop settings (theme, accent, density, motion, text size) ──
-SETTINGS_FILE = ROOT / ".config" / "storm" / "settings.json"
+SETTINGS_FILE = ROOT / ".config" / "squall" / "settings.json"
 DEFAULT_SETTINGS = {
     "theme": "dark", "accent": "cyan", "density": "comfortable",
     "motion": True, "fontScale": 100, "wallpaper": True,
@@ -659,7 +659,7 @@ def read_settings():
 
 
 def _apply_gtk(settings):
-    """Mirror Storm's theme into GTK/xfwm4 when a config store exists."""
+    """Mirror Squall's theme into GTK/xfwm4 when a config store exists."""
     if not _have("xfconf-query"):
         return
     name = GTK_THEMES.get(settings.get("theme", "dark"), "Storm-Dark")
@@ -775,7 +775,7 @@ class Handler(BaseHTTPRequestHandler):
         qs = urllib.parse.parse_qs(parsed.query)
         try:
             if path == "/api/health":
-                self._send({"ok": True, "service": "stormd"})
+                self._send({"ok": True, "service": "squalld"})
             elif path == "/api/system":
                 self._send(system_info())
             elif path == "/api/apps":
@@ -951,5 +951,5 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=9876)
     args = ap.parse_args()
-    # localhost only — never expose stormd to the network
+    # localhost only — never expose squalld to the network
     HTTPServer(("127.0.0.1", args.port), Handler).serve_forever()

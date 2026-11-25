@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Storm Files</title>
+<title>Squall Files</title>
 <style>
 :root{--teal:#00d1b2;--purple:#a742f5;--ink:#e6f1ff;--muted:#8892b0;--navy:#0a192f;
   --glass:rgba(6,19,36,.94);--line:rgba(100,255,218,.16);--hover:rgba(100,255,218,.1)}
@@ -105,27 +105,27 @@ dialog button.primary{background:linear-gradient(135deg,#00d1b2,#5eead4);color:#
 }
 
 /* inherited from shell settings: theme + density */
-body.storm-light{background:linear-gradient(160deg,#eef3f9,#f7fafd);color:#0f1a26}
-body.storm-light aside{background:rgba(255,255,255,.9);border-color:rgba(16,38,64,.12)}
-body.storm-light header,body.storm-light footer{background:rgba(255,255,255,.78);border-color:rgba(16,38,64,.12)}
-body.storm-light #preview{background:rgba(255,255,255,.72);border-color:rgba(16,38,64,.12)}
-body.storm-light .pl{color:#51637a}
-body.storm-light .pl:hover{background:rgba(16,38,64,.06);color:#0f1a26}
-body.storm-light .item:hover,body.storm-light tr:hover td{background:rgba(16,38,64,.06)}
-body.storm-light .item.sel{background:rgba(0,209,178,.18)}
-body.storm-light th{background:#f2f7fc;color:#51637a}
-body.storm-light td{border-bottom-color:rgba(16,38,64,.08)}
-body.storm-light #q,body.storm-light .nav button,body.storm-light .act{background:#fff;border-color:rgba(16,38,64,.16);color:#0f1a26}
-body.storm-light #crumbs a,body.storm-light .size{color:#51637a}
-body.storm-compact .item{padding:8px 4px}
-body.storm-compact td{padding:4px 8px}
-body.storm-compact header{padding:7px 12px}
+body.squall-light{background:linear-gradient(160deg,#eef3f9,#f7fafd);color:#0f1a26}
+body.squall-light aside{background:rgba(255,255,255,.9);border-color:rgba(16,38,64,.12)}
+body.squall-light header,body.squall-light footer{background:rgba(255,255,255,.78);border-color:rgba(16,38,64,.12)}
+body.squall-light #preview{background:rgba(255,255,255,.72);border-color:rgba(16,38,64,.12)}
+body.squall-light .pl{color:#51637a}
+body.squall-light .pl:hover{background:rgba(16,38,64,.06);color:#0f1a26}
+body.squall-light .item:hover,body.squall-light tr:hover td{background:rgba(16,38,64,.06)}
+body.squall-light .item.sel{background:rgba(0,209,178,.18)}
+body.squall-light th{background:#f2f7fc;color:#51637a}
+body.squall-light td{border-bottom-color:rgba(16,38,64,.08)}
+body.squall-light #q,body.squall-light .nav button,body.squall-light .act{background:#fff;border-color:rgba(16,38,64,.16);color:#0f1a26}
+body.squall-light #crumbs a,body.squall-light .size{color:#51637a}
+body.squall-compact .item{padding:8px 4px}
+body.squall-compact td{padding:4px 8px}
+body.squall-compact header{padding:7px 12px}
 </style>
 </head>
 <body>
 <div id="app">
   <aside>
-    <div class="brand"><span class="m">⛈</span> Storm Files</div>
+    <div class="brand"><span class="m">⛈</span> Squall Files</div>
     <div class="grp"><b>Places</b><div id="places"></div></div>
     <div class="grp"><b>Session</b>
       <div class="pl" id="trashBtn"><span class="i">🗑</span> Trash</div>
@@ -343,7 +343,7 @@ $('refresh').onclick = () => load(state.path, false);
 $('newFolder').onclick = newFolder;
 $('viewBtn').onclick = () => { state.view = state.view === 'grid' ? 'list' : 'grid'; $('viewBtn').textContent = state.view === 'grid' ? '▦' : '☰'; render(); };
 $('q').onkeydown = (e) => { if(e.key === 'Enter') search(); if(e.key === 'Escape'){ $('q').value=''; load(state.path, false); } };
-$('trashBtn').onclick = () => load((state.home || '') + (state.home && state.home.includes('\\') ? '\\' : '/') + '.storm-trash');
+$('trashBtn').onclick = () => load((state.home || '') + (state.home && state.home.includes('\\') ? '\\' : '/') + '.squall-trash');
 document.addEventListener('keydown', (e) => {
   if(e.target.tagName === 'INPUT') return;
   if(e.key === 'F5'){ e.preventDefault(); load(state.path, false); }
@@ -378,8 +378,8 @@ fetch(API + '/settings').then(r => r.json()).then(s => {
   const ACCENT = {cyan:'#00d1b2', amber:'#f0a35e', lilac:'#b6a0e8', salmon:'#e98a80', mint:'#5fd39a'};
   const root = document.documentElement;
   root.style.setProperty('--teal', ACCENT[s.accent] || '#00d1b2');
-  if (s.theme === 'light') document.body.classList.add('storm-light');
-  if (s.density === 'compact') document.body.classList.add('storm-compact');
+  if (s.theme === 'light') document.body.classList.add('squall-light');
+  if (s.density === 'compact') document.body.classList.add('squall-compact');
   if (s.fontScale) root.style.fontSize = (13 * s.fontScale / 100) + 'px';
 }).catch(() => {});
 </script>

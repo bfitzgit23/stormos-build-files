@@ -1,5 +1,5 @@
 #!/bin/sh
-# storm-session — the StormOS desktop session.
+# squall-session — the StormOS desktop session.
 #
 # Starts ONLY the Xfce substrate Storm still needs, then hands the session to
 # the Storm shell. Everything the user sees (bar, dock, launcher, files,
@@ -9,24 +9,63 @@
 #   xfsettingsd   XSETTINGS daemon — GTK apps read theme/font/cursor through it
 #   xfwm4         window manager + compositor (no replacement exists yet)
 #   xfce4-notifyd implements org.freedesktop.Notifications on the session bus
-#   stormui       the shell; when it exits, the session ends
+#   squall       the shell; when it exits, the session ends
+#
+# Diagnostics: every component logs into $HOME/.squall/session.log. If the
+# session fails to come up, that file (plus /var/log/lightdm/) is what to send.
 #
 set -u
+
+# A dead greeter loop with zero output is the worst working mode. Every spawned
+# component appends into this file from here on.
+_TARGET="$HOME/.squall/session.log"
+mkdir -p "$HOME/.storm" 2>/dev/null || true
+if ! touch "$_TARGET" 2>/dev/null; then
+    _TARGET=/tmp/squall-session.log
+fi
+{
+    echo "---- squall-session start $(date -Is 2>/dev/null || date) ----"
+    echo "user=$(id -un)  DISPLAY=${DISPLAY:-unset}  HOME=${HOME:-unset}"
+    echo "session_bus=${DBUS_SESSION_BUS_ADDRESS:+present}${DBUS_SESSION_BUS_ADDRESS:-missing}"
+} >> "$_TARGET"
+
+log() { echo "[session] $*" >> "$_TARGET"; }
+bg()  { "$@" >> "$_TARGET" 2>&1 & }
+
+# The stock lightdm Xsession does not start a session D-Bus, but the whole
+# substrate (xfconf-query bindings, xfsettingsd, the polkit agent, notifyd)
+# expects one. Re-execute once under dbus-run-session to get a private bus.
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ] && command -v dbus-run-session >/dev/null 2>&1; then
+    if [ "${STORM_UNDER_DBUS_SESSION:-0}" = 1 ]; then
+        # Safeguard against an unlikely re-exec loop: no way to get a bus —
+        # log it and keep going degraded instead of dying invisibly.
+        log "ERROR: still no session bus after dbus-run-session; continuing degraded"
+    else
+        export STORM_UNDER_DBUS_SESSION=1
+        log "no session bus found; re-executing under dbus-run-session"
+        exec dbus-run-session -- "$0"
+    fi
+elif [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    log "WARNING: dbus-run-session unavailable; xfconf/notifyd features degrade"
+fi
 
 export XDG_CURRENT_DESKTOP=Storm
 export XDG_SESSION_DESKTOP=Storm
 export DESKTOP_SESSION=Storm
 
 # one XSETTINGS daemon, otherwise GTK apps fall back to unstyled defaults
-xfsettingsd --daemon 2>/dev/null &
+bg xfsettingsd --daemon
 
 # window manager: --replace takes over from any previous instance
-xfwm4 --replace 2>/dev/null &
+bg xfwm4 --replace
 sleep 0.4
 
 # apps assume a notification server exists even if Storm draws the popups
 if command -v xfce4-notifyd >/dev/null 2>&1; then
-    xfce4-notifyd 2>/dev/null &
+    log "starting xfce4-notifyd"
+    bg xfce4-notifyd
+else
+    log "xfce4-notifyd not found"
 fi
 
 # pkexec-driven actions (GPU/CPU switching, governor fallback) need an
@@ -36,21 +75,30 @@ agent="$(command -v lxpolkit 2>/dev/null || true)"
 if [ -z "$agent" ] && [ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]; then
     agent=/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 fi
-[ -n "$agent" ] && "$agent" 2>/dev/null &
+if [ -n "$agent" ]; then
+    log "starting polkit agent: $agent"
+    bg "$agent"
+else
+    log "no polkit agent found; pkexec actions will not prompt"
+fi
 
 # system bridge for the shell (files, system stats, xfconf, launch)
 if ! curl -sf --max-time 1 http://127.0.0.1:9876/api/health >/dev/null 2>&1; then
-    python3 /usr/lib/stormui/backend/stormd.py --port 9876 2>/dev/null &
+    log "starting squalld backend on :9876"
+    bg python3 /usr/lib/squall/backend/squalld.py --port 9876
+else
+    log "squalld already healthy on :9876"
 fi
 
 # Hardware keys: bind the XF86 brightness (panel + keyboard) and volume keys to
-# stormd, so a physical key and the Control Center share one code path.
+# squalld, so a physical key and the Control Center share one code path.
 bind_key() {
     command -v xfconf-query >/dev/null 2>&1 || return 0
     xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/$1" -n -t string \
-        -s "storm-key $2" >/dev/null 2>&1 \
+        -s "squall-key $2" >> "$_TARGET" 2>&1 \
       || xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/$1" \
-        -s "storm-key $2" >/dev/null 2>&1
+        -s "squall-key $2" >> "$_TARGET" 2>&1 \
+      || log "binding $1 failed"
 }
 
 bind_key XF86MonBrightnessUp brightness-up
@@ -61,5 +109,7 @@ bind_key XF86AudioRaiseVolume volume-up
 bind_key XF86AudioLowerVolume volume-down
 bind_key XF86AudioMute volume-mute
 
-# shell owns the session lifetime
-exec stormui
+# shell owns the session lifetime; route its output into the log too, so an
+# Electron crash shows up in the same file as everything else on the session.
+log "handing session to squall"
+exec squall >> "$_TARGET" 2>&1
