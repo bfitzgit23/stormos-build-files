@@ -48,7 +48,7 @@ jobs:
               pacman -Sy --noconfirm archlinux-keyring
               pacman -Syu --noconfirm archiso grub syslinux
               cd install-stormos
-              ./build.sh -v -w ./work -o ./out
+              bash ./build.sh -v -w ./work -o ./out
               ISO=$(ls -1 out/*.iso | head -1)
               VERSION=$(date -u +%Y%m%d)
               mv "$ISO" "out/StormOS-Arch-${VERSION}.iso"
