@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storm Terminal</title>
+<style>
+:root{
+  --teal:#00d1b2; --purple:#a742f5; --ink:#e6f1ff; --muted:#8892b0; --navy:#0a192f;
+  --glass:rgba(6,19,36,.94); --line:rgba(100,255,218,.16); --hover:rgba(100,255,218,.1);
+  --accent:#5fd3e8; --accent-dim:rgba(95,211,232,.16);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#020c1b;color:var(--ink);font:13px/1.45 Inter,"Segoe UI",system-ui,sans-serif;overflow:hidden}
+button{font:inherit}
+#app{display:flex;height:100vh;flex-direction:column}
+
+header{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);background:rgba(2,12,27,.55)}
+.nav{display:flex;gap:4px}
+.nav button{background:rgba(100,255,218,.07);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:5px 9px;cursor:pointer;font-size:12px}
+.nav button:hover{border-color:var(--teal);color:var(--teal)}
+#cwd{flex:1;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#nlToggle{background:rgba(100,255,218,.07);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:5px 9px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:5px}
+#nlToggle.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+
+#term{flex:1;overflow:hidden;position:relative}
+#term > div{height:100%}
+
+#inputLine{display:flex;align-items:center;gap:6px;padding:8px 12px;border-top:1px solid var(--line);background:rgba(2,12,27,.7)}
+#inputLine .prompt{color:var(--accent);font-family:"JetBrains Mono",monospace;font-size:12px;white-space:nowrap}
+#inputLine input{flex:1;background:transparent;border:none;color:var(--ink);font-family:"JetBrains Mono",monospace;font-size:12px;outline:none;caret-color:var(--accent)}
+#inputLine input::placeholder{color:var(--muted)}
+#ghost{position:absolute;color:rgba(255,255,255,.25);pointer-events:none;white-space:pre;font-family:"JetBrains Mono",monospace;font-size:12px}
+
+footer{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;border-top:1px solid var(--line);color:var(--muted);font-size:11px;background:rgba(2,12,27,.6)}
+.quick{display:flex;gap:6px}
+.quick button{padding:4px 8px;border-radius:99px;border:1px solid var(--line);background:rgba(100,255,218,.07);color:var(--muted);font-size:10.5px;cursor:pointer}
+.quick button:hover{border-color:var(--teal);color:var(--teal)}
+
+@media (max-width:600px){
+  header{padding:6px 8px}
+  #cwd{display:none}
+  .quick{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="nav">
+      <button id="newTab" title="New tab (Ctrl+Shift+T)">+</button>
+      <button id="clearTerm" title="Clear (Ctrl+L)">⟳</button>
+    </div>
+    <div id="cwd">~</div>
+    <button id="nlToggle" title="Natural language mode (Ctrl+Shift+N)">✦ NL</button>
+  </header>
+
+  <div id="term"></div>
+
+  <div id="inputLine">
+    <span class="prompt" id="prompt">user@storm:~$ </span>
+    <input id="cmdInput" type="text" spellcheck="false" autocomplete="off" placeholder="Type a command, or start with ? for natural language…">
+    <span id="ghost"></span>
+  </div>
+
+  <footer>
+    <div class="quick">
+      <button data-cmd="ls">ls</button>
+      <button data-cmd="tree">tree</button>
+      <button data-cmd="? show me screenshots from last week">? screenshots</button>
+      <button data-cmd="? what's using my disk">? disk usage</button>
+      <button data-cmd="neofetch">neofetch</button>
+    </div>
+    <div>Tab = accept ghost · ↑/↓ = history · Ctrl+Shift+N = toggle NL</div>
+  </footer>
+</div>
+
+<script src="vendor/xterm.js"></script>
+<script src="vendor/xterm-addon-fit.js"></script>
+<script src="vendor/xterm-addon-web-links.js"></script>
+<script>
+const API = 'http://127.0.0.1:9876/api';
+const WS_API = 'ws://127.0.0.1:9876/api/pty';
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const state = {
+  cwd: '~',
+  nlMode: false,
+  history: [],
+  histIdx: -1,
+  ws: null,
+  term: null,
+  ghost: '',
+};
+
+const COMMANDS = ['help','ls','cd','cat','tree','mkdir','touch','rm','mv','open','find','du','pwd','echo','date','whoami','flow','theme','aura','vibe','neofetch','clear'];
+const EXT_ALIASES = {
+  pdf:['pdf'], image:['png','jpg','jpeg','gif','webp'], images:['png','jpg','jpeg','gif','webp'],
+  picture:['png','jpg','jpeg'], pictures:['png','jpg','jpeg'], photo:['png','jpg','jpeg'], photos:['png','jpg','jpeg'],
+  screenshot:['png'], screenshots:['png'], music:['mp3','flac','wav','ogg'], audio:['mp3','flac','wav','ogg'],
+  song:['mp3','flac','wav','ogg'], songs:['mp3','flac','wav','ogg'],
+  doc:['md','txt','docx','pdf'], docs:['md','txt','docx','pdf'], document:['md','txt','docx','pdf'],
+  code:['py','js','ts','tsx','html','css','json','rs','go','sh'], spreadsheet:['csv','xlsx'], data:['csv','json','xml','yaml'],
+  log:['log'], archive:['zip','tar','gz','xz','7z','rar'], video:['mp4','mkv','mov','webm','avi'],
+};
+const STOP = new Set(['the','a','an','my','me','show','find','all','from','in','of','and','for','to','on','with','that','made','did','i','file','files','please']);
+const TIME_KW = { today:1, yesterday:2, week:7, weeks:7, month:30, months:30, recent:3, recently:3 };
+
+function toast(m){
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(2,12,27,.95);border:1px solid var(--teal);padding:8px 16px;border-radius:20px;font-size:12px;opacity:0;transition:.25s;pointer-events:none;z-index:100';
+  t.textContent = m;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = '1');
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 250); }, 2500);
+}
+
+async function api(path, opts){
+  const r = await fetch(API + path, opts);
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+const post = (path, body) => api(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{}) });
+
+/* ── NL → command translation (ported from Aura_DE brain.ts) ── */
+function nlToCommand(input, cwdName){
+  const q = input.toLowerCase().trim().replace(/\?+$/,'').trim();
+  const has = (...re) => re.some(r => r.test(q));
+
+  if(has(/\b(screenshot|screenshots)\b/))
+    return { command: `find ~ --tag:screenshot${has(/\bweek\b|\bweek's\b/)?" --after:7d":has(/\btoday\b/)?" --after:1d":""}`, explanation: "Screenshots live under Pictures. I'd filter by the screenshot tag and a time window." };
+  if(has(/\binvoice|invoices|receipt|bills?\b/))
+    return { command: `find ~ --tag:invoice`, explanation: "Money files carry the invoice tag." };
+  if(has(/\bmusic|songs?\b|\blofi\b/))
+    return { command: `ls ~/Music`, explanation: "Your audio lives in ~/Music." };
+  if(has(/\bduplicate|dupes?\b/))
+    return { command: `find ~ --duplicates`, explanation: "AURA fingerprints content, so near-duplicates show up even with different names." };
+  if(has(/\bpics?|images?|photos?|wallpaper\b/))
+    return { command: `find ~ --ext:png,jpg --tag:image`, explanation: "Every image-type file, everywhere in home." };
+  if(has(/\b(make|create|new)\b/)){
+    const m = q.match(/\b(folder|directory|dir|project|file)\s+(?:called\s+|named\s+)?["']?([\w-]+)["']?/);
+    if(m){ const isFile = m[1]==='file'; return { command: `${isFile?'touch':'mkdir'} ${m[2].toLowerCase()}`, explanation: `A ${m[1]} named "${m[2].toLowerCase()}" in ${cwdName}.` }; }
+    return { command: `mkdir <name>`, explanation: "Tell me the name and I'll build it." };
+  }
+  if(has(/\bopen\b/)){
+    const m = q.match(/\bopen\s+(?:the\s+)?(files?|vault|terminal|echo|copilot|aura|settings|moods|about)\b/);
+    const app = m ? (m[1].includes('file')||m[1].includes('vault')?'vault':m[1].includes('terminal')||m[1].includes('echo')?'echo':m[1].includes('copilot')||m[1].includes('aura')?'copilot':m[1].includes('settings')||m[1].includes('moods')?'settings':'about') : 'vault';
+    return { command: `open ${app}`, explanation: "I'll bring that app to the front." };
+  }
+  if(has(/\bread\b|\bcat\b|\bopen (the )?file\b|\bwhats in\b|\bwhat's in\b/))
+    return { command: `cat <file>`, explanation: "Point me at the exact file and I'll print it." };
+  if(has(/\bspace|size|usage|big\b/))
+    return { command: `du --summary`, explanation: "Disk usage roll-up, biggest folders first." };
+  if(has(/\bclean|tidy|organize|sort\b/))
+    return { command: `aura --tidy ~/Downloads`, explanation: "I'd hand this to the copilot — moving files is its thing." };
+  if(has(/\bwhere|locate\b/))
+    return { command: `find ~ --ilike:<name>`, explanation: "Name search across everything, case-insensitive." };
+  if(has(/\bdelete|remove|trash\b/))
+    return { command: `rm <file>`, explanation: "Goes to Trash first — nothing vanishes instantly here." };
+  return { command: `aura --ask "${input.slice(0,60)}"`, explanation: "That one's for the system copilot — it knows your whole desktop." };
+}
+
+function ghostSuggestion(input){
+  const q = input.trim();
+  if(!q || q.startsWith('?')) return null;
+  if(state.nlMode){
+    const t = nlToCommand(q, state.cwd);
+    return t.command;
+  }
+  const match = COMMANDS.find(c => c.startsWith(q.split(/\s+/)[0].toLowerCase()) && c !== q.split(/\s+/)[0].toLowerCase());
+  return match ? match + q.slice(q.split(/\s+/)[0].length) : null;
+}
+
+/* ── xterm setup ── */
+function initTerm(){
+  state.term = new Terminal({
+    cursorBlink: true,
+    cursorStyle: 'bar',
+    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+    fontSize: 13,
+    lineHeight: 1.45,
+    theme: {
+      background: '#020c1b',
+      foreground: '#e6f1ff',
+      cursor: '#5fd3e8',
+      cursorAccent: '#020c1b',
+      selectionBackground: 'rgba(95,211,232,.3)',
+      black: '#0a192f',
+      red: '#fb7185',
+      green: '#34d399',
+      yellow: '#fbbf24',
+      blue: '#60a5fa',
+      magenta: '#c084fc',
+      cyan: '#22d3ee',
+      white: '#e6f1fb',
+      brightBlack: '#5b6f8c',
+      brightRed: '#fb7185',
+      brightGreen: '#34d399',
+      brightYellow: '#fbbf24',
+      brightBlue: '#60a5fa',
+      brightMagenta: '#c084fc',
+      brightCyan: '#22d3ee',
+      brightWhite: '#e6f1fb',
+    },
+    convertEol: true,
+    scrollback: 10000,
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  state.term.loadAddon(fitAddon);
+  state.term.loadAddon(new WebLinksAddon.WebLinksAddon());
+  state.term.open(document.getElementById('term'));
+  fitAddon.fit();
+  window.addEventListener('resize', () => fitAddon.fit());
+
+  state.term.onData(data => {
+    if(state.ws && state.ws.readyState === WebSocket.OPEN){
+      state.ws.send(JSON.stringify({ type: 'input', data }));
+    }
+  });
+
+  state.term.onKey(e => {
+    if(e.key === 'Tab' && state.ghost && !e.domEvent.shiftKey){
+      e.preventDefault();
+      const remaining = state.ghost.slice($('cmdInput').value.length);
+      $('cmdInput').value += remaining;
+      state.ghost = '';
+      updateGhost();
+      return;
+    }
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      submitCmd();
+      return;
+    }
+    if(e.key === 'ArrowUp' && state.history.length){
+      e.preventDefault();
+      state.histIdx = Math.min(state.histIdx + 1, state.history.length - 1);
+      $('cmdInput').value = state.history[state.histIdx];
+      updateGhost();
+      return;
+    }
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      state.histIdx = Math.max(state.histIdx - 1, -1);
+      $('cmdInput').value = state.histIdx === -1 ? '' : state.history[state.histIdx];
+      updateGhost();
+    }
+  });
+
+  // Welcome
+  state.term.writeln('\x1b[38;5;39mstorm-terminal\x1b[0m \x1b[90m— hybrid shell\x1b[0m');
+  state.term.writeln('\x1b[90mshell speaks: ls, cd, cat, tree, mkdir, find, du, open, theme, aura…\x1b[0m');
+  state.term.writeln('\x1b[90myou speak:  ? "show me screenshots from last week"\x1b[0m');
+  state.term.writeln('\x1b[90mtype help for the full story\x1b[0m');
+  state.term.write('\r\n');
+  writePrompt();
+}
+
+function writePrompt(){
+  state.term.write('\x1b[38;5;39muser@storm\x1b[0m\x1b[90m:\x1b[0m\x1b[38;5;39m' + state.cwd + '\x1b[0m\x1b[90m$ \x1b[0m');
+  $('prompt').textContent = `user@storm:${state.cwd}$ `;
+}
+
+function updateGhost(){
+  const ghost = ghostSuggestion($('cmdInput').value);
+  state.ghost = ghost || '';
+  const el = $('ghost');
+  if(state.ghost){
+    const inputVal = $('cmdInput').value;
+    el.textContent = state.ghost.slice(inputVal.length);
+    // Position ghost after input
+    const canvas = state.term.element.querySelector('canvas');
+    if(canvas){
+      const ctx = canvas.getContext('2d');
+      const metrics = ctx.measureText(inputVal);
+      el.style.left = (metrics.width + 8) + 'px';
+    }
+    el.style.opacity = '1';
+  }else{
+    el.style.opacity = '0';
+  }
+}
+
+async function submitCmd(){
+  const text = $('cmdInput').value;
+  $('cmdInput').value = '';
+  state.histIdx = -1;
+  if(!text.trim()){
+    state.term.write('\r\n');
+    writePrompt();
+    return;
+  }
+  if(state.nlMode && !text.startsWith('?')){
+    state.term.writeln(text);
+    runCmd('?' + text);
+  }else{
+    state.term.writeln(text);
+    runCmd(text);
+  }
+  if(text.trim()) state.history = [text, ...state.history].slice(0, 60);
+  updateGhost();
+}
+
+function runCmd(cmdText){
+  if(state.ws && state.ws.readyState === WebSocket.OPEN){
+    state.ws.send(JSON.stringify({ type: 'command', cmd: cmdText }));
+  }
+}
+
+/* ── WebSocket PTY connection ── */
+function connectPty(){
+  state.ws = new WebSocket(WS_API);
+  state.ws.binaryType = 'arraybuffer';
+
+  state.ws.onopen = () => {
+    state.ws.send(JSON.stringify({ type: 'resize', cols: state.term.cols, rows: state.term.rows }));
+  };
+
+  state.ws.onmessage = (event) => {
+    try{
+      const msg = JSON.parse(new TextDecoder().decode(event.data));
+      if(msg.type === 'output'){
+        state.term.write(msg.data);
+      }else if(msg.type === 'cwd'){
+        state.cwd = msg.cwd;
+        writePrompt();
+      }else if(msg.type === 'clear'){
+        state.term.clear();
+        writePrompt();
+      }
+    }catch{}
+  };
+
+  state.ws.onclose = () => {
+    state.term.writeln('\r\n\x1b[33m[PTY disconnected — reconnecting…]\x1b[0m');
+    setTimeout(connectPty, 1000);
+  };
+
+  state.ws.onerror = () => {};
+}
+
+/* ── wiring ── */
+$('newTab').onclick = () => {
+  if(state.ws && state.ws.readyState === WebSocket.OPEN){
+    state.ws.send(JSON.stringify({ type: 'new' }));
+  }
+};
+
+$('clearTerm').onclick = () => {
+  if(state.ws && state.ws.readyState === WebSocket.OPEN){
+    state.ws.send(JSON.stringify({ type: 'clear' }));
+  }else{
+    state.term.clear();
+    writePrompt();
+  }
+};
+
+$('nlToggle').onclick = (e) => {
+  state.nlMode = !state.nlMode;
+  e.currentTarget.classList.toggle('on', state.nlMode);
+  e.currentTarget.textContent = state.nlMode ? '✦ NL on' : '✦ NL';
+  updateGhost();
+  toast(state.nlMode ? 'Natural language mode ON — start with ? or type naturally' : 'Natural language mode OFF');
+};
+
+$('cmdInput').addEventListener('input', () => updateGhost());
+
+$$('.quick button').forEach(b => b.onclick = () => {
+  $('cmdInput').value = b.dataset.cmd;
+  $('cmdInput').focus();
+  updateGhost();
+});
+
+document.addEventListener('keydown', (e) => {
+  if(e.target.tagName === 'INPUT') return;
+  if(e.key === 'l' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); $('clearTerm').click(); }
+  if(e.key === 't' && (e.ctrlKey || e.metaKey) && e.shiftKey){ e.preventDefault(); $('newTab').click(); }
+  if(e.key === 'n' && (e.ctrlKey || e.metaKey) && e.shiftKey){ e.preventDefault(); $('nlToggle').click(); }
+});
+
+/* ── inherit shell theme ── */
+fetch(API + '/settings').then(r => r.json()).then(s => {
+  const ACCENT = {cyan:'#5fd3e8', amber:'#f0a35e', lilac:'#b6a0e8', salmon:'#e98a80', mint:'#5fd39a'};
+  const root = document.documentElement;
+  root.style.setProperty('--accent', ACCENT[s.accent] || '#5fd3e8');
+  root.style.setProperty('--accent-dim', ACCENT[s.accent] ? ACCENT[s.accent].replace(')', ',.16)').replace('rgb', 'rgba') : 'rgba(95,211,232,.16)');
+  if(s.theme === 'light') document.body.style.background = '#eef3f9', document.body.style.color = '#0f1a26';
+  if(s.fontScale) root.style.fontSize = (13 * s.fontScale / 100) + 'px';
+}).catch(() => {});
+
+/* ── boot ── */
+initTerm();
+connectPty();
+</script>
+</body>
+</html>

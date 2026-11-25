@@ -51,4 +51,10 @@ file_permissions=(
   ["/usr/lib/stormos-installer/electron-main.js"]="0:0:755"
   ["/usr/local/sbin/stormos-build-setup"]="0:0:755"
   ["/usr/local/sbin/stormos-build-npm"]="0:0:755"
+  ["/usr/bin/stormui"]="0:0:755"
+  ["/usr/bin/storm-session"]="0:0:755"
+  ["/usr/bin/storm-key"]="0:0:755"
+  ["/usr/lib/stormui/backend/stormd.py"]="0:0:755"
+  ["/usr/local/bin/stormos-archinstall"]="0:0:755"
+  ["/usr/local/share/stormos-archinstall/stomros.py"]="0:0:755"
 )
