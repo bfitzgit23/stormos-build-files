@@ -212,7 +212,7 @@ body{background:#01060e}
 <!-- ═════════ TOP BAR ═════════ -->
 <header id="topbar">
   <div class="tb-left">
-    <div id="menuBtn" onclick="toggleLauncher()"><span class="mark">⛈</span> Storm</div>
+    <div id="menuBtn" onclick="toggleLauncher()"><span class="mark">⛈</span> Squall</div>
     <div class="workspaces">
       <div class="ws on">1</div><div class="ws">2</div><div class="ws">3</div><div class="ws">4</div>
     </div>
@@ -260,7 +260,7 @@ body{background:#01060e}
     <h4>Now playing</h4>
     <div class="np">
       <div class="art">🎵</div>
-      <div><div class="t">Storm Season</div><div class="a">Nightrunner</div></div>
+      <div><div class="t">Squall Season</div><div class="a">Nightrunner</div></div>
       <div class="bars"><i></i><i></i><i></i><i></i></div>
     </div>
   </div>
@@ -272,7 +272,7 @@ body{background:#01060e}
   <!-- Settings -->
   <div class="win" id="w-set" style="left:64px;top:36px;width:474px">
     <div class="tb"><div class="dots"><span class="dot c"></span><span class="dot m"></span><span class="dot x"></span></div>
-      <span class="appicon">⚙️</span>Storm Settings<span class="spacer"></span><span class="tag">STORM</span></div>
+      <span class="appicon">⚙️</span>Squall Settings<span class="spacer"></span><span class="tag">SQUALL</span></div>
     <div class="wbody"><div class="settings">
       <div class="side">
         <div class="grp"><b>Personal</b>
@@ -288,7 +288,7 @@ body{background:#01060e}
       <div class="pane">
         <div class="setrow"><div><div class="lbl">Compositor</div><div class="sub">xfwm4 · GLX · vsync</div></div>
           <div class="sw on" onclick="this.classList.toggle('on')"><i></i></div></div>
-        <div class="setrow"><div><div class="lbl">Storm Shell overlay</div><div class="sub">bar · dock · widgets</div></div>
+        <div class="setrow"><div><div class="lbl">Squall Shell overlay</div><div class="sub">bar · dock · widgets</div></div>
           <div class="sw on" onclick="this.classList.toggle('on')"><i></i></div></div>
         <div class="setrow"><div><div class="lbl">Desktop icons</div><div class="sub">xfdesktop hidden</div></div>
           <div class="sw" onclick="this.classList.toggle('on')"><i></i></div></div>
@@ -299,7 +299,7 @@ body{background:#01060e}
         <div class="setrow"><div><div class="lbl">Icon size</div></div>
           <div class="slider" style="width:150px"><i style="width:62%"></i><b style="left:59%"></b></div></div>
         <div class="setrow"><div><div class="lbl">Theme</div></div>
-          <div class="chips"><span class="chip on">Storm Dark</span><span class="chip">Storm Light</span><span class="chip">Storm Glass</span></div></div>
+          <div class="chips"><span class="chip on">Squall Dark</span><span class="chip">Squall Light</span><span class="chip">Squall Glass</span></div></div>
       </div>
     </div></div>
   </div>
@@ -325,7 +325,7 @@ body{background:#01060e}
           <div class="fi"><div class="ico">🖼</div>Pictures</div>
           <div class="fi"><div class="ico">🎵</div>Music</div>
           <div class="fi"><div class="ico">📁</div>Projects</div>
-          <div class="fi"><div class="ico">📦</div>storm-shell</div>
+          <div class="fi"><div class="ico">📦</div>squall-shell</div>
           <div class="fi"><div class="ico">⚙</div>.config</div>
           <div class="fi"><div class="ico">🌩</div>stormos.iso</div>
         </div>
@@ -342,11 +342,11 @@ body{background:#01060e}
       <span class="m">▄▄▄▄▄▄▄</span>   <span class="g">storm@stormos</span>
      <span class="m">▀▀▀▀▀▀▀▀▀</span>  <span class="dim">─────────────</span>
     <span class="m">▀▀▀▀▀▀▀▀▀▀▀</span> <span class="b">OS</span>      StormOS 2026.11 (Arch)
-   <span class="m">▀▀▀▀▀▀▀▀▀▀▀▀▀</span> <span class="b">DE</span>      Storm Shell 0.1.0
+   <span class="m">▀▀▀▀▀▀▀▀▀▀▀▀▀</span> <span class="b">DE</span>      Squall Shell 0.1.0
   <span class="m">▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀</span> <span class="b">WM</span>      xfwm4 (themed)
   <span class="dim">─────────────────</span> <span class="b">Shell</span>   bash 5.2
-<span class="g">storm@stormos</span> <span class="b">~</span> $ systemctl status stormd
-<span class="y">●</span> stormd.service - StormOS system bridge
+<span class="g">storm@stormos</span> <span class="b">~</span> $ systemctl status squalld
+<span class="y">●</span> squalld.service - StormOS system bridge
    Active: <span class="g">active (running)</span> since Mon 2026-11-02 09:41:02
 <span class="g">storm@stormos</span> <span class="b">~</span> $ <span class="cursor"></span></div>
     </div>
@@ -428,7 +428,7 @@ setView('overview');
 
 const APPS=[
  {n:'Firefox',i:'🦊',c:'Internet'},{n:'Files',i:'📁',c:'System'},{n:'Terminal',i:'💻',c:'System'},
- {n:'Storm Settings',i:'⚙️',c:'System'},{n:'Text Editor',i:'📝',c:'Office'},{n:'Calculator',i:'🔢',c:'Office'},
+ {n:'Squall Settings',i:'⚙️',c:'System'},{n:'Text Editor',i:'📝',c:'Office'},{n:'Calculator',i:'🔢',c:'Office'},
  {n:'Steam',i:'🎮',c:'Games'},{n:'VLC',i:'🎬',c:'Multimedia'},{n:'Software Center',i:'📦',c:'System'},
  {n:'GIMP',i:'🎨',c:'Graphics'},{n:'LibreOffice',i:'📄',c:'Office'},{n:'Code',i:'🧩',c:'Development'},
  {n:'Thunderbird',i:'✉️',c:'Internet'},{n:'Archive Manager',i:'🗜',c:'System'}

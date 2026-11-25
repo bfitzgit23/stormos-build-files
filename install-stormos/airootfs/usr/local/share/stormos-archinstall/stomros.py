@@ -17,7 +17,7 @@ ROOT_PASSWORD = ""  # empty = disabled (sudo only)
 USER_PASSWORD = ""  # empty = disabled (sudo only)
 
 # ── Disk / Boot ─────────────────────────────────────────────────────────────
-DISK = "nvme0n1"           # target disk (adjust in config)
+DISK = None                # None = archinstall asks which disk to erase
 BOOTLOADER = "systemd-boot"  # or "grub"
 ENCRYPT = False             # LUKS encryption
 SWAP_SIZE = "4G"            # swap partition size
@@ -60,7 +60,7 @@ profile = {
     "profile": "minimal",
     "script": "guided",
     "bootloader": BOOTLOADER,
-    "target": f"/dev/{DISK}",
+    "target": f"/dev/{DISK}" if DISK else None,
     "disk_encryption": ENCRYPT,
     "swap": True,
     "swap_size": SWAP_SIZE,
@@ -94,7 +94,7 @@ profile = {
     "post_install": [
         # Enable lightdm with autologin
         f"sed -i 's/^#autologin-user=.*/autologin-user={USERNAME}/' /etc/lightdm/lightdm.conf",
-        f"sed -i 's/^#autologin-session=.*/autologin-session=Storm/' /etc/lightdm/lightdm.conf",
+        f"sed -i 's/^#autologin-session=.*/autologin-session=storm/' /etc/lightdm/lightdm.conf",
         f"sed -i 's/^#greeter-session=.*/greeter-session=lightdm-slick-greeter/' /etc/lightdm/lightdm.conf",
 
         # Slick greeter theme

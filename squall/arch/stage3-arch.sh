@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# stage3-arch.sh — Storm rollout stage 3 on Arch: make Storm the OS, not a layer.
+# stage3-arch.sh — Squall rollout stage 3 on Arch: make Squall the OS, not a layer.
 #
 # Default run is REPORT-ONLY: it prints what would change. Nothing is
 # removed or written without a flag:
 #   --apply            remove xfce4 group members outside the substrate's
 #                      dependency closure (asks one by one; pacman keeps
 #                      anything the substrate still needs)
-#   --install          install + enable the stormd systemd user unit
-#   --autologin USER   point lightdm at the Storm session for that user
+#   --install          install + enable the squalld systemd user unit
+#   --autologin USER   point lightdm at the Squall session for that user
 #
 # Stage list and exit criteria: docs/stages.md
 set -euo pipefail
@@ -50,7 +50,7 @@ elif [ -z "$(comm -23 <(printf '%s\n' "$installed") <(printf '%s\n' "$keep"))" ]
     echo "xfce4 group: only the substrate is installed — OK"
 else
     extra="$(comm -23 <(printf '%s\n' "$installed") <(printf '%s\n' "$keep"))"
-    echo "Still installed from the xfce4 group (Storm replaces all of these):"
+    echo "Still installed from the xfce4 group (Squall replaces all of these):"
     printf '%s\n' "$extra" | sed 's/^/  /'
     if [ "$APPLY" -eq 1 ]; then
         while IFS= read -r p; do
@@ -67,26 +67,26 @@ else
 fi
 
 if [ "$UNIT" -eq 1 ]; then
-    [ -f /usr/lib/systemd/user/stormd.service ] || die "stormd.service not installed — rerun the stormui package build first"
-    [ "$(systemctl --user is-enabled stormd.service 2>/dev/null || true)" = "enabled" ] || {
+    [ -f /usr/lib/systemd/user/squalld.service ] || die "squalld.service not installed — rerun the squall package build first"
+    [ "$(systemctl --user is-enabled squalld.service 2>/dev/null || true)" = "enabled" ] || {
         systemctl --user daemon-reload
-        systemctl --user enable --now stormd.service
+        systemctl --user enable --now squalld.service
     }
-    echo "stormd user unit enabled (it fails quietly if the session already runs its own stormd)"
+    echo "squalld user unit enabled (it fails quietly if the session already runs its own squalld)"
 fi
 
 if [ -n "$AUTOUSER" ]; then
     conf=/etc/lightdm/lightdm.conf
     [ -e "$conf" ] || die "no $conf — lightdm isn't installed"
-    sess="$(grep -m1 '^Name=' /usr/share/xsessions/storm.desktop 2>/dev/null | cut -d= -f2- || true)"
-    sess="${sess:-Storm}"
+    sess="$(grep -m1 '^Name=' /usr/share/xsessions/squall.desktop 2>/dev/null | cut -d= -f2- || true)"
+    sess="${sess:-Squall}"
     grep -Eq '^#?autologin-user=' "$conf" || die "$conf has no autologin-user key — add the autologin lines under [Seat:*] first"
     echo "Setting lightdm autologin: user=$AUTOUSER session=$sess"
     sroot sed -E -i \
         -e "s|^#?autologin-user=.*|autologin-user=$AUTOUSER|" \
         -e "s|^#?autologin-session=.*|autologin-session=$sess|" \
         "$conf"
-    echo "Reboot to land straight in Storm."
+    echo "Reboot to land straight in Squall."
 fi
 
 echo
@@ -98,4 +98,4 @@ for p in xfwm4 xfce4-settings xfconf xfce4-notifyd xfce4-terminal; do
         printf '  MISSING: %s <-- resurrect with: pacman -S %s\n' "$p" "$p"
     fi
 done
-printf '  stormui: %s\n' "$(pacman -Qq stormui-git 2>/dev/null || echo missing)"
+printf '  squall: %s\n' "$(pacman -Qq squall-git 2>/dev/null || echo missing)"

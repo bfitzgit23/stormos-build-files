@@ -1,9 +1,9 @@
-# Rollout stages — putting Storm on a machine
+# Rollout stages — putting Squall on a machine
 
-Storm goes on in three stages. Stage 1 is the static shell already running
-(unpacked folder, stormd, browser) — the UI works, nothing is a desktop yet.
+Squall goes on in three stages. Stage 1 is the static shell already running
+(unpacked folder, squalld, browser) — the UI works, nothing is a desktop yet.
 Stage 2 turns that into a real X session wired to real hardware. Stage 3 makes
-Storm the OS itself instead of a layer. On the current Arch base `pacman` is
+Squall the OS itself instead of a layer. On the current Arch base `pacman` is
 already there, so stages 2 and 3 are dependency lists plus packaging plus a
 script each — the LFS port at the end reuses this exact shape later.
 
@@ -26,7 +26,7 @@ Exit criteria already met on the box where the folder was unpacked:
 Nothing else happens at this stage. The launcher being empty is expected —
 there are no `.desktop` files yet.
 
-## Stage 2 — Storm as a session
+## Stage 2 — Squall as a session
 
 Goal: a real X session with the shell overlay, live system controls, hardware
 keys, and a greeter entry — i.e. what the replacement matrix calls a session.
@@ -43,12 +43,12 @@ keys, and a greeter entry — i.e. what the replacement matrix calls a session.
    - `polkit-gnome` (or `lxpolkit`) for pkexec prompts and backlight
      permissions.
 2. **Permissions**: user in `video` (backlight sysfs), polkit agent running
-   inside the session (storm-session now starts `polkit-gnome`/`lxpolkit`
+   inside the session (squall-session now starts `polkit-gnome`/`lxpolkit`
    automatically), `lvfs`-style GPU power switching available through pkexec.
-3. **Session wiring**: `storm-session`, `storm-key`, `storm.desktop`
-   installed via `arch/PKGBUILD`; hardware XF86 keys bound to `storm-key`
+3. **Session wiring**: `squall-session`, `squall-key`, `squall.desktop`
+   installed via `arch/PKGBUILD`; hardware XF86 keys bound to `squall-key`
    through xfconf (script already does this).
-4. **greeter**: lightdm or greetd, Storm appears as a session choice.
+4. **greeter**: lightdm or greetd, Squall appears as a session choice.
 
 What turns on here, and what to verify:
 
@@ -63,22 +63,22 @@ What turns on here, and what to verify:
   sight; a build should add something graphical and see it appear without
   restarting the shell.
 
-## Stage 3 — Storm as the OS
+## Stage 3 — Squall as the OS
 
-Goal: image builds and sessions assume Storm; nothing else is user-facing.
+Goal: image builds and sessions assume Squall; nothing else is user-facing.
 
 `stage3-arch.sh` is a report-only preview by default. Behind `--apply` it
 removes every `xfce4`-group member outside the substrate's dependency closure
 (pacman is asked one package at a time and left alone if the substrate still
-needs it). Behind `--install` it writes the `stormui` PKGBUILD's optional
-`stormd` user unit; behind `--autologin USER` it sets the greeter to land
-directly in Storm on boot.
+needs it). Behind `--install` it writes the `squall` PKGBUILD's optional
+`squalld` user unit; behind `--autologin USER` it sets the greeter to land
+directly in Squall on boot.
 
 Verification:
 
 - `stage3-arch.sh` report is empty (only the substrate remains from the group);
-- `/usr/share/xsessions/storm.desktop` is the greeter's default;
-- after a clean reboot, Storm runs end-to-end with no LFS-unfriendly parts:
+- `/usr/share/xsessions/squall.desktop` is the greeter's default;
+- after a clean reboot, Squall runs end-to-end with no LFS-unfriendly parts:
   Xfce pieces not needed anymore no longer exist;
 - the hardware layer is the whole story — control center edits take effect
   under the running session, not just in a nested Xvnc;
@@ -89,7 +89,7 @@ Verification:
 
 Stage 1 is unchanged. Stage 2's dependency list becomes the first batch of
 PKGBUILDs and the stage-2 script's `pacman -S` list. Stage 3 is the same
-`stage3-arch.sh` with the group list pointed at LFS packages. stormd, the
+`stage3-arch.sh` with the group list pointed at LFS packages. squalld, the
 session, the apps and the frontend do not change. Electron is the only heavy
 runtime dep: WebKitGTK or a smaller wrapper replaces it on the LFS build
 (the renderer uses none of Electron's Node APIs, so this is mostly boilerplate).

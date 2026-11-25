@@ -3,7 +3,7 @@
   "profile": "minimal",
   "script": "guided",
   "bootloader": "systemd-boot",
-  "target": "/dev/nvme0n1",
+  "target": null,
   "disk_encryption": false,
   "swap": true,
   "swap_size": "4G",
@@ -143,7 +143,7 @@
   },
   "post_install": [
     "sed -i 's/^#autologin-user=.*/autologin-user=storm/' /etc/lightdm/lightdm.conf",
-    "sed -i 's/^#autologin-session=.*/autologin-session=Storm/' /etc/lightdm/lightdm.conf",
+    "sed -i 's/^#autologin-session=.*/autologin-session=storm/' /etc/lightdm/lightdm.conf",
     "sed -i 's/^#greeter-session=.*/greeter-session=lightdm-slick-greeter/' /etc/lightdm/lightdm.conf",
     "mkdir -p /etc/lightdm",
     "cat > /etc/lightdm/slick-greeter.conf <<'EOF'\n[Greeter]\nbackground=/usr/share/backgrounds/stormos-grub.png\ntheme-name=Storm-Dark\nicon-theme-name=Papirus-Dark\nfont-name=Inter 10\nshow-indicators=~session;~power\nshow-clock=true\nclock-format=%H:%M\nEOF",

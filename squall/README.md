@@ -1,16 +1,16 @@
-# stormUI — the StormOS desktop environment
+# squall — the StormOS desktop environment
 
 StormOS's interface: a web-tech shell plus native apps, running on the smallest
 possible Xfce substrate. Xfce is not the desktop any more — it is the window
-manager and the theming daemon. Everything a user touches is Storm.
+manager and the theming daemon. Everything a user touches is Squall.
 
 ```
-stormUI/
+squall/
 ├── main.js              Electron shell (overlay) + single-app windows
 ├── frontend/            bar, dock, launcher, control center (vanilla JS)
-├── apps/                Storm apps — files.html (working file manager)
-├── backend/stormd.py    Python system bridge, stdlib only, 127.0.0.1:9876
-├── session/             storm-session, storm.desktop, xfce-minimize.sh
+├── apps/                Squall apps — files.html (working file manager)
+├── backend/squalld.py   Python system bridge, stdlib only, 127.0.0.1:9876
+├── session/             squall-session, squall.desktop, xfce-minimize.sh
 ├── docs/                xfce-replacement-matrix.md
 └── arch/                PKGBUILD + xfce-minimal.txt
 ```
@@ -32,7 +32,7 @@ manager UI, tray applets, session manager — is replaced. Full detail:
 
 ```bash
 # 1. system bridge
-python3 backend/stormd.py &
+python3 backend/squalld.py &
 
 # 2a. shell, in a browser (no Electron needed)
 python3 -m http.server 8080 --directory frontend
@@ -41,27 +41,27 @@ python3 -m http.server 8080 --directory frontend
 # 2b. shell, as the real overlay
 npm install && npm start
 
-# 2c. one Storm app in its own window
+# 2c. one Squall app in its own window
 npm start -- --app files
 
-# 3. Storm Files directly
+# 3. Squall Files directly
 python3 -m http.server 8080 --directory apps   # open /files.html
 ```
 
 ## Session
 
 ```bash
-sudo install -Dm755 session/storm-session /usr/bin/storm-session
-sudo install -Dm644 session/storm.desktop /usr/share/xsessions/storm.desktop
+sudo install -Dm755 session/squall-session /usr/bin/squall-session
+sudo install -Dm644 session/squall.desktop /usr/share/xsessions/squall.desktop
 ```
 
-Then pick **Storm** in the greeter. On a stock Xfce box, use
+Then pick **Squall** in the greeter. On a stock Xfce box, use
 `session/xfce-minimize.sh` instead to mask the replaced components.
 
-`storm-key` is installed to `/usr/bin/storm-key`; the session binds the
+`squall-key` is installed to `/usr/bin/squall-key`; the session binds the
 brightness and volume keys to it.
 
-## Storm Files API (confined to `$HOME`)
+## Squall Files API (confined to `$HOME`)
 
 ## Hardware endpoints
 
@@ -89,7 +89,7 @@ Center shows an explicit unavailable state instead of a toggle that lies.
 
 ## Theme and options
 
-`~/.config/storm/settings.json` is the source of truth for the desktop's look:
+`~/.config/squall/settings.json` is the source of truth for the desktop's look:
 
 | Key | Values | Effect |
 |---|---|---|
@@ -104,14 +104,14 @@ Center shows an explicit unavailable state instead of a toggle that lies.
 partial patch, rejects unknown keys and invalid values (`rejected` in the
 response), writes atomically and applies GTK theming. The shell also caches the
 last good set in `localStorage`, so it paints in the right theme before the
-daemon answers. Storm Files reads the same endpoint, so it follows the shell's
+daemon answers. Squall Files reads the same endpoint, so it follows the shell's
 theme, accent, density and text size.
 
 Options follow the same contract: `GET /api/powerprofile` and
 `POST /api/powerprofile {profile}` wrap `powerprofilesctl`, returning
 `{"supported": false}` when the tool is absent.
 
-`powerprofilesctl` is preferred; without it stormd falls back to the ACPI
+`powerprofilesctl` is preferred; without it squalld falls back to the ACPI
 `platform_profile` interface (`low`/`balanced`/`performance`), so most laptops
 keep working. The same rule applies to CPU governors (`intel_pstate`/
 `cpufreq`), keyboard backlight LEDs and hybrid graphics (`envycontrol`:
@@ -119,7 +119,7 @@ integrated / hybrid / nvidia, one logout to apply).
 
 ## Hardware keys
 
-`session/storm-key` is a stdlib bridge that POSTs to stormd. `storm-session`
+`session/squall-key` is a stdlib bridge that POSTs to squalld. `squall-session`
 binds `XF86MonBrightnessUp/Down`, `XF86KbdBrightnessUp/Down` and the three
 volume keys to it through `xfconf`, so a physical key and a Control Center
 slider share one code path, including the root/fallback handling.
@@ -130,13 +130,13 @@ slider share one code path, including the root/fallback handling.
 entry, and system/user Flatpak exports. It honours `NoDisplay`, `Hidden` and
 `TryExec`, dedupes by desktop id and display name, strips field codes, and
 returns categories and keywords for search. First sightings live in
-`~/.cache/storm/apps.json`: apps installed in the last seven days are flagged
+`~/.cache/squall/apps.json`: apps installed in the last seven days are flagged
 `new`, and an uninstalled app disappears on the next scan. The launcher
 refreshes when it opens, so new packages appear without restarting the shell,
 and its category tabs and counts come from the apps that actually exist.
 
 Deep-navy glass with a restrained LCARS vocabulary: one amber-to-salmon rail on
-the dock, one numbered control-center header (`47 / Storm control`), lilac
+the dock, one numbered control-center header (`47 / Squall control`), lilac
 section labels, pill caps and mono eyebrows. Everything else stays quiet:
 hairline borders, one accent cyan, 120 ms transitions, no glow spam.
 Tokens live at the top of `frontend/styles.css`.
@@ -153,7 +153,7 @@ package.
 | GET | `/api/fs/raw?path=` | raw bytes for image/PDF preview |
 | POST | `/api/fs/mkdir` | `{path, name}` |
 | POST | `/api/fs/rename` | `{path, name}` |
-| POST | `/api/fs/trash` | `{paths: []}` → `~/.storm-trash` |
+| POST | `/api/fs/trash` | `{paths: []}` → `~/.squall-trash` |
 | POST | `/api/fs/paste` | `{src: [], dst, mode: copy\|move}` |
 | POST | `/api/fs/open` | hand a path to the desktop handler |
 
@@ -162,13 +162,13 @@ Paths outside `$HOME` return 403. This API never builds shell strings.
 ## Build
 
 ```bash
-cd arch && makepkg -si     # installs stormui-git, /usr/bin/stormui,
-                           # storm-session and the Storm xsessions entry
+cd arch && makepkg -si     # installs squall-git, /usr/bin/squall,
+                           # squall-session and the Squall xsessions entry
 ```
 
 ## Rollout stages
 
-Put Storm onto an existing machine in three ordered steps:
+Put Squall onto an existing machine in three ordered steps:
 
 ```bash
 arch/stage2-arch.sh        # substrate deps, makepkg, post-install check
@@ -179,7 +179,7 @@ Full write-up including the LFS port plan: [`docs/stages.md`](docs/stages.md).
 
 ## Status
 
-- **Working:** shell overlay, launcher, control center, Storm Files, stormd
+- **Working:** shell overlay, launcher, control center, Squall Files, squalld
   bridge, minimum-Xfce session scripts, packaging.
 - **Interim:** terminal is `xfce4-terminal`; the notification server is still
   `xfce4-notifyd`.

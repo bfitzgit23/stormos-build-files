@@ -1,10 +1,10 @@
-/* StormUI renderer — vanilla ES2020, no build step.
-   Settings are persisted by stormd (~/.config/storm/settings.json) and cached in
+/* Squall renderer — vanilla ES2020, no build step.
+   Settings are persisted by squalld (~/.config/squall/settings.json) and cached in
    localStorage so the shell paints correctly before the daemon answers. */
 'use strict';
 
 const API = 'http://127.0.0.1:9876/api';
-const STORAGE_KEY = 'storm.settings';
+const STORAGE_KEY = 'squall.settings';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -28,8 +28,8 @@ const ICON = {
   app: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h6v6H9z"/></svg>'
 };
 
-const STORM_APPS = [
-  { name: 'Files', sub: 'stormui', icon: 'files', cmd: 'stormui --app files' },
+const SQUALL_APPS = [
+  { name: 'Files', sub: 'squall', icon: 'files', cmd: 'squall --app files' },
   { name: 'Terminal', sub: 'xfce4', icon: 'terminal', cmd: 'xfce4-terminal' }
 ];
 
@@ -141,7 +141,7 @@ function appCategory(app) {
 
 function allApps() {
   return [
-    ...STORM_APPS.map((a) => ({ ...a, category: 'system', categories: [], new: false })),
+    ...SQUALL_APPS.map((a) => ({ ...a, category: 'system', categories: [], new: false })),
     ...state.apps.map((a) => ({
       id: a.id || a.name,
       name: a.name,
@@ -246,11 +246,11 @@ $('#grid').addEventListener('keydown', (e) => {
 
 /* ── dock ─────────────────────────────────────────────────────────────── */
 const DOCK = [
-  { name: 'Files', icon: 'files', cmd: 'stormui --app files' },
+  { name: 'Files', icon: 'files', cmd: 'squall --app files' },
   { name: 'Terminal', icon: 'terminal', cmd: 'xfce4-terminal' },
   { name: 'Browser', icon: 'browser', cmd: 'firefox' },
-  { name: 'Settings', icon: 'settings', cmd: 'stormui --app settings' },
-  { name: 'Software', icon: 'software', cmd: 'stormui --app software' }
+  { name: 'Settings', icon: 'settings', cmd: 'squall --app settings' },
+  { name: 'Software', icon: 'software', cmd: 'squall --app software' }
 ];
 
 function renderDock() {
@@ -583,7 +583,7 @@ async function refreshAll() {
   $('#stateDot').classList.toggle('warn', offline);
   if (offline && Date.now() - lastFailure > 30000) {
     lastFailure = Date.now();
-    toast('stormd is not responding — retrying', 'warn');
+    toast('squalld is not responding — retrying', 'warn');
   }
 }
 

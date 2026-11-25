@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# xfce-minimize.sh — strip Xfce down to the substrate Storm still needs.
+# xfce-minimize.sh — strip Xfce down to the substrate Squall still needs.
 #
-# Storm already replaces: panel, taskbar/dock, desktop, launcher/app finder,
+# Squall already replaces: panel, taskbar/dock, desktop, launcher/app finder,
 # file manager, settings hub, tray applets, power-menu UI. This masks the Xfce
 # components that would otherwise start or draw, and leaves the four pieces we
 # cannot replace yet: xfwm4, xfsettingsd, xfconf, xfce4-notifyd.
@@ -25,7 +25,7 @@ for arg in "$@"; do
 done
 
 AUTOSTART="$HOME/.config/autostart"
-STATE_DIR="$HOME/.config/storm"
+STATE_DIR="$HOME/.config/squall"
 STATE="$STATE_DIR/xfce-masked.txt"
 PATTERNS='xfce4-panel|xfdesktop|xfce4-power-manager|xfce4-clipman|blueman|nm-applet|xfce4-appfinder'
 
@@ -42,13 +42,13 @@ apply() {
         if [ "$DRY" = 1 ]; then
             say "[dry-run] mask $base"
         else
-            printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\nX-Storm-Masked=true\n' \
+            printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\nX-Squall-Masked=true\n' \
                 "$base" > "$AUTOSTART/$base"
             say "masked $base"
         fi
     done
 
-    # xfwm4 stays, but Storm draws the decoration/theme it should match
+    # xfwm4 stays, but Squall draws the decoration/theme it should match
     if command -v xfconf-query >/dev/null 2>&1; then
         for kv in \
             "xfwm4 /general/use_compositing bool true" \
@@ -67,7 +67,7 @@ apply() {
 
     say "kept: xfwm4 (WM/compositor), xfsettingsd (XSETTINGS), xfconf, xfce4-notifyd"
     say "masked components are listed in $STATE"
-    say "log out and back in — or start the Storm session instead"
+    say "log out and back in — or start the Squall session instead"
 }
 
 restore() {
