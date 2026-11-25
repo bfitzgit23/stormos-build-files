@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Launch the StormOS installer in the live session.
+# Privileges are required for partitioning, mount and chroot; use pkexec when
+# invoked from the live desktop as `liveuser`.
+set -Eeuo pipefail
+
+PORT=9877
+BASE=/usr/lib/stormos-installer
+LOG=/var/log/stormos-installer.log
+URL="http://127.0.0.1:${PORT}/"
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  exec pkexec /usr/bin/stormos-installer "$@"
+fi
+
+ready() {
+  curl -sf --max-time 1 "${URL}api/health" >/dev/null 2>&1
+}
+
+if ! ready; then
+  nohup python3 "$BASE/backend/installerd.py" --port "$PORT" >>"$LOG" 2>&1 &
+  for _ in $(seq 1 50); do
+    ready && break
+    sleep 0.1
+  done
+fi
+
+if ! ready; then
+  echo "StormOS installer backend failed to start; see $LOG" >&2
+  exit 1
+fi
+
+if ! command -v electron >/dev/null 2>&1; then
+  echo "electron is required for the StormOS installer GUI" >&2
+  exit 1
+fi
+
+export STORMOS_INSTALLER_URL="$URL"
+exec electron "$BASE/electron-main.js"

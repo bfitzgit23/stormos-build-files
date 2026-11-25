@@ -1,0 +1,29 @@
+# StormOS dialog theme - glass palette shared with the Welcome app
+# Used by the ABIF installer (stormos-abif exports DIALOGRC to this file).
+use_shadow = OFF
+use_colors = ON
+
+screen_color = (CYAN,BLUE,ON)
+dialog_color = (WHITE,BLUE,ON)
+title_color = (CYAN,BLUE,ON)
+border_color = (CYAN,BLUE,ON)
+button_color = (BLACK,CYAN,ON)
+button_active_color = (BLACK,WHITE,ON)
+button_inactive_color = (WHITE,BLUE,OFF)
+button_key_color = (YELLOW,CYAN,ON)
+button_label_color = (BLACK,CYAN,ON)
+inputbox_color = (WHITE,BLUE,ON)
+inputbox_border_color = (CYAN,BLUE,ON)
+searchbox_color = (WHITE,BLUE,ON)
+searchbox_title_color = (CYAN,BLUE,ON)
+searchbox_border_color = (CYAN,BLUE,ON)
+item_color = (WHITE,BLUE,ON)
+item_selected_color = (BLACK,CYAN,ON)
+tag_color = (WHITE,BLUE,ON)
+tag_selected_color = (BLACK,CYAN,ON)
+tag_key_color = (YELLOW,BLUE,ON)
+tag_key_selected_color = (YELLOW,CYAN,ON)
+check_color = (WHITE,BLUE,ON)
+check_selected_color = (BLACK,CYAN,ON)
+uarrow_color = (GREEN,BLUE,ON)
+darrow_color = (GREEN,BLUE,ON)

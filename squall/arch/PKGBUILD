@@ -1,0 +1,52 @@
+# Maintainer: StormOS Dev
+pkgname=stormui-git
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="StormOS desktop shell and apps over a minimal Xfce substrate"
+arch=('x86_64')
+url="https://github.com/stormos"
+license=('GPL3')
+depends=('python' 'electron' 'xfwm4' 'xfce4-settings' 'xfconf' 'xfce4-notifyd')
+optdepends=('xfce4-terminal: interim terminal until Storm Terminal'
+            'lightdm: session login'
+            'polkit-gnome: authentication agent in the Storm session (pkexec prompts)'
+            'brightnessctl: panel and keyboard backlight control'
+            'power-profiles-daemon: battery power profiles'
+            'envycontrol: switchable graphics on hybrid laptops'
+            'cpupower: CPU governor changes without direct sysfs access'
+            'pciutils: GPU detection (lspci)')
+provides=('stormui')
+conflicts=('stormui')
+source=()
+md5sums=()
+
+package() {
+  local d="$srcdir/../.."   # repo root when built from stormUI/arch
+  local lib="$pkgdir/usr/lib/stormui"
+
+  install -dm755 "$lib/frontend" "$lib/apps" "$lib/backend" "$pkgdir/usr/bin" \
+                 "$pkgdir/usr/share/xsessions"
+
+  # shell
+  install -Dm644 "$d/main.js"        "$lib/main.js"
+  install -Dm644 "$d/package.json"   "$lib/package.json"
+  install -Dm644 "$d/frontend/index.html"  "$lib/frontend/index.html"
+  install -Dm644 "$d/frontend/styles.css"  "$lib/frontend/styles.css"
+  install -Dm644 "$d/frontend/renderer.js" "$lib/frontend/renderer.js"
+
+  # apps
+  install -Dm644 "$d/apps/files.html" "$lib/apps/files.html"
+
+  # system bridge
+  install -Dm755 "$d/backend/stormd.py" "$lib/backend/stormd.py"
+
+  # launchers
+  printf '#!/bin/sh\nexec electron /usr/lib/stormui "$@"\n' > "$pkgdir/usr/bin/stormui"
+  chmod 755 "$pkgdir/usr/bin/stormui"
+
+  install -Dm755 "$d/session/storm-session" "$pkgdir/usr/bin/storm-session"
+  install -Dm755 "$d/session/storm-key" "$pkgdir/usr/bin/storm-key"
+  # optional systemd user unit (never enabled automatically)
+  install -Dm644 "$d/session/stormd.service" "$pkgdir/usr/lib/systemd/user/stormd.service"
+  install -Dm644 "$d/session/storm.desktop" "$pkgdir/usr/share/xsessions/storm.desktop"
+}

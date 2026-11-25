@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'install-stormos-xfce/**'
+      - 'install-stormos/**'
       - '.github/workflows/build-arch.yml'
   workflow_dispatch:
     inputs:
@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # install-stormos-xfce is a complete archiso profile (profiledef.sh,
+      # install-stormos is a complete archiso profile (profiledef.sh,
       # packages.x86_64, pacman.conf, airootfs/ and the grub/syslinux/efiboot
       # configs), so it is built as-is. Do not stage a copy of archiso's releng
       # profile: that produced an overlay missing profiledef.sh and lost the
@@ -47,7 +47,7 @@ jobs:
             bash -ec '
               pacman -Sy --noconfirm archlinux-keyring
               pacman -Syu --noconfirm archiso grub syslinux
-              cd install-stormos-xfce
+              cd install-stormos
               ./build.sh -v -w ./work -o ./out
               ISO=$(ls -1 out/*.iso | head -1)
               VERSION=$(date -u +%Y%m%d)
@@ -61,8 +61,8 @@ jobs:
         with:
           name: StormOS-Arch-ISO
           path: |
-            install-stormos-xfce/out/*.iso
-            install-stormos-xfce/out/SHA256SUMS
+            install-stormos/out/*.iso
+            install-stormos/out/SHA256SUMS
           retention-days: 30
           if-no-files-found: error
 
@@ -75,8 +75,8 @@ jobs:
           tag_name: arch-${{ github.run_number }}
           name: StormOS Arch ${{ github.run_number }}
           files: |
-            install-stormos-xfce/out/*.iso
-            install-stormos-xfce/out/SHA256SUMS
+            install-stormos/out/*.iso
+            install-stormos/out/SHA256SUMS
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

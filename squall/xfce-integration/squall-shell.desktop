@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Storm Shell
+Comment=StormOS shell inside an existing Xfce session
+Exec=stormui
+Icon=storm-shell
+Terminal=false
+Categories=System;
+X-GNOME-Autostart-enabled=true

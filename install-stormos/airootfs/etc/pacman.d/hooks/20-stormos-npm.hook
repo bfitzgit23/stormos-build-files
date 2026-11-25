@@ -1,0 +1,14 @@
+# remove from airootfs!
+# Build-time only: installs the AetherDE gateway node_modules into the image.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = StormOS: installing AetherDE gateway dependencies...
+When = PostTransaction
+Depends = bash
+Depends = npm
+Exec = /bin/bash /usr/local/sbin/stormos-build-npm

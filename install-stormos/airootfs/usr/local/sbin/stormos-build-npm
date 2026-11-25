@@ -1,0 +1,25 @@
+#!/bin/bash
+# Install Node dependencies for the AetherDE gateway at ISO build time.
+# Called from a pacman hook; the marker keeps it to one run per build.
+
+set -u
+marker=/var/lib/stormos-build-npm.done
+[ -e "$marker" ] && exit 0
+
+log=/var/log/stormos-build-npm.log
+: > "$log"
+echo "=== StormOS npm setup $(date) ===" >> "$log"
+
+if [ -d /usr/lib/aether-de/gateway ]; then
+    if [ ! -d /usr/lib/aether-de/gateway/node_modules ]; then
+        echo "npm install: AetherDE gateway" >> "$log"
+        (cd /usr/lib/aether-de/gateway \
+            && npm install --omit=dev --no-audit --no-fund) >> "$log" 2>&1 \
+            || echo "WARNING: AetherDE npm install failed; the session retries at login" >> "$log"
+    fi
+fi
+
+# The installer GUI uses the system electron package and needs no npm install.
+echo "StormOS npm setup complete" >> "$log"
+mkdir -p "$(dirname "$marker")"
+touch "$marker"

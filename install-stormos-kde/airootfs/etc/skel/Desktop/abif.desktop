@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=Install StormOS (CLI)
-Comment=Command Line Installer For StormOS
-Exec=konsole -p tabtitle=StormOS-Installer-CLI -e sudo /usr/local/bin/stormos-abif
-Icon=utilities-terminal
-Type=Application
-Categories=System;

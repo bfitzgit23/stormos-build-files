@@ -1,0 +1,15 @@
+# remove from airootfs!
+# Build-time only: configures the live user, services and daemon defaults.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = StormOS: applying live environment configuration...
+When = PostTransaction
+Depends = bash
+Depends = shadow
+Depends = systemd
+Exec = /bin/bash /usr/local/sbin/stormos-build-setup

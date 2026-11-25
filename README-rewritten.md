@@ -26,6 +26,6 @@ You're free to do that but I will NOT provide support for that whatsoever.
 ## List of folders 
 
 
-- install-stormos-xfce
+- install-stormos
 
 

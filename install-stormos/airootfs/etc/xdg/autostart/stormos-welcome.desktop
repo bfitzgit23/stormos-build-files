@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=StormOS Welcome
+Comment=StormOS Welcome Application
+Exec=/usr/local/bin/stormos-welcome
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-after=panel
