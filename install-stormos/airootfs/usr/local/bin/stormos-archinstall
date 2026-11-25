@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# StormOS archinstall launcher — runs the bundled custom installer profile.
+set -Eeuo pipefail
+CONFIG=/usr/local/share/stormos-archinstall/stomros.json
+if [[ ! -f "$CONFIG" ]]; then
+  echo "stormos-archinstall: missing $CONFIG" >&2
+  exit 1
+fi
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "stormos-archinstall: must run as root" >&2
+  exit 1
+fi
+exec archinstall --config "$CONFIG" "$@"

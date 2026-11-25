@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=StormOS Installer (archinstall)
+Comment=Install StormOS with the bundled archinstall profile
+Exec=xfce4-terminal --disable-server --title "StormOS Installer (archinstall)" -x sudo /usr/local/bin/stormos-archinstall
+Icon=system-software-install
+Categories=System;
+Terminal=false
+StartupNotify=true
