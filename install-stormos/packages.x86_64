@@ -151,13 +151,15 @@ blueman
 networkmanager
 network-manager-applet
 # pamac GUI is provided by pamac-all below
-# ---- StormUI desktop (new build) ----
-# Storm substrate — replaces the xfce4 group; StormUI draws the desktop.
-xfwm4
-xfce4-settings
-xfconf
-xfce4-notifyd
+xfce4
+xfce4-goodies
 xfce4-terminal
+# ---- KDE Plasma desktop (second session, picked at the greeter) ----
+plasma-meta
+dolphin
+konsole
+kate
+ark
 firefox
 wmctrl
 calamares-app
@@ -253,6 +255,7 @@ pamac-all
 base-devel
 git
 rust
+xfce4-docklike-plugin
 vlc
 yaml-cpp
 python-flask
