@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=StormOS Installer (CLI)
+Comment=Command Line Installer For StormOS
+Exec=konsole -p tabtitle=StormOS-Installer-CLI -e sudo /usr/local/bin/stormos-abif
+Icon=utilities-terminal
+Type=Application
+Categories=System;SystemUtils;
+Terminal=false
+Hidden=false
+NoDisplay=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=false
+X-KDE-autostart=false

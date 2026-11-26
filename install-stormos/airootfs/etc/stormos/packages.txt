@@ -150,11 +150,8 @@ blueman
 networkmanager
 network-manager-applet
 #pamac
-# Storm substrate — replaces the xfce4 group; StormUI draws the desktop.
-xfwm4
-xfce4-settings
-xfconf
-xfce4-notifyd
+xfce4
+xfce4-goodies
 xfce4-terminal
 firefox
 wmctrl
@@ -237,6 +234,7 @@ vulkan-intel
 ffmpeg
 yay
 #pamac-all
+xfce4-docklike-plugin
 nodejs
 npm
 electron

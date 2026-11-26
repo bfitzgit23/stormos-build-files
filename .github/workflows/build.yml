@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [ install-stormos ]
+        profile: [ install-stormos, install-stormos-kde ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

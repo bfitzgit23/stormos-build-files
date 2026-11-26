@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'install-stormos/**'
+      - 'install-stormos-kde/**'
       - '.github/workflows/build-arch.yml'
   workflow_dispatch:
     inputs:
@@ -25,6 +26,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [ install-stormos, install-stormos-kde ]
 
     steps:
       - name: Checkout
@@ -47,7 +52,7 @@ jobs:
             bash -ec '
               pacman -Sy --noconfirm archlinux-keyring
               pacman -Syu --noconfirm archiso grub syslinux
-              cd install-stormos
+              cd "${{ matrix.profile }}"
               bash ./build.sh -v -w ./work -o ./out
               ISO=$(ls -1 out/*.iso | head -1)
               VERSION=$(date -u +%Y%m%d)
@@ -59,10 +64,10 @@ jobs:
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StormOS-Arch-ISO
+          name: ${{ matrix.profile }}-iso
           path: |
-            install-stormos/out/*.iso
-            install-stormos/out/SHA256SUMS
+            ${{ matrix.profile }}/out/*.iso
+            ${{ matrix.profile }}/out/SHA256SUMS
           retention-days: 30
           if-no-files-found: error
 
@@ -75,8 +80,8 @@ jobs:
           tag_name: arch-${{ github.run_number }}
           name: StormOS Arch ${{ github.run_number }}
           files: |
-            install-stormos/out/*.iso
-            install-stormos/out/SHA256SUMS
+            ${{ matrix.profile }}/out/*.iso
+            ${{ matrix.profile }}/out/SHA256SUMS
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

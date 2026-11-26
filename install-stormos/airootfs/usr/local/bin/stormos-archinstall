@@ -1,33 +1,97 @@
 #!/usr/bin/env bash
-# StormOS archinstall launcher — runs the bundled custom installer profile.
+# StormOS archinstall launcher — installs with the bundled archinstall profile.
+#
+# stomros.json is a complete archinstall 4.5 configuration except for the disk:
+# which device to erase cannot live in a shipped file, so this launcher asks
+# (or takes --disk /dev/sdX) and rewrites disk_config for that device, growing /
+# to fill it. The resolved copy is written to /run (tmpfs) and never persisted.
 set -Eeuo pipefail
+
 CONFIG=/usr/local/share/stormos-archinstall/stomros.json
-if [[ ! -f "$CONFIG" ]]; then
-  echo "stormos-archinstall: missing $CONFIG" >&2
+RESOLVED=/run/stormos-archinstall.json
+
+die() {
+  echo "stormos-archinstall: $*" >&2
   exit 1
-fi
-if [[ "$(id -u)" -ne 0 ]]; then
-  echo "stormos-archinstall: must run as root" >&2
-  exit 1
+}
+
+[[ "$(id -u)" -eq 0 ]] || die "must run as root"
+[[ -f "$CONFIG" ]] || die "missing $CONFIG"
+
+disk=""
+if [[ "${1:-}" == "--disk" || "${1:-}" == "-d" ]]; then
+  [[ $# -ge 2 ]] || die "usage: stormos-archinstall [--disk /dev/sdX]"
+  disk=$2
+  shift 2
 fi
 
-# archinstall only accepts its own config schema (config_version + disk_config).
-# The bundled profile uses its own keys, and handing archinstall an unknown JSON
-# aborts it with a traceback, so check the schema first and fall back to the
-# guided menu rather than leaving the user with a dead installer.
-if python3 - "$CONFIG" <<'PY'
-import json, sys
-try:
-    data = json.load(open(sys.argv[1], encoding="utf-8"))
-except Exception:
-    sys.exit(1)
-ok = isinstance(data, dict) and "config_version" in data and "disk_config" in data
-sys.exit(0 if ok else 1)
+if [[ -z "$disk" ]]; then
+  names=()
+  labels=()
+  while read -r name size type rm; do
+    [[ "$type" == "disk" ]] || continue
+    [[ "$rm" == "0" ]] || continue
+    case "$name" in loop* | zram* | ram* | sr*) continue ;; esac
+    names+=("/dev/$name")
+    labels+=("$(printf '%-14s %s GiB' "/dev/$name" "$((size / 1073741824))")")
+  done < <(lsblk -dbnno NAME,SIZE,TYPE,RM 2>/dev/null || true)
+
+  ((${#names[@]})) || die "no installable disk found"
+  if ((${#names[@]} == 1)); then
+    disk=${names[0]}
+  else
+    echo "Which disk should StormOS be installed to?" >&2
+    printf '%s\n' "${labels[@]}" | nl -w2 -s') ' >&2
+    index=""
+    while [[ -z "$index" ]]; do
+      read -rp "Disk number (1-${#names[@]}): " answer || die "no disk selected"
+      [[ "$answer" =~ ^[0-9]+$ ]] || continue
+      ((answer >= 1 && answer <= ${#names[@]})) || continue
+      index=$answer
+    done
+    disk=${names[$((index - 1))]}
+  fi
+fi
+
+[[ -b "$disk" ]] || die "$disk is not a block device"
+
+bytes=$(blockdev --getsize64 "$disk" 2>/dev/null || lsblk -bnro SIZE "$disk")
+root_mib=$((bytes / 1048576 - 513)) # 1 MiB alignment + 512 MiB /boot
+((root_mib >= 8192)) || die "$disk is too small for StormOS (needs about 9 GiB)"
+
+python3 - "$CONFIG" "$RESOLVED" "$disk" "$root_mib" <<'PY'
+import json
+import sys
+
+src, dst, device, root_mib = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+
+with open(src, encoding="utf-8") as fh:
+    config = json.load(fh)
+
+mods = (config.get("disk_config") or {}).get("device_modifications") or []
+if not mods:
+    sys.exit(f"{src}: disk_config.device_modifications is empty")
+
+mods[0]["device"] = device
+mods[0]["wipe"] = True
+
+for part in mods[0].get("partitions", []):
+    if part.get("mountpoint") == "/":
+        part["size"]["value"] = root_mib
+        break
+else:
+    sys.exit(f"{src}: no / partition in disk_config")
+
+with open(dst, "w", encoding="utf-8") as fh:
+    json.dump(config, fh, indent=2)
+    fh.write("\n")
+
+print(f"StormOS: installing to {device}, root {root_mib} MiB")
 PY
-then
-  exec archinstall --config "$CONFIG" "$@"
-fi
 
-echo "stormos-archinstall: $CONFIG is not in archinstall's config format;" >&2
-echo "  starting archinstall's guided installer instead." >&2
-exec archinstall "$@"
+chmod 600 "$RESOLVED"
+
+echo
+echo "  !! Everything on $disk will be erased."
+echo
+exec archinstall --config "$RESOLVED" "$@"

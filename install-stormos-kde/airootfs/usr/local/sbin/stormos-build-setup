@@ -1,0 +1,116 @@
+#!/bin/bash
+# StormOS KDE build-time setup. Called from a pacman hook during ISO
+# construction; this is the supported replacement for the deprecated
+# customize_airootfs.sh. Everything here is idempotent and guarded, so a
+# missing optional unit or package can never abort the build.
+
+set -u
+marker=/var/lib/stormos-build-setup.done
+[ -e "$marker" ] && exit 0
+
+exec >>/var/log/stormos-build-setup.log 2>&1
+echo "=== StormOS KDE build setup $(date) ==="
+umask 022
+
+# ------------------------------------------------------------- calamares entry
+# calamares-app ships its own XDG autostart entry (and a liveuser desktop
+# icon); pacman's NoExtract keeps them out, this is just insurance.
+rm -f /etc/xdg/autostart/calamares.desktop /home/liveuser/Desktop/calamares.desktop
+
+# ------------------------------------------------------------------- locale/tz
+sed -i 's/#\(en_US\.UTF-8\)/\1/' /etc/locale.gen 2>/dev/null || true
+locale-gen 2>/dev/null || true
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime 2>/dev/null || true
+
+# ---------------------------------------------------------------- root account
+passwd -d root 2>/dev/null || true
+usermod -s /bin/bash root 2>/dev/null || true
+if [ -d /etc/skel ]; then
+    cp -aT /etc/skel/ /root/ 2>/dev/null || true
+fi
+chmod 750 /root 2>/dev/null || true
+
+# ------------------------------------------------------------------- live user
+# /etc/passwd ships the account; make sure it can actually log in and own a home.
+if ! id -u liveuser >/dev/null 2>&1; then
+    useradd -m -g users -G wheel liveuser 2>/dev/null || true
+fi
+install -d -m 700 -o liveuser -g liveuser /home/liveuser 2>/dev/null || true
+if [ -d /etc/skel ]; then
+    cp -aT /etc/skel/ /home/liveuser/ 2>/dev/null || true
+fi
+chown -R liveuser:liveuser /home/liveuser 2>/dev/null || true
+passwd -d liveuser 2>/dev/null || true
+
+for group in autologin nopasswdlogin adm audio floppy log network rfkill \
+             scanner storage optical power wheel; do
+    getent group "$group" >/dev/null 2>&1 || groupadd -r "$group" 2>/dev/null || true
+    gpasswd -a liveuser "$group" 2>/dev/null || true
+done
+grep -q '^liveuser' /etc/sudoers 2>/dev/null \
+    || printf 'liveuser ALL=(ALL) ALL\n' >> /etc/sudoers
+
+# --------------------------------------------------------------- enable services
+# lightdm is what brings the Plasma session up on live media; the session
+# itself is selected in /etc/lightdm/lightdm.conf. pacman-init/choose-mirror
+# are already enabled inside airootfs, so they are deliberately not listed.
+for unit in thermald.service haveged.service NetworkManager.service \
+            sshd.service bluetooth.service cups.service lightdm.service \
+            clamav-freshclam.service clamav-daemon.service; do
+    systemctl enable "$unit" 2>/dev/null || true
+done
+systemctl set-default graphical.target 2>/dev/null || true
+
+# sudoers permissions
+chmod 750 /etc/sudoers.d 2>/dev/null || true
+chmod 440 /etc/sudoers.d/g_wheel 2>/dev/null || true
+chown root:root /etc/sudoers.d 2>/dev/null || true
+chown root:root /etc/sudoers.d/g_wheel 2>/dev/null || true
+chmod 755 / 2>/dev/null || true
+
+# ----------------------------------------------------------- daemon hardening
+sed -i 's/#\(PermitRootLogin \).\+/\1yes/' /etc/ssh/sshd_config 2>/dev/null || true
+sed -i "s/#Server/Server/g" /etc/pacman.d/mirrorlist 2>/dev/null || true
+sed -i 's/#\(Storage=\)auto/\1volatile/' /etc/systemd/journald.conf 2>/dev/null || true
+sed -i 's/#\(HandleSuspendKey=\)suspend/\1ignore/' /etc/systemd/logind.conf 2>/dev/null || true
+sed -i 's/#\(HandleHibernateKey=\)hibernate/\1ignore/' /etc/systemd/logind.conf 2>/dev/null || true
+sed -i 's/#\(HandleLidSwitch=\)suspend/\1ignore/' /etc/systemd/logind.conf 2>/dev/null || true
+
+# NetworkManager: wifi scanning breaks with MAC randomisation on some cards
+if [ -f /etc/NetworkManager/NetworkManager.conf ] \
+   && ! grep -q 'wifi.scan-rand-mac-address' /etc/NetworkManager/NetworkManager.conf; then
+    printf '\n[device]\nwifi.scan-rand-mac-address=no\n' >> /etc/NetworkManager/NetworkManager.conf
+fi
+
+# ---------------------------------------------------------------- pacman keyring
+pacman-key --init 2>/dev/null || true
+pacman-key --populate 2>/dev/null || true
+
+xdg-user-dirs-update --force 2>/dev/null || true
+chown -R liveuser:liveuser /tmp 2>/dev/null || true
+
+# ------------------------------------------------------------------ plymouth
+plymouth-set-default-theme stormos 2>/dev/null || true
+
+# live GRUB theme already lives in airootfs at /usr/share/grub/themes/stormos
+echo "GRUB_THEME=/usr/share/grub/themes/stormos/theme.txt" > /etc/default/grub 2>/dev/null || true
+
+# userdb credentials are pointless (and noisy) on live media
+systemctl disable --now systemd-userdb-load-credentials.service \
+    systemd-userdbd.service systemd-userdbd.socket 2>/dev/null || true
+systemctl mask systemd-userdb-load-credentials.service \
+    systemd-userdbd.service systemd-userdbd.socket 2>/dev/null || true
+
+# ------------------------------------------------- libyaml-cpp ABI compatibility
+if [ ! -e /usr/lib/libyaml-cpp.so.0.8 ]; then
+    for lib in /usr/lib/libyaml-cpp.so.0.7 /usr/lib/libyaml-cpp.so.0.6 /usr/lib/libyaml-cpp.so*; do
+        if [ -f "$lib" ] && [[ "$lib" != *".0.8"* ]]; then
+            ln -sf "$lib" /usr/lib/libyaml-cpp.so.0.8
+            break
+        fi
+    done
+fi
+
+echo "StormOS KDE build setup complete"
+mkdir -p "$(dirname "$marker")"
+touch "$marker"

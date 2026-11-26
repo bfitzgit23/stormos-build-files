@@ -1,0 +1,16 @@
+# remove from airootfs!
+# Build-time only: configures the live user, services, display manager and
+# daemon defaults. This is the non-customize_airootfs.sh path.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = StormOS KDE: applying live environment configuration...
+When = PostTransaction
+Depends = bash
+Depends = shadow
+Depends = systemd
+Exec = /bin/bash /usr/local/sbin/stormos-build-setup
