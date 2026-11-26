@@ -245,10 +245,9 @@ vulkan-intel
 ffmpeg
 yay-bin
 pamac-all
-# ---- CyberXero Toolkit build dependencies ----
+# ---- AUR build tools (yay-bin, pamac-all) ----
 base-devel
 git
-rust
 xfce4-docklike-plugin
 vlc
 yaml-cpp
