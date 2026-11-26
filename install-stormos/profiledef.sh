@@ -38,7 +38,6 @@ file_permissions=(
   ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
   ["/etc/skel/Desktop/abif.desktop"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
-  ["/usr/local/bin/aetherde-postinstall.sh"]="0:0:755"
   ["/usr/bin/aether-session"]="0:0:755"
   ["/usr/bin/aether-de"]="0:0:755"
   ["/usr/bin/aether-xinit"]="0:0:755"

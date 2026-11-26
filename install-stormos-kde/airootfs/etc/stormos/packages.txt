@@ -154,7 +154,6 @@ dolphin
 firefox
 wmctrl
 calamares-app
-calamares-config-xfce
 pyqt5
 qt5ct
 spice-vdagent

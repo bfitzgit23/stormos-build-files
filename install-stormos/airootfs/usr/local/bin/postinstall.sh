@@ -142,6 +142,20 @@ if [ -d "$TARGET_ROOT/etc/systemd/system/multi-user.target.wants" ] || [ -d "$TA
     echo "✓ NetworkManager enabled"
 fi
 
+# === DISPLAY MANAGER ===
+# unpackfs copies the live /etc/lightdm/lightdm.conf into the target, and that
+# file autologins as the live media user, who does not exist on the installed
+# system: LightDM would sit waiting on an account that can never log in instead
+# of showing the greeter. Comment out only the live autologin; the session
+# choice (user-session / autologin-session) and any autologin the Users step
+# configured for the real account stay as they are.
+show_progress "Cleaning the live autologin out of LightDM..."
+for lightdm_conf in "$TARGET_ROOT/etc/lightdm/lightdm.conf" "$TARGET_ROOT"/etc/lightdm/lightdm.conf.d/*.conf; do
+    [ -f "$lightdm_conf" ] || continue
+    sed -i -E 's/^[#[:space:]]*autologin-user[[:space:]]*=[[:space:]]*liveuser[[:space:]]*$/#autologin-user=/' "$lightdm_conf"
+done
+echo "✓ Live autologin cleared"
+
 echo ""
 echo "=================================================="
 echo "StormOS setup COMPLETE"

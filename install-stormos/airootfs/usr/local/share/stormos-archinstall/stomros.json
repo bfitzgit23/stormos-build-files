@@ -131,12 +131,11 @@
     "pciutils",
     "lightdm",
     "lightdm-slick-greeter",
+    "xfce4",
+    "xfce4-goodies",
+    "xfce4-terminal",
     "xorg-server",
     "plymouth",
-    "xfwm4",
-    "xfce4-settings",
-    "xfconf",
-    "xfce4-notifyd",
     "electron",
     "python",
     "firefox",
@@ -167,8 +166,8 @@
   "timezone": "UTC",
   "custom_commands": [
     "systemctl set-default graphical.target\n",
-    "if id -u storm >/dev/null 2>&1 && [ -f /etc/lightdm/lightdm.conf ]; then\n  sed -i 's/^#\\?autologin-user=.*/autologin-user=storm/' /etc/lightdm/lightdm.conf\nfi\n",
-    "if [ -f /usr/share/xsessions/storm.desktop ] && [ -f /etc/lightdm/lightdm.conf ]; then\n  sed -i 's/^#\\?autologin-session=.*/autologin-session=storm/' /etc/lightdm/lightdm.conf\nfi\n",
+    "if id -u storm >/dev/null 2>&1 && [ -f /etc/lightdm/lightdm.conf ]; then\n  groupadd -f autologin 2>/dev/null || true\n  usermod -aG autologin storm 2>/dev/null || true\n  sed -i 's/^#*autologin-user=.*/autologin-user=storm/' /etc/lightdm/lightdm.conf\nfi\n",
+    "if [ -f /usr/share/xsessions/xfce.desktop ] && [ -f /etc/lightdm/lightdm.conf ]; then\n  sed -i 's/^#*user-session=.*/user-session=xfce/' /etc/lightdm/lightdm.conf\n  sed -i 's/^#*autologin-session=.*/autologin-session=xfce/' /etc/lightdm/lightdm.conf\nfi\n",
     "if [ -d /etc/lightdm ]; then\n  printf '[Greeter]\\nshow-clock=true\\nclock-format=%%H:%%M\\nfont-name=Inter 10\\n' > /etc/lightdm/slick-greeter.conf\nfi\n"
   ]
 }
