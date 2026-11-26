@@ -28,6 +28,16 @@ grep -q '^liveuser' /etc/sudoers 2>/dev/null \
     || printf 'liveuser ALL=(ALL) ALL\n' >> /etc/sudoers
 chage -E -1 lightdm 2>/dev/null || true
 
+# The account ships in /etc/passwd, but the home directory has to exist before
+# lightdm autologins into it, and an empty password keeps the live medium
+# passwordless the way archiso expects.
+install -d -m 700 -o liveuser -g liveuser /home/liveuser 2>/dev/null || true
+if [ -d /etc/skel ]; then
+    cp -aT /etc/skel/. /home/liveuser/ 2>/dev/null || true
+fi
+chown -R liveuser:liveuser /home/liveuser 2>/dev/null || true
+passwd -d liveuser 2>/dev/null || true
+
 # ------------------------------------------------------------------- timezone
 ln -sf /usr/share/zoneinfo/UTC /etc/localtime 2>/dev/null || true
 

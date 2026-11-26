@@ -1,0 +1,75 @@
+#!/bin/bash
+# StormOS KDE build-time setup. Called from a pacman hook during ISO
+# construction; this is the supported replacement for the deprecated
+# customize_airootfs.sh. Every action is idempotent so re-running a
+# transaction is harmless.
+
+set -u
+marker=/var/lib/stormos-build-setup.done
+[ -e "$marker" ] && exit 0
+
+exec >>/var/log/stormos-build-setup.log 2>&1
+echo "=== StormOS KDE build setup $(date) ==="
+
+# ---------------------------------------------------------------- root account
+passwd -d root 2>/dev/null || true
+usermod -s /bin/bash root 2>/dev/null || true
+if [ -d /etc/skel ]; then
+    cp -aT /etc/skel/. /root/ 2>/dev/null || true
+fi
+chmod 750 /root 2>/dev/null || true
+
+# ------------------------------------------------------------------- live user
+# /etc/passwd ships the account; make sure it can actually log in and own a home.
+if ! id -u liveuser >/dev/null 2>&1; then
+    useradd -m -g users -G wheel liveuser 2>/dev/null || true
+fi
+install -d -m 700 -o liveuser -g liveuser /home/liveuser 2>/dev/null || true
+if [ -d /etc/skel ]; then
+    cp -aT /etc/skel/. /home/liveuser/ 2>/dev/null || true
+fi
+chown -R liveuser:liveuser /home/liveuser 2>/dev/null || true
+passwd -d liveuser 2>/dev/null || true
+
+for group in autologin nopasswdlogin adm audio floppy log network rfkill \
+             scanner storage optical power wheel; do
+    getent group "$group" >/dev/null 2>&1 || groupadd -r "$group" 2>/dev/null || true
+    gpasswd -a liveuser "$group" 2>/dev/null || true
+done
+grep -q '^liveuser' /etc/sudoers 2>/dev/null \
+    || printf 'liveuser ALL=(ALL) ALL\n' >> /etc/sudoers
+
+# ------------------------------------------------------------------- timezone
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime 2>/dev/null || true
+
+# --------------------------------------------------------------- enable services
+# lightdm is what brings the Plasma session up on live media; the session
+# itself is selected in /etc/lightdm/lightdm.conf.
+systemctl enable thermald.service NetworkManager.service lightdm.service \
+    cups.service bluetooth.service clamav-freshclam.service clamav-daemon.service \
+    2>/dev/null || true
+systemctl set-default graphical.target 2>/dev/null || true
+
+# ----------------------------------------------------------- daemon hardening
+sed -i 's/^#\(PermitRootLogin \).\+/\1yes/' /etc/ssh/sshd_config 2>/dev/null || true
+sed -i 's/^#\(Storage=\)auto/\1volatile/' /etc/systemd/journald.conf 2>/dev/null || true
+for key in HandleSuspendKey HandleHibernateKey HandleLidSwitch; do
+    sed -i "s/^#\($key=\).*/\1ignore/" /etc/systemd/logind.conf 2>/dev/null || true
+done
+
+# ------------------------------------------------------------------ plymouth
+plymouth-set-default-theme stormos 2>/dev/null || true
+
+# ------------------------------------------------- libyaml-cpp ABI compatibility
+if [ ! -e /usr/lib/libyaml-cpp.so.0.8 ]; then
+    for lib in /usr/lib/libyaml-cpp.so.0.7 /usr/lib/libyaml-cpp.so.0.6; do
+        if [ -f "$lib" ]; then
+            ln -sf "$lib" /usr/lib/libyaml-cpp.so.0.8
+            break
+        fi
+    done
+fi
+
+echo "StormOS KDE build setup complete"
+mkdir -p "$(dirname "$marker")"
+touch "$marker"
