@@ -155,11 +155,21 @@ xfce4
 xfce4-goodies
 xfce4-terminal
 # ---- KDE Plasma desktop (second session, picked at the greeter) ----
+# Set mirrored from the stormos-kde-backup-20261124 profile.
 plasma-meta
 dolphin
 konsole
-kate
-ark
+gwenview
+spectacle
+partitionmanager
+kwalletmanager
+breeze
+breeze-gtk
+ffmpegthumbs
+kdegraphics-thumbnailers
+phonon-qt6-vlc
+qt5-imageformats
+qt6-imageformats
 firefox
 wmctrl
 calamares-app
