@@ -246,18 +246,11 @@ lib32-vulkan-intel
 vulkan-radeon
 vulkan-intel
 ffmpeg
+# ---- AUR build tools (yay-bin, pamac-all) ----
 yay-bin
 pamac-all
 git
-rust
-pkgconf
-gtk4
-glib2
-libadwaita
-vte4
-flatpak
 base-devel
-scx-scheds
 yaml-cpp
 vlc
 python-flask
