@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-iso_name="StormOS_KDE_"
+iso_name="StormOS-KDE"
 iso_label="StormOS_KDE_Release"
 iso_publisher="StormOS_Dev"
 iso_application="StormOS KDE Install Media"
