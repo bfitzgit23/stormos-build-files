@@ -35,7 +35,6 @@ file_permissions=(
   ["/usr/local/bin/stormos-abif"]="0:0:755"
   ["/usr/local/bin/sysconfig.py"]="0:0:755"
   ["/usr/local/bin/upgrade"]="0:0:755"
-  ["/usr/local/bin/cyberxero-postinstall.sh"]="0:0:755"
   ["/etc/skel/Desktop/abif.desktop"]="0:0:755"
   ["/etc/skel/Desktop/calamares.desktop"]="0:0:755"
   ["/usr/bin/aether-session"]="0:0:755"
