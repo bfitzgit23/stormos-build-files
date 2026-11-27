@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=StormOS Wallpaper
+Comment=Apply the StormOS wallpaper to every monitor
+Exec=/usr/local/bin/stormos-wallpaper
+Terminal=false
+NoDisplay=true
+Hidden=false
+OnlyShowIn=XFCE;
+X-GNOME-Autostart-enabled=true
