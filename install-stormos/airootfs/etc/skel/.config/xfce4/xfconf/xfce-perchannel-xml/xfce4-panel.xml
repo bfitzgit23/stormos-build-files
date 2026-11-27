@@ -185,7 +185,7 @@
     <property name="plugin-1" type="string" value="whiskermenu">
       <property name="hover-switch-category" type="bool" value="true"/>
       <property name="position-search-alternate" type="bool" value="true"/>
-      <property name="button-icon" type="string" value="storm os"/>
+      <property name="button-icon" type="string" value="stormos"/>
       <property name="recent" type="array">
         <value type="string" value="xfce-ui-settings.desktop"/>
         <value type="string" value="thorium-browser.desktop"/>

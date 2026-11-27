@@ -50,4 +50,5 @@ file_permissions=(
   ["/usr/local/sbin/stormos-build-npm"]="0:0:755"
   ["/usr/local/bin/stormos-archinstall"]="0:0:755"
   ["/usr/local/share/stormos-archinstall/stomros.py"]="0:0:755"
+  ["/usr/local/bin/stormos-wallpaper"]="0:0:755"
 )
