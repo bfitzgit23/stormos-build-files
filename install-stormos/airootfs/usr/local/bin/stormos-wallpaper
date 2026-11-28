@@ -5,12 +5,15 @@
 # from the driver, e.g.
 #   /backdrop/screen0/monitoreDP-1/workspace0/last-image
 # A monitor whose name is not in the seeded config is created with the stock
-# Xfce image, so the desktop comes up with the default wallpaper instead of
-# ours.  This script runs from /etc/xdg/autostart, waits for xfdesktop to
-# publish those properties and replaces only values that are still unset or
-# still the stock Xfce default, so a wallpaper the user picked is kept.
+# Xfce image, or with no image at all, so the desktop comes up with the wrong
+# wallpaper instead of ours.  This script runs from /etc/xdg/autostart, watches
+# the properties xfdesktop publishes, and replaces only values that are still
+# unset or still the stock Xfce default, so a wallpaper the user picked is kept.
+# xfdesktop publishes those properties while it starts up and again when the
+# driver settles on a monitor, so the watch runs for a while instead of once.
 
 WALLPAPER=/usr/share/backgrounds/stormos-wallpaper.png
+[ -f "$WALLPAPER" ] || WALLPAPER=/usr/share/backgrounds/stormos-wallpaper.svg
 STOCK_DIR=/usr/share/backgrounds/xfce/
 
 [ -f "$WALLPAPER" ] || exit 0
@@ -20,36 +23,43 @@ list_images() {
     xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$'
 }
 
-apply_wallpaper() {
-    count=0
-    for prop in $(list_images); do
-        current=$(xfconf-query -c xfce4-desktop -p "$prop" 2>/dev/null)
-        case "$current" in
-            '' | "$STOCK_DIR"*)
-                if xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null; then
-                    count=$((count + 1))
-                fi
-                ;;
-        esac
-    done
-    echo "$count"
+# Prints 1 when the backdrop had to be changed, 0 when it was left alone.
+fix_backdrop() {
+    prop=$1
+    current=$(xfconf-query -c xfce4-desktop -p "$prop" 2>/dev/null)
+    case "$current" in
+        '' | "$STOCK_DIR"*) ;;
+        *) echo 0; return ;;
+    esac
+
+    if ! xfconf-query -c xfce4-desktop -p "$prop" -s "$WALLPAPER" 2>/dev/null; then
+        echo 0
+        return
+    fi
+
+    # A monitor xfdesktop has just created can carry "no image" as its style,
+    # which hides the image set above; make it zoom to fill the screen.
+    base=${prop%/last-image}
+    style=$(xfconf-query -c xfce4-desktop -p "$base/image-style" 2>/dev/null)
+    case "$style" in
+        '') xfconf-query -c xfce4-desktop -p "$base/image-style" -n -t int -s 5 2>/dev/null ;;
+        0)  xfconf-query -c xfce4-desktop -p "$base/image-style" -s 5 2>/dev/null ;;
+    esac
+
+    echo 1
 }
 
-# xfdesktop creates the per-monitor properties while it starts up.
 i=0
-while [ -z "$(list_images)" ] && [ "$i" -lt 40 ]; do
+while [ "$i" -lt 20 ]; do
+    changed=0
+    for prop in $(list_images); do
+        changed=$((changed + $(fix_backdrop "$prop")))
+    done
+    if [ "$changed" -gt 0 ]; then
+        xfdesktop --reload >/dev/null 2>&1
+    fi
+    sleep 1
     i=$((i + 1))
-    sleep 0.25
 done
-
-total=$(apply_wallpaper)
-# Give a slow video driver another moment to publish the monitor it settled on.
-sleep 2
-applied=$(apply_wallpaper)
-total=$((total + applied))
-
-if [ "$total" -gt 0 ]; then
-    xfdesktop --reload >/dev/null 2>&1
-fi
 
 exit 0
